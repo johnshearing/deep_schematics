@@ -390,9 +390,21 @@ is three levels down and the filename is lowercase on a case-sensitive filesyste
 agent must never load it. Something like `_claude_notes/webui_request_2026-08.md` removes the
 possibility entirely.
 
-**Never create a `CLAUDE.md` inside `extracted_docs/`.** That directory is meant to be byte-for-byte
-reproducible from the skill (`HowToUseThisSkill.md` §3); adding a file to it breaks that guarantee.
-All orientation belongs in `--append-system-prompt`, versioned in `prompts.py`.
+**Never create a `CLAUDE.md` inside `extracted_docs/`.** That directory is meant to be regenerable
+from the skill, and adding a hand-written file to it breaks that guarantee.
+
+The precise claim, corrected 2026-08-07: `circuit_logic.json` and `custom_kg.json` *are*
+byte-for-byte reproducible, but `geometry.json` is **not** — its geometry reproduces exactly while
+its OCR fields differ run to run, even at a fixed tesseract version. See `HowToUseThisSkill.md`
+§3.1 for the measurements. This weakens the reproducibility argument slightly without changing the
+conclusion: the directory should contain only what the pipeline emits, so that anything found there
+can be traced to a script rather than to someone's memory.
+
+There is also a second, independent reason that does not depend on reproducibility at all — a
+`CLAUDE.md` in the query `cwd` is **auto-loaded into the session**, making it an uncontrolled
+input to a public endpoint. All orientation belongs in `--append-system-prompt`, versioned in
+`prompts.py`, where it is reviewable and cannot be edited by anything the drawing directory picks
+up.
 
 Also worth doing while setting up: **`git init` at `/home/js/schematics`.** `author_circuit_logic.py`
 is the one irreplaceable, non-reproducible artifact in the project and is currently unversioned.
