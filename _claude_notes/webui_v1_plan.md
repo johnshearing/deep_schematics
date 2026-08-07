@@ -243,7 +243,7 @@ directory is worse still — see §7.
 ## 5. Shape of the code
 
 ```
-/home/js/schematics/                 ← git init here
+/home/js/schematics/                 ← git root (deep_schematics)
     server/
         pyproject.toml               fastapi, uvicorn, pydantic-settings, slowapi
         app/main.py                  app factory, StaticFiles mount at /webui
@@ -263,9 +263,12 @@ directory is worse still — see §7.
         src/components/ui/           shadcn primitives
 ```
 
-**Server env:** its own venv — `uv init` at `server/`, Python 3.12. Do **not** borrow
-`/home/js/LightRAG-Dev/.venv`: it is uv-managed for another project, has no pip, and the next
-`uv sync` there would delete anything added.
+**Server env:** its own venv — `uv init` at `server/`, Python 3.12. Do **not** borrow another
+project's environment, and that includes this project's own extraction venv at
+`/home/js/schematics/.venv`: it is Python 3.10 with `pymupdf`/`pillow`/`numpy` for the skill, a
+different interpreter version from the one specified here, and the server shares none of its
+dependencies. Any uv-managed venv belonging to another project is worse still — the next `uv sync`
+there deletes anything you added.
 
 **Frontend:** npm, not bun. LightRAG's own `vite.config.ts` documents two bugs caused by Bun/Node
 divergence. One runtime, no surprises.
@@ -384,11 +387,22 @@ envelope and the per-drawing cwd all generalise.
 
 ## 7. Two housekeeping notes
 
-**Rename `/home/js/schematics/claude.md`.** It contains stale `/home/js/LightRAG-Dev/jrs/...` paths
-and an instruction to write planning documents. It should not be discovered today — the query cwd
-is three levels down and the filename is lowercase on a case-sensitive filesystem — but a query
-agent must never load it. Something like `_claude_notes/webui_request_2026-08.md` removes the
-possibility entirely.
+**~~Rename `/home/js/schematics/claude.md`.~~ Obsolete — corrected 2026-08-07.** This note claimed
+the file contained stale `/home/js/LightRAG-Dev/jrs/...` paths and an instruction to write planning
+documents. **It no longer does.** The file was replaced and is now a five-line session request
+naming only in-project paths. Nothing in it needs removing, and it should not be described as stale.
+
+The underlying principle still holds and is the part worth keeping: **a query session must never
+load project instruction files.** Two things already enforce that, independently of this file's
+contents —
+
+- the query `cwd` is `extracted_docs/`, three levels below this file, and Claude Code does not
+  ascend to load it;
+- the name is lowercase `claude.md`, not `CLAUDE.md`, so on a case-sensitive filesystem it is not
+  auto-loaded even if it were in scope.
+
+So there is no action here. If a project instruction file ever *does* need to live where a query
+session could reach it, move it under `_claude_notes/` rather than relying on either of the above.
 
 **Never create a `CLAUDE.md` inside `extracted_docs/`.** That directory is meant to be regenerable
 from the skill, and adding a hand-written file to it breaks that guarantee.
@@ -406,8 +420,11 @@ input to a public endpoint. All orientation belongs in `--append-system-prompt`,
 `prompts.py`, where it is reviewable and cannot be edited by anything the drawing directory picks
 up.
 
-Also worth doing while setting up: **`git init` at `/home/js/schematics`.** `author_circuit_logic.py`
-is the one irreplaceable, non-reproducible artifact in the project and is currently unversioned.
+**✅ Done 2026-08-07: `git init` at `/home/js/schematics`.** The motivation was that
+`author_circuit_logic.py` is the one irreplaceable, non-reproducible artifact in the project and
+was unversioned. It is now committed and pushed to
+[`johnshearing/deep_schematics`](https://github.com/johnshearing/deep_schematics) (public, MIT for
+the code; the vendor documents in `source_docs/` are outside that grant — see the README).
 
 ---
 
