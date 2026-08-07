@@ -17,9 +17,31 @@ previous work.
     _claude_notes/                          test reports and project notes
 ```
 
-The Python virtual environment is still the LightRAG one:
-`/home/js/LightRAG-Dev/.venv`. Only `index_schematic.py` needs it (it imports `lightrag`);
-steps 1–6 need just `pymupdf`, `pillow` and the `tesseract` binary, which that venv also has.
+### Setting up the environment
+
+The skill uses its own virtual environment at `/home/js/schematics/.venv`, so it depends on
+nothing outside this project:
+
+```bash
+python3 -m venv /home/js/schematics/.venv
+source /home/js/schematics/.venv/bin/activate
+pip install pymupdf pillow numpy
+```
+
+That covers **steps 1–6**, which is the whole extraction pipeline. Label OCR additionally needs
+the `tesseract` binary from your package manager (`apt install tesseract-ocr`) — without it
+`extract.py` still produces full geometry and marks every label unread.
+
+**Only step 7 (`index_schematic.py`) needs LightRAG**, because it imports `lightrag` to inject the
+custom KG. Install it only if you are actually indexing:
+
+```bash
+pip install lightrag-hku
+```
+
+If you already have a LightRAG environment elsewhere and prefer to run step 7 from it, that works
+too — the two halves of the pipeline communicate through `custom_kg.json` on disk, not through a
+shared interpreter.
 
 ---
 
@@ -161,7 +183,7 @@ Recovered from `geometry.json` (`params` block, all defaults), `tiles/tiles.json
 the absence of a `crops/` directory.
 
 ```bash
-source /home/js/LightRAG-Dev/.venv/bin/activate
+source /home/js/schematics/.venv/bin/activate
 
 SKILL=/home/js/schematics/schematic_skills
 DWG=/home/js/schematics/schematic_extraction/PS20115MLM4-2
@@ -441,12 +463,15 @@ where the output goes. Claude then drives the scripts itself.
 
 ### Activate the virtual environment first
 
-`ModuleNotFoundError: No module named 'lightrag'` — or `No module named 'fitz'` on the
-system Python — means you're not in the venv:
+`ModuleNotFoundError: No module named 'fitz'` means you're on the system Python rather than in
+the venv:
 
 ```bash
-source /home/js/LightRAG-Dev/.venv/bin/activate
+source /home/js/schematics/.venv/bin/activate
 ```
+
+`No module named 'lightrag'` means something different: you're in the venv, but LightRAG isn't
+installed there. It's needed only for step 7 — `pip install lightrag-hku`.
 
 ### The listing
 
@@ -991,4 +1016,5 @@ Key file locations:
 - Field spec for `circuit_logic.json`: `references/circuit_logic_schema.md`
 - Symbol and convention notes: `references/schematic_conventions.md`
 - Direct-query test report: `/home/js/schematics/_claude_notes/direct_file_query_test_PS20115MLM4-2.md`
-- Virtual environment: `/home/js/LightRAG-Dev/.venv`
+- Virtual environment: `/home/js/schematics/.venv` (`pymupdf pillow numpy`; add `lightrag-hku`
+  only for step 7)
