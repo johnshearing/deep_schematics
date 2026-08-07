@@ -1,0 +1,6325 @@
+{
+  "drawing": {
+    "drawing_number": "PS20115MLM4-2",
+    "revision": null,
+    "title": "MOD-LINX POWER SUPPLY ASSY: 24VDC 20AMP OUTPUT, 115VAC-1 PHASE INPUT, MOD LINX MASTER 4 DRIVE CARDS, SCHEMATIC",
+    "date": "2017-09-19",
+    "assembly": "Mod-Linx Power Supply Assembly, Master, 4 Drive Cards",
+    "proprietary_notice": "PROPRIETARY INFORMATION. This drawing is the confidential property of CONVEYX CORP. and is transmitted in confidence. The reproduction, disclosure, or use, in whole or part, of the design or the details contained herein is prohibited without the express written permission of Conveyx Corp.",
+    "references": [
+      "MXCS-M9",
+      "MXCS-M11",
+      "MXCS-P9",
+      "MXCS-P11"
+    ],
+    "notes": [
+      "Input: 115VAC 1 phase, 60Hz. L1 = 4.16 FLA @115VAC. SCCR = 5kA.",
+      "NOTE: Keep all DC wires 4\" minimum clearance from 115VAC wires.",
+      "NOTE: Individual wires to all points of termination. Do not double place wires.",
+      "Label all wires and cables 1\" from end.",
+      "NOTE (LT1 cable): Remove white and brown wire at insulation, heat shrink exposed end.",
+      "Title-block stamp: REVISED - destroy previous drawing with the same number. Date 04/08/2020.",
+      "Sheet size is D. The title block has no separate revision field; the 'D' that appears in the side tab and the SIZE box is the sheet size, NOT a revision letter.",
+      "Safety note: The need for safety devices varies with each application of this product. This drawing may not include all appropriate safety devices for your application. As systems integrator, please advise your customer of devices that are appropriate for his/her application, based on your safety assessment. Devices may include, but are not limited to those such as, additional guarding, safety controls, barricades, end stops, etc. Compliance with all federal, state, OSHA and local laws or codes are the responsibility of both you, as the systems integrator/distributor, and the end user.",
+      "Drawing file/part reference in the side tab: CXC_MXPS-ASSY."
+    ]
+  },
+  "components": [
+    {
+      "id": "PLG1",
+      "class": "cable_plug",
+      "description": "Power-in plug, Leviton LEV2611, on the POWER IN 115VAC cable. Pins B (line), W (neutral) and G (ground).",
+      "ratings": {
+        "voltage": "115VAC",
+        "phase": "1",
+        "frequency": "60Hz",
+        "pins": 3
+      },
+      "function": "Brings 115VAC single-phase supply power into the power supply assembly.",
+      "power_domain": "115VAC",
+      "normal_state": "energized when upstream supply is on",
+      "location": {
+        "x": 137,
+        "y": 51,
+        "zone": "top-left"
+      },
+      "part_number": "LEV2611",
+      "manufacturer": null,
+      "aliases": [
+        "power in plug",
+        "input plug",
+        "LEV2611"
+      ]
+    },
+    {
+      "id": "PLG2",
+      "class": "cable_plug",
+      "description": "Power-out plug, Leviton LEV2613, on the POWER OUT 115VAC cable. Pins B (line), W (neutral) and G (ground). Wired in parallel with PLG1 at the L1/N/GND terminals.",
+      "ratings": {
+        "voltage": "115VAC",
+        "phase": "1",
+        "frequency": "60Hz",
+        "pins": 3
+      },
+      "function": "Passes 115VAC supply power through to the next machine in the line (daisy chain).",
+      "power_domain": "115VAC",
+      "normal_state": "energized when upstream supply is on",
+      "location": {
+        "x": 137,
+        "y": 118,
+        "zone": "top-left"
+      },
+      "part_number": "LEV2613",
+      "manufacturer": null,
+      "aliases": [
+        "power out plug",
+        "output plug",
+        "LEV2613"
+      ]
+    },
+    {
+      "id": "TB-L1",
+      "class": "terminal_block",
+      "description": "Single-point terminal marked L1 where the 115VAC line conductors of PLG1 and PLG2 land.",
+      "ratings": {},
+      "function": "Common the 115VAC line between the input plug, the output plug and the disconnect.",
+      "power_domain": "115VAC",
+      "normal_state": "energized when upstream supply is on",
+      "location": {
+        "x": 300,
+        "y": 68,
+        "zone": "top-left"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "terminal L1",
+        "L1 terminal"
+      ]
+    },
+    {
+      "id": "TB-N",
+      "class": "terminal_block",
+      "description": "Single-point terminal marked N where the 115VAC neutral conductors of PLG1 and PLG2 land.",
+      "ratings": {},
+      "function": "Common the 115VAC neutral between the input plug, the output plug and the disconnect.",
+      "power_domain": "115VAC",
+      "normal_state": "at neutral potential",
+      "location": {
+        "x": 300,
+        "y": 108,
+        "zone": "top-left"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "terminal N",
+        "neutral terminal"
+      ]
+    },
+    {
+      "id": "TB-GND-A",
+      "class": "terminal_block",
+      "description": "Terminal marked GND where the green ground conductors of PLG1 and PLG2 land; bonded to the earth ground symbol.",
+      "ratings": {},
+      "function": "Bonds the plug ground conductors to the panel protective earth.",
+      "power_domain": "0V_common",
+      "normal_state": "bonded to earth",
+      "location": {
+        "x": 310,
+        "y": 133,
+        "zone": "top-left"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "terminal GND",
+        "plug ground terminal"
+      ]
+    },
+    {
+      "id": "DISC1",
+      "class": "switch",
+      "description": "Panel disconnect switch. Three poles drawn L1/T1, L2/T2 and L3/T3; only L1-T1 (line) and L3-T3 (neutral) are wired on this drawing. L2-T2 is spare.",
+      "ratings": {
+        "poles": 3,
+        "poles_used": 2
+      },
+      "function": "Manually isolates the 115VAC supply feeding the power supply assembly.",
+      "power_domain": "115VAC",
+      "normal_state": "closed when the panel is switched on",
+      "location": {
+        "x": 390,
+        "y": 90,
+        "zone": "top-centre-left"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "panel disconnect",
+        "main disconnect",
+        "DISC1"
+      ]
+    },
+    {
+      "id": "CB1",
+      "class": "circuit_breaker",
+      "description": "8 amp circuit breaker in the 115VAC line ahead of the power supply. Terminals 1 (line from DISC1:T1) and 2 (load to PS1:L1).",
+      "ratings": {
+        "current": "8A",
+        "poles": 1,
+        "voltage": "115VAC"
+      },
+      "function": "Over-current protection for the 115VAC feed to power supply PS1.",
+      "power_domain": "115VAC",
+      "normal_state": "closed (ON)",
+      "location": {
+        "x": 475,
+        "y": 52,
+        "zone": "top-centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "8 amp breaker",
+        "8AMP CIRCUIT BREAKER",
+        "main breaker"
+      ]
+    },
+    {
+      "id": "PS1",
+      "class": "power_supply",
+      "description": "20 amp power supply converting 115VAC single-phase input to 24VDC output. Input terminals L1, N and GND; output terminals + (plus) and two - (minus) terminals.",
+      "ratings": {
+        "input": "115VAC 1 phase 60Hz",
+        "output": "24VDC",
+        "current": "20A"
+      },
+      "function": "Supplies 24VDC to the control circuits, the drive cards and the downstream machine interfaces.",
+      "power_domain": "24VDC",
+      "normal_state": "energized whenever CB1 and DISC1 are closed",
+      "location": {
+        "x": 560,
+        "y": 60,
+        "zone": "top-centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "20AMP POWER SUPPLY",
+        "24V power supply",
+        "PSU",
+        "power supply"
+      ]
+    },
+    {
+      "id": "TB-GND-B",
+      "class": "terminal_block",
+      "description": "Two-point terminal marked GND carrying the door ground and the power-supply ground; bonded to the earth ground symbol.",
+      "ratings": {},
+      "function": "Bonds the enclosure door and the power supply chassis to protective earth.",
+      "power_domain": "0V_common",
+      "normal_state": "bonded to earth",
+      "location": {
+        "x": 485,
+        "y": 110,
+        "zone": "top-centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "GND terminal",
+        "door ground terminal"
+      ]
+    },
+    {
+      "id": "DOOR-GND",
+      "class": "ground",
+      "description": "Door ground connection point shown at the left of the GND terminal.",
+      "ratings": {},
+      "function": "Bonds the enclosure door to protective earth.",
+      "power_domain": "0V_common",
+      "normal_state": "bonded to earth",
+      "location": {
+        "x": 420,
+        "y": 110,
+        "zone": "top-centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "DOOR GND",
+        "door earth"
+      ]
+    },
+    {
+      "id": "EARTH",
+      "class": "ground",
+      "description": "Protective earth (ground) reference, drawn as two earth symbols - one below TB-GND-A and one below TB-GND-B.",
+      "ratings": {},
+      "function": "Panel protective earth reference for the whole assembly.",
+      "power_domain": "0V_common",
+      "normal_state": "at earth potential",
+      "location": {
+        "x": 310,
+        "y": 145,
+        "zone": "top"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "earth",
+        "ground",
+        "PE",
+        "protective earth"
+      ]
+    },
+    {
+      "id": "CB2",
+      "class": "circuit_breaker",
+      "description": "20 amp circuit breaker on the 24VDC output of PS1. Terminals 1 (from PS1:+) and 2 (to the 24E-1 distribution terminal).",
+      "ratings": {
+        "current": "20A",
+        "poles": 1,
+        "voltage": "24VDC"
+      },
+      "function": "Over-current protection for the whole 24VDC distribution bus (net 24E-1).",
+      "power_domain": "24VDC",
+      "normal_state": "closed (ON)",
+      "location": {
+        "x": 640,
+        "y": 52,
+        "zone": "top-centre-right"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "20 amp breaker",
+        "20AMP CIRCUIT BREAKER",
+        "DC breaker"
+      ]
+    },
+    {
+      "id": "TB-24E1-A",
+      "class": "terminal_block",
+      "description": "Main 24VDC distribution terminal block marked 24E-1, on the left edge of the sheet. Eight points: the feed from CB2:2 plus seven outgoing circuits.",
+      "ratings": {
+        "points": 8
+      },
+      "function": "Distributes +24VDC (net 24E-1) to the secondary 24E-1 terminal block, both start/stop switches, the circuit-1 light and the CR-ON, CR-BP and CR-SW relay coils.",
+      "power_domain": "24VDC",
+      "normal_state": "energized whenever CB2 is closed",
+      "location": {
+        "x": 61,
+        "y": 430,
+        "zone": "left edge"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "24E-1 terminal",
+        "main 24V terminal block",
+        "24VDC distribution terminal"
+      ]
+    },
+    {
+      "id": "TB-24E1-B",
+      "class": "terminal_block",
+      "description": "Secondary 24VDC distribution terminal block marked 24E-1, in the centre of the sheet. Fed from TB-24E1-A; five outgoing circuits.",
+      "ratings": {
+        "points": 6
+      },
+      "function": "Distributes +24VDC to the reverse breaker, the speed controller, the CR-ON and CR-BP run contacts and the 5-pin external receptacle.",
+      "power_domain": "24VDC",
+      "normal_state": "energized whenever CB2 is closed",
+      "location": {
+        "x": 468,
+        "y": 215,
+        "zone": "centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "24E-1 terminal",
+        "secondary 24V terminal block"
+      ]
+    },
+    {
+      "id": "TB-0V",
+      "class": "terminal_block",
+      "description": "Tall multi-point 0V terminal strip labelled TERMINAL'S, on the right of the sheet. Every 0V (DC common) return on the drawing lands here.",
+      "ratings": {},
+      "function": "Commons the 24VDC return (0V) for the whole assembly.",
+      "power_domain": "0V_common",
+      "normal_state": "at 0V",
+      "location": {
+        "x": 960,
+        "y": 450,
+        "zone": "right"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "0V terminal",
+        "TERMINAL'S",
+        "common terminal strip",
+        "DC common"
+      ]
+    },
+    {
+      "id": "SPD1",
+      "class": "speed_controller",
+      "description": "Speed controller. Three terminals: 1 = +24V, 2 = 0V, 3 = SPEED.",
+      "ratings": {
+        "supply": "24VDC",
+        "terminals": 3
+      },
+      "function": "Sets the conveyor speed reference sent out on the SPD signal to the drive cards.",
+      "power_domain": "24VDC",
+      "normal_state": "energized whenever CB2 is closed",
+      "location": {
+        "x": 865,
+        "y": 40,
+        "zone": "top-right"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "SPEED CONTROLER",
+        "speed controller",
+        "speed pot"
+      ]
+    },
+    {
+      "id": "TB-SPD",
+      "class": "terminal_block",
+      "description": "Single-point terminal marked SPD carrying the speed signal.",
+      "ratings": {},
+      "function": "Junction point for the speed reference between SPD1 and the external receptacle.",
+      "power_domain": "control_signal",
+      "normal_state": "carries the speed reference",
+      "location": {
+        "x": 790,
+        "y": 117,
+        "zone": "top-right"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "SPD terminal",
+        "speed terminal"
+      ]
+    },
+    {
+      "id": "REVERSE-CB",
+      "class": "circuit_breaker",
+      "description": "5 amp circuit breaker labelled REVERSE. Terminals 1 (from 24E-1) and 2 (to the DIR net). NOTE: on this machine family this breaker is used as a MANUAL SWITCH, not as over-current protection - it selects/enables the reverse (DIR) direction path. It is a breaker only because it DIN-rail mounts conveniently.",
+      "ratings": {
+        "current": "5A",
+        "poles": 1
+      },
+      "function": "Manually enables the reverse direction signal (DIR) sent to the drive cards.",
+      "power_domain": "24VDC",
+      "normal_state": "open (reverse not selected) unless the operator switches it on",
+      "location": {
+        "x": 568,
+        "y": 183,
+        "zone": "centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "REVERSE 5AMP CIRCUIT BREAKER",
+        "reverse breaker",
+        "reverse switch",
+        "direction switch"
+      ]
+    },
+    {
+      "id": "TB-DIR",
+      "class": "terminal_block",
+      "description": "Single-point terminal marked DIR carrying the direction signal.",
+      "ratings": {},
+      "function": "Junction point for the direction signal between the reverse breaker and the external receptacle.",
+      "power_domain": "control_signal",
+      "normal_state": "de-energized unless the reverse breaker is closed",
+      "location": {
+        "x": 660,
+        "y": 183,
+        "zone": "centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "DIR terminal",
+        "direction terminal"
+      ]
+    },
+    {
+      "id": "PB1",
+      "class": "push_button",
+      "description": "Start/stop switch #1: a lighted push button with a red (R) lamp for the open/stopped state and a green (G) lamp for the closed/running state. Four terminals: 1 = +24VDC in, 2 = spare (to the PB1-SP terminal), 3 = 0V common, 4 = switched 24V signal out.",
+      "ratings": {
+        "terminals": 4,
+        "supply": "24VDC"
+      },
+      "function": "Operator start/stop control that energizes relay CR1.",
+      "power_domain": "control_signal",
+      "normal_state": "open (not pressed) - red lamp lit",
+      "location": {
+        "x": 180,
+        "y": 270,
+        "zone": "left"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "PB1 START/STOP SWITCH",
+        "start/stop switch 1",
+        "start stop button 1",
+        "lighted push button 1"
+      ]
+    },
+    {
+      "id": "PB2",
+      "class": "push_button",
+      "description": "Start/stop switch #2: a lighted push button with a red (R) lamp for the open/stopped state and a green (G) lamp for the closed/running state. Four terminals: 1 = +24VDC in, 2 = spare (to the PB2-SP terminal), 3 = 0V common, 4 = switched 24V signal out.",
+      "ratings": {
+        "terminals": 4,
+        "supply": "24VDC"
+      },
+      "function": "Operator start/stop control that energizes relay CR2.",
+      "power_domain": "control_signal",
+      "normal_state": "open (not pressed) - red lamp lit",
+      "location": {
+        "x": 180,
+        "y": 370,
+        "zone": "left"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "PB2 START/STOP SWITCH",
+        "start/stop switch 2",
+        "start stop button 2",
+        "lighted push button 2"
+      ]
+    },
+    {
+      "id": "TB-PB1SP",
+      "class": "terminal_block",
+      "description": "Single-point terminal marked PB1-SP carrying the spare conductor of the PB1 start/stop cable. The conductor is landed but is not used elsewhere on this drawing.",
+      "ratings": {},
+      "function": "Parks the spare white conductor of the PB1 start/stop cable.",
+      "power_domain": "control_signal",
+      "normal_state": "unused / spare",
+      "location": {
+        "x": 196,
+        "y": 282,
+        "zone": "left"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "PB1-SP terminal",
+        "PB1 spare terminal"
+      ]
+    },
+    {
+      "id": "TB-PB2SP",
+      "class": "terminal_block",
+      "description": "Single-point terminal marked PB2-SP carrying the spare conductor of the PB2 start/stop cable. The conductor is landed but is not used elsewhere on this drawing.",
+      "ratings": {},
+      "function": "Parks the spare white conductor of the PB2 start/stop cable.",
+      "power_domain": "control_signal",
+      "normal_state": "unused / spare",
+      "location": {
+        "x": 196,
+        "y": 382,
+        "zone": "left"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "PB2-SP terminal",
+        "PB2 spare terminal"
+      ]
+    },
+    {
+      "id": "LT1",
+      "class": "indicator_light",
+      "description": "Circuit 1 light with cable - a green indicator lamp on a 4-conductor cable. Black = 24E-1 (+24VDC), blue = 0V; the brown and white conductors are NOT CONNECTED and must be cut back at the insulation and heat-shrunk.",
+      "ratings": {
+        "conductors": 4,
+        "conductors_used": 2
+      },
+      "function": "Indicates that the 24VDC control circuit (circuit 1) is powered.",
+      "power_domain": "24VDC",
+      "normal_state": "lit whenever CB2 is closed",
+      "location": {
+        "x": 267,
+        "y": 414,
+        "zone": "left-centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "CIRCUIT 1 LIGHT WITH CABLE",
+        "circuit 1 light",
+        "power on light"
+      ]
+    },
+    {
+      "id": "CR1",
+      "class": "relay",
+      "description": "Control relay CR1. Legend on the drawing: 'CR1: MODLINX PB1 START / STOP, 1N.O.' Coil terminals A1/A2; one normally-open contact 11-14.",
+      "ratings": {
+        "coil_voltage": "24VDC",
+        "contacts": "1 N.O."
+      },
+      "function": "Energized by start/stop switch PB1; its N.O. contact 11-14 is the first element of the two-in-series start/stop permissive chain.",
+      "power_domain": "24VDC",
+      "normal_state": "de-energized (contact 11-14 open)",
+      "location": {
+        "x": 861,
+        "y": 332,
+        "zone": "right-centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "CR1",
+        "MODLINX PB1 START/STOP relay",
+        "start stop relay 1",
+        "relay CR-1"
+      ]
+    },
+    {
+      "id": "CR2",
+      "class": "relay",
+      "description": "Control relay CR2. Legend on the drawing: 'CR2: MODLINX PB2 START / STOP, 1N.O.' Coil terminals A1/A2; one normally-open contact 11-14.",
+      "ratings": {
+        "coil_voltage": "24VDC",
+        "contacts": "1 N.O."
+      },
+      "function": "Energized by start/stop switch PB2; its N.O. contact 11-14 is the second element of the two-in-series start/stop permissive chain.",
+      "power_domain": "24VDC",
+      "normal_state": "de-energized (contact 11-14 open)",
+      "location": {
+        "x": 861,
+        "y": 381,
+        "zone": "right-centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "CR2",
+        "MODLINX PB2 START/STOP relay",
+        "start stop relay 2",
+        "relay CR-2"
+      ]
+    },
+    {
+      "id": "CR-ON",
+      "class": "relay",
+      "description": "Control relay CR-ON. Legend on the drawing: 'CR-ON: MODLINX RUN, RUN SIGNAL TO CARDS, 1N.O.' Coil terminals A1/A2; one normally-open contact 11-14.",
+      "ratings": {
+        "coil_voltage": "24VDC",
+        "contacts": "1 N.O."
+      },
+      "function": "The run relay. When energized its N.O. contact 11-14 puts 24VDC on the RUN net, which sends the run signal to the drive cards and makes the machine run.",
+      "power_domain": "24VDC",
+      "normal_state": "de-energized (machine stopped)",
+      "location": {
+        "x": 861,
+        "y": 464,
+        "zone": "right-centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "CR-ON",
+        "MODLINX RUN relay",
+        "run relay",
+        "CR ON"
+      ]
+    },
+    {
+      "id": "CR-BP",
+      "class": "relay",
+      "description": "Control relay CR-BP. Legend on the drawing: 'CR-BP: RUN BYPASS RELAY, 1N.C., 1N.O.' Coil terminals A1/A2; one normally-closed contact 11-12 and one normally-open contact 21-24.",
+      "ratings": {
+        "coil_voltage": "24VDC",
+        "contacts": "1 N.C. + 1 N.O."
+      },
+      "function": "The run bypass relay. When energized its N.O. contact 21-24 puts 24VDC directly on the RUN net (bypassing CR-ON), and its N.C. contact 11-12 opens, breaking the link between the discharge signal 111 and net 110.",
+      "power_domain": "24VDC",
+      "normal_state": "de-energized (11-12 closed, 21-24 open)",
+      "location": {
+        "x": 861,
+        "y": 679,
+        "zone": "bottom-right"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "CR-BP",
+        "RUN BYPASS RELAY",
+        "bypass relay",
+        "run bypass relay"
+      ]
+    },
+    {
+      "id": "CR-SW",
+      "class": "relay",
+      "description": "Control relay CR-SW. Legend on the drawing: 'CR-SW: SWITCH RELAY, SWITCH CIRCUIT ON, 1N.O.' Coil terminals A1/A2; one normally-open contact 11-14.",
+      "ratings": {
+        "coil_voltage": "24VDC",
+        "contacts": "1 N.O."
+      },
+      "function": "The switch relay. Its coil returns through net 130, which leaves this drawing at the discharge interface, so it can only be energized by the downstream (subordinate) machine. When energized its N.O. contact 11-14 pulls net 110 to 0V.",
+      "power_domain": "24VDC",
+      "normal_state": "de-energized (contact 11-14 open)",
+      "location": {
+        "x": 861,
+        "y": 704,
+        "zone": "bottom-right"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "CR-SW",
+        "SWITCH RELAY",
+        "switch relay",
+        "CR SW"
+      ]
+    },
+    {
+      "id": "BYPASS-CB",
+      "class": "circuit_breaker",
+      "description": "5 amp circuit breaker labelled BYPASS. Terminals 1 (from net 120) and 2 (to net 125). NOTE: on this machine family this breaker is used as a MANUAL SWITCH, not as over-current protection - it enables the bypass control path to the CR-BP coil. It is a breaker only because it DIN-rail mounts conveniently.",
+      "ratings": {
+        "current": "5A",
+        "poles": 1
+      },
+      "function": "Manually enables the bypass control path that energizes relay CR-BP.",
+      "power_domain": "24VDC",
+      "normal_state": "open (bypass not selected) unless the operator switches it on",
+      "location": {
+        "x": 385,
+        "y": 664,
+        "zone": "bottom-centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "BYPASS 5AMP CIRCUIT BREAKER",
+        "bypass breaker",
+        "bypass switch"
+      ]
+    },
+    {
+      "id": "TB-RUN",
+      "class": "terminal_block",
+      "description": "Single-point terminal marked RUN carrying the run signal.",
+      "ratings": {},
+      "function": "Commons the run signal from the CR-ON and CR-BP contacts and sends it to the external receptacle.",
+      "power_domain": "control_signal",
+      "normal_state": "de-energized when the machine is stopped",
+      "location": {
+        "x": 678,
+        "y": 216,
+        "zone": "centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "RUN terminal",
+        "run signal terminal"
+      ]
+    },
+    {
+      "id": "TB-110",
+      "class": "terminal_block",
+      "description": "Four-point terminal block marked 110 carrying the start/stop signal net.",
+      "ratings": {
+        "points": 4
+      },
+      "function": "Commons net 110 between the CR-SW contact, the infeed interface, the CR-ON coil return and the CR-BP normally-closed contact.",
+      "power_domain": "control_signal",
+      "normal_state": "carries the start/stop signal",
+      "location": {
+        "x": 781,
+        "y": 500,
+        "zone": "centre-right"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "110 terminal",
+        "terminal 110",
+        "start stop signal terminal"
+      ]
+    },
+    {
+      "id": "TB-120",
+      "class": "terminal_block",
+      "description": "Three-point terminal block marked 120 carrying the start/stop permissive net.",
+      "ratings": {
+        "points": 3
+      },
+      "function": "Commons net 120 between the CR1/CR2 series contacts, the machine interfaces and the bypass breaker.",
+      "power_domain": "control_signal",
+      "normal_state": "carries the start/stop permissive",
+      "location": {
+        "x": 300,
+        "y": 600,
+        "zone": "bottom-left-centre"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "120 terminal",
+        "terminal 120"
+      ]
+    },
+    {
+      "id": "TB-130",
+      "class": "terminal_block",
+      "description": "Two-point terminal block marked 130 carrying the CR-SW coil return net.",
+      "ratings": {
+        "points": 2
+      },
+      "function": "Commons net 130 between the CR-SW coil return and the machine interfaces.",
+      "power_domain": "control_signal",
+      "normal_state": "carries the switch-relay coil return",
+      "location": {
+        "x": 796,
+        "y": 580,
+        "zone": "bottom-centre-right"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "130 terminal",
+        "terminal 130"
+      ]
+    },
+    {
+      "id": "RECEPT1",
+      "class": "connector_receptacle",
+      "description": "5-pin micro (M12) female receptacle for the external device connection. The five conductors are, in drawing order top to bottom: SPD brown 18AWG, DIR grey 18AWG, RUN black 18AWG, 0V white 18AWG and 24E-1 blue 18AWG. Their colours follow the standard M12 5-pin cordset code (1 brown, 2 white, 3 blue, 4 black, 5 grey), so the drawing order maps to standard pins 1, 5, 4, 2 and 3 respectively.",
+      "ratings": {
+        "pins": 5,
+        "style": "M12 micro, female"
+      },
+      "function": "Carries 24VDC power, 0V, and the run, direction and speed signals out to the external drive-card devices.",
+      "power_domain": "24VDC",
+      "normal_state": "energized whenever CB2 is closed",
+      "location": {
+        "x": 980,
+        "y": 150,
+        "zone": "top-right"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "5-PIN MICRO FEMALE RECEPTACLE",
+        "5 pin receptacle",
+        "external device connector",
+        "micro receptacle"
+      ]
+    },
+    {
+      "id": "INFEED1",
+      "class": "connector_receptacle",
+      "description": "Infeed interface #1, female 6-pin mini receptacle. Conductors: 110 blue 16AWG, 0V green 16AWG, 120 red 16AWG, 130 orange 16AWG, IINSP1 black 16AWG, IINSP2 white 16AWG.",
+      "ratings": {
+        "pins": 6,
+        "style": "6-pin mini, female"
+      },
+      "function": "Connects this master machine to the upstream (infeed) machine, carrying the start/stop signal, common, permissive and inspection signals.",
+      "power_domain": "control_signal",
+      "normal_state": "connected to the upstream machine",
+      "location": {
+        "x": 620,
+        "y": 560,
+        "zone": "centre-bottom"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "INFEED INTERFACE #1",
+        "infeed interface",
+        "infeed receptacle",
+        "female 6-pin mini receptacle"
+      ]
+    },
+    {
+      "id": "DISCHARGE1",
+      "class": "cable_plug",
+      "description": "Discharge interface #1, male 6-pin mini cable. Conductors: 111 blue 16AWG, 0V green 16AWG, 120 red 16AWG, 130 orange 16AWG, DINSP1 black 16AWG, DINSP2 white 16AWG.",
+      "ratings": {
+        "pins": 6,
+        "style": "6-pin mini, male"
+      },
+      "function": "Connects this master machine to the downstream (discharge / subordinate) machine, carrying the start/stop signal, common, permissive and inspection signals.",
+      "power_domain": "control_signal",
+      "normal_state": "connected to the downstream machine",
+      "location": {
+        "x": 760,
+        "y": 560,
+        "zone": "centre-bottom"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "DISCHARGE INTERFACE #1",
+        "discharge interface",
+        "discharge cable",
+        "male 6-pin mini cable"
+      ]
+    },
+    {
+      "id": "TB-IINSP1",
+      "class": "terminal_block",
+      "description": "Single-point terminal marked IINSP1 carrying the infeed inspection signal IINSP1. The signal is landed here and does not go anywhere else on this drawing.",
+      "ratings": {},
+      "function": "Lands the IINSP1 inspection signal from the infeed interface.",
+      "power_domain": "control_signal",
+      "normal_state": "carries an inspection signal",
+      "location": {
+        "x": 480,
+        "y": 590,
+        "zone": "centre-bottom"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "IINSP1 terminal"
+      ]
+    },
+    {
+      "id": "TB-IINSP2",
+      "class": "terminal_block",
+      "description": "Single-point terminal marked IINSP2 carrying the infeed inspection signal IINSP2. The signal is landed here and does not go anywhere else on this drawing.",
+      "ratings": {},
+      "function": "Lands the IINSP2 inspection signal from the infeed interface.",
+      "power_domain": "control_signal",
+      "normal_state": "carries an inspection signal",
+      "location": {
+        "x": 480,
+        "y": 610,
+        "zone": "centre-bottom"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "IINSP2 terminal"
+      ]
+    },
+    {
+      "id": "TB-DINSP1",
+      "class": "terminal_block",
+      "description": "Single-point terminal marked DINSP1 carrying the discharge inspection signal DINSP1. The signal is landed here and does not go anywhere else on this drawing.",
+      "ratings": {},
+      "function": "Lands the DINSP1 inspection signal from the discharge interface.",
+      "power_domain": "control_signal",
+      "normal_state": "carries an inspection signal",
+      "location": {
+        "x": 700,
+        "y": 590,
+        "zone": "centre-bottom"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "DINSP1 terminal"
+      ]
+    },
+    {
+      "id": "TB-DINSP2",
+      "class": "terminal_block",
+      "description": "Single-point terminal marked DINSP2 carrying the discharge inspection signal DINSP2. The signal is landed here and does not go anywhere else on this drawing.",
+      "ratings": {},
+      "function": "Lands the DINSP2 inspection signal from the discharge interface.",
+      "power_domain": "control_signal",
+      "normal_state": "carries an inspection signal",
+      "location": {
+        "x": 700,
+        "y": 610,
+        "zone": "centre-bottom"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "DINSP2 terminal"
+      ]
+    },
+    {
+      "id": "MXCS-M9",
+      "class": "external_drawing",
+      "description": "MXCS-M9 is an external device connection drawing referenced by this schematic for the devices that plug into the 5-pin micro receptacle. Its contents are NOT on this drawing.",
+      "ratings": {},
+      "function": "Documents the external device connections beyond the 5-pin receptacle.",
+      "power_domain": "control_signal",
+      "normal_state": "not applicable - external reference",
+      "location": {
+        "x": null,
+        "y": null,
+        "zone": "off-page"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "MXCS-M9"
+      ]
+    },
+    {
+      "id": "MXCS-M11",
+      "class": "external_drawing",
+      "description": "MXCS-M11 is an external device connection drawing referenced by this schematic for the devices that plug into the 5-pin micro receptacle. Its contents are NOT on this drawing.",
+      "ratings": {},
+      "function": "Documents the external device connections beyond the 5-pin receptacle.",
+      "power_domain": "control_signal",
+      "normal_state": "not applicable - external reference",
+      "location": {
+        "x": null,
+        "y": null,
+        "zone": "off-page"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "MXCS-M11"
+      ]
+    },
+    {
+      "id": "MXCS-P9",
+      "class": "external_drawing",
+      "description": "MXCS-P9 is an external device connection drawing referenced by this schematic for the devices that plug into the 5-pin micro receptacle. Its contents are NOT on this drawing.",
+      "ratings": {},
+      "function": "Documents the external device connections beyond the 5-pin receptacle.",
+      "power_domain": "control_signal",
+      "normal_state": "not applicable - external reference",
+      "location": {
+        "x": null,
+        "y": null,
+        "zone": "off-page"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "MXCS-P9"
+      ]
+    },
+    {
+      "id": "MXCS-P11",
+      "class": "external_drawing",
+      "description": "MXCS-P11 is an external device connection drawing referenced by this schematic for the devices that plug into the 5-pin micro receptacle. Its contents are NOT on this drawing.",
+      "ratings": {},
+      "function": "Documents the external device connections beyond the 5-pin receptacle.",
+      "power_domain": "control_signal",
+      "normal_state": "not applicable - external reference",
+      "location": {
+        "x": null,
+        "y": null,
+        "zone": "off-page"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "MXCS-P11"
+      ]
+    },
+    {
+      "id": "UPSTREAM-MACHINE",
+      "class": "external_machine",
+      "description": "The upstream (previous / infeed) Mod-Linx machine that plugs into INFEED INTERFACE #1. Not documented on this drawing. This sheet is the MASTER machine, so in a typical installation there may be no previous machine.",
+      "ratings": {},
+      "function": "Supplies the infeed-side start/stop, common, permissive and inspection signals.",
+      "power_domain": "control_signal",
+      "normal_state": "not applicable - external",
+      "location": {
+        "x": null,
+        "y": null,
+        "zone": "off-page"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "previous machine",
+        "infeed machine",
+        "upstream conveyor"
+      ]
+    },
+    {
+      "id": "DOWNSTREAM-MACHINE",
+      "class": "external_machine",
+      "description": "The downstream (subordinate / discharge) Mod-Linx machine that plugs into DISCHARGE INTERFACE #1. Not documented on this drawing. Net 130 - the CR-SW coil return - only completes through this machine, which is why CR-SW cannot be energized from anything shown on this sheet alone.",
+      "ratings": {},
+      "function": "Completes the CR-SW coil return (net 130) and receives signal 111.",
+      "power_domain": "control_signal",
+      "normal_state": "not applicable - external",
+      "location": {
+        "x": null,
+        "y": null,
+        "zone": "off-page"
+      },
+      "part_number": null,
+      "manufacturer": null,
+      "aliases": [
+        "subordinate machine",
+        "discharge machine",
+        "downstream conveyor",
+        "next machine"
+      ]
+    }
+  ],
+  "terminals": [
+    {
+      "id": "PLG1:B",
+      "parent_component": "PLG1",
+      "function": "line",
+      "net": "L1"
+    },
+    {
+      "id": "PLG1:W",
+      "parent_component": "PLG1",
+      "function": "neutral",
+      "net": "N"
+    },
+    {
+      "id": "PLG1:G",
+      "parent_component": "PLG1",
+      "function": "ground",
+      "net": "GND"
+    },
+    {
+      "id": "PLG2:B",
+      "parent_component": "PLG2",
+      "function": "line",
+      "net": "L1"
+    },
+    {
+      "id": "PLG2:W",
+      "parent_component": "PLG2",
+      "function": "neutral",
+      "net": "N"
+    },
+    {
+      "id": "PLG2:G",
+      "parent_component": "PLG2",
+      "function": "ground",
+      "net": "GND"
+    },
+    {
+      "id": "TB-L1:1",
+      "parent_component": "TB-L1",
+      "function": "line",
+      "net": "L1"
+    },
+    {
+      "id": "TB-N:1",
+      "parent_component": "TB-N",
+      "function": "neutral",
+      "net": "N"
+    },
+    {
+      "id": "TB-GND-A:1",
+      "parent_component": "TB-GND-A",
+      "function": "ground",
+      "net": "GND"
+    },
+    {
+      "id": "DISC1:L1",
+      "parent_component": "DISC1",
+      "function": "line",
+      "net": "L1"
+    },
+    {
+      "id": "DISC1:T1",
+      "parent_component": "DISC1",
+      "function": "output",
+      "net": "L1-A"
+    },
+    {
+      "id": "DISC1:L2",
+      "parent_component": "DISC1",
+      "function": "line",
+      "net": null
+    },
+    {
+      "id": "DISC1:T2",
+      "parent_component": "DISC1",
+      "function": "output",
+      "net": null
+    },
+    {
+      "id": "DISC1:L3",
+      "parent_component": "DISC1",
+      "function": "neutral",
+      "net": "N"
+    },
+    {
+      "id": "DISC1:T3",
+      "parent_component": "DISC1",
+      "function": "output",
+      "net": "N-1"
+    },
+    {
+      "id": "CB1:1",
+      "parent_component": "CB1",
+      "function": "line",
+      "net": "L1-A"
+    },
+    {
+      "id": "CB1:2",
+      "parent_component": "CB1",
+      "function": "output",
+      "net": "L1-A1"
+    },
+    {
+      "id": "PS1:L1",
+      "parent_component": "PS1",
+      "function": "line",
+      "net": "L1-A1"
+    },
+    {
+      "id": "PS1:N",
+      "parent_component": "PS1",
+      "function": "neutral",
+      "net": "N-1"
+    },
+    {
+      "id": "PS1:GND",
+      "parent_component": "PS1",
+      "function": "ground",
+      "net": "GND"
+    },
+    {
+      "id": "PS1:+",
+      "parent_component": "PS1",
+      "function": "output",
+      "net": "+24V"
+    },
+    {
+      "id": "PS1:-1",
+      "parent_component": "PS1",
+      "function": "output",
+      "net": "0V"
+    },
+    {
+      "id": "PS1:-2",
+      "parent_component": "PS1",
+      "function": "output",
+      "net": "0V"
+    },
+    {
+      "id": "TB-GND-B:1",
+      "parent_component": "TB-GND-B",
+      "function": "ground",
+      "net": "GND"
+    },
+    {
+      "id": "TB-GND-B:2",
+      "parent_component": "TB-GND-B",
+      "function": "ground",
+      "net": "GND"
+    },
+    {
+      "id": "DOOR-GND:1",
+      "parent_component": "DOOR-GND",
+      "function": "ground",
+      "net": "GND"
+    },
+    {
+      "id": "EARTH:1",
+      "parent_component": "EARTH",
+      "function": "ground",
+      "net": "GND"
+    },
+    {
+      "id": "EARTH:2",
+      "parent_component": "EARTH",
+      "function": "ground",
+      "net": "GND"
+    },
+    {
+      "id": "CB2:1",
+      "parent_component": "CB2",
+      "function": "input",
+      "net": "+24V"
+    },
+    {
+      "id": "CB2:2",
+      "parent_component": "CB2",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-A:1",
+      "parent_component": "TB-24E1-A",
+      "function": "input",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-A:2",
+      "parent_component": "TB-24E1-A",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-A:3",
+      "parent_component": "TB-24E1-A",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-A:4",
+      "parent_component": "TB-24E1-A",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-A:5",
+      "parent_component": "TB-24E1-A",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-A:6",
+      "parent_component": "TB-24E1-A",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-A:7",
+      "parent_component": "TB-24E1-A",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-A:8",
+      "parent_component": "TB-24E1-A",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-B:1",
+      "parent_component": "TB-24E1-B",
+      "function": "input",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-B:2",
+      "parent_component": "TB-24E1-B",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-B:3",
+      "parent_component": "TB-24E1-B",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-B:4",
+      "parent_component": "TB-24E1-B",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "TB-24E1-B:5",
+      "parent_component": "TB-24E1-B",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "SPD1:1",
+      "parent_component": "SPD1",
+      "function": "input",
+      "net": "24E-1"
+    },
+    {
+      "id": "SPD1:2",
+      "parent_component": "SPD1",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "SPD1:3",
+      "parent_component": "SPD1",
+      "function": "output",
+      "net": "SPD"
+    },
+    {
+      "id": "TB-SPD:1",
+      "parent_component": "TB-SPD",
+      "function": "common",
+      "net": "SPD"
+    },
+    {
+      "id": "REVERSE-CB:1",
+      "parent_component": "REVERSE-CB",
+      "function": "input",
+      "net": "24E-1"
+    },
+    {
+      "id": "REVERSE-CB:2",
+      "parent_component": "REVERSE-CB",
+      "function": "output",
+      "net": "DIR"
+    },
+    {
+      "id": "TB-DIR:1",
+      "parent_component": "TB-DIR",
+      "function": "common",
+      "net": "DIR"
+    },
+    {
+      "id": "PB1:1",
+      "parent_component": "PB1",
+      "function": "input",
+      "net": "24E-1"
+    },
+    {
+      "id": "PB1:2",
+      "parent_component": "PB1",
+      "function": "output",
+      "net": "PB1-SP"
+    },
+    {
+      "id": "PB1:3",
+      "parent_component": "PB1",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "PB1:4",
+      "parent_component": "PB1",
+      "function": "output",
+      "net": "NET-PB1"
+    },
+    {
+      "id": "PB2:1",
+      "parent_component": "PB2",
+      "function": "input",
+      "net": "24E-1"
+    },
+    {
+      "id": "PB2:2",
+      "parent_component": "PB2",
+      "function": "output",
+      "net": "PB2-SP"
+    },
+    {
+      "id": "PB2:3",
+      "parent_component": "PB2",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "PB2:4",
+      "parent_component": "PB2",
+      "function": "output",
+      "net": "NET-PB2"
+    },
+    {
+      "id": "TB-PB1SP:1",
+      "parent_component": "TB-PB1SP",
+      "function": "common",
+      "net": "PB1-SP"
+    },
+    {
+      "id": "TB-PB2SP:1",
+      "parent_component": "TB-PB2SP",
+      "function": "common",
+      "net": "PB2-SP"
+    },
+    {
+      "id": "LT1:BLACK",
+      "parent_component": "LT1",
+      "function": "input",
+      "net": "24E-1"
+    },
+    {
+      "id": "LT1:BLUE",
+      "parent_component": "LT1",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "LT1:BROWN",
+      "parent_component": "LT1",
+      "function": "input",
+      "net": null
+    },
+    {
+      "id": "LT1:WHITE",
+      "parent_component": "LT1",
+      "function": "input",
+      "net": null
+    },
+    {
+      "id": "CR1:A1",
+      "parent_component": "CR1",
+      "function": "coil",
+      "net": "NET-PB1"
+    },
+    {
+      "id": "CR1:A2",
+      "parent_component": "CR1",
+      "function": "coil",
+      "net": "0V"
+    },
+    {
+      "id": "CR1:11",
+      "parent_component": "CR1",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "CR1:14",
+      "parent_component": "CR1",
+      "function": "NO_contact",
+      "net": "121"
+    },
+    {
+      "id": "CR2:A1",
+      "parent_component": "CR2",
+      "function": "coil",
+      "net": "NET-PB2"
+    },
+    {
+      "id": "CR2:A2",
+      "parent_component": "CR2",
+      "function": "coil",
+      "net": "0V"
+    },
+    {
+      "id": "CR2:11",
+      "parent_component": "CR2",
+      "function": "common",
+      "net": "121"
+    },
+    {
+      "id": "CR2:14",
+      "parent_component": "CR2",
+      "function": "NO_contact",
+      "net": "120"
+    },
+    {
+      "id": "CR-ON:A1",
+      "parent_component": "CR-ON",
+      "function": "coil",
+      "net": "24E-1"
+    },
+    {
+      "id": "CR-ON:A2",
+      "parent_component": "CR-ON",
+      "function": "coil",
+      "net": "110"
+    },
+    {
+      "id": "CR-ON:11",
+      "parent_component": "CR-ON",
+      "function": "common",
+      "net": "24E-1"
+    },
+    {
+      "id": "CR-ON:14",
+      "parent_component": "CR-ON",
+      "function": "NO_contact",
+      "net": "RUN"
+    },
+    {
+      "id": "CR-BP:A1",
+      "parent_component": "CR-BP",
+      "function": "coil",
+      "net": "24E-1"
+    },
+    {
+      "id": "CR-BP:A2",
+      "parent_component": "CR-BP",
+      "function": "coil",
+      "net": "125"
+    },
+    {
+      "id": "CR-BP:11",
+      "parent_component": "CR-BP",
+      "function": "common",
+      "net": "111"
+    },
+    {
+      "id": "CR-BP:12",
+      "parent_component": "CR-BP",
+      "function": "NC_contact",
+      "net": "110"
+    },
+    {
+      "id": "CR-BP:21",
+      "parent_component": "CR-BP",
+      "function": "common",
+      "net": "24E-1"
+    },
+    {
+      "id": "CR-BP:24",
+      "parent_component": "CR-BP",
+      "function": "NO_contact",
+      "net": "RUN"
+    },
+    {
+      "id": "CR-SW:A1",
+      "parent_component": "CR-SW",
+      "function": "coil",
+      "net": "24E-1"
+    },
+    {
+      "id": "CR-SW:A2",
+      "parent_component": "CR-SW",
+      "function": "coil",
+      "net": "130"
+    },
+    {
+      "id": "CR-SW:11",
+      "parent_component": "CR-SW",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "CR-SW:14",
+      "parent_component": "CR-SW",
+      "function": "NO_contact",
+      "net": "110"
+    },
+    {
+      "id": "BYPASS-CB:1",
+      "parent_component": "BYPASS-CB",
+      "function": "input",
+      "net": "120"
+    },
+    {
+      "id": "BYPASS-CB:2",
+      "parent_component": "BYPASS-CB",
+      "function": "output",
+      "net": "125"
+    },
+    {
+      "id": "TB-RUN:1",
+      "parent_component": "TB-RUN",
+      "function": "common",
+      "net": "RUN"
+    },
+    {
+      "id": "TB-110:1",
+      "parent_component": "TB-110",
+      "function": "common",
+      "net": "110"
+    },
+    {
+      "id": "TB-110:2",
+      "parent_component": "TB-110",
+      "function": "common",
+      "net": "110"
+    },
+    {
+      "id": "TB-110:3",
+      "parent_component": "TB-110",
+      "function": "common",
+      "net": "110"
+    },
+    {
+      "id": "TB-110:4",
+      "parent_component": "TB-110",
+      "function": "common",
+      "net": "110"
+    },
+    {
+      "id": "TB-120:1",
+      "parent_component": "TB-120",
+      "function": "common",
+      "net": "120"
+    },
+    {
+      "id": "TB-120:2",
+      "parent_component": "TB-120",
+      "function": "common",
+      "net": "120"
+    },
+    {
+      "id": "TB-120:3",
+      "parent_component": "TB-120",
+      "function": "common",
+      "net": "120"
+    },
+    {
+      "id": "TB-130:1",
+      "parent_component": "TB-130",
+      "function": "common",
+      "net": "130"
+    },
+    {
+      "id": "TB-130:2",
+      "parent_component": "TB-130",
+      "function": "common",
+      "net": "130"
+    },
+    {
+      "id": "TB-0V:1",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "TB-0V:2",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "TB-0V:3",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "TB-0V:4",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "TB-0V:5",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "TB-0V:6",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "TB-0V:7",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "TB-0V:8",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "TB-0V:9",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "TB-0V:10",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "TB-0V:11",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "TB-0V:12",
+      "parent_component": "TB-0V",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "RECEPT1:1",
+      "parent_component": "RECEPT1",
+      "function": "output",
+      "net": "SPD"
+    },
+    {
+      "id": "RECEPT1:2",
+      "parent_component": "RECEPT1",
+      "function": "output",
+      "net": "DIR"
+    },
+    {
+      "id": "RECEPT1:3",
+      "parent_component": "RECEPT1",
+      "function": "output",
+      "net": "RUN"
+    },
+    {
+      "id": "RECEPT1:4",
+      "parent_component": "RECEPT1",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "RECEPT1:5",
+      "parent_component": "RECEPT1",
+      "function": "output",
+      "net": "24E-1"
+    },
+    {
+      "id": "INFEED1:1",
+      "parent_component": "INFEED1",
+      "function": "input",
+      "net": "110"
+    },
+    {
+      "id": "INFEED1:2",
+      "parent_component": "INFEED1",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "INFEED1:3",
+      "parent_component": "INFEED1",
+      "function": "input",
+      "net": "120"
+    },
+    {
+      "id": "INFEED1:4",
+      "parent_component": "INFEED1",
+      "function": "input",
+      "net": "130"
+    },
+    {
+      "id": "INFEED1:5",
+      "parent_component": "INFEED1",
+      "function": "input",
+      "net": "IINSP1"
+    },
+    {
+      "id": "INFEED1:6",
+      "parent_component": "INFEED1",
+      "function": "input",
+      "net": "IINSP2"
+    },
+    {
+      "id": "DISCHARGE1:1",
+      "parent_component": "DISCHARGE1",
+      "function": "output",
+      "net": "111"
+    },
+    {
+      "id": "DISCHARGE1:2",
+      "parent_component": "DISCHARGE1",
+      "function": "common",
+      "net": "0V"
+    },
+    {
+      "id": "DISCHARGE1:3",
+      "parent_component": "DISCHARGE1",
+      "function": "output",
+      "net": "120"
+    },
+    {
+      "id": "DISCHARGE1:4",
+      "parent_component": "DISCHARGE1",
+      "function": "output",
+      "net": "130"
+    },
+    {
+      "id": "DISCHARGE1:5",
+      "parent_component": "DISCHARGE1",
+      "function": "output",
+      "net": "DINSP1"
+    },
+    {
+      "id": "DISCHARGE1:6",
+      "parent_component": "DISCHARGE1",
+      "function": "output",
+      "net": "DINSP2"
+    },
+    {
+      "id": "TB-IINSP1:1",
+      "parent_component": "TB-IINSP1",
+      "function": "common",
+      "net": "IINSP1"
+    },
+    {
+      "id": "TB-IINSP2:1",
+      "parent_component": "TB-IINSP2",
+      "function": "common",
+      "net": "IINSP2"
+    },
+    {
+      "id": "TB-DINSP1:1",
+      "parent_component": "TB-DINSP1",
+      "function": "common",
+      "net": "DINSP1"
+    },
+    {
+      "id": "TB-DINSP2:1",
+      "parent_component": "TB-DINSP2",
+      "function": "common",
+      "net": "DINSP2"
+    }
+  ],
+  "nets": [
+    {
+      "id": "L1",
+      "signal_type": "power",
+      "nominal_voltage": "115VAC",
+      "member_terminals": [
+        "DISC1:L1",
+        "PLG1:B",
+        "PLG2:B",
+        "TB-L1:1"
+      ],
+      "description": "115VAC line (hot) from the supply plugs to the panel disconnect."
+    },
+    {
+      "id": "L1-A",
+      "signal_type": "power",
+      "nominal_voltage": "115VAC",
+      "member_terminals": [
+        "CB1:1",
+        "DISC1:T1"
+      ],
+      "description": "115VAC line between the panel disconnect output T1 and circuit breaker CB1."
+    },
+    {
+      "id": "L1-A1",
+      "signal_type": "power",
+      "nominal_voltage": "115VAC",
+      "member_terminals": [
+        "CB1:2",
+        "PS1:L1"
+      ],
+      "description": "115VAC line between circuit breaker CB1 and the power supply line input."
+    },
+    {
+      "id": "N",
+      "signal_type": "power",
+      "nominal_voltage": "115VAC neutral",
+      "member_terminals": [
+        "DISC1:L3",
+        "PLG1:W",
+        "PLG2:W",
+        "TB-N:1"
+      ],
+      "description": "115VAC neutral from the supply plugs to the panel disconnect."
+    },
+    {
+      "id": "N-1",
+      "signal_type": "power",
+      "nominal_voltage": "115VAC neutral",
+      "member_terminals": [
+        "DISC1:T3",
+        "PS1:N"
+      ],
+      "description": "115VAC neutral between the panel disconnect output T3 and the power supply."
+    },
+    {
+      "id": "GND",
+      "signal_type": "ground",
+      "nominal_voltage": "0V",
+      "member_terminals": [
+        "DOOR-GND:1",
+        "EARTH:1",
+        "EARTH:2",
+        "PLG1:G",
+        "PLG2:G",
+        "PS1:GND",
+        "TB-GND-A:1",
+        "TB-GND-B:1",
+        "TB-GND-B:2"
+      ],
+      "description": "Protective earth. Bonds the plug grounds, the enclosure door and the power supply chassis to the two earth ground symbols on the drawing."
+    },
+    {
+      "id": "+24V",
+      "signal_type": "power",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "CB2:1",
+        "PS1:+"
+      ],
+      "description": "24VDC output of power supply PS1 up to circuit breaker CB2."
+    },
+    {
+      "id": "24E-1",
+      "signal_type": "power",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "CB2:2",
+        "CR-BP:21",
+        "CR-BP:A1",
+        "CR-ON:11",
+        "CR-ON:A1",
+        "CR-SW:A1",
+        "LT1:BLACK",
+        "PB1:1",
+        "PB2:1",
+        "RECEPT1:5",
+        "REVERSE-CB:1",
+        "SPD1:1",
+        "TB-24E1-A:1",
+        "TB-24E1-A:2",
+        "TB-24E1-A:3",
+        "TB-24E1-A:4",
+        "TB-24E1-A:5",
+        "TB-24E1-A:6",
+        "TB-24E1-A:7",
+        "TB-24E1-A:8",
+        "TB-24E1-B:1",
+        "TB-24E1-B:2",
+        "TB-24E1-B:3",
+        "TB-24E1-B:4",
+        "TB-24E1-B:5"
+      ],
+      "description": "The main 24VDC distribution bus, downstream of CB2. It feeds both 24E-1 terminal blocks, both start/stop switches, the circuit-1 light, the speed controller, the reverse breaker, the CR-ON, CR-BP and CR-SW relay coils, the CR-ON and CR-BP run contacts, and the external 5-pin receptacle."
+    },
+    {
+      "id": "0V",
+      "signal_type": "ground",
+      "nominal_voltage": "0V",
+      "member_terminals": [
+        "CR-SW:11",
+        "CR1:11",
+        "CR1:A2",
+        "CR2:A2",
+        "DISCHARGE1:2",
+        "INFEED1:2",
+        "LT1:BLUE",
+        "PB1:3",
+        "PB2:3",
+        "PS1:-1",
+        "PS1:-2",
+        "RECEPT1:4",
+        "SPD1:2",
+        "TB-0V:1",
+        "TB-0V:10",
+        "TB-0V:11",
+        "TB-0V:12",
+        "TB-0V:2",
+        "TB-0V:3",
+        "TB-0V:4",
+        "TB-0V:5",
+        "TB-0V:6",
+        "TB-0V:7",
+        "TB-0V:8",
+        "TB-0V:9"
+      ],
+      "description": "The 24VDC common return for the whole assembly, landed on the TERMINAL'S 0V strip. Fed by both minus terminals of PS1."
+    },
+    {
+      "id": "SPD",
+      "signal_type": "control",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "RECEPT1:1",
+        "SPD1:3",
+        "TB-SPD:1"
+      ],
+      "description": "Speed reference signal from the speed controller out to the external receptacle."
+    },
+    {
+      "id": "DIR",
+      "signal_type": "control",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "RECEPT1:2",
+        "REVERSE-CB:2",
+        "TB-DIR:1"
+      ],
+      "description": "Direction (reverse) signal from the REVERSE breaker/switch out to the external receptacle."
+    },
+    {
+      "id": "RUN",
+      "signal_type": "control",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "CR-BP:24",
+        "CR-ON:14",
+        "RECEPT1:3",
+        "TB-RUN:1"
+      ],
+      "description": "The run signal. Energized to 24VDC by either the CR-ON N.O. contact 11-14 or the CR-BP N.O. contact 21-24, and sent out through the 5-pin receptacle to the drive cards. When RUN is energized the machine runs."
+    },
+    {
+      "id": "110",
+      "signal_type": "control",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "CR-BP:12",
+        "CR-ON:A2",
+        "CR-SW:14",
+        "INFEED1:1",
+        "TB-110:1",
+        "TB-110:2",
+        "TB-110:3",
+        "TB-110:4"
+      ],
+      "description": "The start/stop signal net shared between machines. It ties together the CR-SW N.O. contact 14, the CR-ON coil return A2, the CR-BP N.C. contact 12, the infeed interface and the four points of terminal block 110. Pulling 110 down to 0V energizes the CR-ON coil and runs the machine."
+    },
+    {
+      "id": "111",
+      "signal_type": "control",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "CR-BP:11",
+        "DISCHARGE1:1"
+      ],
+      "description": "The start/stop signal passed out to the downstream (discharge) machine, taken from net 110 through the CR-BP normally-closed contact 11-12."
+    },
+    {
+      "id": "120",
+      "signal_type": "control",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "BYPASS-CB:1",
+        "CR2:14",
+        "DISCHARGE1:3",
+        "INFEED1:3",
+        "TB-120:1",
+        "TB-120:2",
+        "TB-120:3"
+      ],
+      "description": "The start/stop permissive net. It is pulled to 0V only when BOTH CR1 and CR2 N.O. contacts are closed, i.e. when both start/stop buttons are on. It also appears on both machine interfaces."
+    },
+    {
+      "id": "121",
+      "signal_type": "control",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "CR1:14",
+        "CR2:11"
+      ],
+      "description": "The link between the CR1 N.O. contact 14 and the CR2 N.O. contact 11 - the midpoint of the two-relay series start/stop chain."
+    },
+    {
+      "id": "125",
+      "signal_type": "control",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "BYPASS-CB:2",
+        "CR-BP:A2"
+      ],
+      "description": "The CR-BP coil return, from coil terminal A2 through the BYPASS breaker/switch to net 120."
+    },
+    {
+      "id": "130",
+      "signal_type": "control",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "CR-SW:A2",
+        "DISCHARGE1:4",
+        "INFEED1:4",
+        "TB-130:1",
+        "TB-130:2"
+      ],
+      "description": "The CR-SW coil return, from coil terminal A2 to terminal block 130 and out to both machine interfaces. It only completes through the downstream machine."
+    },
+    {
+      "id": "NET-PB1",
+      "signal_type": "control",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "CR1:A1",
+        "PB1:4"
+      ],
+      "description": "The switched 24V output of start/stop switch PB1, feeding the CR1 coil. The drawing prints this net designator simply as PB1 (black 22AWG)."
+    },
+    {
+      "id": "NET-PB2",
+      "signal_type": "control",
+      "nominal_voltage": "24VDC",
+      "member_terminals": [
+        "CR2:A1",
+        "PB2:4"
+      ],
+      "description": "The switched 24V output of start/stop switch PB2, feeding the CR2 coil. The drawing prints this net designator simply as PB2 (black 22AWG)."
+    },
+    {
+      "id": "PB1-SP",
+      "signal_type": "control",
+      "nominal_voltage": null,
+      "member_terminals": [
+        "PB1:2",
+        "TB-PB1SP:1"
+      ],
+      "description": "The spare conductor of the PB1 start/stop cable, landed on terminal PB1-SP and not used elsewhere on this drawing."
+    },
+    {
+      "id": "PB2-SP",
+      "signal_type": "control",
+      "nominal_voltage": null,
+      "member_terminals": [
+        "PB2:2",
+        "TB-PB2SP:1"
+      ],
+      "description": "The spare conductor of the PB2 start/stop cable, landed on terminal PB2-SP and not used elsewhere on this drawing."
+    },
+    {
+      "id": "IINSP1",
+      "signal_type": "control",
+      "nominal_voltage": null,
+      "member_terminals": [
+        "INFEED1:5",
+        "TB-IINSP1:1"
+      ],
+      "description": "Infeed inspection signal 1, from the infeed interface to terminal IINSP1."
+    },
+    {
+      "id": "IINSP2",
+      "signal_type": "control",
+      "nominal_voltage": null,
+      "member_terminals": [
+        "INFEED1:6",
+        "TB-IINSP2:1"
+      ],
+      "description": "Infeed inspection signal 2, from the infeed interface to terminal IINSP2."
+    },
+    {
+      "id": "DINSP1",
+      "signal_type": "control",
+      "nominal_voltage": null,
+      "member_terminals": [
+        "DISCHARGE1:5",
+        "TB-DINSP1:1"
+      ],
+      "description": "Discharge inspection signal 1, from the discharge interface to terminal DINSP1."
+    },
+    {
+      "id": "DINSP2",
+      "signal_type": "control",
+      "nominal_voltage": null,
+      "member_terminals": [
+        "DISCHARGE1:6",
+        "TB-DINSP2:1"
+      ],
+      "description": "Discharge inspection signal 2, from the discharge interface to terminal DINSP2."
+    }
+  ],
+  "wires": [
+    {
+      "id": "W001",
+      "color": "BLACK",
+      "gauge": "10AWG",
+      "from_terminal": "PLG1:B",
+      "to_terminal": "TB-L1:1",
+      "cable": "CABLE-POWER-IN",
+      "net": "L1",
+      "description": ""
+    },
+    {
+      "id": "W002",
+      "color": "WHITE",
+      "gauge": "10AWG",
+      "from_terminal": "PLG1:W",
+      "to_terminal": "TB-N:1",
+      "cable": "CABLE-POWER-IN",
+      "net": "N",
+      "description": ""
+    },
+    {
+      "id": "W003",
+      "color": "GREEN",
+      "gauge": "10AWG",
+      "from_terminal": "PLG1:G",
+      "to_terminal": "TB-GND-A:1",
+      "cable": "CABLE-POWER-IN",
+      "net": "GND",
+      "description": ""
+    },
+    {
+      "id": "W004",
+      "color": "BLACK",
+      "gauge": "10AWG",
+      "from_terminal": "PLG2:B",
+      "to_terminal": "TB-L1:1",
+      "cable": "CABLE-POWER-OUT",
+      "net": "L1",
+      "description": ""
+    },
+    {
+      "id": "W005",
+      "color": "WHITE",
+      "gauge": "10AWG",
+      "from_terminal": "PLG2:W",
+      "to_terminal": "TB-N:1",
+      "cable": "CABLE-POWER-OUT",
+      "net": "N",
+      "description": ""
+    },
+    {
+      "id": "W006",
+      "color": "GREEN",
+      "gauge": "10AWG",
+      "from_terminal": "PLG2:G",
+      "to_terminal": "TB-GND-A:1",
+      "cable": "CABLE-POWER-OUT",
+      "net": "GND",
+      "description": ""
+    },
+    {
+      "id": "W007",
+      "color": "BLACK",
+      "gauge": "12AWG",
+      "from_terminal": "TB-L1:1",
+      "to_terminal": "DISC1:L1",
+      "cable": null,
+      "net": "L1",
+      "description": ""
+    },
+    {
+      "id": "W008",
+      "color": "WHITE",
+      "gauge": "12AWG",
+      "from_terminal": "TB-N:1",
+      "to_terminal": "DISC1:L3",
+      "cable": null,
+      "net": "N",
+      "description": ""
+    },
+    {
+      "id": "W009",
+      "color": "BLACK",
+      "gauge": "12AWG",
+      "from_terminal": "DISC1:T1",
+      "to_terminal": "CB1:1",
+      "cable": null,
+      "net": "L1-A",
+      "description": ""
+    },
+    {
+      "id": "W010",
+      "color": "BLACK",
+      "gauge": "12AWG",
+      "from_terminal": "CB1:2",
+      "to_terminal": "PS1:L1",
+      "cable": null,
+      "net": "L1-A1",
+      "description": ""
+    },
+    {
+      "id": "W011",
+      "color": "WHITE",
+      "gauge": "12AWG",
+      "from_terminal": "DISC1:T3",
+      "to_terminal": "PS1:N",
+      "cable": null,
+      "net": "N-1",
+      "description": ""
+    },
+    {
+      "id": "W012",
+      "color": null,
+      "gauge": null,
+      "from_terminal": "TB-GND-A:1",
+      "to_terminal": "EARTH:1",
+      "cable": null,
+      "net": "GND",
+      "description": "Earth ground symbol."
+    },
+    {
+      "id": "W013",
+      "color": "GREEN",
+      "gauge": "12AWG",
+      "from_terminal": "DOOR-GND:1",
+      "to_terminal": "TB-GND-B:1",
+      "cable": null,
+      "net": "GND",
+      "description": ""
+    },
+    {
+      "id": "W014",
+      "color": "GREEN",
+      "gauge": "12AWG",
+      "from_terminal": "TB-GND-B:2",
+      "to_terminal": "PS1:GND",
+      "cable": null,
+      "net": "GND",
+      "description": ""
+    },
+    {
+      "id": "W015",
+      "color": null,
+      "gauge": null,
+      "from_terminal": "TB-GND-B:2",
+      "to_terminal": "EARTH:2",
+      "cable": null,
+      "net": "GND",
+      "description": "Earth ground symbol."
+    },
+    {
+      "id": "W016",
+      "color": "BLUE",
+      "gauge": "12AWG",
+      "from_terminal": "PS1:+",
+      "to_terminal": "CB2:1",
+      "cable": null,
+      "net": "+24V",
+      "description": ""
+    },
+    {
+      "id": "W017",
+      "color": "BLUE",
+      "gauge": "12AWG",
+      "from_terminal": "CB2:2",
+      "to_terminal": "TB-24E1-A:1",
+      "cable": null,
+      "net": "24E-1",
+      "description": ""
+    },
+    {
+      "id": "W018",
+      "color": "WHITE/BLUE",
+      "gauge": "12AWG",
+      "from_terminal": "PS1:-1",
+      "to_terminal": "TB-0V:1",
+      "cable": null,
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W019",
+      "color": "WHITE/BLUE",
+      "gauge": "12AWG",
+      "from_terminal": "PS1:-2",
+      "to_terminal": "TB-0V:2",
+      "cable": null,
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W020",
+      "color": "BLUE",
+      "gauge": "12AWG",
+      "from_terminal": "TB-24E1-A:2",
+      "to_terminal": "TB-24E1-B:1",
+      "cable": null,
+      "net": "24E-1",
+      "description": ""
+    },
+    {
+      "id": "W021",
+      "color": "BROWN",
+      "gauge": "22AWG",
+      "from_terminal": "TB-24E1-A:3",
+      "to_terminal": "PB1:1",
+      "cable": "CABLE-PB1-START-STOP",
+      "net": "24E-1",
+      "description": ""
+    },
+    {
+      "id": "W022",
+      "color": "BROWN",
+      "gauge": "22AWG",
+      "from_terminal": "TB-24E1-A:4",
+      "to_terminal": "PB2:1",
+      "cable": "CABLE-PB2-START-STOP",
+      "net": "24E-1",
+      "description": ""
+    },
+    {
+      "id": "W023",
+      "color": "BLACK",
+      "gauge": "22AWG",
+      "from_terminal": "TB-24E1-A:5",
+      "to_terminal": "LT1:BLACK",
+      "cable": "CABLE-LT1",
+      "net": "24E-1",
+      "description": ""
+    },
+    {
+      "id": "W024",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "TB-24E1-A:6",
+      "to_terminal": "CR-ON:A1",
+      "cable": null,
+      "net": "24E-1",
+      "description": "Labelled BLUE 12AWG at the terminal-block end and BLUE 18AWG at the coil end."
+    },
+    {
+      "id": "W025",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "TB-24E1-A:7",
+      "to_terminal": "CR-BP:A1",
+      "cable": null,
+      "net": "24E-1",
+      "description": "Labelled BLUE 12AWG at the terminal-block end and BLUE 18AWG at the coil end."
+    },
+    {
+      "id": "W026",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "TB-24E1-A:8",
+      "to_terminal": "CR-SW:A1",
+      "cable": null,
+      "net": "24E-1",
+      "description": "Labelled BLUE 12AWG at the terminal-block end and BLUE 18AWG at the coil end."
+    },
+    {
+      "id": "W027",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "TB-24E1-B:1",
+      "to_terminal": "REVERSE-CB:1",
+      "cable": null,
+      "net": "24E-1",
+      "description": ""
+    },
+    {
+      "id": "W028",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "TB-24E1-B:2",
+      "to_terminal": "SPD1:1",
+      "cable": null,
+      "net": "24E-1",
+      "description": ""
+    },
+    {
+      "id": "W029",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "TB-24E1-B:3",
+      "to_terminal": "CR-ON:11",
+      "cable": null,
+      "net": "24E-1",
+      "description": ""
+    },
+    {
+      "id": "W030",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "TB-24E1-B:4",
+      "to_terminal": "CR-BP:21",
+      "cable": null,
+      "net": "24E-1",
+      "description": ""
+    },
+    {
+      "id": "W031",
+      "color": "RED",
+      "gauge": "18AWG",
+      "from_terminal": "TB-24E1-B:5",
+      "to_terminal": "RECEPT1:5",
+      "cable": null,
+      "net": "24E-1",
+      "description": "Labelled RED 18AWG at the terminal-block end and BLUE 18AWG at the receptacle end (the receptacle end callout is the M12 cordset conductor colour)."
+    },
+    {
+      "id": "W032",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "SPD1:3",
+      "to_terminal": "TB-SPD:1",
+      "cable": null,
+      "net": "SPD",
+      "description": ""
+    },
+    {
+      "id": "W033",
+      "color": "BROWN",
+      "gauge": "18AWG",
+      "from_terminal": "TB-SPD:1",
+      "to_terminal": "RECEPT1:1",
+      "cable": "CABLE-RECEPT1",
+      "net": "SPD",
+      "description": ""
+    },
+    {
+      "id": "W034",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "REVERSE-CB:2",
+      "to_terminal": "TB-DIR:1",
+      "cable": null,
+      "net": "DIR",
+      "description": ""
+    },
+    {
+      "id": "W035",
+      "color": "GREEN",
+      "gauge": "18AWG",
+      "from_terminal": "TB-DIR:1",
+      "to_terminal": "RECEPT1:2",
+      "cable": "CABLE-RECEPT1",
+      "net": "DIR",
+      "description": "Labelled GREEN 18AWG at the terminal-block end and GREY 18AWG at the receptacle end (the receptacle end callout is the M12 cordset conductor colour)."
+    },
+    {
+      "id": "W036",
+      "color": "WHITE/BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "SPD1:2",
+      "to_terminal": "TB-0V:3",
+      "cable": null,
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W037",
+      "color": "WHITE",
+      "gauge": "18AWG",
+      "from_terminal": "TB-0V:4",
+      "to_terminal": "RECEPT1:4",
+      "cable": "CABLE-RECEPT1",
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W038",
+      "color": "WHITE",
+      "gauge": "22AWG",
+      "from_terminal": "PB1:2",
+      "to_terminal": "TB-PB1SP:1",
+      "cable": "CABLE-PB1-START-STOP",
+      "net": "PB1-SP",
+      "description": ""
+    },
+    {
+      "id": "W039",
+      "color": "BLUE",
+      "gauge": "22AWG",
+      "from_terminal": "PB1:3",
+      "to_terminal": "TB-0V:5",
+      "cable": "CABLE-PB1-START-STOP",
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W040",
+      "color": "BLACK",
+      "gauge": "22AWG",
+      "from_terminal": "PB1:4",
+      "to_terminal": "CR1:A1",
+      "cable": "CABLE-PB1-START-STOP",
+      "net": "NET-PB1",
+      "description": ""
+    },
+    {
+      "id": "W041",
+      "color": "WHITE",
+      "gauge": "22AWG",
+      "from_terminal": "PB2:2",
+      "to_terminal": "TB-PB2SP:1",
+      "cable": "CABLE-PB2-START-STOP",
+      "net": "PB2-SP",
+      "description": ""
+    },
+    {
+      "id": "W042",
+      "color": "BLUE",
+      "gauge": "22AWG",
+      "from_terminal": "PB2:3",
+      "to_terminal": "TB-0V:6",
+      "cable": "CABLE-PB2-START-STOP",
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W043",
+      "color": "BLACK",
+      "gauge": "22AWG",
+      "from_terminal": "PB2:4",
+      "to_terminal": "CR2:A1",
+      "cable": "CABLE-PB2-START-STOP",
+      "net": "NET-PB2",
+      "description": ""
+    },
+    {
+      "id": "W044",
+      "color": "BLUE",
+      "gauge": "22AWG",
+      "from_terminal": "LT1:BLUE",
+      "to_terminal": "TB-0V:7",
+      "cable": "CABLE-LT1",
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W045",
+      "color": "WHITE/BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "CR1:A2",
+      "to_terminal": "TB-0V:8",
+      "cable": null,
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W046",
+      "color": "WHITE/BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "CR2:A2",
+      "to_terminal": "TB-0V:9",
+      "cable": null,
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W047",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "CR-ON:A2",
+      "to_terminal": "TB-110:3",
+      "cable": null,
+      "net": "110",
+      "description": ""
+    },
+    {
+      "id": "W048",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "CR-BP:A2",
+      "to_terminal": "BYPASS-CB:2",
+      "cable": null,
+      "net": "125",
+      "description": ""
+    },
+    {
+      "id": "W049",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "CR-SW:A2",
+      "to_terminal": "TB-130:1",
+      "cable": null,
+      "net": "130",
+      "description": ""
+    },
+    {
+      "id": "W050",
+      "color": "WHITE/BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "TB-0V:10",
+      "to_terminal": "CR1:11",
+      "cable": null,
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W051",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "CR1:14",
+      "to_terminal": "CR2:11",
+      "cable": null,
+      "net": "121",
+      "description": ""
+    },
+    {
+      "id": "W052",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "CR2:14",
+      "to_terminal": "TB-120:1",
+      "cable": null,
+      "net": "120",
+      "description": "Labelled BLUE 18AWG at the contact end and RED 16AWG at the terminal-block end."
+    },
+    {
+      "id": "W053",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "TB-120:3",
+      "to_terminal": "BYPASS-CB:1",
+      "cable": null,
+      "net": "120",
+      "description": ""
+    },
+    {
+      "id": "W054",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "CR-ON:14",
+      "to_terminal": "TB-RUN:1",
+      "cable": null,
+      "net": "RUN",
+      "description": ""
+    },
+    {
+      "id": "W055",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "CR-BP:24",
+      "to_terminal": "TB-RUN:1",
+      "cable": null,
+      "net": "RUN",
+      "description": ""
+    },
+    {
+      "id": "W056",
+      "color": "BLACK",
+      "gauge": "18AWG",
+      "from_terminal": "TB-RUN:1",
+      "to_terminal": "RECEPT1:3",
+      "cable": "CABLE-RECEPT1",
+      "net": "RUN",
+      "description": ""
+    },
+    {
+      "id": "W057",
+      "color": "WHITE/BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "TB-0V:11",
+      "to_terminal": "CR-SW:11",
+      "cable": null,
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W058",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "CR-SW:14",
+      "to_terminal": "TB-110:1",
+      "cable": null,
+      "net": "110",
+      "description": ""
+    },
+    {
+      "id": "W059",
+      "color": "BLUE",
+      "gauge": "16AWG",
+      "from_terminal": "INFEED1:1",
+      "to_terminal": "TB-110:2",
+      "cable": "CABLE-INFEED1",
+      "net": "110",
+      "description": ""
+    },
+    {
+      "id": "W060",
+      "color": "BLUE",
+      "gauge": "18AWG",
+      "from_terminal": "CR-BP:12",
+      "to_terminal": "TB-110:4",
+      "cable": null,
+      "net": "110",
+      "description": ""
+    },
+    {
+      "id": "W061",
+      "color": "BLUE",
+      "gauge": "16AWG",
+      "from_terminal": "DISCHARGE1:1",
+      "to_terminal": "CR-BP:11",
+      "cable": "CABLE-DISCHARGE1",
+      "net": "111",
+      "description": ""
+    },
+    {
+      "id": "W062",
+      "color": "GREEN",
+      "gauge": "16AWG",
+      "from_terminal": "INFEED1:2",
+      "to_terminal": "TB-0V:12",
+      "cable": "CABLE-INFEED1",
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W063",
+      "color": "RED",
+      "gauge": "16AWG",
+      "from_terminal": "INFEED1:3",
+      "to_terminal": "TB-120:2",
+      "cable": "CABLE-INFEED1",
+      "net": "120",
+      "description": ""
+    },
+    {
+      "id": "W064",
+      "color": "ORANGE",
+      "gauge": "16AWG",
+      "from_terminal": "INFEED1:4",
+      "to_terminal": "TB-130:2",
+      "cable": "CABLE-INFEED1",
+      "net": "130",
+      "description": ""
+    },
+    {
+      "id": "W065",
+      "color": "BLACK",
+      "gauge": "16AWG",
+      "from_terminal": "INFEED1:5",
+      "to_terminal": "TB-IINSP1:1",
+      "cable": "CABLE-INFEED1",
+      "net": "IINSP1",
+      "description": ""
+    },
+    {
+      "id": "W066",
+      "color": "WHITE",
+      "gauge": "16AWG",
+      "from_terminal": "INFEED1:6",
+      "to_terminal": "TB-IINSP2:1",
+      "cable": "CABLE-INFEED1",
+      "net": "IINSP2",
+      "description": ""
+    },
+    {
+      "id": "W067",
+      "color": "GREEN",
+      "gauge": "16AWG",
+      "from_terminal": "DISCHARGE1:2",
+      "to_terminal": "TB-0V:12",
+      "cable": "CABLE-DISCHARGE1",
+      "net": "0V",
+      "description": ""
+    },
+    {
+      "id": "W068",
+      "color": "RED",
+      "gauge": "16AWG",
+      "from_terminal": "DISCHARGE1:3",
+      "to_terminal": "TB-120:2",
+      "cable": "CABLE-DISCHARGE1",
+      "net": "120",
+      "description": ""
+    },
+    {
+      "id": "W069",
+      "color": "ORANGE",
+      "gauge": "16AWG",
+      "from_terminal": "DISCHARGE1:4",
+      "to_terminal": "TB-130:2",
+      "cable": "CABLE-DISCHARGE1",
+      "net": "130",
+      "description": ""
+    },
+    {
+      "id": "W070",
+      "color": "BLACK",
+      "gauge": "16AWG",
+      "from_terminal": "DISCHARGE1:5",
+      "to_terminal": "TB-DINSP1:1",
+      "cable": "CABLE-DISCHARGE1",
+      "net": "DINSP1",
+      "description": ""
+    },
+    {
+      "id": "W071",
+      "color": "WHITE",
+      "gauge": "16AWG",
+      "from_terminal": "DISCHARGE1:6",
+      "to_terminal": "TB-DINSP2:1",
+      "cable": "CABLE-DISCHARGE1",
+      "net": "DINSP2",
+      "description": ""
+    }
+  ],
+  "cables": [
+    {
+      "id": "CABLE-POWER-IN",
+      "description": "POWER IN 115VAC cable to plug PLG1 (LEV2611): black 10AWG line, white 10AWG neutral, green 10AWG ground.",
+      "member_wires": [
+        "W001",
+        "W002",
+        "W003"
+      ]
+    },
+    {
+      "id": "CABLE-POWER-OUT",
+      "description": "POWER OUT 115VAC cable to plug PLG2 (LEV2613): black 10AWG line, white 10AWG neutral, green 10AWG ground.",
+      "member_wires": [
+        "W004",
+        "W005",
+        "W006"
+      ]
+    },
+    {
+      "id": "CABLE-PB1-START-STOP",
+      "description": "PB1 start/stop cable: brown 22AWG (+24V in), white 22AWG (spare, to PB1-SP), blue 22AWG (0V), black 22AWG (switched signal out to the CR1 coil).",
+      "member_wires": [
+        "W021",
+        "W038",
+        "W039",
+        "W040"
+      ]
+    },
+    {
+      "id": "CABLE-PB2-START-STOP",
+      "description": "PB2 start/stop cable: brown 22AWG (+24V in), white 22AWG (spare, to PB2-SP), blue 22AWG (0V), black 22AWG (switched signal out to the CR2 coil).",
+      "member_wires": [
+        "W022",
+        "W041",
+        "W042",
+        "W043"
+      ]
+    },
+    {
+      "id": "CABLE-LT1",
+      "description": "Circuit 1 light cable: black 22AWG (24E-1) and blue 22AWG (0V) are used; brown 22AWG and white 22AWG are NOT CONNECTED and must be removed at the insulation with the exposed end heat-shrunk.",
+      "member_wires": [
+        "W023",
+        "W044"
+      ]
+    },
+    {
+      "id": "CABLE-RECEPT1",
+      "description": "5-pin micro (M12) cordset at the external device receptacle: brown 18AWG (SPD), white 18AWG (0V), blue 18AWG (24E-1), black 18AWG (RUN), grey 18AWG (DIR).",
+      "member_wires": [
+        "W033",
+        "W035",
+        "W037",
+        "W056"
+      ]
+    },
+    {
+      "id": "CABLE-INFEED1",
+      "description": "Infeed interface #1 6-pin mini cable: blue 16AWG (110), green 16AWG (0V), red 16AWG (120), orange 16AWG (130), black 16AWG (IINSP1), white 16AWG (IINSP2).",
+      "member_wires": [
+        "W059",
+        "W062",
+        "W063",
+        "W064",
+        "W065",
+        "W066"
+      ]
+    },
+    {
+      "id": "CABLE-DISCHARGE1",
+      "description": "Discharge interface #1 6-pin mini cable: blue 16AWG (111), green 16AWG (0V), red 16AWG (120), orange 16AWG (130), black 16AWG (DINSP1), white 16AWG (DINSP2).",
+      "member_wires": [
+        "W061",
+        "W067",
+        "W068",
+        "W069",
+        "W070",
+        "W071"
+      ]
+    }
+  ],
+  "subsystems": [
+    {
+      "id": "SUB-115VAC-INPUT",
+      "description": "115VAC single-phase input and isolation section: the supply plugs, the L1/N/GND terminals, the panel disconnect and breaker CB1.",
+      "member_components": [
+        "PLG1",
+        "PLG2",
+        "TB-L1",
+        "TB-N",
+        "TB-GND-A",
+        "DISC1",
+        "CB1"
+      ]
+    },
+    {
+      "id": "SUB-24VDC-SUPPLY",
+      "description": "24VDC generation and distribution section: the power supply, its output breaker, the two 24E-1 distribution terminal blocks and the 0V common strip.",
+      "member_components": [
+        "PS1",
+        "CB2",
+        "TB-GND-B",
+        "DOOR-GND",
+        "EARTH",
+        "TB-24E1-A",
+        "TB-24E1-B",
+        "TB-0V"
+      ]
+    },
+    {
+      "id": "SUB-OPERATOR-CONTROL",
+      "description": "Operator start/stop control: both lighted start/stop switches, their spare terminals, the relays they drive and the circuit-1 indicator light.",
+      "member_components": [
+        "PB1",
+        "PB2",
+        "TB-PB1SP",
+        "TB-PB2SP",
+        "CR1",
+        "CR2",
+        "LT1",
+        "TB-120"
+      ]
+    },
+    {
+      "id": "SUB-BYPASS",
+      "description": "Bypass control circuit: the bypass breaker used as a manual switch and the run bypass relay it energizes.",
+      "member_components": [
+        "BYPASS-CB",
+        "CR-BP"
+      ]
+    },
+    {
+      "id": "SUB-RUN-CONTROL",
+      "description": "Run control circuit: the run relay, the switch relay, the run terminal and the 110/130 signal terminal blocks.",
+      "member_components": [
+        "CR-ON",
+        "CR-SW",
+        "TB-RUN",
+        "TB-110",
+        "TB-130"
+      ]
+    },
+    {
+      "id": "SUB-SPEED-DIRECTION",
+      "description": "Speed and direction section: the speed controller, the reverse breaker used as a manual switch, and their signal terminals.",
+      "member_components": [
+        "SPD1",
+        "TB-SPD",
+        "REVERSE-CB",
+        "TB-DIR"
+      ]
+    },
+    {
+      "id": "SUB-MACHINE-INTERFACE",
+      "description": "External and machine-to-machine interfaces: the 5-pin device receptacle, the infeed and discharge 6-pin interfaces and the inspection-signal terminals.",
+      "member_components": [
+        "RECEPT1",
+        "INFEED1",
+        "DISCHARGE1",
+        "TB-IINSP1",
+        "TB-IINSP2",
+        "TB-DINSP1",
+        "TB-DINSP2"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PLG1",
+      "tgt": "PLG1:B",
+      "description": "PLG1 (cable plug) has terminal B, which serves as a line connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PLG1",
+      "tgt": "PLG1:W",
+      "description": "PLG1 (cable plug) has terminal W, which serves as a neutral connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PLG1",
+      "tgt": "PLG1:G",
+      "description": "PLG1 (cable plug) has terminal G, which serves as a ground connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PLG2",
+      "tgt": "PLG2:B",
+      "description": "PLG2 (cable plug) has terminal B, which serves as a line connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PLG2",
+      "tgt": "PLG2:W",
+      "description": "PLG2 (cable plug) has terminal W, which serves as a neutral connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PLG2",
+      "tgt": "PLG2:G",
+      "description": "PLG2 (cable plug) has terminal G, which serves as a ground connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-L1",
+      "tgt": "TB-L1:1",
+      "description": "TB-L1 (terminal block) has terminal 1, which serves as a line connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-N",
+      "tgt": "TB-N:1",
+      "description": "TB-N (terminal block) has terminal 1, which serves as a neutral connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-GND-A",
+      "tgt": "TB-GND-A:1",
+      "description": "TB-GND-A (terminal block) has terminal 1, which serves as a ground connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISC1",
+      "tgt": "DISC1:L1",
+      "description": "DISC1 (switch) has terminal L1, which serves as a line connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISC1",
+      "tgt": "DISC1:T1",
+      "description": "DISC1 (switch) has terminal T1, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISC1",
+      "tgt": "DISC1:L2",
+      "description": "DISC1 (switch) has terminal L2, which serves as a line connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISC1",
+      "tgt": "DISC1:T2",
+      "description": "DISC1 (switch) has terminal T2, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISC1",
+      "tgt": "DISC1:L3",
+      "description": "DISC1 (switch) has terminal L3, which serves as a neutral connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISC1",
+      "tgt": "DISC1:T3",
+      "description": "DISC1 (switch) has terminal T3, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CB1",
+      "tgt": "CB1:1",
+      "description": "CB1 (circuit breaker) has terminal 1, which serves as a line connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CB1",
+      "tgt": "CB1:2",
+      "description": "CB1 (circuit breaker) has terminal 2, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PS1",
+      "tgt": "PS1:L1",
+      "description": "PS1 (power supply) has terminal L1, which serves as a line connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PS1",
+      "tgt": "PS1:N",
+      "description": "PS1 (power supply) has terminal N, which serves as a neutral connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PS1",
+      "tgt": "PS1:GND",
+      "description": "PS1 (power supply) has terminal GND, which serves as a ground connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PS1",
+      "tgt": "PS1:+",
+      "description": "PS1 (power supply) has terminal +, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PS1",
+      "tgt": "PS1:-1",
+      "description": "PS1 (power supply) has terminal -1, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PS1",
+      "tgt": "PS1:-2",
+      "description": "PS1 (power supply) has terminal -2, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-GND-B",
+      "tgt": "TB-GND-B:1",
+      "description": "TB-GND-B (terminal block) has terminal 1, which serves as a ground connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-GND-B",
+      "tgt": "TB-GND-B:2",
+      "description": "TB-GND-B (terminal block) has terminal 2, which serves as a ground connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DOOR-GND",
+      "tgt": "DOOR-GND:1",
+      "description": "DOOR-GND (ground) has terminal 1, which serves as a ground connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "EARTH",
+      "tgt": "EARTH:1",
+      "description": "EARTH (ground) has terminal 1, which serves as a ground connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "EARTH",
+      "tgt": "EARTH:2",
+      "description": "EARTH (ground) has terminal 2, which serves as a ground connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CB2",
+      "tgt": "CB2:1",
+      "description": "CB2 (circuit breaker) has terminal 1, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CB2",
+      "tgt": "CB2:2",
+      "description": "CB2 (circuit breaker) has terminal 2, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-A",
+      "tgt": "TB-24E1-A:1",
+      "description": "TB-24E1-A (terminal block) has terminal 1, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-A",
+      "tgt": "TB-24E1-A:2",
+      "description": "TB-24E1-A (terminal block) has terminal 2, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-A",
+      "tgt": "TB-24E1-A:3",
+      "description": "TB-24E1-A (terminal block) has terminal 3, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-A",
+      "tgt": "TB-24E1-A:4",
+      "description": "TB-24E1-A (terminal block) has terminal 4, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-A",
+      "tgt": "TB-24E1-A:5",
+      "description": "TB-24E1-A (terminal block) has terminal 5, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-A",
+      "tgt": "TB-24E1-A:6",
+      "description": "TB-24E1-A (terminal block) has terminal 6, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-A",
+      "tgt": "TB-24E1-A:7",
+      "description": "TB-24E1-A (terminal block) has terminal 7, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-A",
+      "tgt": "TB-24E1-A:8",
+      "description": "TB-24E1-A (terminal block) has terminal 8, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-B",
+      "tgt": "TB-24E1-B:1",
+      "description": "TB-24E1-B (terminal block) has terminal 1, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-B",
+      "tgt": "TB-24E1-B:2",
+      "description": "TB-24E1-B (terminal block) has terminal 2, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-B",
+      "tgt": "TB-24E1-B:3",
+      "description": "TB-24E1-B (terminal block) has terminal 3, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-B",
+      "tgt": "TB-24E1-B:4",
+      "description": "TB-24E1-B (terminal block) has terminal 4, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-24E1-B",
+      "tgt": "TB-24E1-B:5",
+      "description": "TB-24E1-B (terminal block) has terminal 5, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "SPD1",
+      "tgt": "SPD1:1",
+      "description": "SPD1 (speed controller) has terminal 1, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "SPD1",
+      "tgt": "SPD1:2",
+      "description": "SPD1 (speed controller) has terminal 2, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "SPD1",
+      "tgt": "SPD1:3",
+      "description": "SPD1 (speed controller) has terminal 3, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-SPD",
+      "tgt": "TB-SPD:1",
+      "description": "TB-SPD (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "REVERSE-CB",
+      "tgt": "REVERSE-CB:1",
+      "description": "REVERSE-CB (circuit breaker) has terminal 1, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "REVERSE-CB",
+      "tgt": "REVERSE-CB:2",
+      "description": "REVERSE-CB (circuit breaker) has terminal 2, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-DIR",
+      "tgt": "TB-DIR:1",
+      "description": "TB-DIR (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PB1",
+      "tgt": "PB1:1",
+      "description": "PB1 (push button) has terminal 1, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PB1",
+      "tgt": "PB1:2",
+      "description": "PB1 (push button) has terminal 2, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PB1",
+      "tgt": "PB1:3",
+      "description": "PB1 (push button) has terminal 3, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PB1",
+      "tgt": "PB1:4",
+      "description": "PB1 (push button) has terminal 4, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PB2",
+      "tgt": "PB2:1",
+      "description": "PB2 (push button) has terminal 1, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PB2",
+      "tgt": "PB2:2",
+      "description": "PB2 (push button) has terminal 2, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PB2",
+      "tgt": "PB2:3",
+      "description": "PB2 (push button) has terminal 3, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "PB2",
+      "tgt": "PB2:4",
+      "description": "PB2 (push button) has terminal 4, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-PB1SP",
+      "tgt": "TB-PB1SP:1",
+      "description": "TB-PB1SP (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-PB2SP",
+      "tgt": "TB-PB2SP:1",
+      "description": "TB-PB2SP (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "LT1",
+      "tgt": "LT1:BLACK",
+      "description": "LT1 (indicator light) has terminal BLACK, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "LT1",
+      "tgt": "LT1:BLUE",
+      "description": "LT1 (indicator light) has terminal BLUE, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "LT1",
+      "tgt": "LT1:BROWN",
+      "description": "LT1 (indicator light) has terminal BROWN, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "LT1",
+      "tgt": "LT1:WHITE",
+      "description": "LT1 (indicator light) has terminal WHITE, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR1",
+      "tgt": "CR1:A1",
+      "description": "CR1 (relay) has terminal A1, which serves as a coil connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR1",
+      "tgt": "CR1:A2",
+      "description": "CR1 (relay) has terminal A2, which serves as a coil connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR1",
+      "tgt": "CR1:11",
+      "description": "CR1 (relay) has terminal 11, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR1",
+      "tgt": "CR1:14",
+      "description": "CR1 (relay) has terminal 14, which serves as a NO contact connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR2",
+      "tgt": "CR2:A1",
+      "description": "CR2 (relay) has terminal A1, which serves as a coil connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR2",
+      "tgt": "CR2:A2",
+      "description": "CR2 (relay) has terminal A2, which serves as a coil connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR2",
+      "tgt": "CR2:11",
+      "description": "CR2 (relay) has terminal 11, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR2",
+      "tgt": "CR2:14",
+      "description": "CR2 (relay) has terminal 14, which serves as a NO contact connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-ON",
+      "tgt": "CR-ON:A1",
+      "description": "CR-ON (relay) has terminal A1, which serves as a coil connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-ON",
+      "tgt": "CR-ON:A2",
+      "description": "CR-ON (relay) has terminal A2, which serves as a coil connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-ON",
+      "tgt": "CR-ON:11",
+      "description": "CR-ON (relay) has terminal 11, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-ON",
+      "tgt": "CR-ON:14",
+      "description": "CR-ON (relay) has terminal 14, which serves as a NO contact connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-BP",
+      "tgt": "CR-BP:A1",
+      "description": "CR-BP (relay) has terminal A1, which serves as a coil connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-BP",
+      "tgt": "CR-BP:A2",
+      "description": "CR-BP (relay) has terminal A2, which serves as a coil connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-BP",
+      "tgt": "CR-BP:11",
+      "description": "CR-BP (relay) has terminal 11, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-BP",
+      "tgt": "CR-BP:12",
+      "description": "CR-BP (relay) has terminal 12, which serves as a NC contact connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-BP",
+      "tgt": "CR-BP:21",
+      "description": "CR-BP (relay) has terminal 21, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-BP",
+      "tgt": "CR-BP:24",
+      "description": "CR-BP (relay) has terminal 24, which serves as a NO contact connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-SW",
+      "tgt": "CR-SW:A1",
+      "description": "CR-SW (relay) has terminal A1, which serves as a coil connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-SW",
+      "tgt": "CR-SW:A2",
+      "description": "CR-SW (relay) has terminal A2, which serves as a coil connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-SW",
+      "tgt": "CR-SW:11",
+      "description": "CR-SW (relay) has terminal 11, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "CR-SW",
+      "tgt": "CR-SW:14",
+      "description": "CR-SW (relay) has terminal 14, which serves as a NO contact connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "BYPASS-CB",
+      "tgt": "BYPASS-CB:1",
+      "description": "BYPASS-CB (circuit breaker) has terminal 1, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "BYPASS-CB",
+      "tgt": "BYPASS-CB:2",
+      "description": "BYPASS-CB (circuit breaker) has terminal 2, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-RUN",
+      "tgt": "TB-RUN:1",
+      "description": "TB-RUN (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-110",
+      "tgt": "TB-110:1",
+      "description": "TB-110 (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-110",
+      "tgt": "TB-110:2",
+      "description": "TB-110 (terminal block) has terminal 2, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-110",
+      "tgt": "TB-110:3",
+      "description": "TB-110 (terminal block) has terminal 3, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-110",
+      "tgt": "TB-110:4",
+      "description": "TB-110 (terminal block) has terminal 4, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-120",
+      "tgt": "TB-120:1",
+      "description": "TB-120 (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-120",
+      "tgt": "TB-120:2",
+      "description": "TB-120 (terminal block) has terminal 2, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-120",
+      "tgt": "TB-120:3",
+      "description": "TB-120 (terminal block) has terminal 3, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-130",
+      "tgt": "TB-130:1",
+      "description": "TB-130 (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-130",
+      "tgt": "TB-130:2",
+      "description": "TB-130 (terminal block) has terminal 2, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:1",
+      "description": "TB-0V (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:2",
+      "description": "TB-0V (terminal block) has terminal 2, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:3",
+      "description": "TB-0V (terminal block) has terminal 3, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:4",
+      "description": "TB-0V (terminal block) has terminal 4, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:5",
+      "description": "TB-0V (terminal block) has terminal 5, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:6",
+      "description": "TB-0V (terminal block) has terminal 6, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:7",
+      "description": "TB-0V (terminal block) has terminal 7, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:8",
+      "description": "TB-0V (terminal block) has terminal 8, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:9",
+      "description": "TB-0V (terminal block) has terminal 9, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:10",
+      "description": "TB-0V (terminal block) has terminal 10, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:11",
+      "description": "TB-0V (terminal block) has terminal 11, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-0V",
+      "tgt": "TB-0V:12",
+      "description": "TB-0V (terminal block) has terminal 12, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "RECEPT1",
+      "tgt": "RECEPT1:1",
+      "description": "RECEPT1 (connector receptacle) has terminal 1, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "RECEPT1",
+      "tgt": "RECEPT1:2",
+      "description": "RECEPT1 (connector receptacle) has terminal 2, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "RECEPT1",
+      "tgt": "RECEPT1:3",
+      "description": "RECEPT1 (connector receptacle) has terminal 3, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "RECEPT1",
+      "tgt": "RECEPT1:4",
+      "description": "RECEPT1 (connector receptacle) has terminal 4, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "RECEPT1",
+      "tgt": "RECEPT1:5",
+      "description": "RECEPT1 (connector receptacle) has terminal 5, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "INFEED1",
+      "tgt": "INFEED1:1",
+      "description": "INFEED1 (connector receptacle) has terminal 1, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "INFEED1",
+      "tgt": "INFEED1:2",
+      "description": "INFEED1 (connector receptacle) has terminal 2, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "INFEED1",
+      "tgt": "INFEED1:3",
+      "description": "INFEED1 (connector receptacle) has terminal 3, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "INFEED1",
+      "tgt": "INFEED1:4",
+      "description": "INFEED1 (connector receptacle) has terminal 4, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "INFEED1",
+      "tgt": "INFEED1:5",
+      "description": "INFEED1 (connector receptacle) has terminal 5, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "INFEED1",
+      "tgt": "INFEED1:6",
+      "description": "INFEED1 (connector receptacle) has terminal 6, which serves as a input connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISCHARGE1",
+      "tgt": "DISCHARGE1:1",
+      "description": "DISCHARGE1 (cable plug) has terminal 1, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISCHARGE1",
+      "tgt": "DISCHARGE1:2",
+      "description": "DISCHARGE1 (cable plug) has terminal 2, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISCHARGE1",
+      "tgt": "DISCHARGE1:3",
+      "description": "DISCHARGE1 (cable plug) has terminal 3, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISCHARGE1",
+      "tgt": "DISCHARGE1:4",
+      "description": "DISCHARGE1 (cable plug) has terminal 4, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISCHARGE1",
+      "tgt": "DISCHARGE1:5",
+      "description": "DISCHARGE1 (cable plug) has terminal 5, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "DISCHARGE1",
+      "tgt": "DISCHARGE1:6",
+      "description": "DISCHARGE1 (cable plug) has terminal 6, which serves as a output connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-IINSP1",
+      "tgt": "TB-IINSP1:1",
+      "description": "TB-IINSP1 (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-IINSP2",
+      "tgt": "TB-IINSP2:1",
+      "description": "TB-IINSP2 (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-DINSP1",
+      "tgt": "TB-DINSP1:1",
+      "description": "TB-DINSP1 (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "HAS_TERMINAL",
+      "src": "TB-DINSP2",
+      "tgt": "TB-DINSP2:1",
+      "description": "TB-DINSP2 (terminal block) has terminal 1, which serves as a common connection point.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PLG1:B",
+      "tgt": "L1",
+      "description": "Terminal PLG1:B is electrically common with net L1 at 115VAC. A fault or signal on net L1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PLG1:W",
+      "tgt": "N",
+      "description": "Terminal PLG1:W is electrically common with net N at 115VAC neutral. A fault or signal on net N is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PLG1:G",
+      "tgt": "GND",
+      "description": "Terminal PLG1:G is electrically common with net GND at 0V. A fault or signal on net GND is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PLG2:B",
+      "tgt": "L1",
+      "description": "Terminal PLG2:B is electrically common with net L1 at 115VAC. A fault or signal on net L1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PLG2:W",
+      "tgt": "N",
+      "description": "Terminal PLG2:W is electrically common with net N at 115VAC neutral. A fault or signal on net N is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PLG2:G",
+      "tgt": "GND",
+      "description": "Terminal PLG2:G is electrically common with net GND at 0V. A fault or signal on net GND is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-L1:1",
+      "tgt": "L1",
+      "description": "Terminal TB-L1:1 is electrically common with net L1 at 115VAC. A fault or signal on net L1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-N:1",
+      "tgt": "N",
+      "description": "Terminal TB-N:1 is electrically common with net N at 115VAC neutral. A fault or signal on net N is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-GND-A:1",
+      "tgt": "GND",
+      "description": "Terminal TB-GND-A:1 is electrically common with net GND at 0V. A fault or signal on net GND is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "DISC1:L1",
+      "tgt": "L1",
+      "description": "Terminal DISC1:L1 is electrically common with net L1 at 115VAC. A fault or signal on net L1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "DISC1:T1",
+      "tgt": "L1-A",
+      "description": "Terminal DISC1:T1 is electrically common with net L1-A at 115VAC. A fault or signal on net L1-A is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "DISC1:L3",
+      "tgt": "N",
+      "description": "Terminal DISC1:L3 is electrically common with net N at 115VAC neutral. A fault or signal on net N is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "DISC1:T3",
+      "tgt": "N-1",
+      "description": "Terminal DISC1:T3 is electrically common with net N-1 at 115VAC neutral. A fault or signal on net N-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CB1:1",
+      "tgt": "L1-A",
+      "description": "Terminal CB1:1 is electrically common with net L1-A at 115VAC. A fault or signal on net L1-A is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CB1:2",
+      "tgt": "L1-A1",
+      "description": "Terminal CB1:2 is electrically common with net L1-A1 at 115VAC. A fault or signal on net L1-A1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PS1:L1",
+      "tgt": "L1-A1",
+      "description": "Terminal PS1:L1 is electrically common with net L1-A1 at 115VAC. A fault or signal on net L1-A1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PS1:N",
+      "tgt": "N-1",
+      "description": "Terminal PS1:N is electrically common with net N-1 at 115VAC neutral. A fault or signal on net N-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PS1:GND",
+      "tgt": "GND",
+      "description": "Terminal PS1:GND is electrically common with net GND at 0V. A fault or signal on net GND is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PS1:+",
+      "tgt": "+24V",
+      "description": "Terminal PS1:+ is electrically common with net +24V at 24VDC. A fault or signal on net +24V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PS1:-1",
+      "tgt": "0V",
+      "description": "Terminal PS1:-1 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PS1:-2",
+      "tgt": "0V",
+      "description": "Terminal PS1:-2 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-GND-B:1",
+      "tgt": "GND",
+      "description": "Terminal TB-GND-B:1 is electrically common with net GND at 0V. A fault or signal on net GND is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-GND-B:2",
+      "tgt": "GND",
+      "description": "Terminal TB-GND-B:2 is electrically common with net GND at 0V. A fault or signal on net GND is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "DOOR-GND:1",
+      "tgt": "GND",
+      "description": "Terminal DOOR-GND:1 is electrically common with net GND at 0V. A fault or signal on net GND is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "EARTH:1",
+      "tgt": "GND",
+      "description": "Terminal EARTH:1 is electrically common with net GND at 0V. A fault or signal on net GND is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "EARTH:2",
+      "tgt": "GND",
+      "description": "Terminal EARTH:2 is electrically common with net GND at 0V. A fault or signal on net GND is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CB2:1",
+      "tgt": "+24V",
+      "description": "Terminal CB2:1 is electrically common with net +24V at 24VDC. A fault or signal on net +24V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CB2:2",
+      "tgt": "24E-1",
+      "description": "Terminal CB2:2 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-A:1",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-A:1 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-A:2",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-A:2 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-A:3",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-A:3 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-A:4",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-A:4 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-A:5",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-A:5 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-A:6",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-A:6 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-A:7",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-A:7 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-A:8",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-A:8 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-B:1",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-B:1 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-B:2",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-B:2 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-B:3",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-B:3 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-B:4",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-B:4 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-24E1-B:5",
+      "tgt": "24E-1",
+      "description": "Terminal TB-24E1-B:5 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "SPD1:1",
+      "tgt": "24E-1",
+      "description": "Terminal SPD1:1 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "SPD1:2",
+      "tgt": "0V",
+      "description": "Terminal SPD1:2 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "SPD1:3",
+      "tgt": "SPD",
+      "description": "Terminal SPD1:3 is electrically common with net SPD at 24VDC. A fault or signal on net SPD is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-SPD:1",
+      "tgt": "SPD",
+      "description": "Terminal TB-SPD:1 is electrically common with net SPD at 24VDC. A fault or signal on net SPD is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "REVERSE-CB:1",
+      "tgt": "24E-1",
+      "description": "Terminal REVERSE-CB:1 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "REVERSE-CB:2",
+      "tgt": "DIR",
+      "description": "Terminal REVERSE-CB:2 is electrically common with net DIR at 24VDC. A fault or signal on net DIR is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-DIR:1",
+      "tgt": "DIR",
+      "description": "Terminal TB-DIR:1 is electrically common with net DIR at 24VDC. A fault or signal on net DIR is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PB1:1",
+      "tgt": "24E-1",
+      "description": "Terminal PB1:1 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PB1:2",
+      "tgt": "PB1-SP",
+      "description": "Terminal PB1:2 is electrically common with net PB1-SP. A fault or signal on net PB1-SP is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PB1:3",
+      "tgt": "0V",
+      "description": "Terminal PB1:3 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PB1:4",
+      "tgt": "NET-PB1",
+      "description": "Terminal PB1:4 is electrically common with net NET-PB1 at 24VDC. A fault or signal on net NET-PB1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PB2:1",
+      "tgt": "24E-1",
+      "description": "Terminal PB2:1 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PB2:2",
+      "tgt": "PB2-SP",
+      "description": "Terminal PB2:2 is electrically common with net PB2-SP. A fault or signal on net PB2-SP is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PB2:3",
+      "tgt": "0V",
+      "description": "Terminal PB2:3 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "PB2:4",
+      "tgt": "NET-PB2",
+      "description": "Terminal PB2:4 is electrically common with net NET-PB2 at 24VDC. A fault or signal on net NET-PB2 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-PB1SP:1",
+      "tgt": "PB1-SP",
+      "description": "Terminal TB-PB1SP:1 is electrically common with net PB1-SP. A fault or signal on net PB1-SP is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-PB2SP:1",
+      "tgt": "PB2-SP",
+      "description": "Terminal TB-PB2SP:1 is electrically common with net PB2-SP. A fault or signal on net PB2-SP is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "LT1:BLACK",
+      "tgt": "24E-1",
+      "description": "Terminal LT1:BLACK is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "LT1:BLUE",
+      "tgt": "0V",
+      "description": "Terminal LT1:BLUE is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR1:A1",
+      "tgt": "NET-PB1",
+      "description": "Terminal CR1:A1 is electrically common with net NET-PB1 at 24VDC. A fault or signal on net NET-PB1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR1:A2",
+      "tgt": "0V",
+      "description": "Terminal CR1:A2 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR1:11",
+      "tgt": "0V",
+      "description": "Terminal CR1:11 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR1:14",
+      "tgt": "121",
+      "description": "Terminal CR1:14 is electrically common with net 121 at 24VDC. A fault or signal on net 121 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR2:A1",
+      "tgt": "NET-PB2",
+      "description": "Terminal CR2:A1 is electrically common with net NET-PB2 at 24VDC. A fault or signal on net NET-PB2 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR2:A2",
+      "tgt": "0V",
+      "description": "Terminal CR2:A2 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR2:11",
+      "tgt": "121",
+      "description": "Terminal CR2:11 is electrically common with net 121 at 24VDC. A fault or signal on net 121 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR2:14",
+      "tgt": "120",
+      "description": "Terminal CR2:14 is electrically common with net 120 at 24VDC. A fault or signal on net 120 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-ON:A1",
+      "tgt": "24E-1",
+      "description": "Terminal CR-ON:A1 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-ON:A2",
+      "tgt": "110",
+      "description": "Terminal CR-ON:A2 is electrically common with net 110 at 24VDC. A fault or signal on net 110 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-ON:11",
+      "tgt": "24E-1",
+      "description": "Terminal CR-ON:11 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-ON:14",
+      "tgt": "RUN",
+      "description": "Terminal CR-ON:14 is electrically common with net RUN at 24VDC. A fault or signal on net RUN is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-BP:A1",
+      "tgt": "24E-1",
+      "description": "Terminal CR-BP:A1 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-BP:A2",
+      "tgt": "125",
+      "description": "Terminal CR-BP:A2 is electrically common with net 125 at 24VDC. A fault or signal on net 125 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-BP:11",
+      "tgt": "111",
+      "description": "Terminal CR-BP:11 is electrically common with net 111 at 24VDC. A fault or signal on net 111 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-BP:12",
+      "tgt": "110",
+      "description": "Terminal CR-BP:12 is electrically common with net 110 at 24VDC. A fault or signal on net 110 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-BP:21",
+      "tgt": "24E-1",
+      "description": "Terminal CR-BP:21 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-BP:24",
+      "tgt": "RUN",
+      "description": "Terminal CR-BP:24 is electrically common with net RUN at 24VDC. A fault or signal on net RUN is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-SW:A1",
+      "tgt": "24E-1",
+      "description": "Terminal CR-SW:A1 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-SW:A2",
+      "tgt": "130",
+      "description": "Terminal CR-SW:A2 is electrically common with net 130 at 24VDC. A fault or signal on net 130 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-SW:11",
+      "tgt": "0V",
+      "description": "Terminal CR-SW:11 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "CR-SW:14",
+      "tgt": "110",
+      "description": "Terminal CR-SW:14 is electrically common with net 110 at 24VDC. A fault or signal on net 110 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "BYPASS-CB:1",
+      "tgt": "120",
+      "description": "Terminal BYPASS-CB:1 is electrically common with net 120 at 24VDC. A fault or signal on net 120 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "BYPASS-CB:2",
+      "tgt": "125",
+      "description": "Terminal BYPASS-CB:2 is electrically common with net 125 at 24VDC. A fault or signal on net 125 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-RUN:1",
+      "tgt": "RUN",
+      "description": "Terminal TB-RUN:1 is electrically common with net RUN at 24VDC. A fault or signal on net RUN is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-110:1",
+      "tgt": "110",
+      "description": "Terminal TB-110:1 is electrically common with net 110 at 24VDC. A fault or signal on net 110 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-110:2",
+      "tgt": "110",
+      "description": "Terminal TB-110:2 is electrically common with net 110 at 24VDC. A fault or signal on net 110 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-110:3",
+      "tgt": "110",
+      "description": "Terminal TB-110:3 is electrically common with net 110 at 24VDC. A fault or signal on net 110 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-110:4",
+      "tgt": "110",
+      "description": "Terminal TB-110:4 is electrically common with net 110 at 24VDC. A fault or signal on net 110 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-120:1",
+      "tgt": "120",
+      "description": "Terminal TB-120:1 is electrically common with net 120 at 24VDC. A fault or signal on net 120 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-120:2",
+      "tgt": "120",
+      "description": "Terminal TB-120:2 is electrically common with net 120 at 24VDC. A fault or signal on net 120 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-120:3",
+      "tgt": "120",
+      "description": "Terminal TB-120:3 is electrically common with net 120 at 24VDC. A fault or signal on net 120 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-130:1",
+      "tgt": "130",
+      "description": "Terminal TB-130:1 is electrically common with net 130 at 24VDC. A fault or signal on net 130 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-130:2",
+      "tgt": "130",
+      "description": "Terminal TB-130:2 is electrically common with net 130 at 24VDC. A fault or signal on net 130 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:1",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:1 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:2",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:2 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:3",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:3 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:4",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:4 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:5",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:5 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:6",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:6 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:7",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:7 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:8",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:8 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:9",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:9 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:10",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:10 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:11",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:11 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-0V:12",
+      "tgt": "0V",
+      "description": "Terminal TB-0V:12 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "RECEPT1:1",
+      "tgt": "SPD",
+      "description": "Terminal RECEPT1:1 is electrically common with net SPD at 24VDC. A fault or signal on net SPD is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "RECEPT1:2",
+      "tgt": "DIR",
+      "description": "Terminal RECEPT1:2 is electrically common with net DIR at 24VDC. A fault or signal on net DIR is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "RECEPT1:3",
+      "tgt": "RUN",
+      "description": "Terminal RECEPT1:3 is electrically common with net RUN at 24VDC. A fault or signal on net RUN is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "RECEPT1:4",
+      "tgt": "0V",
+      "description": "Terminal RECEPT1:4 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "RECEPT1:5",
+      "tgt": "24E-1",
+      "description": "Terminal RECEPT1:5 is electrically common with net 24E-1 at 24VDC. A fault or signal on net 24E-1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "INFEED1:1",
+      "tgt": "110",
+      "description": "Terminal INFEED1:1 is electrically common with net 110 at 24VDC. A fault or signal on net 110 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "INFEED1:2",
+      "tgt": "0V",
+      "description": "Terminal INFEED1:2 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "INFEED1:3",
+      "tgt": "120",
+      "description": "Terminal INFEED1:3 is electrically common with net 120 at 24VDC. A fault or signal on net 120 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "INFEED1:4",
+      "tgt": "130",
+      "description": "Terminal INFEED1:4 is electrically common with net 130 at 24VDC. A fault or signal on net 130 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "INFEED1:5",
+      "tgt": "IINSP1",
+      "description": "Terminal INFEED1:5 is electrically common with net IINSP1. A fault or signal on net IINSP1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "INFEED1:6",
+      "tgt": "IINSP2",
+      "description": "Terminal INFEED1:6 is electrically common with net IINSP2. A fault or signal on net IINSP2 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "DISCHARGE1:1",
+      "tgt": "111",
+      "description": "Terminal DISCHARGE1:1 is electrically common with net 111 at 24VDC. A fault or signal on net 111 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "DISCHARGE1:2",
+      "tgt": "0V",
+      "description": "Terminal DISCHARGE1:2 is electrically common with net 0V at 0V. A fault or signal on net 0V is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "DISCHARGE1:3",
+      "tgt": "120",
+      "description": "Terminal DISCHARGE1:3 is electrically common with net 120 at 24VDC. A fault or signal on net 120 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "DISCHARGE1:4",
+      "tgt": "130",
+      "description": "Terminal DISCHARGE1:4 is electrically common with net 130 at 24VDC. A fault or signal on net 130 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "DISCHARGE1:5",
+      "tgt": "DINSP1",
+      "description": "Terminal DISCHARGE1:5 is electrically common with net DINSP1. A fault or signal on net DINSP1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "DISCHARGE1:6",
+      "tgt": "DINSP2",
+      "description": "Terminal DISCHARGE1:6 is electrically common with net DINSP2. A fault or signal on net DINSP2 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-IINSP1:1",
+      "tgt": "IINSP1",
+      "description": "Terminal TB-IINSP1:1 is electrically common with net IINSP1. A fault or signal on net IINSP1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-IINSP2:1",
+      "tgt": "IINSP2",
+      "description": "Terminal TB-IINSP2:1 is electrically common with net IINSP2. A fault or signal on net IINSP2 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-DINSP1:1",
+      "tgt": "DINSP1",
+      "description": "Terminal TB-DINSP1:1 is electrically common with net DINSP1. A fault or signal on net DINSP1 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "ON_NET",
+      "src": "TB-DINSP2:1",
+      "tgt": "DINSP2",
+      "description": "Terminal TB-DINSP2:1 is electrically common with net DINSP2. A fault or signal on net DINSP2 is seen at this terminal.",
+      "properties": {}
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PLG1:B",
+      "tgt": "TB-L1:1",
+      "description": "PLG1:B connects to TB-L1:1 via wire W001, a BLACK 10AWG conductor on net L1. It is part of cable CABLE-POWER-IN.",
+      "properties": {
+        "wire": "W001",
+        "wire_color": "BLACK",
+        "wire_gauge": "10AWG",
+        "net": "L1",
+        "cable": "CABLE-POWER-IN"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PLG1:W",
+      "tgt": "TB-N:1",
+      "description": "PLG1:W connects to TB-N:1 via wire W002, a WHITE 10AWG conductor on net N. It is part of cable CABLE-POWER-IN.",
+      "properties": {
+        "wire": "W002",
+        "wire_color": "WHITE",
+        "wire_gauge": "10AWG",
+        "net": "N",
+        "cable": "CABLE-POWER-IN"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PLG1:G",
+      "tgt": "TB-GND-A:1",
+      "description": "PLG1:G connects to TB-GND-A:1 via wire W003, a GREEN 10AWG conductor on net GND. It is part of cable CABLE-POWER-IN.",
+      "properties": {
+        "wire": "W003",
+        "wire_color": "GREEN",
+        "wire_gauge": "10AWG",
+        "net": "GND",
+        "cable": "CABLE-POWER-IN"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PLG2:B",
+      "tgt": "TB-L1:1",
+      "description": "PLG2:B connects to TB-L1:1 via wire W004, a BLACK 10AWG conductor on net L1. It is part of cable CABLE-POWER-OUT.",
+      "properties": {
+        "wire": "W004",
+        "wire_color": "BLACK",
+        "wire_gauge": "10AWG",
+        "net": "L1",
+        "cable": "CABLE-POWER-OUT"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PLG2:W",
+      "tgt": "TB-N:1",
+      "description": "PLG2:W connects to TB-N:1 via wire W005, a WHITE 10AWG conductor on net N. It is part of cable CABLE-POWER-OUT.",
+      "properties": {
+        "wire": "W005",
+        "wire_color": "WHITE",
+        "wire_gauge": "10AWG",
+        "net": "N",
+        "cable": "CABLE-POWER-OUT"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PLG2:G",
+      "tgt": "TB-GND-A:1",
+      "description": "PLG2:G connects to TB-GND-A:1 via wire W006, a GREEN 10AWG conductor on net GND. It is part of cable CABLE-POWER-OUT.",
+      "properties": {
+        "wire": "W006",
+        "wire_color": "GREEN",
+        "wire_gauge": "10AWG",
+        "net": "GND",
+        "cable": "CABLE-POWER-OUT"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-L1:1",
+      "tgt": "DISC1:L1",
+      "description": "TB-L1:1 connects to DISC1:L1 via wire W007, a BLACK 12AWG conductor on net L1.",
+      "properties": {
+        "wire": "W007",
+        "wire_color": "BLACK",
+        "wire_gauge": "12AWG",
+        "net": "L1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-N:1",
+      "tgt": "DISC1:L3",
+      "description": "TB-N:1 connects to DISC1:L3 via wire W008, a WHITE 12AWG conductor on net N.",
+      "properties": {
+        "wire": "W008",
+        "wire_color": "WHITE",
+        "wire_gauge": "12AWG",
+        "net": "N",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "DISC1:T1",
+      "tgt": "CB1:1",
+      "description": "DISC1:T1 connects to CB1:1 via wire W009, a BLACK 12AWG conductor on net L1-A.",
+      "properties": {
+        "wire": "W009",
+        "wire_color": "BLACK",
+        "wire_gauge": "12AWG",
+        "net": "L1-A",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CB1:2",
+      "tgt": "PS1:L1",
+      "description": "CB1:2 connects to PS1:L1 via wire W010, a BLACK 12AWG conductor on net L1-A1.",
+      "properties": {
+        "wire": "W010",
+        "wire_color": "BLACK",
+        "wire_gauge": "12AWG",
+        "net": "L1-A1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "DISC1:T3",
+      "tgt": "PS1:N",
+      "description": "DISC1:T3 connects to PS1:N via wire W011, a WHITE 12AWG conductor on net N-1.",
+      "properties": {
+        "wire": "W011",
+        "wire_color": "WHITE",
+        "wire_gauge": "12AWG",
+        "net": "N-1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-GND-A:1",
+      "tgt": "EARTH:1",
+      "description": "TB-GND-A:1 connects to EARTH:1 via wire W012, a an unlabelled conductor conductor on net GND. Earth ground symbol.",
+      "properties": {
+        "wire": "W012",
+        "wire_color": null,
+        "wire_gauge": null,
+        "net": "GND",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "DOOR-GND:1",
+      "tgt": "TB-GND-B:1",
+      "description": "DOOR-GND:1 connects to TB-GND-B:1 via wire W013, a GREEN 12AWG conductor on net GND.",
+      "properties": {
+        "wire": "W013",
+        "wire_color": "GREEN",
+        "wire_gauge": "12AWG",
+        "net": "GND",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-GND-B:2",
+      "tgt": "PS1:GND",
+      "description": "TB-GND-B:2 connects to PS1:GND via wire W014, a GREEN 12AWG conductor on net GND.",
+      "properties": {
+        "wire": "W014",
+        "wire_color": "GREEN",
+        "wire_gauge": "12AWG",
+        "net": "GND",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-GND-B:2",
+      "tgt": "EARTH:2",
+      "description": "TB-GND-B:2 connects to EARTH:2 via wire W015, a an unlabelled conductor conductor on net GND. Earth ground symbol.",
+      "properties": {
+        "wire": "W015",
+        "wire_color": null,
+        "wire_gauge": null,
+        "net": "GND",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PS1:+",
+      "tgt": "CB2:1",
+      "description": "PS1:+ connects to CB2:1 via wire W016, a BLUE 12AWG conductor on net +24V.",
+      "properties": {
+        "wire": "W016",
+        "wire_color": "BLUE",
+        "wire_gauge": "12AWG",
+        "net": "+24V",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CB2:2",
+      "tgt": "TB-24E1-A:1",
+      "description": "CB2:2 connects to TB-24E1-A:1 via wire W017, a BLUE 12AWG conductor on net 24E-1.",
+      "properties": {
+        "wire": "W017",
+        "wire_color": "BLUE",
+        "wire_gauge": "12AWG",
+        "net": "24E-1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PS1:-1",
+      "tgt": "TB-0V:1",
+      "description": "PS1:-1 connects to TB-0V:1 via wire W018, a WHITE/BLUE 12AWG conductor on net 0V.",
+      "properties": {
+        "wire": "W018",
+        "wire_color": "WHITE/BLUE",
+        "wire_gauge": "12AWG",
+        "net": "0V",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PS1:-2",
+      "tgt": "TB-0V:2",
+      "description": "PS1:-2 connects to TB-0V:2 via wire W019, a WHITE/BLUE 12AWG conductor on net 0V.",
+      "properties": {
+        "wire": "W019",
+        "wire_color": "WHITE/BLUE",
+        "wire_gauge": "12AWG",
+        "net": "0V",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-A:2",
+      "tgt": "TB-24E1-B:1",
+      "description": "TB-24E1-A:2 connects to TB-24E1-B:1 via wire W020, a BLUE 12AWG conductor on net 24E-1.",
+      "properties": {
+        "wire": "W020",
+        "wire_color": "BLUE",
+        "wire_gauge": "12AWG",
+        "net": "24E-1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-A:3",
+      "tgt": "PB1:1",
+      "description": "TB-24E1-A:3 connects to PB1:1 via wire W021, a BROWN 22AWG conductor on net 24E-1. It is part of cable CABLE-PB1-START-STOP.",
+      "properties": {
+        "wire": "W021",
+        "wire_color": "BROWN",
+        "wire_gauge": "22AWG",
+        "net": "24E-1",
+        "cable": "CABLE-PB1-START-STOP"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-A:4",
+      "tgt": "PB2:1",
+      "description": "TB-24E1-A:4 connects to PB2:1 via wire W022, a BROWN 22AWG conductor on net 24E-1. It is part of cable CABLE-PB2-START-STOP.",
+      "properties": {
+        "wire": "W022",
+        "wire_color": "BROWN",
+        "wire_gauge": "22AWG",
+        "net": "24E-1",
+        "cable": "CABLE-PB2-START-STOP"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-A:5",
+      "tgt": "LT1:BLACK",
+      "description": "TB-24E1-A:5 connects to LT1:BLACK via wire W023, a BLACK 22AWG conductor on net 24E-1. It is part of cable CABLE-LT1.",
+      "properties": {
+        "wire": "W023",
+        "wire_color": "BLACK",
+        "wire_gauge": "22AWG",
+        "net": "24E-1",
+        "cable": "CABLE-LT1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-A:6",
+      "tgt": "CR-ON:A1",
+      "description": "TB-24E1-A:6 connects to CR-ON:A1 via wire W024, a BLUE 18AWG conductor on net 24E-1. Labelled BLUE 12AWG at the terminal-block end and BLUE 18AWG at the coil end.",
+      "properties": {
+        "wire": "W024",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "24E-1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-A:7",
+      "tgt": "CR-BP:A1",
+      "description": "TB-24E1-A:7 connects to CR-BP:A1 via wire W025, a BLUE 18AWG conductor on net 24E-1. Labelled BLUE 12AWG at the terminal-block end and BLUE 18AWG at the coil end.",
+      "properties": {
+        "wire": "W025",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "24E-1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-A:8",
+      "tgt": "CR-SW:A1",
+      "description": "TB-24E1-A:8 connects to CR-SW:A1 via wire W026, a BLUE 18AWG conductor on net 24E-1. Labelled BLUE 12AWG at the terminal-block end and BLUE 18AWG at the coil end.",
+      "properties": {
+        "wire": "W026",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "24E-1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-B:1",
+      "tgt": "REVERSE-CB:1",
+      "description": "TB-24E1-B:1 connects to REVERSE-CB:1 via wire W027, a BLUE 18AWG conductor on net 24E-1.",
+      "properties": {
+        "wire": "W027",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "24E-1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-B:2",
+      "tgt": "SPD1:1",
+      "description": "TB-24E1-B:2 connects to SPD1:1 via wire W028, a BLUE 18AWG conductor on net 24E-1.",
+      "properties": {
+        "wire": "W028",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "24E-1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-B:3",
+      "tgt": "CR-ON:11",
+      "description": "TB-24E1-B:3 connects to CR-ON:11 via wire W029, a BLUE 18AWG conductor on net 24E-1.",
+      "properties": {
+        "wire": "W029",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "24E-1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-B:4",
+      "tgt": "CR-BP:21",
+      "description": "TB-24E1-B:4 connects to CR-BP:21 via wire W030, a BLUE 18AWG conductor on net 24E-1.",
+      "properties": {
+        "wire": "W030",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "24E-1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-24E1-B:5",
+      "tgt": "RECEPT1:5",
+      "description": "TB-24E1-B:5 connects to RECEPT1:5 via wire W031, a RED 18AWG conductor on net 24E-1. Labelled RED 18AWG at the terminal-block end and BLUE 18AWG at the receptacle end (the receptacle end callout is the M12 cordset conductor colour).",
+      "properties": {
+        "wire": "W031",
+        "wire_color": "RED",
+        "wire_gauge": "18AWG",
+        "net": "24E-1",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "SPD1:3",
+      "tgt": "TB-SPD:1",
+      "description": "SPD1:3 connects to TB-SPD:1 via wire W032, a BLUE 18AWG conductor on net SPD.",
+      "properties": {
+        "wire": "W032",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "SPD",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-SPD:1",
+      "tgt": "RECEPT1:1",
+      "description": "TB-SPD:1 connects to RECEPT1:1 via wire W033, a BROWN 18AWG conductor on net SPD. It is part of cable CABLE-RECEPT1.",
+      "properties": {
+        "wire": "W033",
+        "wire_color": "BROWN",
+        "wire_gauge": "18AWG",
+        "net": "SPD",
+        "cable": "CABLE-RECEPT1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "REVERSE-CB:2",
+      "tgt": "TB-DIR:1",
+      "description": "REVERSE-CB:2 connects to TB-DIR:1 via wire W034, a BLUE 18AWG conductor on net DIR.",
+      "properties": {
+        "wire": "W034",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "DIR",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-DIR:1",
+      "tgt": "RECEPT1:2",
+      "description": "TB-DIR:1 connects to RECEPT1:2 via wire W035, a GREEN 18AWG conductor on net DIR. It is part of cable CABLE-RECEPT1. Labelled GREEN 18AWG at the terminal-block end and GREY 18AWG at the receptacle end (the receptacle end callout is the M12 cordset conductor colour).",
+      "properties": {
+        "wire": "W035",
+        "wire_color": "GREEN",
+        "wire_gauge": "18AWG",
+        "net": "DIR",
+        "cable": "CABLE-RECEPT1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "SPD1:2",
+      "tgt": "TB-0V:3",
+      "description": "SPD1:2 connects to TB-0V:3 via wire W036, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "properties": {
+        "wire": "W036",
+        "wire_color": "WHITE/BLUE",
+        "wire_gauge": "18AWG",
+        "net": "0V",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-0V:4",
+      "tgt": "RECEPT1:4",
+      "description": "TB-0V:4 connects to RECEPT1:4 via wire W037, a WHITE 18AWG conductor on net 0V. It is part of cable CABLE-RECEPT1.",
+      "properties": {
+        "wire": "W037",
+        "wire_color": "WHITE",
+        "wire_gauge": "18AWG",
+        "net": "0V",
+        "cable": "CABLE-RECEPT1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PB1:2",
+      "tgt": "TB-PB1SP:1",
+      "description": "PB1:2 connects to TB-PB1SP:1 via wire W038, a WHITE 22AWG conductor on net PB1-SP. It is part of cable CABLE-PB1-START-STOP.",
+      "properties": {
+        "wire": "W038",
+        "wire_color": "WHITE",
+        "wire_gauge": "22AWG",
+        "net": "PB1-SP",
+        "cable": "CABLE-PB1-START-STOP"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PB1:3",
+      "tgt": "TB-0V:5",
+      "description": "PB1:3 connects to TB-0V:5 via wire W039, a BLUE 22AWG conductor on net 0V. It is part of cable CABLE-PB1-START-STOP.",
+      "properties": {
+        "wire": "W039",
+        "wire_color": "BLUE",
+        "wire_gauge": "22AWG",
+        "net": "0V",
+        "cable": "CABLE-PB1-START-STOP"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PB1:4",
+      "tgt": "CR1:A1",
+      "description": "PB1:4 connects to CR1:A1 via wire W040, a BLACK 22AWG conductor on net NET-PB1. It is part of cable CABLE-PB1-START-STOP.",
+      "properties": {
+        "wire": "W040",
+        "wire_color": "BLACK",
+        "wire_gauge": "22AWG",
+        "net": "NET-PB1",
+        "cable": "CABLE-PB1-START-STOP"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PB2:2",
+      "tgt": "TB-PB2SP:1",
+      "description": "PB2:2 connects to TB-PB2SP:1 via wire W041, a WHITE 22AWG conductor on net PB2-SP. It is part of cable CABLE-PB2-START-STOP.",
+      "properties": {
+        "wire": "W041",
+        "wire_color": "WHITE",
+        "wire_gauge": "22AWG",
+        "net": "PB2-SP",
+        "cable": "CABLE-PB2-START-STOP"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PB2:3",
+      "tgt": "TB-0V:6",
+      "description": "PB2:3 connects to TB-0V:6 via wire W042, a BLUE 22AWG conductor on net 0V. It is part of cable CABLE-PB2-START-STOP.",
+      "properties": {
+        "wire": "W042",
+        "wire_color": "BLUE",
+        "wire_gauge": "22AWG",
+        "net": "0V",
+        "cable": "CABLE-PB2-START-STOP"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "PB2:4",
+      "tgt": "CR2:A1",
+      "description": "PB2:4 connects to CR2:A1 via wire W043, a BLACK 22AWG conductor on net NET-PB2. It is part of cable CABLE-PB2-START-STOP.",
+      "properties": {
+        "wire": "W043",
+        "wire_color": "BLACK",
+        "wire_gauge": "22AWG",
+        "net": "NET-PB2",
+        "cable": "CABLE-PB2-START-STOP"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "LT1:BLUE",
+      "tgt": "TB-0V:7",
+      "description": "LT1:BLUE connects to TB-0V:7 via wire W044, a BLUE 22AWG conductor on net 0V. It is part of cable CABLE-LT1.",
+      "properties": {
+        "wire": "W044",
+        "wire_color": "BLUE",
+        "wire_gauge": "22AWG",
+        "net": "0V",
+        "cable": "CABLE-LT1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CR1:A2",
+      "tgt": "TB-0V:8",
+      "description": "CR1:A2 connects to TB-0V:8 via wire W045, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "properties": {
+        "wire": "W045",
+        "wire_color": "WHITE/BLUE",
+        "wire_gauge": "18AWG",
+        "net": "0V",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CR2:A2",
+      "tgt": "TB-0V:9",
+      "description": "CR2:A2 connects to TB-0V:9 via wire W046, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "properties": {
+        "wire": "W046",
+        "wire_color": "WHITE/BLUE",
+        "wire_gauge": "18AWG",
+        "net": "0V",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CR-ON:A2",
+      "tgt": "TB-110:3",
+      "description": "CR-ON:A2 connects to TB-110:3 via wire W047, a BLUE 18AWG conductor on net 110.",
+      "properties": {
+        "wire": "W047",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "110",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CR-BP:A2",
+      "tgt": "BYPASS-CB:2",
+      "description": "CR-BP:A2 connects to BYPASS-CB:2 via wire W048, a BLUE 18AWG conductor on net 125.",
+      "properties": {
+        "wire": "W048",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "125",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CR-SW:A2",
+      "tgt": "TB-130:1",
+      "description": "CR-SW:A2 connects to TB-130:1 via wire W049, a BLUE 18AWG conductor on net 130.",
+      "properties": {
+        "wire": "W049",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "130",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-0V:10",
+      "tgt": "CR1:11",
+      "description": "TB-0V:10 connects to CR1:11 via wire W050, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "properties": {
+        "wire": "W050",
+        "wire_color": "WHITE/BLUE",
+        "wire_gauge": "18AWG",
+        "net": "0V",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CR1:14",
+      "tgt": "CR2:11",
+      "description": "CR1:14 connects to CR2:11 via wire W051, a BLUE 18AWG conductor on net 121.",
+      "properties": {
+        "wire": "W051",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "121",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CR2:14",
+      "tgt": "TB-120:1",
+      "description": "CR2:14 connects to TB-120:1 via wire W052, a BLUE 18AWG conductor on net 120. Labelled BLUE 18AWG at the contact end and RED 16AWG at the terminal-block end.",
+      "properties": {
+        "wire": "W052",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "120",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-120:3",
+      "tgt": "BYPASS-CB:1",
+      "description": "TB-120:3 connects to BYPASS-CB:1 via wire W053, a BLUE 18AWG conductor on net 120.",
+      "properties": {
+        "wire": "W053",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "120",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CR-ON:14",
+      "tgt": "TB-RUN:1",
+      "description": "CR-ON:14 connects to TB-RUN:1 via wire W054, a BLUE 18AWG conductor on net RUN.",
+      "properties": {
+        "wire": "W054",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "RUN",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CR-BP:24",
+      "tgt": "TB-RUN:1",
+      "description": "CR-BP:24 connects to TB-RUN:1 via wire W055, a BLUE 18AWG conductor on net RUN.",
+      "properties": {
+        "wire": "W055",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "RUN",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-RUN:1",
+      "tgt": "RECEPT1:3",
+      "description": "TB-RUN:1 connects to RECEPT1:3 via wire W056, a BLACK 18AWG conductor on net RUN. It is part of cable CABLE-RECEPT1.",
+      "properties": {
+        "wire": "W056",
+        "wire_color": "BLACK",
+        "wire_gauge": "18AWG",
+        "net": "RUN",
+        "cable": "CABLE-RECEPT1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "TB-0V:11",
+      "tgt": "CR-SW:11",
+      "description": "TB-0V:11 connects to CR-SW:11 via wire W057, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "properties": {
+        "wire": "W057",
+        "wire_color": "WHITE/BLUE",
+        "wire_gauge": "18AWG",
+        "net": "0V",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CR-SW:14",
+      "tgt": "TB-110:1",
+      "description": "CR-SW:14 connects to TB-110:1 via wire W058, a BLUE 18AWG conductor on net 110.",
+      "properties": {
+        "wire": "W058",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "110",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "INFEED1:1",
+      "tgt": "TB-110:2",
+      "description": "INFEED1:1 connects to TB-110:2 via wire W059, a BLUE 16AWG conductor on net 110. It is part of cable CABLE-INFEED1.",
+      "properties": {
+        "wire": "W059",
+        "wire_color": "BLUE",
+        "wire_gauge": "16AWG",
+        "net": "110",
+        "cable": "CABLE-INFEED1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "CR-BP:12",
+      "tgt": "TB-110:4",
+      "description": "CR-BP:12 connects to TB-110:4 via wire W060, a BLUE 18AWG conductor on net 110.",
+      "properties": {
+        "wire": "W060",
+        "wire_color": "BLUE",
+        "wire_gauge": "18AWG",
+        "net": "110",
+        "cable": null
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "DISCHARGE1:1",
+      "tgt": "CR-BP:11",
+      "description": "DISCHARGE1:1 connects to CR-BP:11 via wire W061, a BLUE 16AWG conductor on net 111. It is part of cable CABLE-DISCHARGE1.",
+      "properties": {
+        "wire": "W061",
+        "wire_color": "BLUE",
+        "wire_gauge": "16AWG",
+        "net": "111",
+        "cable": "CABLE-DISCHARGE1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "INFEED1:2",
+      "tgt": "TB-0V:12",
+      "description": "INFEED1:2 connects to TB-0V:12 via wire W062, a GREEN 16AWG conductor on net 0V. It is part of cable CABLE-INFEED1.",
+      "properties": {
+        "wire": "W062",
+        "wire_color": "GREEN",
+        "wire_gauge": "16AWG",
+        "net": "0V",
+        "cable": "CABLE-INFEED1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "INFEED1:3",
+      "tgt": "TB-120:2",
+      "description": "INFEED1:3 connects to TB-120:2 via wire W063, a RED 16AWG conductor on net 120. It is part of cable CABLE-INFEED1.",
+      "properties": {
+        "wire": "W063",
+        "wire_color": "RED",
+        "wire_gauge": "16AWG",
+        "net": "120",
+        "cable": "CABLE-INFEED1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "INFEED1:4",
+      "tgt": "TB-130:2",
+      "description": "INFEED1:4 connects to TB-130:2 via wire W064, a ORANGE 16AWG conductor on net 130. It is part of cable CABLE-INFEED1.",
+      "properties": {
+        "wire": "W064",
+        "wire_color": "ORANGE",
+        "wire_gauge": "16AWG",
+        "net": "130",
+        "cable": "CABLE-INFEED1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "INFEED1:5",
+      "tgt": "TB-IINSP1:1",
+      "description": "INFEED1:5 connects to TB-IINSP1:1 via wire W065, a BLACK 16AWG conductor on net IINSP1. It is part of cable CABLE-INFEED1.",
+      "properties": {
+        "wire": "W065",
+        "wire_color": "BLACK",
+        "wire_gauge": "16AWG",
+        "net": "IINSP1",
+        "cable": "CABLE-INFEED1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "INFEED1:6",
+      "tgt": "TB-IINSP2:1",
+      "description": "INFEED1:6 connects to TB-IINSP2:1 via wire W066, a WHITE 16AWG conductor on net IINSP2. It is part of cable CABLE-INFEED1.",
+      "properties": {
+        "wire": "W066",
+        "wire_color": "WHITE",
+        "wire_gauge": "16AWG",
+        "net": "IINSP2",
+        "cable": "CABLE-INFEED1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "DISCHARGE1:2",
+      "tgt": "TB-0V:12",
+      "description": "DISCHARGE1:2 connects to TB-0V:12 via wire W067, a GREEN 16AWG conductor on net 0V. It is part of cable CABLE-DISCHARGE1.",
+      "properties": {
+        "wire": "W067",
+        "wire_color": "GREEN",
+        "wire_gauge": "16AWG",
+        "net": "0V",
+        "cable": "CABLE-DISCHARGE1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "DISCHARGE1:3",
+      "tgt": "TB-120:2",
+      "description": "DISCHARGE1:3 connects to TB-120:2 via wire W068, a RED 16AWG conductor on net 120. It is part of cable CABLE-DISCHARGE1.",
+      "properties": {
+        "wire": "W068",
+        "wire_color": "RED",
+        "wire_gauge": "16AWG",
+        "net": "120",
+        "cable": "CABLE-DISCHARGE1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "DISCHARGE1:4",
+      "tgt": "TB-130:2",
+      "description": "DISCHARGE1:4 connects to TB-130:2 via wire W069, a ORANGE 16AWG conductor on net 130. It is part of cable CABLE-DISCHARGE1.",
+      "properties": {
+        "wire": "W069",
+        "wire_color": "ORANGE",
+        "wire_gauge": "16AWG",
+        "net": "130",
+        "cable": "CABLE-DISCHARGE1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "DISCHARGE1:5",
+      "tgt": "TB-DINSP1:1",
+      "description": "DISCHARGE1:5 connects to TB-DINSP1:1 via wire W070, a BLACK 16AWG conductor on net DINSP1. It is part of cable CABLE-DISCHARGE1.",
+      "properties": {
+        "wire": "W070",
+        "wire_color": "BLACK",
+        "wire_gauge": "16AWG",
+        "net": "DINSP1",
+        "cable": "CABLE-DISCHARGE1"
+      }
+    },
+    {
+      "type": "CONNECTS_TO",
+      "src": "DISCHARGE1:6",
+      "tgt": "TB-DINSP2:1",
+      "description": "DISCHARGE1:6 connects to TB-DINSP2:1 via wire W071, a WHITE 16AWG conductor on net DINSP2. It is part of cable CABLE-DISCHARGE1.",
+      "properties": {
+        "wire": "W071",
+        "wire_color": "WHITE",
+        "wire_gauge": "16AWG",
+        "net": "DINSP2",
+        "cable": "CABLE-DISCHARGE1"
+      }
+    },
+    {
+      "type": "PART_OF",
+      "src": "PLG1",
+      "tgt": "SUB-115VAC-INPUT",
+      "description": "PLG1 is part of the 115vac single-phase input and isolation section (SUB-115VAC-INPUT) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "PLG2",
+      "tgt": "SUB-115VAC-INPUT",
+      "description": "PLG2 is part of the 115vac single-phase input and isolation section (SUB-115VAC-INPUT) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-L1",
+      "tgt": "SUB-115VAC-INPUT",
+      "description": "TB-L1 is part of the 115vac single-phase input and isolation section (SUB-115VAC-INPUT) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-N",
+      "tgt": "SUB-115VAC-INPUT",
+      "description": "TB-N is part of the 115vac single-phase input and isolation section (SUB-115VAC-INPUT) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-GND-A",
+      "tgt": "SUB-115VAC-INPUT",
+      "description": "TB-GND-A is part of the 115vac single-phase input and isolation section (SUB-115VAC-INPUT) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "DISC1",
+      "tgt": "SUB-115VAC-INPUT",
+      "description": "DISC1 is part of the 115vac single-phase input and isolation section (SUB-115VAC-INPUT) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "CB1",
+      "tgt": "SUB-115VAC-INPUT",
+      "description": "CB1 is part of the 115vac single-phase input and isolation section (SUB-115VAC-INPUT) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "PS1",
+      "tgt": "SUB-24VDC-SUPPLY",
+      "description": "PS1 is part of the 24vdc generation and distribution section (SUB-24VDC-SUPPLY) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "CB2",
+      "tgt": "SUB-24VDC-SUPPLY",
+      "description": "CB2 is part of the 24vdc generation and distribution section (SUB-24VDC-SUPPLY) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-GND-B",
+      "tgt": "SUB-24VDC-SUPPLY",
+      "description": "TB-GND-B is part of the 24vdc generation and distribution section (SUB-24VDC-SUPPLY) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "DOOR-GND",
+      "tgt": "SUB-24VDC-SUPPLY",
+      "description": "DOOR-GND is part of the 24vdc generation and distribution section (SUB-24VDC-SUPPLY) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "EARTH",
+      "tgt": "SUB-24VDC-SUPPLY",
+      "description": "EARTH is part of the 24vdc generation and distribution section (SUB-24VDC-SUPPLY) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-24E1-A",
+      "tgt": "SUB-24VDC-SUPPLY",
+      "description": "TB-24E1-A is part of the 24vdc generation and distribution section (SUB-24VDC-SUPPLY) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-24E1-B",
+      "tgt": "SUB-24VDC-SUPPLY",
+      "description": "TB-24E1-B is part of the 24vdc generation and distribution section (SUB-24VDC-SUPPLY) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-0V",
+      "tgt": "SUB-24VDC-SUPPLY",
+      "description": "TB-0V is part of the 24vdc generation and distribution section (SUB-24VDC-SUPPLY) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "PB1",
+      "tgt": "SUB-OPERATOR-CONTROL",
+      "description": "PB1 is part of the operator start/stop control (SUB-OPERATOR-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "PB2",
+      "tgt": "SUB-OPERATOR-CONTROL",
+      "description": "PB2 is part of the operator start/stop control (SUB-OPERATOR-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-PB1SP",
+      "tgt": "SUB-OPERATOR-CONTROL",
+      "description": "TB-PB1SP is part of the operator start/stop control (SUB-OPERATOR-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-PB2SP",
+      "tgt": "SUB-OPERATOR-CONTROL",
+      "description": "TB-PB2SP is part of the operator start/stop control (SUB-OPERATOR-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "CR1",
+      "tgt": "SUB-OPERATOR-CONTROL",
+      "description": "CR1 is part of the operator start/stop control (SUB-OPERATOR-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "CR2",
+      "tgt": "SUB-OPERATOR-CONTROL",
+      "description": "CR2 is part of the operator start/stop control (SUB-OPERATOR-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "LT1",
+      "tgt": "SUB-OPERATOR-CONTROL",
+      "description": "LT1 is part of the operator start/stop control (SUB-OPERATOR-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-120",
+      "tgt": "SUB-OPERATOR-CONTROL",
+      "description": "TB-120 is part of the operator start/stop control (SUB-OPERATOR-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "BYPASS-CB",
+      "tgt": "SUB-BYPASS",
+      "description": "BYPASS-CB is part of the bypass control circuit (SUB-BYPASS) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "CR-BP",
+      "tgt": "SUB-BYPASS",
+      "description": "CR-BP is part of the bypass control circuit (SUB-BYPASS) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "CR-ON",
+      "tgt": "SUB-RUN-CONTROL",
+      "description": "CR-ON is part of the run control circuit (SUB-RUN-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "CR-SW",
+      "tgt": "SUB-RUN-CONTROL",
+      "description": "CR-SW is part of the run control circuit (SUB-RUN-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-RUN",
+      "tgt": "SUB-RUN-CONTROL",
+      "description": "TB-RUN is part of the run control circuit (SUB-RUN-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-110",
+      "tgt": "SUB-RUN-CONTROL",
+      "description": "TB-110 is part of the run control circuit (SUB-RUN-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-130",
+      "tgt": "SUB-RUN-CONTROL",
+      "description": "TB-130 is part of the run control circuit (SUB-RUN-CONTROL) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "SPD1",
+      "tgt": "SUB-SPEED-DIRECTION",
+      "description": "SPD1 is part of the speed and direction section (SUB-SPEED-DIRECTION) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-SPD",
+      "tgt": "SUB-SPEED-DIRECTION",
+      "description": "TB-SPD is part of the speed and direction section (SUB-SPEED-DIRECTION) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "REVERSE-CB",
+      "tgt": "SUB-SPEED-DIRECTION",
+      "description": "REVERSE-CB is part of the speed and direction section (SUB-SPEED-DIRECTION) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-DIR",
+      "tgt": "SUB-SPEED-DIRECTION",
+      "description": "TB-DIR is part of the speed and direction section (SUB-SPEED-DIRECTION) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "RECEPT1",
+      "tgt": "SUB-MACHINE-INTERFACE",
+      "description": "RECEPT1 is part of the external and machine-to-machine interfaces (SUB-MACHINE-INTERFACE) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "INFEED1",
+      "tgt": "SUB-MACHINE-INTERFACE",
+      "description": "INFEED1 is part of the external and machine-to-machine interfaces (SUB-MACHINE-INTERFACE) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "DISCHARGE1",
+      "tgt": "SUB-MACHINE-INTERFACE",
+      "description": "DISCHARGE1 is part of the external and machine-to-machine interfaces (SUB-MACHINE-INTERFACE) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-IINSP1",
+      "tgt": "SUB-MACHINE-INTERFACE",
+      "description": "TB-IINSP1 is part of the external and machine-to-machine interfaces (SUB-MACHINE-INTERFACE) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-IINSP2",
+      "tgt": "SUB-MACHINE-INTERFACE",
+      "description": "TB-IINSP2 is part of the external and machine-to-machine interfaces (SUB-MACHINE-INTERFACE) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-DINSP1",
+      "tgt": "SUB-MACHINE-INTERFACE",
+      "description": "TB-DINSP1 is part of the external and machine-to-machine interfaces (SUB-MACHINE-INTERFACE) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "PART_OF",
+      "src": "TB-DINSP2",
+      "tgt": "SUB-MACHINE-INTERFACE",
+      "description": "TB-DINSP2 is part of the external and machine-to-machine interfaces (SUB-MACHINE-INTERFACE) of drawing PS20115MLM4-2.",
+      "properties": {}
+    },
+    {
+      "type": "POWERS",
+      "src": "PS1",
+      "tgt": "24E-1",
+      "description": "Power supply PS1 converts the 115VAC input to 24VDC and supplies the 24E-1 distribution bus through circuit breaker CB2. Everything on 24E-1 loses power if PS1 fails.",
+      "properties": {}
+    },
+    {
+      "type": "POWERS",
+      "src": "PS1",
+      "tgt": "0V",
+      "description": "Both minus terminals of power supply PS1 establish the 0V DC common for the assembly.",
+      "properties": {}
+    },
+    {
+      "type": "POWERS",
+      "src": "PLG1",
+      "tgt": "L1",
+      "description": "Input plug PLG1 brings the 115VAC line supply onto net L1.",
+      "properties": {}
+    },
+    {
+      "type": "POWERS",
+      "src": "TB-L1",
+      "tgt": "PLG2",
+      "description": "The L1 terminal feeds output plug PLG2, passing 115VAC through to the next machine.",
+      "properties": {}
+    },
+    {
+      "type": "POWERS",
+      "src": "24E-1",
+      "tgt": "SPD1",
+      "description": "The 24E-1 bus supplies the speed controller SPD1.",
+      "properties": {}
+    },
+    {
+      "type": "POWERS",
+      "src": "24E-1",
+      "tgt": "LT1",
+      "description": "The 24E-1 bus supplies the circuit 1 indicator light, so LT1 being lit shows the 24VDC control circuit is live.",
+      "properties": {}
+    },
+    {
+      "type": "POWERS",
+      "src": "24E-1",
+      "tgt": "RECEPT1",
+      "description": "The 24E-1 bus supplies 24VDC out through pin 5 of the external 5-pin receptacle.",
+      "properties": {}
+    },
+    {
+      "type": "PROTECTS",
+      "src": "CB1",
+      "tgt": "PS1",
+      "description": "Circuit breaker CB1 (8A) is the over-current protection for the 115VAC feed to power supply PS1. If CB1 trips, PS1 loses its input and the entire 24VDC system goes dead.",
+      "properties": {}
+    },
+    {
+      "type": "PROTECTS",
+      "src": "CB2",
+      "tgt": "24E-1",
+      "description": "Circuit breaker CB2 (20A) is the over-current protection for the whole 24VDC distribution bus. If CB2 trips, everything on net 24E-1 loses power: both start/stop switches, the circuit 1 light, the speed controller, all relay coils and the external receptacle.",
+      "properties": {}
+    },
+    {
+      "type": "PROTECTS",
+      "src": "DISC1",
+      "tgt": "SUB-24VDC-SUPPLY",
+      "description": "The panel disconnect DISC1 isolates the 115VAC supply to the power supply section for servicing. It is an isolation device, not an over-current device.",
+      "properties": {}
+    },
+    {
+      "type": "ACTUATES",
+      "src": "PB1",
+      "tgt": "CR1",
+      "description": "Start/stop switch PB1 actuates relay CR1: pressing PB1 puts 24VDC on net NET-PB1 (printed on the drawing as PB1), which energizes the CR1 coil at terminal A1.",
+      "properties": {}
+    },
+    {
+      "type": "ACTUATES",
+      "src": "PB2",
+      "tgt": "CR2",
+      "description": "Start/stop switch PB2 actuates relay CR2: pressing PB2 puts 24VDC on net NET-PB2 (printed on the drawing as PB2), which energizes the CR2 coil at terminal A1.",
+      "properties": {}
+    },
+    {
+      "type": "ACTUATES",
+      "src": "BYPASS-CB",
+      "tgt": "CR-BP",
+      "description": "The BYPASS 5A breaker is used as a manual switch, not as over-current protection. Closing it connects the CR-BP coil return (net 125) to net 120. CR-BP energizes only when the bypass switch is closed AND net 120 is pulled to 0V, which requires both CR1 and CR2 to be energized - that is, both start/stop buttons on.",
+      "properties": {}
+    },
+    {
+      "type": "ACTUATES",
+      "src": "REVERSE-CB",
+      "tgt": "DIR",
+      "description": "The REVERSE 5A breaker is used as a manual switch, not as over-current protection. Closing it puts 24VDC from the 24E-1 bus onto the DIR net, which commands the drive cards to run in reverse.",
+      "properties": {}
+    },
+    {
+      "type": "ACTUATES",
+      "src": "DOWNSTREAM-MACHINE",
+      "tgt": "CR-SW",
+      "description": "The CR-SW coil return is net 130, which leaves this drawing at the discharge interface. Only the downstream (subordinate) machine can complete that return, so CR-SW cannot be energized by anything shown on this sheet alone.",
+      "properties": {}
+    },
+    {
+      "type": "COIL_CONTROLS_CONTACT",
+      "src": "CR1",
+      "tgt": "CR1:14",
+      "description": "Energizing the CR1 coil (A1-A2) closes its normally-open contact 11-14, connecting 0V through to net 121. This is the first half of the two-relay series start/stop chain.",
+      "properties": {}
+    },
+    {
+      "type": "COIL_CONTROLS_CONTACT",
+      "src": "CR2",
+      "tgt": "CR2:14",
+      "description": "Energizing the CR2 coil (A1-A2) closes its normally-open contact 11-14, connecting net 121 through to net 120. With CR1 also energized, this pulls net 120 down to 0V.",
+      "properties": {}
+    },
+    {
+      "type": "COIL_CONTROLS_CONTACT",
+      "src": "CR-ON",
+      "tgt": "CR-ON:14",
+      "description": "Energizing the CR-ON coil (A1-A2) closes its normally-open contact 11-14, putting 24VDC from the 24E-1 bus onto the RUN net. The RUN signal reaches the drive cards through the 5-pin receptacle and the machine runs.",
+      "properties": {}
+    },
+    {
+      "type": "COIL_CONTROLS_CONTACT",
+      "src": "CR-BP",
+      "tgt": "CR-BP:24",
+      "description": "Energizing the CR-BP coil (A1-A2) closes its normally-open contact 21-24, putting 24VDC from the 24E-1 bus directly onto the RUN net. This is the bypass path: it runs the machine without CR-ON.",
+      "properties": {}
+    },
+    {
+      "type": "COIL_CONTROLS_CONTACT",
+      "src": "CR-BP",
+      "tgt": "CR-BP:12",
+      "description": "Energizing the CR-BP coil (A1-A2) OPENS its normally-closed contact 11-12, breaking the link between net 111 (the signal from the discharge interface) and net 110. While CR-BP is de-energized this contact is closed and 111 is tied to 110.",
+      "properties": {}
+    },
+    {
+      "type": "COIL_CONTROLS_CONTACT",
+      "src": "CR-SW",
+      "tgt": "CR-SW:14",
+      "description": "Energizing the CR-SW coil (A1-A2) closes its normally-open contact 11-14, pulling net 110 down to 0V. That energizes the CR-ON coil and runs the machine.",
+      "properties": {}
+    },
+    {
+      "type": "ACTUATES",
+      "src": "110",
+      "tgt": "CR-ON",
+      "description": "The CR-ON coil sits between the 24E-1 bus (terminal A1) and net 110 (terminal A2). Pulling net 110 down to 0V - by the CR-SW contact 11-14, by the infeed interface, or through the CR-BP normally-closed contact from net 111 - energizes CR-ON and runs the machine.",
+      "properties": {}
+    },
+    {
+      "type": "GROUNDED_TO",
+      "src": "TB-GND-A",
+      "tgt": "EARTH",
+      "description": "The plug ground terminal is bonded to protective earth.",
+      "properties": {}
+    },
+    {
+      "type": "GROUNDED_TO",
+      "src": "TB-GND-B",
+      "tgt": "EARTH",
+      "description": "The door/power-supply ground terminal is bonded to protective earth.",
+      "properties": {}
+    },
+    {
+      "type": "GROUNDED_TO",
+      "src": "PS1",
+      "tgt": "EARTH",
+      "description": "The power supply chassis ground terminal is bonded to protective earth through the GND terminal block.",
+      "properties": {}
+    },
+    {
+      "type": "REFERENCES",
+      "src": "PS20115MLM4-2",
+      "tgt": "MXCS-M9",
+      "description": "This drawing references external device connection drawing MXCS-M9 for the devices that connect through the 5-pin micro receptacle. Those connections are not documented on this sheet.",
+      "properties": {}
+    },
+    {
+      "type": "REFERENCES",
+      "src": "PS20115MLM4-2",
+      "tgt": "MXCS-M11",
+      "description": "This drawing references external device connection drawing MXCS-M11 for the devices that connect through the 5-pin micro receptacle. Those connections are not documented on this sheet.",
+      "properties": {}
+    },
+    {
+      "type": "REFERENCES",
+      "src": "PS20115MLM4-2",
+      "tgt": "MXCS-P9",
+      "description": "This drawing references external device connection drawing MXCS-P9 for the devices that connect through the 5-pin micro receptacle. Those connections are not documented on this sheet.",
+      "properties": {}
+    },
+    {
+      "type": "REFERENCES",
+      "src": "PS20115MLM4-2",
+      "tgt": "MXCS-P11",
+      "description": "This drawing references external device connection drawing MXCS-P11 for the devices that connect through the 5-pin micro receptacle. Those connections are not documented on this sheet.",
+      "properties": {}
+    },
+    {
+      "type": "REFERENCES",
+      "src": "RECEPT1",
+      "tgt": "MXCS-P9",
+      "description": "The 5-pin micro receptacle is the boundary of this drawing; what connects beyond it is documented on drawings MXCS-M9, MXCS-M11, MXCS-P9 and MXCS-P11.",
+      "properties": {}
+    },
+    {
+      "type": "REFERENCES",
+      "src": "INFEED1",
+      "tgt": "UPSTREAM-MACHINE",
+      "description": "Infeed interface #1 is the boundary to the upstream (previous) machine. This sheet is the master machine, so in a typical installation there may be no previous machine, and the infeed side of net 110 is then open.",
+      "properties": {}
+    },
+    {
+      "type": "REFERENCES",
+      "src": "DISCHARGE1",
+      "tgt": "DOWNSTREAM-MACHINE",
+      "description": "Discharge interface #1 is the boundary to the downstream (subordinate) machine. Nets 111, 120, 130, 0V, DINSP1 and DINSP2 continue onto that machine's drawing, which is not part of this sheet.",
+      "properties": {}
+    }
+  ]
+}

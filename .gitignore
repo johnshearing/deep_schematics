@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Node / frontend (webui, once it exists)
+node_modules/
+dist/
+.vite/
+
+# Vite build output served by FastAPI — a build artifact, never committed.
+# See _claude_notes/webui_v1_plan.md §5.
+server/app/static/
+
+# Local configuration and secrets. The webserver will read ANTHROPIC_API_KEY
+# and the SWUI_* settings from a .env that must never be committed.
+.env
+.env.*
+!.env.example
+
+# Claude Code local state
+.claude/settings.local.json
+
+# OS noise
+.DS_Store
+Thumbs.db
