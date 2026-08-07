@@ -102,10 +102,28 @@ worth knowing before touching the code:
   unauthenticated endpoint without a per-IP limit, a concurrency cap and a daily ceiling is an
   unbounded bill. Plan §3.2.
 
-## A note on the source documents
+## License
+
+The code and documentation in this repository are released under the
+**[MIT License](LICENSE)** — take the pipeline, adapt it to your own drawings, build on it
+commercially. Specifically covered:
+
+- `schematic_skills/` — the extraction skill in its entirety: `extract.py`, `render_tiles.py`,
+  `build_kg.py`, `index_schematic.py`, `SKILL.md` and the reference guides
+- `_claude_notes/` — the design record
+- `schematic_extraction/*/extracted_docs/` — the extraction artifacts authored here, including
+  `author_circuit_logic.py`, `circuit_logic.json` and `custom_kg.json`
+
+### Not covered by the MIT license
 
 `schematic_extraction/*/source_docs/` contains manufacturer drawings and a vendor troubleshooting
-manual that are **third-party documents**, included here so the extraction is reproducible and
-auditable against its source. They are not the authors' work and no license is granted over them by
-this repository. If you are the rights holder and would prefer they not be redistributed, open an
-issue and they will be removed — the pipeline and the netlist stand without them.
+manual. These are **third-party documents**, included so the extraction is reproducible and
+auditable against its source. They are not this project's work, they are not MIT licensed, and no
+license or permission is granted over them here — the MIT grant above does not extend to them.
+
+If you are the rights holder and would prefer they not be redistributed, open an issue and they
+will be removed. The pipeline and the netlist stand without them.
+
+Note that the extracted netlist is a derivative reading of those drawings. The MIT license covers
+this project's own expression — the schema, the code, the derivation and the audit trail — and is
+not a representation about the underlying circuit designs.
