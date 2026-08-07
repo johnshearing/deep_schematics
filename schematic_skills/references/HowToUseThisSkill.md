@@ -157,13 +157,56 @@ reproduce provided four things hold:
 |---|---|---|
 | Identical PDF bytes | Everything derives from it | ✅ `md5 59b25be552fa2937fa3c39430fce890c`, unchanged by the move |
 | Identical command-line flags | `--layers`, `--dpi`, `--overlap`, `--annotate` and `--params` all change the output, and most are not recorded in it | ✅ recovered and written down in §3.2 |
-| Same PyMuPDF version | It rasterises the page for OCR (step 1) and renders the tile PNGs (step 2); a MuPDF change alters the pixels | ⚠️ currently 1.27.2 — not recorded at extraction time |
-| Same tesseract version | It reads those rasters into `raw_ocr`, which feeds label text, label `kind`, net-label attachment and the review queue | ⚠️ currently 4.1.1 — not recorded at extraction time |
+| Same PyMuPDF version | It rasterises the page for OCR (step 1) and renders the tile PNGs (step 2); a MuPDF change alters the pixels | ⚠️ project venv is now 1.28.2; extraction-time version was not recorded (1.27.2 when this was written) |
+| Same tesseract version | It reads those rasters into `raw_ocr`, which feeds label text, label `kind`, net-label attachment and the review queue | ⚠️ 4.1.1 — matches extraction time, but see below: **matching it is still not sufficient** |
 
 Nothing inside the scripts is random or order-dependent: no `random`, no hashing of strings
-into ordered structures, every set iteration is either sorted or provably single-element, and
-the OCR thread pool writes each result into its own label dict, so thread scheduling cannot
-change the output.
+into ordered structures, and every set iteration is either sorted or provably single-element.
+
+**But the OCR is not reproducible, and the four requirements above are not sufficient.**
+This paragraph previously claimed the whole of steps 1–3 was reproducible given a fixed
+environment. That was wrong, and it was measured wrong on 2026-08-07.
+
+Six full runs of `extract.py` on the same machine, same PDF, same flags, same code and the
+**same tesseract 4.1.1** — the version used for the original extraction, so this is not
+version drift — disagree with one another:
+
+| Configuration | Two consecutive runs agree? |
+|---|---|
+| As shipped (`workers=8`) | No — 29 differing lines |
+| `OMP_THREAD_LIMIT=1` | No — 7 differing lines |
+| `OMP_THREAD_LIMIT=1` **and** `workers=1` | **No** — still differs |
+
+Serialising the OCR reduces the variance but never removes it, so the source is tesseract
+itself rather than this script's thread pool. Suppressing threading is not a fix.
+
+**What is stable.** All deterministic geometry is identical on every run — 149 conductors,
+111 nets, 2 junctions, 29 boxes, 502 text labels, 431 read. The vector layer, the conductor
+tracing and the net topology reproduce exactly. That half of the claim holds.
+
+**What varies.** Only OCR-derived fields: `text`, `confidence`, `label_text`, `net_label` and
+net `id`. Nearly every difference is an `O`/`0`/`D` confusion — `DISCONNECT` vs `DISC0NNECT`,
+`STOP` vs `ST0P`, `SPEED` vs `SPEEO`.
+
+**This is not purely cosmetic.** The confusion reaches identifiers. Two runs minutes apart
+produced:
+
+```
+net_label: "SPD"   vs   net_label: "SPO"
+id:        "SPD"   vs   id:        "SPO"
+```
+
+— the speed-controller net, carrying a different `id` depending on the run.
+
+**Why this is tolerable here.** For `PS20115MLM4-2` the PDF contains no selectable text at
+all, so *every* label in `circuit_logic.json` was read visually from the tiles;
+`EXTRACTION_NOTES.md` records the OCR in `geometry.json` as a cross-check only. Nothing
+downstream consumes these fields, so the master artifact does not inherit the variance —
+which is exactly why steps 5 and 6 still diff clean byte for byte.
+
+**Treat `geometry.json`'s OCR as a hint, never as evidence.** If you need a label to be
+right, read it off the tile. If you ever make a net `id` depend on OCR text, that identifier
+becomes run-dependent.
 
 **One line of `geometry.json` will differ no matter what.** `extract.py` records
 `source_path` as the *absolute resolved* path of the input PDF. It currently reads
@@ -171,10 +214,11 @@ change the output.
 new location will write
 `/home/js/schematics/schematic_extraction/PS20115MLM4-2/source_docs/PS20115MLM4-2.pdf`. That
 is metadata, not data — no downstream script reads it. Everything else in the file should be
-identical.
+identical **except the OCR fields described above**, which will differ on every run.
 
-So: **your expectation is right for the second half of the pipeline and nearly right for the
-first.** The one place it is genuinely wrong is step 4.
+So: **your expectation is right for the second half of the pipeline, half right for the
+first.** Steps 5 and 6 are byte-for-byte reproducible; steps 1–3 reproduce their geometry
+exactly but not their OCR. The one place it is genuinely wrong is step 4.
 
 ### 3.2 The exact commands that produced `PS20115MLM4-2/extracted_docs`
 

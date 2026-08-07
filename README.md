@@ -76,8 +76,13 @@ and there is **no revision** — the `D` in the title block is the sheet size.
 
 ### Reproducing
 
-`extracted_docs/` is meant to be byte-for-byte reproducible from the skill. Re-run after correcting
-any reading:
+`circuit_logic.json` and `custom_kg.json` are byte-for-byte reproducible — re-running steps 5 and 6
+diffs clean. `geometry.json` is reproducible in its geometry but **not in its OCR**: tesseract
+gives slightly different label readings run to run, even at a fixed version. That variance stops at
+`geometry.json`, because every label in the master artifact was read visually rather than by OCR.
+`HowToUseThisSkill.md` §3.1 has the measurements.
+
+Re-run after correcting any reading:
 
 ```bash
 python author_circuit_logic.py && python <skill_dir>/scripts/build_kg.py
