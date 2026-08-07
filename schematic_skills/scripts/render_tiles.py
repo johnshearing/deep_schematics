@@ -30,10 +30,13 @@ from pathlib import Path
 from typing import Any
 
 try:
-    import fitz  # PyMuPDF
+    import pymupdf as fitz  # PyMuPDF >= 1.24.3; the bare `fitz` name is deprecated
 except ImportError:
-    print("ERROR: PyMuPDF required. Install with: pip install pymupdf", file=sys.stderr)
-    sys.exit(1)
+    try:
+        import fitz  # PyMuPDF < 1.24.3, where `fitz` is the only importable name
+    except ImportError:
+        print("ERROR: PyMuPDF required. Install with: pip install pymupdf", file=sys.stderr)
+        sys.exit(1)
 
 
 RED = (0.85, 0.05, 0.05)
