@@ -136,6 +136,37 @@ No `--add-dir` — an unscoped one would reopen §1.3.
 | no `--settings` | `-p`'s help states invalid settings files are **silently ignored** in print mode. A silently dropped permission policy is the worst available failure. Explicit flags fail loudly. |
 | no `--no-session-persistence` | `--resume` needs the transcript on disk. It is also an audit artifact worth keeping. |
 
+### Two flags this section was missing — added 2026-08-08 during implementation
+
+The invocation above **does not start**. Both corrections are in `server/app/claude_runner.py`
+with the same reasoning, and `server/tests/test_invocation.py` asserts both.
+
+**`--verbose` is mandatory.** The CLI exits 1 with
+`When using --print, --output-format=stream-json requires --verbose`. It does not make the
+child chattier; in stream-json mode it is what turns the event stream on at all.
+
+**`--safe-mode` closes a hole §1.3 and §1.4 do not cover.** Without it, the child
+**auto-loads** `~/.claude/projects/<git-root-slug>/memory/MEMORY.md` into its context. The
+drawing directory sits inside this git repo, so the child resolves the *same* slug this
+project's own Claude sessions use — it would read the maintainer's private memory index on
+every visitor question.
+
+`--allowedTools "Read(./**)"` does not stop it, and this is the important part: **there is no
+tool call to deny.** The file is injected before the model runs, so `permission_denials[]`
+stays empty and the §1.4 test would report all-clear. Measured with a canary string planted in
+that path: leaked without the flag, absent with it, zero denials recorded either way.
+
+Safe mode also drops CLAUDE.md auto-discovery, skills, plugins, hooks, custom agents and MCP
+servers — every remaining uncontrolled input to a public endpoint — while leaving auth, model
+selection, built-in tools and permissions working normally. Path scoping was re-verified *with*
+`--safe-mode` in place: `Read /home/js/schematics/README.md`, `Grep oauthAccount
+/home/js/.claude.json` and `Glob /home/js/*` were all three hard-denied and recorded.
+
+The general lesson is worth keeping even if these particular flags change: **§1.4's test —
+"only a recorded denial counts" — silently passes anything that never becomes a tool call.**
+Context injection is invisible to it. Test for the *content* reaching the model, with a canary,
+not for the absence of a denial.
+
 ### Child environment: allowlist, never strip
 
 This process carries `CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_SESSION_ID`,
@@ -440,6 +471,53 @@ the code; the vendor documents in `source_docs/` are outside that grant — see 
 | 4 | `Read(./**)`, `Grep(./**)`, `Glob(./**)` hard-deny the escape | ✅ (`Read(*)` does **not**) |
 | 5 | `dontAsk` denies without hanging | ✅ |
 | 6 | Cost and latency across both models | ✅ §1.6 |
+
+### Done — during implementation, 2026-08-08
+
+The app is built: `server/` (FastAPI, Python 3.12, its own uv venv) and `webui/` (Vite, React
+19, Tailwind 4, npm). `server/README.md` has the run instructions.
+
+| # | Check | Result |
+|---|---|---|
+| 7 | `curl -N` shows incremental frames, not a buffered blob | ✅ first text at 3.8 s, heartbeat at 25 s, done at 27 s |
+| 8 | Turn 2 resumes and does not re-read the netlist | ✅ turn 2 made **zero** tool calls, $0.0047 |
+| 9 | Client disconnect leaves no orphan (`pgrep -f 'claude -p'`) | ✅ none; process-group kill |
+| 10 | Second concurrent ask on one session | ✅ `409`, and a new session still gets `200` under the cap of 2 |
+| 11 | `--max-budget-usd 0.02` fires | ✅ `subtype: error_max_budget_usd`, $0.039 spent, **no answer text** |
+| 12 | Bad `HOME` surfaces cleanly rather than hanging | ✅ error in 51 ms |
+| 13 | Per-IP rate limit | ✅ fired at exactly 3 questions, unprompted, mid acceptance run |
+| 14 | XSS: `<script>`, `<img onerror>`, `javascript:` | ✅ 7 vitest cases against the real component |
+| 15 | Memory-injection canary (see §2 addendum) | ✅ leaks without `--safe-mode`, closed with it |
+
+Two of these changed the code rather than just passing:
+
+- **A budget stop renders as a blank answer.** `--max-budget-usd` firing gives `is_error: true`
+  with zero text. The `done` event now carries an `error` string and the UI shows it. An
+  auth failure is worse: it arrives as `is_error: true` with **`subtype: "success"`**, and the
+  real message ("Not logged in · Please run /login") is only in `result`.
+- **Feed the question on stdin via a temp file, not a pipe.** With a stdin pipe, killing the
+  child makes CPython call `pipe_connection_lost` twice and the second raises
+  `InvalidStateError` from a bare event-loop callback — log noise on exactly the cancellation
+  path where you want none.
+
+**Acceptance, Sonnet, 6/6, $0.37** — archived at
+[`webui_acceptance/20260808T192657Z-sonnet.md`](webui_acceptance/20260808T192657Z-sonnet.md).
+Net 110 gave 4 wires *and* 8 terminals; net 125 reached the CR-BP coil and was not fooled by
+the green lamps; the 5 A breakers were called switches; no revision was reported; CR-SW was
+declined with net 130 named. Run it with `uv run python scripts/acceptance.py --model sonnet`.
+
+One note on §1.6: **Sonnet came in far cheaper than measured** — $0.04–$0.12 per question
+against the $0.16 in the table, mostly because the orientation prompt routes it to grep rather
+than reading `circuit_logic.json` whole. That is why the shipped default is Sonnet, not Opus.
+
+### Still to do — before exposure
+
+Everything in §3 that lives outside the app: the dedicated unix user with `ANTHROPIC_API_KEY`
+and its own `HOME` (§3.1 — now with the memory-injection finding as a second reason), and the
+Cloudflare Tunnel (§3.3; `cloudflared` is not installed on this box). The demo password (§3.5)
+is built and disabled — set `SWUI_DEMO_PASSWORD` to turn it on.
+
+Re-run checks 3, 4 and 15 **through the public URL, as a visitor**, before announcing it.
 
 ### To do during implementation
 

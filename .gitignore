@@ -23,6 +23,14 @@ server/app/static/
 .env.*
 !.env.example
 
+# Server runtime state: the daily spend ledger and the per-turn raw transcripts. The
+# transcripts are an audit artifact, but they are also visitor text and they grow without
+# bound, so they stay local. Curated acceptance runs go in _claude_notes/webui_acceptance/.
+server/.state/
+
+# Node test/build caches
+webui/node_modules/.tmp/
+
 # Claude Code local state
 .claude/settings.local.json
 

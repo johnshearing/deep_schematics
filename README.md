@@ -18,7 +18,8 @@ reads from that netlist rather than from the drawing.
 |---|---|
 | `schematic_skills/` — the extraction pipeline | **Working.** Used end to end on a real drawing. |
 | `schematic_extraction/PS20115MLM4-2/` — the first indexed drawing | **Complete.** 47 components, 131 terminals, 26 nets, 71 wires, 402 relationships. |
-| Web UI + public query server | **Planned, not built.** Fully specified in [`_claude_notes/webui_v1_plan.md`](_claude_notes/webui_v1_plan.md). |
+| Web UI + query server | **Built and working locally.** v1 chat, streaming, cited answers. Acceptance 6/6. See [`server/README.md`](server/README.md). |
+| Public exposure of that server | **Not done.** Needs the §3 layers: a dedicated unix user with an API key, and a tunnel. |
 
 This repository is both the backup of that work and the launch point for the server.
 
@@ -50,9 +51,22 @@ schematic_extraction/        Per-drawing working directories
     ModLinx/
         source_docs/          related vendor drawings and the troubleshooting manual
 
+server/                      The query server (FastAPI, Python 3.12, its own uv venv)
+    app/claude_runner.py      spawns headless `claude`; the security boundary
+    app/prompts.py            the orientation prompt, versioned in git
+    app/limits.py             rate limit, concurrency cap, daily spend ledger
+    scripts/acceptance.py     runs the §8 ground-truth questions, archives the report
+    tests/                    36 tests, all offline against a stub `claude`
+
+webui/                       The browser client (Vite + React + Tailwind, npm)
+    src/tabs.ts               the tab registry — adding a tab is one file + one array entry
+    src/api/client.ts         the only place `fetch` appears
+    src/features/ask/         the one v1 tab
+
 _claude_notes/               Design record
-    webui_v1_plan.md          the implementation plan for the query server
+    webui_v1_plan.md          the implementation plan for the query server, with build notes
     webui_ideas.md            longer-range vision
+    webui_acceptance/         archived acceptance runs, one file per run
     direct_file_query_test_PS20115MLM4-2.md
                               the test establishing direct file access beats RAG here
 ```
@@ -91,11 +105,18 @@ python author_circuit_logic.py && python <skill_dir>/scripts/build_kg.py
 `author_circuit_logic.py` is the one artifact in this repository that **cannot** be regenerated —
 it encodes readings a human made from the tiles. It is the reason this repository exists.
 
-## What the query server will be
+## The query server
 
 A visitor opens a page, asks a question about the drawing, and watches a cited answer stream in.
-The full design is in [`_claude_notes/webui_v1_plan.md`](_claude_notes/webui_v1_plan.md); the parts
-worth knowing before touching the code:
+
+```bash
+cd server && uv sync && uv run uvicorn app.main:app --port 9700   # then http://127.0.0.1:9700/webui/
+cd webui  && npm install && npm run build                          # rebuild the bundle it serves
+```
+
+The full design is in [`_claude_notes/webui_v1_plan.md`](_claude_notes/webui_v1_plan.md) and the
+operational detail in [`server/README.md`](server/README.md); the parts worth knowing before
+touching the code:
 
 - **Answers come from the files, not from a vector search.** A headless `claude` process is given
   `Read`, `Grep` and `Glob` — and nothing else — scoped to a single drawing directory. Bash, Write
@@ -103,9 +124,16 @@ worth knowing before touching the code:
 - **The working directory is not a security boundary.** An unqualified `Read` grant was measured
   reading `~/.claude.json`. Only path-scoped rules (`Read(./**)`) produce a recorded denial, and
   only a recorded denial counts. Plan §1.3–1.4.
-- **Cost is a v1 feature.** A hard question runs ~$0.64 and ~2 minutes on Opus. A public
-  unauthenticated endpoint without a per-IP limit, a concurrency cap and a daily ceiling is an
-  unbounded bill. Plan §3.2.
+- **A permission rule cannot stop what never becomes a tool call.** Without `--safe-mode` the
+  child auto-loads this repository's own `~/.claude/projects/…/memory/MEMORY.md` into its
+  context, with `permission_denials[]` empty throughout. Measured with a canary. Plan §2
+  addendum.
+- **Cost is a v1 feature.** A hard question runs ~$0.64 and ~2 minutes on Opus, ~$0.12 on
+  Sonnet — which still gets it right, so Sonnet is the default. There is a per-IP limit, a
+  concurrency cap, a daily ceiling that disables the endpoint, and a per-turn budget. Plan §3.2.
+- **Everything free is answered for free.** `/api/drawing` serves the title block, notes,
+  references and counts straight from `circuit_logic.json`, answering a chunk of the §12
+  question bank before anyone spends a token.
 
 ## License
 

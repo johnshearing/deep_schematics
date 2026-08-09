@@ -1,0 +1,83 @@
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+
+import { getDrawing, getHealth, getQuestions } from '@/api/client'
+import type { DrawingSummary, Health, StarterQuestion } from '@/api/types'
+import { TABS } from '@/tabs'
+
+interface AppState {
+  health: Health | null
+  healthError: string | null
+  drawing: DrawingSummary | null
+  questions: StarterQuestion[]
+  model: string
+  activeTabId: string
+  loaded: boolean
+
+  setModel: (model: string) => void
+  setActiveTab: (id: string) => void
+  loadAll: () => Promise<void>
+  refreshHealth: () => Promise<void>
+}
+
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      health: null,
+      healthError: null,
+      drawing: null,
+      questions: [],
+      model: 'sonnet',
+      activeTabId: TABS[0].id,
+      loaded: false,
+
+      setModel: (model) => set({ model }),
+      setActiveTab: (activeTabId) => set({ activeTabId }),
+
+      loadAll: async () => {
+        const [health, drawing, questions] = await Promise.allSettled([
+          getHealth(),
+          getDrawing(),
+          getQuestions(),
+        ])
+        set({
+          health: health.status === 'fulfilled' ? health.value : null,
+          healthError: health.status === 'rejected' ? String(health.reason?.message ?? health.reason) : null,
+          drawing: drawing.status === 'fulfilled' ? drawing.value : null,
+          questions: questions.status === 'fulfilled' ? questions.value : [],
+          loaded: true,
+        })
+        // Only adopt the server's default model on first load, so a visitor's choice sticks.
+        if (health.status === 'fulfilled' && !get().model) set({ model: health.value.default_model })
+      },
+
+      refreshHealth: async () => {
+        try {
+          set({ health: await getHealth(), healthError: null })
+        } catch (error) {
+          set({ healthError: error instanceof Error ? error.message : String(error) })
+        }
+      },
+    }),
+    {
+      name: 'schematic-webui',
+      partialize: (state) => ({ model: state.model, activeTabId: state.activeTabId }),
+      /**
+       * Validate the persisted tab against the registry on hydrate.
+       *
+       * Without this, renaming or removing a tab wedges every returning visitor on a blank
+       * screen — with a value in localStorage that nothing in the app will ever match again,
+       * and no way to clear it from the UI.
+       */
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<AppState>
+        const known = TABS.some((tab) => tab.id === saved.activeTabId)
+        return {
+          ...current,
+          ...saved,
+          activeTabId: known ? saved.activeTabId! : TABS[0].id,
+        }
+      },
+    },
+  ),
+)
