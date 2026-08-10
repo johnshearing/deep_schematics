@@ -9,9 +9,16 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+#: List settings are comma-separated, not JSON. Without `NoDecode`, pydantic-settings tries to
+#: `json.loads` a complex field straight from the source and raises before `_split_csv` — which
+#: made both the documented `SWUI_ALLOWED_MODELS=opus,sonnet` form *and* an intentionally empty
+#: `SWUI_ANONYMOUS_MODELS=` a startup crash rather than a setting.
+CsvList = Annotated[list[str], NoDecode]
 
 SERVER_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = SERVER_DIR.parent
@@ -32,10 +39,10 @@ class Settings(BaseSettings):
     # --- how we spawn the model --------------------------------------------------------
     claude_bin: str = "claude"
     default_model: str = "sonnet"
-    allowed_models: list[str] = ["opus", "sonnet"]
+    allowed_models: CsvList = ["opus", "sonnet"]
     #: Models a visitor may choose without the demo password. Plan §3.2 — Sonnet still gets
     #: the hard question right at a quarter of the cost, so it is the anonymous default.
-    anonymous_models: list[str] = ["sonnet"]
+    anonymous_models: CsvList = ["sonnet"]
     effort_by_model: dict[str, str] = {"opus": "high", "sonnet": "low"}
     max_budget_usd: float = 1.50
     #: Kill the child if it produces nothing at all for this long. Opus can think for ~30 s,
@@ -55,18 +62,21 @@ class Settings(BaseSettings):
 
     # --- abuse plan, built but disabled (plan §3.5) --------------------------------------
     demo_password: str = ""
+    #: Separate, tighter bucket for `/api/unlock`. The demo password is short by design, so
+    #: the only thing standing between it and an offline-speed guess is this limit.
+    unlock_rate_limit: str = "5/minute"
 
     # --- serving -----------------------------------------------------------------------
     host: str = "127.0.0.1"
     port: int = 9700
     #: Vite dev server. Empty in production — the built assets are same-origin under /webui.
-    dev_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    dev_origins: CsvList = ["http://localhost:5173", "http://127.0.0.1:5173"]
     #: Where the daily spend ledger is persisted so a restart cannot reset the ceiling.
     state_dir: Path = SERVER_DIR / ".state"
     log_dir: Path = SERVER_DIR / ".state" / "turns"
 
     # --- child process environment (plan §2, "allowlist, never strip") ------------------
-    child_env_allowlist: list[str] = ["HOME", "PATH", "USER", "LANG", "TZ"]
+    child_env_allowlist: CsvList = ["HOME", "PATH", "USER", "LANG", "TZ"]
     #: Override to give the child a HOME with no `.claude.json` in it. The structural fix in
     #: plan §3.1: set this plus ANTHROPIC_API_KEY and §1.3 stops being reachable at all.
     child_home: str = ""

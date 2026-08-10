@@ -21,6 +21,20 @@ export function hasDemoPassword() {
   return demoPassword.length > 0
 }
 
+/**
+ * Check a password before storing it, so a typo reports itself instead of surfacing later as
+ * a 403 on a question. Throws `ApiError` (401) when it is wrong.
+ */
+export async function unlock(password: string): Promise<void> {
+  const response = await fetch(`${API}/unlock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  setDemoPassword(password)
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,

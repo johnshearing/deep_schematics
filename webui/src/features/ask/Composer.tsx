@@ -6,7 +6,7 @@ import { useAppStore } from '@/stores/appStore'
 import { useChatStore } from '@/stores/chatStore'
 
 export function Composer() {
-  const { model, health, refreshHealth } = useAppStore()
+  const { model, health, refreshHealth, unlocked } = useAppStore()
   const { busy, composerText, setComposerText, send, stop } = useChatStore()
   const textarea = useRef<HTMLTextAreaElement>(null)
 
@@ -19,7 +19,14 @@ export function Composer() {
   }, [composerText])
 
   const exhausted = health?.spend.exhausted ?? false
-  const canSend = composerText.trim().length > 0 && !busy && !exhausted
+  // Refuse locally rather than letting the question go and come back 403. The server still
+  // enforces it; this only spares the visitor typing a paragraph into a dead box.
+  const needsPassword =
+    !!health?.password_required &&
+    !unlocked &&
+    !(health.anonymous_models ?? []).includes(model)
+  const blocked = exhausted || needsPassword
+  const canSend = composerText.trim().length > 0 && !busy && !blocked
 
   const submit = async () => {
     if (!canSend) return
@@ -34,7 +41,7 @@ export function Composer() {
           ref={textarea}
           rows={1}
           value={composerText}
-          disabled={exhausted}
+          disabled={blocked}
           onChange={(event) => setComposerText(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
@@ -45,7 +52,9 @@ export function Composer() {
           placeholder={
             exhausted
               ? "Today's budget for this demo is spent — it resets tomorrow."
-              : 'Ask about a wire, a net, a relay, or a symptom you are measuring…'
+              : needsPassword
+                ? `${model} needs the demo password — use Unlock, top right.`
+                : 'Ask about a wire, a net, a relay, or a symptom you are measuring…'
           }
           className="max-h-[200px] min-h-[38px] flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] disabled:opacity-60"
         />

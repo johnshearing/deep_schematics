@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-import { getDrawing, getHealth, getQuestions } from '@/api/client'
+import { getDrawing, getHealth, getQuestions, unlock } from '@/api/client'
 import type { DrawingSummary, Health, StarterQuestion } from '@/api/types'
 import { TABS } from '@/tabs'
 
@@ -13,11 +13,15 @@ interface AppState {
   model: string
   activeTabId: string
   loaded: boolean
+  /** Never persisted: a shared demo secret has no business outliving the tab. */
+  unlocked: boolean
+  unlockError: string | null
 
   setModel: (model: string) => void
   setActiveTab: (id: string) => void
   loadAll: () => Promise<void>
   refreshHealth: () => Promise<void>
+  submitUnlock: (password: string) => Promise<boolean>
 }
 
 export const useAppStore = create<AppState>()(
@@ -30,6 +34,8 @@ export const useAppStore = create<AppState>()(
       model: 'sonnet',
       activeTabId: TABS[0].id,
       loaded: false,
+      unlocked: false,
+      unlockError: null,
 
       setModel: (model) => set({ model }),
       setActiveTab: (activeTabId) => set({ activeTabId }),
@@ -56,6 +62,18 @@ export const useAppStore = create<AppState>()(
           set({ health: await getHealth(), healthError: null })
         } catch (error) {
           set({ healthError: error instanceof Error ? error.message : String(error) })
+        }
+      },
+
+      submitUnlock: async (password) => {
+        try {
+          await unlock(password)
+          set({ unlocked: true, unlockError: null })
+          return true
+        } catch (error) {
+          // Surface the server's text: it distinguishes a wrong password from a rate limit.
+          set({ unlockError: error instanceof Error ? error.message : String(error) })
+          return false
         }
       },
     }),

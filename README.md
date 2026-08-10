@@ -149,8 +149,8 @@ commercially. Specifically covered:
 
 ### Not covered by the MIT license
 
-`schematic_extraction/*/source_docs/` contains manufacturer drawings and a vendor troubleshooting
-manual. These are **third-party documents**, included so the extraction is reproducible and
+`schematic_extraction/*/source_docs/` contains manufacturer electrical schematics.  
+These are **third-party documents**, included so the extraction is reproducible and
 auditable against its source. They are not this project's work, they are not MIT licensed, and no
 license or permission is granted over them here — the MIT grant above does not extend to them.
 

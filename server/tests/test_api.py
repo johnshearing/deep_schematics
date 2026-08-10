@@ -129,6 +129,89 @@ def test_password_gates_the_expensive_model_when_enabled(settings: Settings, fak
         assert client.post("/api/ask", json={"question": "q"}).status_code == 200
 
 
+def test_empty_anonymous_models_gates_every_question(settings: Settings, fake_mode) -> None:
+    """The deployment this repo actually runs: no model is anonymous, so nothing is free.
+
+    `anonymous_models=[]` is the difference between "the password protects Opus" and "the
+    password protects the server", which is what a publicly reachable port needs.
+    """
+    fake_mode("ok")
+    guarded = settings.model_copy(update={"demo_password": "1234", "anonymous_models": []})
+    with TestClient(create_app(guarded)) as client:
+        denied = client.post("/api/ask", json={"question": "q"})
+        assert denied.status_code == 403
+        # With no anonymous model to fall back to, the message must not trail off into
+        # "you can use: ." — it has to tell the visitor what to actually do.
+        assert "Unlock" in denied.json()["detail"]
+        ok = client.post(
+            "/api/ask", json={"question": "q"}, headers={"X-Demo-Password": "1234"}
+        )
+        assert ok.status_code == 200
+
+
+def test_unlock_checks_the_password_without_spending(settings: Settings) -> None:
+    """A typo must fail here, not at question time — nothing else can tell the browser."""
+    guarded = settings.model_copy(update={"demo_password": "1234", "anonymous_models": []})
+    with TestClient(create_app(guarded)) as client:
+        assert client.post("/api/unlock", json={"password": "wrong"}).status_code == 401
+        assert client.post("/api/unlock", json={"password": ""}).status_code == 401
+        good = client.post("/api/unlock", json={"password": "1234"})
+        assert good.status_code == 200
+        assert good.json() == {"unlocked": True, "password_required": True}
+
+
+def test_unlock_is_open_when_no_password_is_configured(settings: Settings) -> None:
+    with TestClient(create_app(settings)) as client:
+        r = client.post("/api/unlock", json={"password": ""})
+        assert r.status_code == 200
+        assert r.json()["password_required"] is False
+
+
+def test_unlock_has_its_own_rate_limit(settings: Settings) -> None:
+    """Guessing is the attack on a short password, and /api/ask's bucket does not cover it."""
+    guarded = settings.model_copy(
+        update={
+            "demo_password": "1234",
+            "rate_limit_enabled": True,
+            "unlock_rate_limit": "2/minute",
+        }
+    )
+    with TestClient(create_app(guarded)) as client:
+        assert client.post("/api/unlock", json={"password": "a"}).status_code == 401
+        assert client.post("/api/unlock", json={"password": "b"}).status_code == 401
+        assert client.post("/api/unlock", json={"password": "c"}).status_code == 429
+
+
+def test_index_is_revalidated_but_hashed_assets_are_cached(settings: Settings) -> None:
+    """A cached index.html pins the previous bundle name, so the browser runs the old UI
+    against the new server. That is how a shipped password prompt failed to appear."""
+    from app.config import STATIC_DIR
+
+    if not (STATIC_DIR / "index.html").exists():
+        pytest.skip("no built frontend; run `npm run build` in webui/")
+
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/webui/").headers["cache-control"] == "no-cache"
+        asset = next(iter((STATIC_DIR / "assets").iterdir())).name
+        cached = client.get(f"/webui/assets/{asset}").headers["cache-control"]
+        assert "immutable" in cached and "max-age=31536000" in cached
+
+
+def test_unlock_succeeds_while_rate_limiting_is_on(settings: Settings) -> None:
+    """The live path, which the disabled-limiter tests cannot reach.
+
+    slowapi writes `X-RateLimit-*` onto whatever the endpoint returned and raises if that is
+    not a `Response`, so a correct password 500'd in production while every test passed.
+    """
+    guarded = settings.model_copy(
+        update={"demo_password": "1234", "rate_limit_enabled": True}
+    )
+    with TestClient(create_app(guarded)) as client:
+        r = client.post("/api/unlock", json={"password": "1234"})
+        assert r.status_code == 200, r.text
+        assert r.json()["unlocked"] is True
+
+
 def test_rate_limit_applies_to_ask_only(settings: Settings, fake_mode) -> None:
     fake_mode("ok")
     limited = settings.model_copy(

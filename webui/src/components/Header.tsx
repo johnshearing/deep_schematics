@@ -1,6 +1,7 @@
 import { Activity, CircleAlert, CircleCheck } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { UnlockButton } from '@/components/UnlockButton'
 import { cn, formatUsd } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
 import { useChatStore } from '@/stores/chatStore'
@@ -13,12 +14,14 @@ const MODEL_BLURB: Record<string, string> = {
 }
 
 export function Header() {
-  const { health, healthError, drawing, model, setModel } = useAppStore()
+  const { health, healthError, drawing, model, setModel, unlocked } = useAppStore()
   const busy = useChatStore((s) => s.busy)
 
   const models = health?.models ?? ['sonnet', 'opus']
   const spend = health?.spend
-  const locked = health?.password_required
+  // `locked` holds what is *allowed*. Unlocking this tab allows everything, which is what makes
+  // an empty `anonymous_models` — password required for every question — usable at all.
+  const locked = health?.password_required && !unlocked
     ? (health?.anonymous_models ?? [])
     : models
 
@@ -81,6 +84,8 @@ export function Header() {
             )
           })}
         </div>
+
+        <UnlockButton />
 
         <HealthDot ok={!!health?.ok && !healthError} detail={healthError ?? health?.claude ?? ''} />
       </div>

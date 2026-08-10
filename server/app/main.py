@@ -49,6 +49,10 @@ class AskRequest(BaseModel):
     model: str | None = None
 
 
+class UnlockRequest(BaseModel):
+    password: str = ""
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
 
@@ -91,6 +95,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
+
+        # Cache policy for the built frontend. `StaticFiles` sends only an etag, which leaves
+        # `index.html` to the browser's *heuristic* cache — and a stale index.html pins the old
+        # hashed bundle name, so a visitor keeps running the previous build with the current
+        # server. That combination shipped a UI whose password prompt did not exist yet.
+        # Asset filenames are content-hashed by Vite, so they are safe to cache forever; the
+        # HTML that names them must always be revalidated.
+        path = request.url.path
+        if path.startswith("/webui/assets/"):
+            response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
+        elif path.startswith("/webui"):
+            response.headers.setdefault("Cache-Control", "no-cache")
         return response
 
     @app.exception_handler(RateLimitExceeded)
@@ -145,6 +161,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def questions() -> dict[str, Any]:
         return {"questions": starter_questions()}
 
+    @app.post("/api/unlock")
+    @limiter.limit(
+        lambda: app.state.settings.unlock_rate_limit,
+        exempt_when=lambda: not settings.rate_limit_enabled,
+    )
+    async def unlock(request: Request, body: UnlockRequest) -> JSONResponse:
+        """Check the demo password up front, so a typo fails here instead of at question time.
+
+        Without this the browser cannot tell a good password from a bad one until it spends a
+        question and gets a 403 back. Rate-limited on its own bucket: this is the one endpoint
+        where guessing is the attack, and `/api/ask`'s limit is scoped per-endpoint.
+
+        Returns a `JSONResponse` rather than a dict because slowapi injects its `X-RateLimit-*`
+        headers into the returned object and raises on anything that is not a `Response`.
+        """
+        settings_ = app.state.settings
+        if not settings_.password_required:
+            return JSONResponse({"unlocked": True, "password_required": False})
+        if not _check_password(settings_, body.password):
+            raise HTTPException(401, "That is not the demo password.")
+        return JSONResponse({"unlocked": True, "password_required": True})
+
     # -- the one endpoint that spends money -----------------------------------------------
 
     @app.post("/api/ask")
@@ -171,11 +209,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if model not in settings_.allowed_models:
             raise HTTPException(400, f"Unknown model {model!r}.")
         if settings_.password_required and not authed and model not in settings_.anonymous_models:
-            raise HTTPException(
-                403,
+            # With `anonymous_models` empty there is no fallback to name, and the old wording
+            # trailed off into "you can use: ." — say what to do instead.
+            detail = (
                 f"{model} is available with the demo password. Without it you can use: "
-                f"{', '.join(settings_.anonymous_models)}.",
+                f"{', '.join(settings_.anonymous_models)}."
+                if settings_.anonymous_models
+                else "This demo needs a password. Use Unlock, at the top right."
             )
+            raise HTTPException(403, detail)
 
         spend = app.state.ledger.snapshot()
         if spend.exhausted:
