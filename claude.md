@@ -2,22 +2,21 @@ Greetings.
 In a previous session, I asked you to create @/home/js/schematics/schematic_skills
 Then I asked you to create /home/js/schematics/_claude_notes/webui_v1_plan.md
 Then I asked you to create the simple web app described at /home/js/schematics/_claude_notes/webui_v1_plan.md
+Then I asked you to make a login which shows up in the upper right corner of the WebUI.
 You have already accomplished all of this.
 
-I have started testing the app and it seems to run fine so far. Much thanks.
+Would you please compare /home/js/schematics/server/README.md with /home/js/schematics/README.md and make sure there is no conflicting information.
 
-My laptop is running Ubuntu over WSL
-Currently I am running a LightRAG server which I can see at http://localhost:9621/webui/
-I can also interact with the server from another computer at http://174.167.39.112:9621/webui
+/home/js/schematics/server/README.md is more recent so it probably has the most up to date informtion.
 
-Currently I can see the server you just created at http://localhost:9700/webui/ but it is not visible to other devices at http://174.167.39.112:9700/webui
+/home/js/schematics/README.md is what the new users will see first.
+So the quick start information must be up to date.
 
-I have port forwarding enabled on my WiFi router for both 9621 and for 9700
+Please check all this.
 
-I think however there is a process I failed to do for port 9700 where commands are given at the Windows cmd terminal to pass the port routing from Ubuntu to Windows.
 
-Do you think that is the issue?
-In anycase would you please help with the issue?
+
+
 
 
 

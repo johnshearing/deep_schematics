@@ -15,7 +15,8 @@ references below point at that document.
 # 1. server
 cd server
 uv sync
-cp .env.example .env          # edit if your paths differ
+cp .env.example .env          # optional — every setting has a default. Do not clobber an
+                              # existing .env; it is gitignored and holds the demo password
 uv run python -m app          # binds SWUI_HOST:SWUI_PORT, default 127.0.0.1:9700
 
 # 2. frontend, in another terminal
@@ -119,6 +120,7 @@ each reload asks again.
 | `tool` | `name`, `detail`, `id` — feeds the tool-activity strip |
 | `tool_result` | `id`, `ok`, `ms` |
 | `text` | `d` — the answer delta. Coalesced server-side (50 ms / 512 chars) |
+| `status` | `s` — currently only `thinking`. Reasoning text is never forwarded; a 30 s silence gets a label instead |
 | `heartbeat` | keeps the socket alive so cancellation is detected while Opus thinks |
 | `denial` | a recorded `permission_denials[]` entry — surfaced, never swallowed |
 | `done` | `cost_usd`, `duration_ms`, `num_turns`, `is_error`, `daily_spend_usd` |
@@ -154,8 +156,9 @@ matching `^CLAUDE` survives.
 ## Tests
 
 ```bash
-cd server && uv run pytest -q          # 36 tests, offline and free
-cd webui  && npx vitest run            # 7 XSS cases against the real markdown renderer
+cd server && uv run pytest -q          # 46 tests, offline and free
+cd webui  && npx vitest run            # 15 tests: 7 XSS cases against the real markdown
+                                       # renderer, plus the unlock flow and the app shell
 ```
 
 The subprocess tests use `tests/fake_claude.py`, a stub that emits a canned stream-json
