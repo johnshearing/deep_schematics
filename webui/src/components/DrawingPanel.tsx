@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, FileText, Info } from 'lucide-react'
 
+import { SourceDrawingButton } from '@/components/SourceDrawing'
 import { Badge } from '@/components/ui/badge'
 import { cn, formatBytes } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
@@ -34,14 +35,19 @@ export function DrawingPanel() {
           <span className="text-muted-foreground">{drawing.revision_note}</span>
         )}
 
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="ml-auto flex items-center gap-1 text-muted-foreground hover:text-foreground"
-          aria-expanded={open}
-        >
-          Notes, references and artifacts
-          <ChevronDown className={cn('size-3.5 transition-transform', open && 'rotate-180')} />
-        </button>
+        <div className="ml-auto flex items-center gap-3">
+          {/* Reachable at any point in a conversation, not only from the intro. */}
+          <SourceDrawingButton label="Drawing" variant="ghost" className="h-6 px-2" />
+
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+            aria-expanded={open}
+          >
+            Notes, references and artifacts
+            <ChevronDown className={cn('size-3.5 transition-transform', open && 'rotate-180')} />
+          </button>
+        </div>
       </div>
 
       {open && (

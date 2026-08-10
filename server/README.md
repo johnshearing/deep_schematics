@@ -104,6 +104,7 @@ each reload asks again.
 |---|---|---|
 | `GET` | `/api/health` | server up, `claude` version, today's spend vs ceiling |
 | `GET` | `/api/drawing` | title block, notes, references, counts — free, no model call |
+| `GET` | `/api/source` | the source PDF, inline — `404` when none sits beside the extraction |
 | `GET` | `/api/questions` | starter questions |
 | `POST` | `/api/unlock` | check the demo password without spending a question; own rate limit |
 | `POST` | `/api/ask` | NDJSON answer stream; rate-limited |

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 
 import { DrawingPanel } from '@/components/DrawingPanel'
 import { Header } from '@/components/Header'
+import { SourceDrawingViewer } from '@/components/SourceDrawing'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { enabledTabs } from '@/tabs'
 import { useAppStore } from '@/stores/appStore'
@@ -53,6 +54,10 @@ export function App() {
       {!loaded && (
         <div className="border-t px-4 py-2 text-xs text-muted-foreground">Loading drawing…</div>
       )}
+
+      {/* Last, and outside the tab tree: it covers the whole window and must survive a tab
+          switch behind it. */}
+      <SourceDrawingViewer />
     </div>
   )
 }

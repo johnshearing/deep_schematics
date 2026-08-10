@@ -27,7 +27,12 @@ from typing import Annotated, Any
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from slowapi.errors import RateLimitExceeded
@@ -35,13 +40,28 @@ from slowapi.errors import RateLimitExceeded
 from . import __version__
 from .claude_runner import ClaudeRunner, TurnRegistry
 from .config import STATIC_DIR, Settings, get_settings
-from .drawing import DrawingUnavailable, drawing_summary
+from .drawing import DrawingUnavailable, drawing_summary, source_document
 from .limits import ConcurrencyGate, SpendLedger, make_limiter
 from .prompts import PROMPT_VERSION
 from .questions import starter_questions
 from .sessions import SessionStore
 
 log = logging.getLogger(__name__)
+
+#: Plan §3.4, kept as one string so the header and `vite.config.ts`'s meta tag cannot drift.
+CSP_BASE = (
+    "default-src 'self'; img-src 'self' data:; connect-src 'self'; "
+    "script-src 'self'; style-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+)
+CSP = f"{CSP_BASE}; frame-ancestors 'none'"
+#: The source PDF is displayed in an iframe *by our own page*, and `frame-ancestors` is enforced
+#: on the framed document — so the blanket `'none'` would show a blank frame. This is the one
+#: response that permits a same-origin ancestor; nothing else about the policy is relaxed.
+CSP_FRAMEABLE = f"{CSP_BASE}; frame-ancestors 'self'"
+
+#: Paths whose responses carry `CSP_FRAMEABLE`.
+FRAMEABLE_PATHS = frozenset({"/api/source"})
+
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1)
@@ -86,12 +106,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
         """Plan §3.4. The meta tag in `index.html` covers the built bundle wherever it is
         served from; this covers everything, including API responses."""
+        path = request.url.path
         response = await call_next(request)
         response.headers.setdefault(
             "Content-Security-Policy",
-            "default-src 'self'; img-src 'self' data:; connect-src 'self'; "
-            "script-src 'self'; style-src 'self' 'unsafe-inline'; base-uri 'none'; "
-            "form-action 'none'; frame-ancestors 'none'",
+            CSP_FRAMEABLE if path in FRAMEABLE_PATHS else CSP,
         )
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
@@ -102,7 +121,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # server. That combination shipped a UI whose password prompt did not exist yet.
         # Asset filenames are content-hashed by Vite, so they are safe to cache forever; the
         # HTML that names them must always be revalidated.
-        path = request.url.path
         if path.startswith("/webui/assets/"):
             response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
         elif path.startswith("/webui"):
@@ -156,6 +174,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return drawing_summary(settings.drawing_dir)
         except DrawingUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    @app.get("/api/source")
+    async def source() -> FileResponse:
+        """The original sheet, so an answer can be checked against the drawing it came from.
+
+        Free, static and served inline: a 148 KB vector PDF is crisper at any zoom than the
+        400 DPI tiles, and the browser's own viewer costs no code. `webui_ideas.md` §2 wants a
+        tile viewer with clickable component overlays and bidirectional citation, which this is
+        not — it is the honest first step, and it does not stand in that one's way.
+        """
+        path = source_document(settings.drawing_dir)
+        if path is None:
+            raise HTTPException(404, "There is no source drawing beside this extraction.")
+        return FileResponse(
+            path,
+            media_type="application/pdf",
+            headers={
+                # Quotes stripped because the filename comes off disk and lands in a header.
+                "Content-Disposition": f'inline; filename="{path.name.replace(chr(34), "")}"',
+                "Cache-Control": "public, max-age=3600",
+            },
+        )
 
     @app.get("/api/questions")
     async def questions() -> dict[str, Any]:

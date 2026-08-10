@@ -59,6 +59,10 @@ async function detail(response: Response): Promise<string> {
   }
 }
 
+/** The source PDF, for an iframe or a new tab rather than `fetch` — but it still belongs in
+ * the one file that knows the API shape. */
+export const SOURCE_URL = `${API}/source`
+
 export const getHealth = () => getJson<Health>('/health')
 export const getDrawing = () => getJson<DrawingSummary>('/drawing')
 export const getQuestions = () =>

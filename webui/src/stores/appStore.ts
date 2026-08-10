@@ -16,8 +16,12 @@ interface AppState {
   /** Never persisted: a shared demo secret has no business outliving the tab. */
   unlocked: boolean
   unlockError: string | null
+  /** The source-drawing overlay. In the store rather than in one component because two
+   * separate places open it — the drawing bar and the intro. */
+  sourceOpen: boolean
 
   setModel: (model: string) => void
+  setSourceOpen: (open: boolean) => void
   setActiveTab: (id: string) => void
   loadAll: () => Promise<void>
   refreshHealth: () => Promise<void>
@@ -36,8 +40,10 @@ export const useAppStore = create<AppState>()(
       loaded: false,
       unlocked: false,
       unlockError: null,
+      sourceOpen: false,
 
       setModel: (model) => set({ model }),
+      setSourceOpen: (sourceOpen) => set({ sourceOpen }),
       setActiveTab: (activeTabId) => set({ activeTabId }),
 
       loadAll: async () => {

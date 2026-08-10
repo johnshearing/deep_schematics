@@ -39,6 +39,9 @@ export interface DrawingSummary {
   component_classes: Record<string, number>
   relationship_types: Record<string, number>
   artifacts: { name: string; bytes: number }[]
+  /** The sheet the netlist was extracted from. Absent on a server older than this field, and
+   * null when no source PDF sits beside the extraction — so both mean "no viewer". */
+  source?: { name: string; bytes: number; media_type: string } | null
 }
 
 export interface StarterQuestion {

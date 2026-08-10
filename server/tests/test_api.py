@@ -41,6 +41,58 @@ def test_drawing_is_free_and_names_the_revision_trap(client) -> None:
     assert body["references"] == ["MXCS-M9", "MXCS-M11"]
 
 
+def test_source_drawing_is_absent_until_a_pdf_sits_beside_the_extraction(client) -> None:
+    assert client.get("/api/drawing").json()["source"] is None
+    assert client.get("/api/source").status_code == 404
+
+
+def test_source_drawing_is_served_inline_and_may_be_framed(client, drawing_dir) -> None:
+    pdf = drawing_dir.parent / "source_docs" / "PS20115MLM4-2.pdf"
+    pdf.parent.mkdir()
+    pdf.write_bytes(b"%PDF-1.4\n% stand-in for the sheet\n")
+
+    assert client.get("/api/drawing").json()["source"] == {
+        "name": "PS20115MLM4-2.pdf",
+        "bytes": pdf.stat().st_size,
+        "media_type": "application/pdf",
+    }
+
+    response = client.get("/api/source")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"].startswith("inline")
+    # The blanket `frame-ancestors 'none'` is enforced on the *framed* document, so it would
+    # leave the viewer a blank rectangle. This one response says `'self'` and nothing more.
+    csp = response.headers["content-security-policy"]
+    assert "frame-ancestors 'self'" in csp
+    assert "script-src 'self'" in csp
+
+
+def test_source_drawing_follows_the_tile_manifest(client, drawing_dir) -> None:
+    """Several PDFs in one `source_docs/` is the real state of `ModLinx/`, and `tiles.json`
+    already records which one was rendered — so it decides, rather than alphabetical order."""
+    source_dir = drawing_dir.parent / "source_docs"
+    source_dir.mkdir()
+    for name in ("PS10115MLC2-2.pdf", "Troubleshooting Mod-Linx Conveyors.pdf"):
+        (source_dir / name).write_bytes(b"%PDF-1.4\n")
+    (drawing_dir / "tiles").mkdir()
+    (drawing_dir / "tiles" / "tiles.json").write_text(
+        json.dumps({"source_file": "PS10115MLC2-2.pdf"}), encoding="utf-8"
+    )
+
+    assert client.get("/api/drawing").json()["source"]["name"] == "PS10115MLC2-2.pdf"
+
+
+def test_source_drawing_declines_to_guess_between_unrelated_pdfs(client, drawing_dir) -> None:
+    source_dir = drawing_dir.parent / "source_docs"
+    source_dir.mkdir()
+    for name in ("some-other-machine.pdf", "a-manual.pdf"):
+        (source_dir / name).write_bytes(b"%PDF-1.4\n")
+
+    assert client.get("/api/drawing").json()["source"] is None
+    assert client.get("/api/source").status_code == 404
+
+
 def test_starter_questions_do_not_leak_their_expected_answers(client) -> None:
     questions = client.get("/api/questions").json()["questions"]
     assert len(questions) == 5

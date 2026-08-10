@@ -78,7 +78,59 @@ def drawing_summary(drawing_dir: Path) -> dict[str, Any]:
             sorted(Counter(r.get("type") for r in relationships).items())
         ),
         "artifacts": _artifacts(drawing_dir),
+        "source": _source_meta(drawing_dir),
     }
+
+
+def source_document(drawing_dir: Path) -> Path | None:
+    """The PDF the netlist was extracted from, or `None` if it is not beside the extraction.
+
+    Every extraction has the shape `<drawing>/source_docs/*.pdf` next to
+    `<drawing>/extracted_docs/`, and `tiles/tiles.json` already records which file in there was
+    rendered — so that name is the first choice, the drawing number is the second, and a lone
+    PDF is the third. With several unrelated PDFs and nothing to disambiguate them (which is
+    the state of `ModLinx/source_docs/`), this returns `None` rather than guessing.
+    """
+    source_dir = drawing_dir.parent / "source_docs"
+    if not source_dir.is_dir():
+        return None
+    pdfs = sorted(p for p in source_dir.glob("*.pdf") if p.is_file())
+    if not pdfs:
+        return None
+
+    for name in (_tiles_source_name(drawing_dir), _drawing_number(drawing_dir)):
+        if not name:
+            continue
+        stem = Path(name).stem
+        for pdf in pdfs:
+            if pdf.stem == stem:
+                return pdf
+    return pdfs[0] if len(pdfs) == 1 else None
+
+
+def _source_meta(drawing_dir: Path) -> dict[str, Any] | None:
+    path = source_document(drawing_dir)
+    if path is None:
+        return None
+    return {"name": path.name, "bytes": path.stat().st_size, "media_type": "application/pdf"}
+
+
+def _tiles_source_name(drawing_dir: Path) -> str | None:
+    try:
+        manifest = json.loads((drawing_dir / "tiles" / "tiles.json").read_text("utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    name = manifest.get("source_file")
+    return name if isinstance(name, str) else None
+
+
+def _drawing_number(drawing_dir: Path) -> str | None:
+    try:
+        meta = load_circuit_logic(drawing_dir).get("drawing") or {}
+    except DrawingUnavailable:
+        return None
+    number = meta.get("drawing_number")
+    return number if isinstance(number, str) else None
 
 
 def _artifacts(drawing_dir: Path) -> list[dict[str, Any]]:

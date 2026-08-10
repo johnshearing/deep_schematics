@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { RotateCcw } from 'lucide-react'
 
+import { SourceDrawingButton } from '@/components/SourceDrawing'
 import { Button } from '@/components/ui/button'
 import { formatUsd } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
@@ -39,7 +40,10 @@ export function AskTab() {
         <div className="mx-auto max-w-3xl space-y-5 px-4 py-5">
           {messages.length === 0 ? (
             <>
-              <Intro title={drawing?.title ?? null} />
+              <Intro
+                title={drawing?.title ?? null}
+                drawingNumber={drawing?.drawing_number ?? null}
+              />
               <StarterQuestions />
             </>
           ) : (
@@ -72,22 +76,62 @@ export function AskTab() {
   )
 }
 
-function Intro({ title }: { title: string | null }) {
+/**
+ * Four separate blocks, not one paragraph stack.
+ *
+ * The drawing title is a 20-word all-caps run out of the title block, and the two notes below
+ * it are independent claims — what the model reads, and what it does when the sheet has no
+ * answer. Run together they read as one grey wall and none of it lands. Each idea gets its own
+ * card and its own label instead.
+ */
+function Intro({
+  title,
+  drawingNumber,
+}: {
+  title: string | null
+  drawingNumber: string | null
+}) {
   return (
-    <div className="space-y-2">
-      <h2 className="text-base font-semibold">Ask this schematic a question</h2>
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        {title ? <span className="text-foreground">{title}. </span> : null}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 className="text-base font-semibold">Ask this schematic a question</h2>
+        <SourceDrawingButton className="ml-auto" />
+      </div>
+
+      {title && (
+        <div className="rounded-lg border bg-card px-4 py-3">
+          {drawingNumber && (
+            <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+              Drawing {drawingNumber}
+            </p>
+          )}
+          <p className="mt-1 text-sm leading-relaxed font-medium">{title}</p>
+        </div>
+      )}
+
+      <IntroNote label="What it is reading">
         Claude reads the extracted netlist directly — the notes, then the component, terminal,
         net and wire tables — and answers citing the identifiers it used. It is read-only and
         confined to this one drawing.
-      </p>
-      <p className="text-sm leading-relaxed text-muted-foreground">
+      </IntroNote>
+
+      <IntroNote label="When the sheet has no answer">
         It will tell you when the sheet cannot answer the question. Net 130 and CR-SW complete
         only through the downstream machine, so the honest answer there is{' '}
         <em>cannot be determined from this sheet</em> — and getting that answer is the demo
         working, not failing.
-      </p>
+      </IntroNote>
     </div>
+  )
+}
+
+function IntroNote({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <section className="rounded-lg border border-dashed px-4 py-3">
+      <h3 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+        {label}
+      </h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{children}</p>
+    </section>
   )
 }
