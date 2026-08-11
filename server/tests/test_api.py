@@ -46,7 +46,7 @@ def test_source_drawing_is_absent_until_a_pdf_sits_beside_the_extraction(client)
     assert client.get("/api/source").status_code == 404
 
 
-def test_source_drawing_is_served_inline_and_may_be_framed(client, drawing_dir) -> None:
+def test_source_drawing_is_served_inline(client, drawing_dir) -> None:
     pdf = drawing_dir.parent / "source_docs" / "PS20115MLM4-2.pdf"
     pdf.parent.mkdir()
     pdf.write_bytes(b"%PDF-1.4\n% stand-in for the sheet\n")
@@ -61,10 +61,11 @@ def test_source_drawing_is_served_inline_and_may_be_framed(client, drawing_dir) 
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
     assert response.headers["content-disposition"].startswith("inline")
-    # The blanket `frame-ancestors 'none'` is enforced on the *framed* document, so it would
-    # leave the viewer a blank rectangle. This one response says `'self'` and nothing more.
+    # It is opened in a new browser tab, never framed — so it gets the same blanket policy as
+    # everything else. The `frame-ancestors 'self'` exception that used to live here went away
+    # with the iframe.
     csp = response.headers["content-security-policy"]
-    assert "frame-ancestors 'self'" in csp
+    assert "frame-ancestors 'none'" in csp
     assert "script-src 'self'" in csp
 
 
@@ -91,6 +92,95 @@ def test_source_drawing_declines_to_guess_between_unrelated_pdfs(client, drawing
 
     assert client.get("/api/drawing").json()["source"] is None
     assert client.get("/api/source").status_code == 404
+
+
+#: A one-pixel PNG. Enough for `FileResponse` and for the manifest to consider the file real.
+PNG = bytes.fromhex(
+    "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+    "1f15c4890000000a49444154789c6300010000050001"
+    "0d0a2db40000000049454e44ae426082"
+)
+
+
+def write_tiles(drawing_dir, extra=None) -> None:
+    """A 1×2 grid, the same shape as the real 4×4 manifest."""
+    tiles = drawing_dir / "tiles"
+    tiles.mkdir(exist_ok=True)
+    for name in ("tile_r1c1.png", "tile_r1c2.png"):
+        (tiles / name).write_bytes(PNG)
+    manifest = {
+        "source_file": "PS20115MLM4-2.pdf",
+        "page_size": [1224.0, 792.0],
+        "dpi": 400,
+        "grid": {"rows": 1, "cols": 2},
+        "tiles": [
+            {"file": "tile_r1c1.png", "row": 1, "col": 1,
+             "pdf_rect": [0.0, 0.0, 642.0, 792.0], "pixels": [3567, 4400]},
+            {"file": "tile_r1c2.png", "row": 1, "col": 2,
+             "pdf_rect": [582.0, 0.0, 1224.0, 792.0], "pixels": [3567, 4400]},
+        ],
+        **(extra or {}),
+    }
+    (tiles / "tiles.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def test_tiles_are_absent_until_the_sheet_has_been_rendered(client) -> None:
+    assert client.get("/api/drawing").json()["tiles"] is None
+    assert client.get("/api/tiles/tile_r1c1.png").status_code == 404
+
+
+def test_tile_rectangles_are_published_in_pdf_points(client, drawing_dir) -> None:
+    """Points, not pixels, and unconverted — `components[].location` and the `geometry.json`
+    bboxes are in the same space, so the overlay that comes next needs no registration."""
+    write_tiles(drawing_dir)
+
+    tiles = client.get("/api/drawing").json()["tiles"]
+    assert tiles["page_size_pt"] == [1224.0, 792.0]
+    assert tiles["dpi"] == 400
+    assert (tiles["rows"], tiles["cols"], tiles["count"]) == (1, 2, 2)
+    assert tiles["tiles"][1] == {
+        "file": "tile_r1c2.png", "row": 1, "col": 2,
+        "pdf_rect": [582.0, 0.0, 1224.0, 792.0], "pixels": [3567.0, 4400.0],
+    }
+
+    response = client.get("/api/tiles/tile_r1c2.png")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content == PNG
+
+
+def test_a_tile_that_is_not_on_disk_is_dropped_rather_than_served_broken(
+    client, drawing_dir
+) -> None:
+    write_tiles(drawing_dir)
+    (drawing_dir / "tiles" / "tile_r1c2.png").unlink()
+
+    tiles = client.get("/api/drawing").json()["tiles"]
+    assert [t["file"] for t in tiles["tiles"]] == ["tile_r1c1.png"]
+    assert tiles["count"] == 1
+    assert client.get("/api/tiles/tile_r1c2.png").status_code == 404
+
+
+def test_a_manifest_without_a_page_size_means_no_viewer(client, drawing_dir) -> None:
+    """`test_source_drawing_follows_the_tile_manifest` writes exactly this shape — a manifest
+    that names its source PDF and nothing else. It must not produce a half-built viewer."""
+    write_tiles(drawing_dir, extra={"page_size": None})
+    assert client.get("/api/drawing").json()["tiles"] is None
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "../circuit_logic.json",
+        "..%2Fcircuit_logic.json",
+        "tiles.json",
+        "tile_r9c9.png",
+        "circuit_logic.json",
+    ],
+)
+def test_only_a_tile_the_manifest_names_can_be_fetched(client, drawing_dir, name) -> None:
+    write_tiles(drawing_dir)
+    assert client.get(f"/api/tiles/{name}").status_code in (404, 405)
 
 
 def test_starter_questions_do_not_leak_their_expected_answers(client) -> None:

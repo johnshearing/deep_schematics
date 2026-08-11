@@ -40,7 +40,7 @@ from slowapi.errors import RateLimitExceeded
 from . import __version__
 from .claude_runner import ClaudeRunner, TurnRegistry
 from .config import STATIC_DIR, Settings, get_settings
-from .drawing import DrawingUnavailable, drawing_summary, source_document
+from .drawing import DrawingUnavailable, drawing_summary, source_document, tile_file
 from .limits import ConcurrencyGate, SpendLedger, make_limiter
 from .prompts import PROMPT_VERSION
 from .questions import starter_questions
@@ -53,14 +53,11 @@ CSP_BASE = (
     "default-src 'self'; img-src 'self' data:; connect-src 'self'; "
     "script-src 'self'; style-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'none'"
 )
+#: No exceptions. There was one — `/api/source` answered with `frame-ancestors 'self'` so the
+#: PDF could be shown in an iframe — and it went away with the iframe: the drawing is now
+#: rendered from the tile PNGs by our own code, and the PDF is a plain link to a new browser
+#: tab, which framing rules do not touch.
 CSP = f"{CSP_BASE}; frame-ancestors 'none'"
-#: The source PDF is displayed in an iframe *by our own page*, and `frame-ancestors` is enforced
-#: on the framed document — so the blanket `'none'` would show a blank frame. This is the one
-#: response that permits a same-origin ancestor; nothing else about the policy is relaxed.
-CSP_FRAMEABLE = f"{CSP_BASE}; frame-ancestors 'self'"
-
-#: Paths whose responses carry `CSP_FRAMEABLE`.
-FRAMEABLE_PATHS = frozenset({"/api/source"})
 
 
 class AskRequest(BaseModel):
@@ -108,10 +105,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         served from; this covers everything, including API responses."""
         path = request.url.path
         response = await call_next(request)
-        response.headers.setdefault(
-            "Content-Security-Policy",
-            CSP_FRAMEABLE if path in FRAMEABLE_PATHS else CSP,
-        )
+        response.headers.setdefault("Content-Security-Policy", CSP)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
 
@@ -177,12 +171,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/source")
     async def source() -> FileResponse:
-        """The original sheet, so an answer can be checked against the drawing it came from.
+        """The original vector sheet — now the escape hatch rather than the viewer.
 
-        Free, static and served inline: a 148 KB vector PDF is crisper at any zoom than the
-        400 DPI tiles, and the browser's own viewer costs no code. `webui_ideas.md` §2 wants a
-        tile viewer with clickable component overlays and bidirectional citation, which this is
-        not — it is the honest first step, and it does not stand in that one's way.
+        The Drawing tab renders the 400 DPI tiles, which is what makes overlays and
+        highlighting possible at all. Two things the tiles cannot do are print well and follow
+        you to a second monitor, and for those this endpoint is a plain link to a new browser
+        tab. It also out-zooms the rasters, being vector.
         """
         path = source_document(settings.drawing_dir)
         if path is None:
@@ -195,6 +189,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "Content-Disposition": f'inline; filename="{path.name.replace(chr(34), "")}"',
                 "Cache-Control": "public, max-age=3600",
             },
+        )
+
+    @app.get("/api/tiles/{name}")
+    async def tile(name: str) -> FileResponse:
+        """One tile of the rendered sheet.
+
+        The grid and each tile's rectangle come down with `/api/drawing`; this serves the
+        pixels. `tile_file` will only return a path the manifest itself lists, so the name in
+        the URL cannot select anything else on disk.
+        """
+        path = tile_file(settings.drawing_dir, name)
+        if path is None:
+            raise HTTPException(404, "No such tile.")
+        return FileResponse(
+            path,
+            media_type="image/png",
+            # Content-hashed by nothing, so not immutable — but a re-extraction is a deploy,
+            # and an hour of staleness on a 2 MB raster set is the right trade on a shop floor.
+            headers={"Cache-Control": "public, max-age=3600"},
         )
 
     @app.get("/api/questions")

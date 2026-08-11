@@ -7,11 +7,12 @@ import { TABS } from './tabs'
 /**
  * A smoke test, but not a pointless one.
  *
- * `tabs.ts` imports `AskTab`, which imports `appStore`, which imports `TABS` back out of
- * `tabs.ts` — a genuine import cycle. It resolves correctly today only because `appStore`
- * reads `TABS[0].id` inside the store initialiser rather than at module top level. Move that
- * read and the app renders a blank screen with `TABS` undefined, which is a very confusing
- * five minutes. This test fails loudly instead.
+ * `tabs.ts` used to sit in an import cycle — it imports tab components, and `appStore`
+ * imported `TABS` back out of it — which built the registry with `undefined` ids and
+ * `undefined` components whenever a tab component happened to be evaluated first. That is a
+ * blank screen with no error, and it is a very confusing five minutes. The cycle is gone
+ * (`appStore` no longer knows the registry exists), and this asserts the registry is whole so
+ * that reintroducing one fails loudly.
  */
 
 const HEALTH = {
@@ -41,23 +42,50 @@ const QUESTIONS = {
   ],
 }
 
-beforeEach(() => {
+function stubFetch(drawing: object = DRAWING) {
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
-    const body = url.endsWith('/health') ? HEALTH : url.endsWith('/drawing') ? DRAWING : QUESTIONS
+    const body = url.endsWith('/health') ? HEALTH : url.endsWith('/drawing') ? drawing : QUESTIONS
     return new Response(JSON.stringify(body), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     })
   }))
-})
+}
+
+beforeEach(() => stubFetch())
 
 afterEach(() => vi.unstubAllGlobals())
 
 describe('App', () => {
-  it('has a tab registry that is populated at module load despite the import cycle', () => {
+  it('has a tab registry that is whole at module load', () => {
     expect(TABS.length).toBeGreaterThan(0)
     expect(TABS[0].id).toBe('ask')
-    expect(TABS[0].Component).toBeTypeOf('function')
+    for (const tab of TABS) {
+      expect(tab.id).toBeTypeOf('string')
+      expect(tab.Component).toBeTypeOf('function')
+    }
+  })
+
+  it('hides the tab strip until there is more than one tab', async () => {
+    render(<App />)
+    await screen.findByText('PS20115MLM4-2')
+    // This drawing has never been tiled, so the Drawing tab does not exist and a strip of one
+    // is noise.
+    expect(screen.queryByRole('tab', { name: /drawing/i })).toBeNull()
+  })
+
+  it('shows a Drawing tab once the sheet has been rendered to tiles', async () => {
+    stubFetch({
+      ...DRAWING,
+      tiles: {
+        page_size_pt: [1224, 792], dpi: 400, rows: 1, cols: 1, count: 1,
+        tiles: [{ file: 'tile_r1c1.png', row: 1, col: 1, pdf_rect: [0, 0, 1224, 792],
+                  pixels: [6800, 4400] }],
+      },
+    })
+    render(<App />)
+    expect(await screen.findByRole('tab', { name: /drawing/i })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /ask/i })).toBeTruthy()
   })
 
   it('renders the drawing, the counts and the starter questions', async () => {

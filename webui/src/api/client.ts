@@ -59,9 +59,11 @@ async function detail(response: Response): Promise<string> {
   }
 }
 
-/** The source PDF, for an iframe or a new tab rather than `fetch` — but it still belongs in
- * the one file that knows the API shape. */
+/** The source PDF, opened in a new browser tab rather than fetched — but the URL still
+ * belongs in the one file that knows the API shape. Same for the tiles, which arrive as
+ * `<img src>` and never touch `fetch` either. */
 export const SOURCE_URL = `${API}/source`
+export const tileUrl = (file: string) => `${API}/tiles/${encodeURIComponent(file)}`
 
 export const getHealth = () => getJson<Health>('/health')
 export const getDrawing = () => getJson<DrawingSummary>('/drawing')

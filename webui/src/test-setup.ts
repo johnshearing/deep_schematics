@@ -9,6 +9,23 @@ afterEach(cleanup)
 /** jsdom gaps, not application gaps. Both of these exist in every real browser. */
 Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {})
 
+/**
+ * jsdom has no layout engine and so no `ResizeObserver`. The tile viewer measures its
+ * container through one, so without a stand-in it would never size the sheet and every test
+ * of it would assert against an empty box. Firing once on `observe` matches the real
+ * contract, which delivers an initial observation.
+ */
+if (typeof globalThis.ResizeObserver !== 'function') {
+  globalThis.ResizeObserver = class {
+    constructor(private readonly callback: ResizeObserverCallback) {}
+    observe(target: Element) {
+      this.callback([{ target } as ResizeObserverEntry], this as unknown as ResizeObserver)
+    }
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver
+}
+
 if (typeof globalThis.requestAnimationFrame !== 'function') {
   globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) =>
     setTimeout(() => callback(performance.now()), 0) as unknown as number) as typeof requestAnimationFrame

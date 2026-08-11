@@ -40,8 +40,39 @@ export interface DrawingSummary {
   relationship_types: Record<string, number>
   artifacts: { name: string; bytes: number }[]
   /** The sheet the netlist was extracted from. Absent on a server older than this field, and
-   * null when no source PDF sits beside the extraction — so both mean "no viewer". */
+   * null when no source PDF sits beside the extraction — so both mean "no PDF link". */
   source?: { name: string; bytes: number; media_type: string } | null
+  /** The rendered raster of that sheet. Null until the extraction has been tiled; absent on
+   * an older server. Both mean "no Drawing tab". */
+  tiles?: TileManifest | null
+}
+
+/** One tile of the rendered sheet. */
+export interface Tile {
+  file: string
+  row: number | null
+  col: number | null
+  /**
+   * `[x0, y0, x1, y1]` **in PDF points**, top-left origin.
+   *
+   * This is the project's one coordinate system: `components[].location{x,y}` (populated for
+   * all 47) and every bbox and conductor polyline in `geometry.json` are in the same space.
+   * So placing a marker on the drawing is the same arithmetic as placing a tile, with no
+   * registration step in between.
+   */
+  pdf_rect: [number, number, number, number]
+  /** Rendered size in pixels, or null if the manifest omitted it. */
+  pixels: [number, number] | null
+}
+
+export interface TileManifest {
+  /** `[width, height]` of the whole sheet, in points. */
+  page_size_pt: [number, number]
+  dpi: number | null
+  rows: number | null
+  cols: number | null
+  count: number
+  tiles: Tile[]
 }
 
 export interface StarterQuestion {

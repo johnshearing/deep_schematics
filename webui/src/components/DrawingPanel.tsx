@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { ChevronDown, FileText, Info } from 'lucide-react'
 
-import { SourceDrawingButton } from '@/components/SourceDrawing'
 import { Badge } from '@/components/ui/badge'
 import { cn, formatBytes } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
@@ -36,9 +35,9 @@ export function DrawingPanel() {
         )}
 
         <div className="ml-auto flex items-center gap-3">
-          {/* Reachable at any point in a conversation, not only from the intro. */}
-          <SourceDrawingButton label="Drawing" variant="ghost" className="h-6 px-2" />
-
+          {/* No "Drawing" button here any more. It duplicated the one in the intro, and both
+              are now the Drawing tab — one control, always visible, which the intro button
+              never was: it lived in the empty state and vanished at the first question. */}
           <button
             onClick={() => setOpen((v) => !v)}
             className="flex items-center gap-1 text-muted-foreground hover:text-foreground"

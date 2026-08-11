@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 
 import { DrawingPanel } from '@/components/DrawingPanel'
 import { Header } from '@/components/Header'
-import { SourceDrawingViewer } from '@/components/SourceDrawing'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { enabledTabs } from '@/tabs'
 import { useAppStore } from '@/stores/appStore'
@@ -14,8 +13,18 @@ export function App() {
     void loadAll()
   }, [loadAll])
 
-  const tabs = enabledTabs({ drawingAvailable: !!drawing })
-  // A tab could be disabled by context after hydrate, so fall back rather than render nothing.
+  const tabs = enabledTabs({
+    drawingAvailable: !!drawing,
+    tilesAvailable: !!drawing?.tiles?.count,
+  })
+  /**
+   * The one place a tab id is reconciled with the registry.
+   *
+   * It covers three cases that all look identical from here: nothing chosen yet, a tab
+   * renamed or removed since the visitor's last session, and a tab that exists but is
+   * disabled by context — the Drawing tab on an extraction with no tiles. All three fall back
+   * to the first enabled tab rather than rendering nothing.
+   */
   const active = tabs.some((tab) => tab.id === activeTabId) ? activeTabId : tabs[0]?.id
 
   return (
@@ -54,10 +63,6 @@ export function App() {
       {!loaded && (
         <div className="border-t px-4 py-2 text-xs text-muted-foreground">Loading drawing…</div>
       )}
-
-      {/* Last, and outside the tab tree: it covers the whole window and must survive a tab
-          switch behind it. */}
-      <SourceDrawingViewer />
     </div>
   )
 }

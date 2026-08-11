@@ -1,7 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { RotateCcw } from 'lucide-react'
 
-import { SourceDrawingButton } from '@/components/SourceDrawing'
 import { Button } from '@/components/ui/button'
 import { formatUsd } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
@@ -43,6 +42,7 @@ export function AskTab() {
               <Intro
                 title={drawing?.title ?? null}
                 drawingNumber={drawing?.drawing_number ?? null}
+                hasDrawingTab={!!drawing?.tiles?.count}
               />
               <StarterQuestions />
             </>
@@ -77,7 +77,7 @@ export function AskTab() {
 }
 
 /**
- * Four separate blocks, not one paragraph stack.
+ * Separate blocks, not one paragraph stack.
  *
  * The drawing title is a 20-word all-caps run out of the title block, and the two notes below
  * it are independent claims — what the model reads, and what it does when the sheet has no
@@ -87,16 +87,25 @@ export function AskTab() {
 function Intro({
   title,
   drawingNumber,
+  hasDrawingTab,
 }: {
   title: string | null
   drawingNumber: string | null
+  hasDrawingTab: boolean
 }) {
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h2 className="text-base font-semibold">Ask this schematic a question</h2>
-        <SourceDrawingButton className="ml-auto" />
-      </div>
+      <h2 className="text-base font-semibold">Ask this schematic a question</h2>
+
+      {/* A sentence, not a button. The button that used to sit here vanished with the empty
+          state; the Drawing tab does not, so pointing at it is all this needs to do. */}
+      {hasDrawingTab && (
+        <p className="text-sm text-muted-foreground">
+          The sheet itself is in the{' '}
+          <span className="font-medium text-foreground">Drawing</span> tab above — pan and zoom
+          it to check any answer against the drawing it came from.
+        </p>
+      )}
 
       {title && (
         <div className="rounded-lg border bg-card px-4 py-3">
