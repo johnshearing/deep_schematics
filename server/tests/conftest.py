@@ -52,11 +52,30 @@ def drawing_dir(tmp_path: Path) -> Path:
                     "notes": ["Keep all DC wires 4\" minimum clearance from 115VAC wires."],
                     "references": ["MXCS-M9", "MXCS-M11"],
                 },
-                "components": [{"id": "CR1", "class": "relay"},
-                               {"id": "CB1", "class": "circuit_breaker"}],
-                "terminals": [{"id": "CR1:A1"}],
-                "nets": [{"id": "110", "member_terminals": ["CR-SW:14", "CR-ON:A2"]}],
-                "wires": [{"id": "W047", "net": "110"}],
+                # Small, but it carries every case the designator index has to get right: a
+                # located component with aliases, one with no location at all, a terminal
+                # block whose point numbers are ours, and a net and a wire that span two
+                # components so their rectangles have to be derived rather than looked up.
+                "components": [
+                    {"id": "CR1", "class": "relay", "description": "Run relay.",
+                     "location": {"x": 100, "y": 200}, "aliases": ["run relay", "CR1"]},
+                    {"id": "CB1", "class": "circuit_breaker", "description": "8A breaker.",
+                     "location": {"x": 300, "y": 80}},
+                    {"id": "TB-110", "class": "terminal_block",
+                     "location": {"x": 200, "y": 250}},
+                    {"id": "UPSTREAM-MACHINE", "class": "external", "location": None},
+                ],
+                "terminals": [
+                    {"id": "CR1:A1", "parent_component": "CR1", "function": "coil",
+                     "net": "110"},
+                    {"id": "CB1:2", "parent_component": "CB1", "function": "load",
+                     "net": "110"},
+                    {"id": "TB-110:1", "parent_component": "TB-110", "net": "110"},
+                ],
+                "nets": [{"id": "110", "signal_type": "control", "nominal_voltage": "24VDC",
+                          "member_terminals": ["CR1:A1", "CB1:2", "TB-110:1"]}],
+                "wires": [{"id": "W047", "net": "110", "color": "BLUE", "gauge": "18AWG",
+                           "from_terminal": "CR1:A1", "to_terminal": "CB1:2"}],
                 "cables": [],
                 "subsystems": [{"id": "SUB-CONTROL", "description": "control",
                                 "member_components": ["CR1"]}],

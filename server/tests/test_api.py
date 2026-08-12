@@ -37,7 +37,7 @@ def test_drawing_is_free_and_names_the_revision_trap(client) -> None:
     assert body["drawing_number"] == "PS20115MLM4-2"
     assert body["revision"] is None
     assert "sheet size" in body["revision_note"]
-    assert body["counts"]["components"] == 2
+    assert body["counts"]["components"] == 4
     assert body["references"] == ["MXCS-M9", "MXCS-M11"]
 
 
@@ -181,6 +181,81 @@ def test_a_manifest_without_a_page_size_means_no_viewer(client, drawing_dir) -> 
 def test_only_a_tile_the_manifest_names_can_be_fetched(client, drawing_dir, name) -> None:
     write_tiles(drawing_dir)
     assert client.get(f"/api/tiles/{name}").status_code in (404, 405)
+
+
+def designators(client) -> dict:
+    body = client.get("/api/designators").json()
+    return {entry["id"]: entry for entry in body["entries"]}
+
+
+def test_the_designator_index_lists_every_citable_id(client) -> None:
+    """The allowlist behind a clickable citation. It has to be *complete* — a missing id is a
+    citation that silently stays plain text — and it has to be an allowlist rather than a
+    pattern, because everything matched against it is model output."""
+    body = client.get("/api/designators").json()
+    assert body["counts"] == {"component": 4, "terminal": 3, "net": 1, "wire": 1}
+    index = designators(client)
+    assert set(index) == {
+        "CR1", "CB1", "TB-110", "UPSTREAM-MACHINE",
+        "CR1:A1", "CB1:2", "TB-110:1",
+        "110", "W047",
+    }
+
+
+def test_a_component_carries_its_own_point_and_its_aliases(client) -> None:
+    entry = designators(client)["CR1"]
+    assert entry["point"] == [100.0, 200.0]
+    assert entry["label"].startswith("relay — Run relay.")
+    # Aliases are how "the run relay" in an answer reaches CR1. The id repeats among them in
+    # the real extraction, so the client has to tolerate that rather than the server pruning it.
+    assert entry["aliases"] == ["run relay", "CR1"]
+
+
+def test_a_terminal_borrows_the_point_of_the_component_it_is_on(client) -> None:
+    """A terminal has no geometry of its own in this extraction, and pretending otherwise
+    would put a marker at the origin — the worst kind of wrong, because it looks deliberate."""
+    assert designators(client)["CB1:2"]["point"] == [300.0, 80.0]
+    assert designators(client)["CB1:2"]["members"] == ["CB1"]
+
+
+def test_a_net_and_a_wire_get_a_rectangle_spanning_what_they_touch(client) -> None:
+    net = designators(client)["110"]
+    assert net["members"] == ["CR1", "CB1", "TB-110"]
+    # Frames all three: x from 100 to 300, y from 80 to 250. `point` is its centre.
+    assert net["rect"] == [100.0, 80.0, 300.0, 250.0]
+    assert net["point"] == [200.0, 165.0]
+    assert net["label"] == "control 24VDC, 3 terminals"
+
+    wire = designators(client)["W047"]
+    assert wire["rect"] == [100.0, 80.0, 300.0, 200.0]
+    assert wire["label"] == "BLUE 18AWG wire, CR1:A1 → CB1:2"
+
+
+def test_ids_the_extraction_invented_are_marked_as_ours(client) -> None:
+    """`prompts.py` makes the model put these in parentheses after a description, because the
+    reader is holding the sheet and cannot find them on it. The UI has to say the same thing,
+    so the flag travels with the id."""
+    index = designators(client)
+    assert index["W047"]["on_sheet"] is False  # the sheet labels runs by colour and gauge
+    assert index["TB-110:1"]["on_sheet"] is False  # point numbers are assigned in drawing order
+    assert index["CR1"]["on_sheet"] is True
+    assert index["110"]["on_sheet"] is True
+
+
+def test_an_id_with_nowhere_to_point_is_still_in_the_index(client) -> None:
+    """Six components in the real extraction have no location — the two off-page machines and
+    the four referenced drawings. Dropping them would make a legitimate citation unresolvable;
+    keeping them with a null point makes it citable but not clickable, which is the truth."""
+    entry = designators(client)["UPSTREAM-MACHINE"]
+    assert entry["point"] is None
+    assert entry["rect"] is None
+    assert client.get("/api/designators").json()["located"] == 8
+
+
+def test_the_designator_index_is_unavailable_without_an_extraction(tmp_path, settings) -> None:
+    empty = create_app(settings.model_copy(update={"drawing_dir": tmp_path / "nothing"}))
+    with TestClient(empty) as client:
+        assert client.get("/api/designators").status_code == 503
 
 
 def test_starter_questions_do_not_leak_their_expected_answers(client) -> None:

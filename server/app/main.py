@@ -40,7 +40,13 @@ from slowapi.errors import RateLimitExceeded
 from . import __version__
 from .claude_runner import ClaudeRunner, TurnRegistry
 from .config import STATIC_DIR, Settings, get_settings
-from .drawing import DrawingUnavailable, drawing_summary, source_document, tile_file
+from .drawing import (
+    DrawingUnavailable,
+    designator_index,
+    drawing_summary,
+    source_document,
+    tile_file,
+)
 from .limits import ConcurrencyGate, SpendLedger, make_limiter
 from .prompts import PROMPT_VERSION
 from .questions import starter_questions
@@ -166,6 +172,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def drawing() -> dict[str, Any]:
         try:
             return drawing_summary(settings.drawing_dir)
+        except DrawingUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    @app.get("/api/designators")
+    async def designators() -> dict[str, Any]:
+        """Every citable identifier, with where it is on the sheet.
+
+        Its own endpoint rather than another field on `/api/drawing`, for two reasons: it is
+        ten times the size of everything else there, and it is the one thing whose absence has
+        to degrade *quietly*. A client that cannot load this gets an answer whose citations are
+        plain text — which is precisely what shipped before — instead of a broken front page.
+        """
+        try:
+            return designator_index(settings.drawing_dir)
         except DrawingUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 

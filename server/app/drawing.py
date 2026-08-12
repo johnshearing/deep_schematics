@@ -89,6 +89,215 @@ def drawing_summary(drawing_dir: Path) -> dict[str, Any]:
     }
 
 
+# Which identifiers the extraction invented. This is the table in `prompts.py` under "Names
+# that are not on the drawing", in code — **the two say the same thing and must change
+# together.** The model is made to put these in parentheses after a description because the
+# reader is holding the sheet and cannot find them on it; the UI marks them for the same
+# reason, so that a clickable citation never implies a label that is not there.
+#
+# Component ids are not in that table and are therefore treated as printed. Everything else
+# below is a *shape*, not a list of ids: which ids exist stays in `circuit_logic.json`.
+
+#: Every `W###`. The sheet labels runs by colour, gauge and net, never by a number.
+WIRE_IDS_ARE_OURS = True
+#: `TB-…:<n>` — the block is usually marked, the point numbers are assigned in drawing order.
+INVENTED_TERMINAL_PREFIX = "TB-"
+#: Connector pin numbers, inferred rather than printed (inference 1 in `EXTRACTION_NOTES.md`).
+INVENTED_TERMINAL_PARENTS = ("RECEPT1", "INFEED1", "DISCHARGE1")
+#: `NET-PB1` is printed as `PB1`; renamed during extraction to avoid colliding with the
+#: push-button component of that name.
+INVENTED_NET_PREFIX = "NET-"
+
+
+def designator_index(drawing_dir: Path) -> dict[str, Any]:
+    """Every identifier an answer can cite, with somewhere on the sheet to point at.
+
+    This is what makes a citation clickable. An answer is prose, and the *only* safe way to
+    decide which of its backticked spans are real identifiers is to look them up in a list the
+    server derived from `circuit_logic.json` — never by pattern-matching model output. So this
+    endpoint is that list, and the client's rule is an exact, case-folded allowlist lookup.
+
+    It is also the pan target. `components[].location` is the one place this extraction records
+    where anything *is*, so every point below comes from it:
+
+    - a **component** is its own location;
+    - a **terminal** is its parent component's, because a terminal has no geometry of its own;
+    - a **wire** is the two endpoint components, so `rect` frames both ends of the run;
+    - a **net** is every component it touches, so `rect` frames the whole net.
+
+    `point` is the centre of `rect` and is what a marker uses; `rect` is what the viewer frames.
+    Both are in PDF points — the same space as `tiles[].pdf_rect` and every bbox in
+    `geometry.json` — so the browser needs no registration step. Either may be `null`: six
+    components (the two off-page machines and the four referenced drawings) have no location,
+    and anything that reaches only those is a legitimate citation with nowhere to fly to.
+
+    Deliberately uncached and deliberately not part of `/api/drawing`: it is a few hundred
+    dictionary lookups over an already-cached parse, and keeping it separate means a client that
+    fails to load it loses clickable citations and nothing else.
+    """
+    doc = load_circuit_logic(drawing_dir)
+    components = [c for c in (doc.get("components") or []) if isinstance(c, dict)]
+    terminals = [t for t in (doc.get("terminals") or []) if isinstance(t, dict)]
+
+    points = {c["id"]: p for c in components if (p := _point(c.get("location"))) and c.get("id")}
+    parent = {t.get("id"): t.get("parent_component") for t in terminals}
+
+    entries: list[dict[str, Any]] = []
+
+    for component in components:
+        cid = component.get("id")
+        if not isinstance(cid, str):
+            continue
+        entries.append(
+            _entry(
+                cid,
+                "component",
+                _component_label(component),
+                [cid],
+                points,
+                on_sheet=True,
+                aliases=[a for a in (component.get("aliases") or []) if isinstance(a, str)],
+            )
+        )
+
+    for terminal in terminals:
+        tid = terminal.get("id")
+        if not isinstance(tid, str):
+            continue
+        owner = terminal.get("parent_component")
+        entries.append(
+            _entry(
+                tid,
+                "terminal",
+                _terminal_label(terminal),
+                [owner] if isinstance(owner, str) else [],
+                points,
+                on_sheet=not _invented_terminal(owner),
+            )
+        )
+
+    for net in doc.get("nets") or []:
+        nid = net.get("id") if isinstance(net, dict) else None
+        if not isinstance(nid, str):
+            continue
+        members = [parent.get(t) for t in (net.get("member_terminals") or [])]
+        entries.append(
+            _entry(
+                nid,
+                "net",
+                _net_label(net),
+                members,
+                points,
+                on_sheet=not nid.startswith(INVENTED_NET_PREFIX),
+            )
+        )
+
+    for wire in doc.get("wires") or []:
+        wid = wire.get("id") if isinstance(wire, dict) else None
+        if not isinstance(wid, str):
+            continue
+        ends = [parent.get(wire.get("from_terminal")), parent.get(wire.get("to_terminal"))]
+        entries.append(
+            _entry(wid, "wire", _wire_label(wire), ends, points, on_sheet=not WIRE_IDS_ARE_OURS)
+        )
+
+    return {
+        "drawing_number": (doc.get("drawing") or {}).get("drawing_number"),
+        "counts": dict(Counter(e["kind"] for e in entries)),
+        "located": sum(1 for e in entries if e["point"]),
+        "entries": entries,
+    }
+
+
+def _entry(
+    identifier: str,
+    kind: str,
+    label: str,
+    members: list[Any],
+    points: dict[str, tuple[float, float]],
+    *,
+    on_sheet: bool,
+    aliases: list[str] | None = None,
+) -> dict[str, Any]:
+    """One row of the index. `members` are the components it is drawn through — deduplicated in
+    order, kept whether or not they have a location, because the overlay rings the ones it can
+    place and the popover still names the rest."""
+    seen: list[str] = []
+    for member in members:
+        if isinstance(member, str) and member not in seen:
+            seen.append(member)
+
+    placed = [points[m] for m in seen if m in points]
+    rect = (
+        [
+            min(x for x, _ in placed),
+            min(y for _, y in placed),
+            max(x for x, _ in placed),
+            max(y for _, y in placed),
+        ]
+        if placed
+        else None
+    )
+    entry = {
+        "id": identifier,
+        "kind": kind,
+        "label": label,
+        "on_sheet": on_sheet,
+        "members": seen,
+        "point": [(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2] if rect else None,
+        "rect": rect,
+    }
+    if aliases:
+        entry["aliases"] = aliases
+    return entry
+
+
+def _point(location: Any) -> tuple[float, float] | None:
+    if not isinstance(location, dict):
+        return None
+    try:
+        return float(location["x"]), float(location["y"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _invented_terminal(owner: Any) -> bool:
+    return isinstance(owner, str) and (
+        owner.startswith(INVENTED_TERMINAL_PREFIX) or owner in INVENTED_TERMINAL_PARENTS
+    )
+
+
+def _component_label(component: dict[str, Any]) -> str:
+    kind = str(component.get("class") or "component").replace("_", " ")
+    return f"{kind} — {component.get('description') or component.get('function') or ''}".strip(
+        " —"
+    )
+
+
+def _terminal_label(terminal: dict[str, Any]) -> str:
+    function = terminal.get("function")
+    net = terminal.get("net")
+    parts = [f"{function} terminal" if function else "terminal"]
+    if terminal.get("parent_component"):
+        parts.append(f"on {terminal['parent_component']}")
+    if net:
+        parts.append(f", net {net}")
+    return " ".join(parts).replace(" ,", ",")
+
+
+def _net_label(net: dict[str, Any]) -> str:
+    head = " ".join(str(v) for v in (net.get("signal_type"), net.get("nominal_voltage")) if v)
+    terminals = len(net.get("member_terminals") or [])
+    # Terminals, not wires — the counting trap `prompts.py` warns about. Say which one it is.
+    return f"{head or 'net'}, {terminals} terminal{'' if terminals == 1 else 's'}"
+
+
+def _wire_label(wire: dict[str, Any]) -> str:
+    head = " ".join(str(v) for v in (wire.get("color"), wire.get("gauge")) if v)
+    ends = f"{wire.get('from_terminal')} → {wire.get('to_terminal')}"
+    return f"{head} wire, {ends}" if head else f"wire, {ends}"
+
+
 def tile_manifest(drawing_dir: Path) -> dict[str, Any] | None:
     """The rendered raster of the sheet, normalised for a browser.
 
