@@ -26,6 +26,15 @@ if (typeof globalThis.ResizeObserver !== 'function') {
   } as unknown as typeof ResizeObserver
 }
 
+/**
+ * jsdom implements no 2D context — `getContext('2d')` reports "not implemented" to the virtual
+ * console and hands back null. The tile viewer already guards against a null context, so this
+ * is not covering a crash; it is keeping a real jsdom gap from filling the test output with
+ * errors that mean nothing. The drawing arithmetic is tested directly in `paint.test.ts`,
+ * against a recording context, rather than through the DOM.
+ */
+HTMLCanvasElement.prototype.getContext = (() => null) as HTMLCanvasElement['getContext']
+
 if (typeof globalThis.requestAnimationFrame !== 'function') {
   globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) =>
     setTimeout(() => callback(performance.now()), 0) as unknown as number) as typeof requestAnimationFrame

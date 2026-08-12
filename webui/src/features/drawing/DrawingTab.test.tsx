@@ -2,9 +2,12 @@
  * Three things here fail silently in a browser, which is why they are tested.
  *
  * The tab is `keepMounted`, so a mistake in the arming logic downloads 2.2 MB of rasters for
- * a visitor who never opens it — and nothing on screen says so. The tiles are positioned from
- * `pdf_rect` in points; get the units wrong and you still get a picture, just the wrong one.
- * And a missing `tiles` field has to mean "no tab" rather than "a tab full of 404s".
+ * a visitor who never opens it — and nothing on screen says so. The canvas backing store must
+ * be sized in device pixels, and getting that wrong looks like nothing except blurry text. And
+ * a missing `tiles` field has to mean "no tab" rather than "a tab full of 404s".
+ *
+ * The projection from PDF points onto that backing store is tested in `paint.test.ts`, against
+ * a recording context — jsdom has no 2D context to assert through.
  */
 
 import { act, render, screen } from '@testing-library/react'
@@ -76,28 +79,35 @@ describe('DrawingTab', () => {
     expect(container.querySelectorAll('img')).toHaveLength(0)
 
     activate()
-    expect(container.querySelectorAll('img')).toHaveLength(2)
+    // Hidden loaders, not content — the canvas is the only thing that draws. They exist
+    // because they are how the browser fetches, decodes, caches and reports load and error.
+    const loaders = [...container.querySelectorAll('img')] as HTMLImageElement[]
+    expect(loaders).toHaveLength(2)
+    expect(loaders[1].getAttribute('src')).toBe('/api/tiles/tile_r1c2.png')
   })
 
-  it('places each tile at its own rectangle, in PDF points', () => {
+  it('sizes the canvas backing store in device pixels, not CSS pixels', () => {
+    // The heart of the blurry-text fix. jsdom reports a 1× display, so the numbers coincide
+    // here; `paint.test.ts` covers the projection at 2× and 3×.
     const { container } = render(<DrawingTab />)
     activate()
 
-    const [, second] = [...container.querySelectorAll('img')] as HTMLImageElement[]
-    expect(second.getAttribute('src')).toBe('/api/tiles/tile_r1c2.png')
-    // `pdf_rect` straight through: left 582 pt, 642 pt wide, 792 pt tall. The plane's own
-    // units are points and one CSS transform turns them into pixels.
-    expect(second.style.left).toBe('582px')
-    expect(second.style.width).toBe('642px')
-    expect(second.style.height).toBe('792px')
+    const canvas = container.querySelector('canvas') as HTMLCanvasElement
+    expect(canvas).toBeTruthy()
+    expect(canvas.width).toBe(SIZE.width * window.devicePixelRatio)
+    expect(canvas.height).toBe(SIZE.height * window.devicePixelRatio)
+    // Sized by CSS to the container, so the backing store is the only thing carrying density.
+    expect(canvas.className).toContain('h-full')
   })
 
-  it('fits the sheet to the container and reports the zoom against tile resolution', () => {
+  it('fits the sheet to the container and reports the zoom against device resolution', () => {
     render(<DrawingTab />)
     activate()
 
     // 776 px of usable width over 1224 pt, versus 576 over 792 — width binds, so the scale is
-    // 0.634 px/pt against a native 400/72 = 5.56. That is 11%.
+    // 0.634 px/pt. Native is now `dpi / 72 / dpr` = 400/72/1 = 5.56, so that is 11%. On a 2×
+    // display native would be 2.78 and the same view would read 23% — which is the point: the
+    // readout tracks the panel, not the CSS coordinate system.
     expect(screen.getByText('11%')).toBeTruthy()
   })
 

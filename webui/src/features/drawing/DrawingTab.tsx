@@ -36,8 +36,7 @@ export function DrawingTab() {
   const tiles = drawing?.tiles ?? null
 
   const [width, height] = tiles?.page_size_pt ?? [1, 1]
-  const nativeScale = (tiles?.dpi ?? 400) / 72
-  const viewer = useTileViewport({ width, height, nativeScale })
+  const viewer = useTileViewport({ width, height, dpi: tiles?.dpi ?? 400 })
 
   /**
    * Nothing is fetched until the tab has been opened once.
@@ -93,7 +92,11 @@ export function DrawingTab() {
           </Button>
           <span
             className="w-12 text-center tabular-nums text-muted-foreground"
-            title="Percentage of the tiles' own resolution. 100% is one tile pixel per screen pixel — the sharpest these rasters go."
+            title={
+              `Percentage of the tiles' own resolution. 100% is one tile pixel per device ` +
+              `pixel — the sharpest these rasters go. This display is ${viewer.dpr}×, so a ` +
+              `device pixel is ${viewer.dpr === 1 ? 'a' : `1/${viewer.dpr}`} CSS pixel.`
+            }
           >
             {viewer.percent}%
           </span>
@@ -142,6 +145,8 @@ export function DrawingTab() {
             width={width}
             height={height}
             viewport={viewer.viewport}
+            size={viewer.size}
+            dpr={viewer.dpr}
             onTileSettled={onTileSettled}
           />
         )}
@@ -149,8 +154,10 @@ export function DrawingTab() {
 
       <p className="border-t px-4 py-1 text-[11px] text-muted-foreground">
         Drag to pan · scroll to zoom · double-click to zoom in · <Key>0</Key> fits the sheet ·
-        arrow keys nudge. These are the same 400 DPI rasters the vision pass read, so what you
-        see here is what the extraction saw.
+        arrow keys nudge. Redrawn at your display's full resolution on every frame, from the
+        same {tiles.dpi ?? 400} DPI rasters the vision pass read — so what you see here is what
+        the extraction saw. Past 100% it is enlarging them; the{' '}
+        {drawing?.source ? 'Source PDF' : 'vector original'} is vector and does not run out.
       </p>
     </div>
   )

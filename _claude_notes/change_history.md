@@ -10,6 +10,118 @@ Scope is the whole repository: the extraction skill, the server, the WebUI and t
 
 ---
 
+## 2026-08-11 — The drawing is sharp: a canvas at device resolution
+
+Follows the entry below, same day. The user reported that lettering on the sheet was hard to
+read and — the diagnostic detail — **magnifying did not help**, while the same drawing opened
+through the *Source PDF* link was crisp.
+
+**The tiles were never the problem.** A 1:1 crop straight out of `tile_r3c3.png`, no scaling,
+is clean-edged; label text on this sheet has a median height of 4.13 pt, which at 400 DPI is
+22.9 px. The resolution was on disk and was being thrown away between the file and the panel,
+in three compounding places:
+
+1. **`will-change: transform` on the scaled plane.** It promotes the plane to a composited
+   layer, and the browser rasterizes such a layer once and then GPU-stretches the cached
+   texture as the transform changes. Zooming magnified a bitmap rasterized at the *old* scale.
+   That is what "magnifying does not help" means — it is the signature of this bug and not of
+   an insufficient source, which is why the symptom was worth quoting exactly.
+2. **Layer size.** At native zoom the plane was 6800×4400 CSS px, past the maximum texture
+   size on most GPUs, which forces a reduced-scale rasterization and a stretch back up.
+3. **Everything was in CSS pixels.** On a 2× display even a correct rasterization was upscaled
+   once more before it reached the panel, and the toolbar's "100%" was already a 2× enlargement
+   at the moment it claimed native resolution.
+
+### What replaced it
+
+`TileSheet.tsx` no longer positions 16 `<img>` elements under a CSS transform. It paints them
+onto a **canvas whose backing store is sized in device pixels**, re-rasterizing from the source
+PNGs every frame. A canvas has no composited-layer cache to go stale, no layer bigger than the
+viewport, and no CSS-pixel indirection — all three mechanisms are removed rather than mitigated.
+
+- **`features/drawing/paint.ts`** — new, and pure. `tileDestRect()` projects a PDF-point
+  rectangle onto the backing store; `paintSheet()` clears, fills the paper white, sets
+  `imageSmoothingQuality = 'high'` (at fit zoom a 2.4 Mpx tile is reduced to ~140 kpx, and the
+  cheap filter turns 4 pt lettering into grey mush), and draws the tiles that intersect the
+  viewport. No DOM in the file, which is what makes the arithmetic testable — jsdom has no 2D
+  context to assert through.
+- **Origins are rounded to whole device pixels; sizes are not.** At native zoom a tile's
+  destination width is `(x1-x0) × dpi/72` = 2033.33 device px against a PNG the renderer
+  rounded up to 2034 — so with the origin snapped, what remains is a third of a pixel of
+  resampling in place of a 2× stretch. Rounding the size too would not close that gap and would
+  drift the geometry off the point grid the overlay work depends on.
+- **`useTileViewport` is device-aware.** It takes `dpi` rather than a precomputed
+  `nativeScale`, derives `nativeScale = dpi / 72 / dpr`, tracks the container's CSS size for
+  the backing store, and exposes both. A new `useDevicePixelRatio()` re-arms a
+  `(resolution: Ndppx)` media query on change, because dragging a window to a monitor of
+  different density changes the ratio with no resize and no re-render to notice it.
+- **"100%" now means one tile pixel per *device* pixel** — the sharpest these rasters go. On a
+  2× display the same fitted view that used to read 11% reads 23%, and the 200% ceiling is a
+  genuine 2× enlargement instead of a hidden 4×.
+- **Off-screen tiles are skipped.** Worth saying plainly: this saves nothing at fit zoom, where
+  the whole sheet is on screen and all 16 are drawn. It is most of them once you zoom in.
+- **The `<img>` elements survive as loaders**, hidden and never composited. They are how the
+  browser fetches, decodes, caches and reports `load`/`error`; `new Image()` would buy nothing
+  and lose the ability to assert on it. Tailwind's preflight carries
+  `[hidden]:where(:not([hidden=until-found])){display:none!important}`, which beats its own
+  `img{display:block}`, so the container is reliably invisible.
+
+**The point-space seam is untouched.** `tileDestRect` is the same projection the CSS `left`/
+`top` used to be, so a marker at `components[].location` or a conductor polyline from
+`geometry.json` is still one line of arithmetic. Clickable overlays go in a DOM layer above the
+canvas, which is why the canvas is `pointer-events-none`.
+
+### Why not stop at the small fix, and why not go on to pdf.js
+
+The plan offered three tiers. The cheapest — toggle `will-change` during gestures, correct the
+DPR — was written up as "do this and measure". **There is no browser in this environment to
+measure with**, so shipping a hypothesis and asking the user to re-test was the worse trade:
+the canvas tier removes all three mechanisms by construction and its arithmetic can be verified
+without a browser, which is exactly what was done.
+
+pdf.js remains the right endpoint and is deliberately not in this change. It is a new
+dependency, a CSP change (`worker-src 'self' blob:`) and worker bundling, none of which can be
+exercised here — and the 1:1 crop shows 400 DPI is ample for reading this sheet. It stays in
+the recommendations below, demoted to job 2 and rescoped from "make it legible" to "do not run
+out of zoom".
+
+### Verified
+
+31 web tests (was 22) and 59 server tests pass; `tsc -b` and `ruff` clean; bundle builds.
+
+The load-bearing verification is not the unit tests. `tileDestRect` and `paintSheet` were
+**re-implemented line for line in Python and run against the real tiles** at native zoom
+(`scale = 400/72`, dpr 1), compositing the four tiles that intersect a 1200×380 viewport
+centred on the `GREEN 16AWG` run at (890, 434) pt. The output is crisp, correctly assembled and
+seamless — that is the projection the canvas will use, checked against real pixels rather than
+asserted about.
+
+Nine new tests in `paint.test.ts` pin the properties that matter: destination size equals the
+tile's own pixel count at dpr 1, 2 and 3; origins are integral; off-screen and not-yet-loaded
+tiles are skipped; nothing is drawn before the container is measured. `DrawingTab.test.tsx`
+gained a test that the canvas backing store is sized in device pixels, and its old assertion on
+`<img>` `style.left` is gone with the CSS positioning it described.
+
+`test-setup.ts` stubs `getContext` to return null — a real jsdom gap, and the viewer already
+guards against it; the stub only keeps "not implemented" noise out of the output.
+
+**Still not verified by machine: the gestures, and the perceived result.** No browser
+automation here. The arithmetic is proven against real pixels; that the text now *looks* sharp
+on the user's screen is for the user to confirm.
+
+### One limit that did not improve
+
+The ~169 MB of decoded bitmap is unchanged. The earlier note claimed a canvas would fix it
+"since only visible tiles need be held" — that is wrong, and worth correcting rather than
+quietly dropping: at fit zoom every tile is visible, so nothing can be released. Cutting it
+needs either unloading tiles that leave the viewport when zoomed in, or pdf.js, which holds a
+viewport-sized bitmap and nothing else.
+
+**A running server does not pick this up.** The bundle is rebuilt into `server/app/static/`;
+restart `python -m app`, or hard-reload if you already have the tab open.
+
+---
+
 ## 2026-08-11 — One way to the drawing, and it is a tile viewer we own
 
 The sheet moved from a full-screen PDF overlay into a **Drawing tab** that renders the 16
@@ -324,17 +436,24 @@ Summarised from `git log` and the notes, for continuity. Detail lives in the pla
 
 ---
 
-# Recommended next job
+# Recommended next jobs
 
-*Written 2026-08-11, after the Drawing tab landed. This section is the standing recommendation
-and gets rewritten, not appended to.*
+*Written 2026-08-11 after the Drawing tab landed, and rewritten the same day once the blurry
+text was fixed. This section is the standing recommendation and gets rewritten, not appended
+to. The previous job 1 was "make the drawing legible"; that is done — the entry at the top of
+this log records it — and the remainder of it has been rescoped and demoted to job 2 here.*
 
-## Make the answer and the drawing point at each other
+## 1. Make the answer and the drawing point at each other
+
+This is a capability the application does not have, where job 2 refines something that already
+works. Do this one first.
 
 `webui_ideas.md` §2 calls bidirectional citation *"the highest value-per-line-of-code idea in
 this document"* and ranks it third overall. It is now also the cheapest thing on the list,
-because the two hard parts are already built and paid for: a rendering surface we own, and one
-coordinate system shared by the tiles, the components and the geometry.
+because the three hard parts are already built and paid for: a rendering surface we own, one
+coordinate system shared by the tiles, the components and the geometry, and — since the canvas
+landed — a projection function, `tileDestRect`, that already turns PDF points into screen
+positions for anything that asks.
 
 Today an answer says *"the blue 18AWG wire from `CR-BP:A2` to the BYPASS 5A breaker"* and the
 reader has to find `CR-BP` on a D-size sheet by eye. That is the gap. Closing it turns the
@@ -364,9 +483,16 @@ clickable citations on their own have nothing to point at. Together they are the
    that file does not currently override, so the hook is free. A backtick span whose text is
    in the index becomes a button that sets `selection`; everything else renders exactly as it
    does now. **Keep it strictly an allowlist lookup** — no pattern matching on model output.
-5. **An overlay layer in `TileSheet`** — 47 markers from `components[].location`, as siblings
-   of the tiles in point space. Clicking one sets `selection` the other way, which prefills the
-   composer with *"what does CR-BP do?"* and closes the loop.
+5. **An overlay layer above the canvas** — 47 markers from `components[].location`. A DOM or
+   SVG sibling of the `<canvas>` in `TileSheet`, positioned with the same `tileDestRect`
+   projection the tiles use, which is why the canvas is `pointer-events-none`: it exists to be
+   drawn on top of. Clicking a marker sets `selection` the other way, prefilling the composer
+   with *"what does CR-BP do?"*, and closes the loop.
+
+   Markers belong in the DOM rather than painted into the canvas — they need hit-testing,
+   focus, keyboard access and tooltips, all of which are free in DOM and hand-rolled in canvas.
+   Highlighting a *net*, when that follows, is the opposite call: 149 polylines are cheaper
+   painted, and they need no hit-testing.
 
 ### Two cautions
 
@@ -387,6 +513,84 @@ normalisation pass joining the OCR'd conductor `net_label`s to `circuit_logic.js
 `LI-A`→`L1-A`, `OV.`→`0V`, `130.`→`130` — and every conductor that will not join is a finding
 about the extraction, which is worth having on its own.
 
+### Files to read for this job
+
+The largest of the jobs here, and the only one crossing the server/client boundary. Read the
+data first — the shape of the index falls out of what is actually in `circuit_logic.json`, not
+out of the design above.
+
+**The data, and read it before writing any code:**
+
+| File | Why |
+|---|---|
+| `schematic_extraction/PS20115MLM4-2/extracted_docs/circuit_logic.json` | The index is built from this. Look in particular at `components[].location`, `components[].aliases`, and the id formats of `terminals[]`, `nets[]` and `wires[]` — those four id spaces are what step 4 has to allowlist. |
+| `schematic_extraction/PS20115MLM4-2/extracted_docs/EXTRACTION_NOTES.md` | Which identifiers are printed on the sheet and which were invented. That distinction decides what may be made clickable and what has to carry a caveat. |
+| `schematic_extraction/PS20115MLM4-2/extracted_docs/geometry.json` | Only if tighter geometry than a single point is wanted: `symbols[].center`, `labels[].bbox`, `boxes[]`, and `conductors[].points` for the net-highlighting follow-on. |
+
+**Server:**
+
+| File | Why |
+|---|---|
+| `server/app/drawing.py` | Where the designator index belongs, beside `tile_manifest()` and `drawing_summary()`. Its header already says the loader exposes the parsed document precisely so deterministic features like this can be added. |
+| `server/app/main.py` | `/api/drawing`, if the index ships as a separate endpoint rather than a new field. |
+| `server/tests/test_api.py` | The pattern every new endpoint here is tested against; `tests/conftest.py` for the miniature `extracted_docs` fixture the index will need entries in. |
+| `server/app/prompts.py` | The citation rules the clickable spans have to match — read it before assuming what an answer looks like. It is why ids appear in parentheses. |
+
+**WebUI:**
+
+| File | Why |
+|---|---|
+| `webui/src/stores/appStore.ts` | Where `selection` goes. Read the `activeTabId` comment first: it records why this store must not import the tab registry, and the same rule applies to anything added here. |
+| `webui/src/features/drawing/useTileViewport.ts` | `panTo` is the inverse of `zoomAt`; the clamping, the `isFit` bookkeeping and the DPR-aware `nativeScale` it has to respect are all here. |
+| `webui/src/features/drawing/paint.ts` | `tileDestRect` is the projection the markers reuse. Read it before writing a second one — there should only ever be one. |
+| `webui/src/features/drawing/TileSheet.tsx` | The overlay layer goes in as a sibling of the `<canvas>`. Its header records why the tiles stopped being CSS-positioned `<img>`s, which is context for not reintroducing that pattern for the markers. |
+| `webui/src/components/Markdown.tsx` | The `code` hook, and — more importantly — the security reasoning about model output that any new renderer must not undermine. |
+| `webui/src/components/Markdown.test.tsx` | Existing coverage of that untrusted-markdown contract; a clickable-citation renderer needs cases added to it, not around it. |
+| `webui/src/features/ask/MessageView.tsx`, `webui/src/features/ask/Composer.tsx` | The answer surface that raises a selection, and the composer a drawing click would prefill. |
+| `webui/src/api/types.ts` | The wire contract; the index type lands here. |
+
+**Design context:** `_claude_notes/webui_ideas.md` §2 (bidirectional citation, net highlighting,
+component overlay) and §7 (why every claim stays traceable to a row of the netlist).
+
+## 2. Render the vector PDF, so zoom does not run out at 400 DPI
+
+**Not urgent, and no longer about legibility.** The canvas now paints the tiles at full device
+resolution and a 1:1 crop of the source is crisp, so the sheet reads properly. What is left is
+a ceiling: past 100% the viewer is enlarging 400 DPI rasters, and the *Source PDF* tab — which
+is the browser re-rasterizing 148 KB of vector at whatever zoom you ask for — does not have
+that ceiling. Anyone comparing the two closely at high magnification will still see it.
+
+**The change.** Render the PDF page with pdf.js onto the canvas `TileSheet.tsx` already owns,
+at `viewport.scale × devicePixelRatio`, re-rendering when the zoom settles. Keep the tiles as
+the instant first paint — they arrive in one frame while the PDF is still being parsed — and as
+the fallback for an extraction with no source PDF beside it, which `source_document()` already
+reports as `null`. Nothing above the paint layer changes: `paint.ts` projects PDF points onto
+the backing store either way, so the overlay seam job 1 depends on is unaffected.
+
+**It is also cheaper than what ships today**, which is the counterintuitive part: 148 KB of
+vector instead of 2.2 MB of PNG, and a viewport-sized bitmap instead of the ~169 MB of decoded
+raster recorded as a known limit. That limit is the one thing the canvas did *not* fix, because
+at fit zoom every tile is on screen and none can be released.
+
+**Two things to know before starting.** The earlier argument against pdf.js was that this PDF
+has `has_embedded_text: false` and so yields no text layer — still true, still irrelevant to
+rendering quality. And pdf.js parses in a worker, so `CSP_BASE` needs `worker-src 'self'
+blob:`; nothing else in the policy moves.
+
+### Files to read for this job
+
+| File | Why |
+|---|---|
+| `webui/src/features/drawing/TileSheet.tsx` | Owns the canvas, the paint effect and the rAF coalescing. Its header records why the `<img>` plane became a canvas, which is the context for not undoing any of it. |
+| `webui/src/features/drawing/paint.ts` | The projection and the draw routine. A pdf.js render lands as another source in `paintSheet`, not as a parallel code path. |
+| `webui/src/features/drawing/paint.test.ts` | What is currently guaranteed about that projection. Add to it rather than around it. |
+| `webui/src/features/drawing/useTileViewport.ts` | `nativeScale`, `useDevicePixelRatio` and the `size`/`dpr` the render must be sized against. The 400 DPI ceiling that `MAX_OVERZOOM` enforces is the thing being lifted. |
+| `webui/src/features/drawing/DrawingTab.tsx` | The zoom readout, its tooltip and the footer line all state the 400 DPI ceiling in words. |
+| `server/app/main.py` | `CSP_BASE` gains `worker-src`; `/api/source` becomes a fetch target rather than only a link. |
+| `server/tests/test_api.py` | `test_security_headers_are_set` and `test_source_drawing_is_served_inline` both assert on the CSP string. |
+| `webui/index.html`, `webui/vite.config.ts` | The CSP meta tag is duplicated into the built bundle and must not drift from the server's; the pdf.js worker needs a bundler entry. |
+| `_claude_notes/webui_v1_plan.md` §3.4 | Where the CSP rules come from. Changing them without reading it is how the reasoning gets lost. |
+
 ## The two runners-up, and why they are not first
 
 **Deterministic browse and the net explorer** (§4, ranked second in the road map) is the
@@ -395,9 +599,35 @@ nobody pays $0.64 for. It does not depend on anything above and could be built i
 someone else. It is second here only because it does not exploit the surface just built, and
 because the designator index in step 3 is half of its groundwork anyway.
 
+*Files to read:*
+`schematic_extraction/PS20115MLM4-2/extracted_docs/circuit_logic.json` (the whole thing — the
+tables are the feature) and `.../EXTRACTION_NOTES.md`; `server/app/drawing.py` and
+`server/app/main.py` for where deterministic endpoints live; `webui/src/tabs.ts` for how a tab
+is added — one new file plus one array entry, and note the no-cycle rule in its header;
+`webui/src/features/drawing/DrawingTab.tsx` as the worked example of a second tab;
+`webui/src/components/DrawingPanel.tsx`, which already answers §12 Q21–Q25 deterministically
+and shows the register to write in; `_claude_notes/webui_ideas.md` §4 for the feature list and
+§12 of `schematic_skills/references/HowToUseThisSkill.md` for the 71-question bank these
+tables are supposed to displace.
+
 **Extracting `PS10115MLC2-2.pdf` and linking the sheets** (§5) is the biggest capability
 unlock available — it turns *"you cannot tell from this sheet"* about net 130 and `CR-SW` into
 a real answer, and the PDF has been sitting in `ModLinx/source_docs/` unextracted the whole
 time. It is not recommended first because it is an extraction job rather than a WebUI job:
 step 4 of the skill is deliberately interactive, so it is a session with a human in it, not a
 feature. Worth scheduling as its own piece of work rather than deferring indefinitely.
+
+*Files to read:*
+`schematic_skills/references/HowToUseThisSkill.md` **first and in full** — §2.1 the artifact
+order, §3.2 the exact commands that produced the existing extraction, §3.3 why step 4 cannot be
+automated, §6 output locations, §7 the start-to-finish run, §7b the ready-to-paste prompts;
+then `schematic_skills/SKILL.md` and `schematic_skills/references/circuit_logic_schema.md` and
+`schematic_conventions.md`. The scripts in the order they run:
+`schematic_skills/scripts/extract.py`, `render_tiles.py`, `build_kg.py`, `index_schematic.py`.
+For the target: `schematic_extraction/ModLinx/source_docs/PS10115MLC2-2.pdf`. Use the completed
+extraction beside it as the reference for what "done" looks like —
+`schematic_extraction/PS20115MLM4-2/extracted_docs/author_circuit_logic.py` above all, since
+corrections belong in that script and never in the JSON. On the WebUI side, `server/app/config.py`
+is the single `drawing_dir` knob, and nothing else is hardcoded — but note that a second sheet
+means the server needs to serve *two* drawings, which is a design change the v1 plan does not
+cover.

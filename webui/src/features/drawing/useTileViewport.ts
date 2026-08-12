@@ -34,14 +34,15 @@ interface Options {
   /** Sheet size in PDF points. */
   width: number
   height: number
-  /** Screen pixels per point at which one tile pixel covers one CSS pixel: `dpi / 72`. */
-  nativeScale: number
+  /** Resolution the tiles were rendered at. */
+  dpi: number
 }
 
 /** Breathing room around a fitted sheet, in screen pixels. */
 const PAD = 12
 /** Past its own resolution the raster only gets softer, but a little overzoom is how you read
- * a 6pt terminal label on a laptop screen. */
+ * a 4 pt terminal label. Now that native zoom means device pixels, this is a genuine upscale
+ * rather than the accidental one the CSS-pixel definition used to hide. */
 const MAX_OVERZOOM = 2
 /** Keep at least this much of the sheet on screen, so it can never be flung out of reach. */
 const KEEP_VISIBLE = 64
@@ -49,10 +50,45 @@ const WHEEL_SENSITIVITY = 0.0015
 const BUTTON_STEP = 1.4
 const KEY_PAN = 60
 
-export function useTileViewport({ width, height, nativeScale }: Options) {
+/**
+ * Device pixels per CSS pixel, kept current.
+ *
+ * It is not a constant: dragging the window to a monitor with a different pixel density
+ * changes it, and neither a resize nor a re-render necessarily follows. The idiom is to match
+ * a media query against the *present* value and re-arm when it stops matching.
+ */
+export function useDevicePixelRatio(): number {
+  const [dpr, setDpr] = useState(() => window.devicePixelRatio || 1)
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+    const media = window.matchMedia(`(resolution: ${dpr}dppx)`)
+    const onChange = () => setDpr(window.devicePixelRatio || 1)
+    media.addEventListener?.('change', onChange)
+    return () => media.removeEventListener?.('change', onChange)
+  }, [dpr])
+
+  return dpr
+}
+
+export function useTileViewport({ width, height, dpi }: Options) {
   const ref = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 0 })
   const [isFit, setIsFit] = useState(true)
+  /** Container size in CSS pixels — the canvas needs it to size its backing store. */
+  const [size, setSize] = useState({ width: 0, height: 0 })
+
+  const dpr = useDevicePixelRatio()
+
+  /**
+   * The zoom at which one tile pixel covers one **device** pixel.
+   *
+   * The `/ dpr` is the correction that made the toolbar percentage mean something. Without it
+   * "100%" was one tile pixel per *CSS* pixel, which on a 2× display is already a 2× upscale
+   * on the physical panel — so the readout claimed native resolution at the point the image
+   * had started to soften, and the 200% cap was a 4× upscale.
+   */
+  const nativeScale = dpi / 72 / dpr
 
   // Mirrors of state for the listeners, which are bound once and must not close over a stale
   // render. `fitScale` also sets the zoom-out floor: you cannot shrink the sheet to a speck.
@@ -118,7 +154,10 @@ export function useTileViewport({ width, height, nativeScale }: Options) {
     const element = ref.current
     if (!element) return
     const observer = new ResizeObserver(() => {
-      if (isFitRef.current || scaleRef.current === 0) fitTo(element.clientWidth, element.clientHeight)
+      const cw = element.clientWidth
+      const ch = element.clientHeight
+      setSize({ width: cw, height: ch })
+      if (isFitRef.current || scaleRef.current === 0) fitTo(cw, ch)
     })
     observer.observe(element)
     return () => observer.disconnect()
@@ -259,10 +298,13 @@ export function useTileViewport({ width, height, nativeScale }: Options) {
     /** Attach to the clipping container. Everything is measured against it. */
     containerRef: ref,
     viewport,
+    /** Container size in CSS pixels, and the device-pixel ratio to render it at. */
+    size,
+    dpr,
     /** True while the sheet is auto-fitting to the container, including across a resize. */
     isFit,
-    /** Zoom as a percentage of the tiles' own resolution: 100% is one tile pixel per CSS
-     * pixel, and the sharpest the rasters go. */
+    /** Zoom as a percentage of the tiles' own resolution: 100% is one tile pixel per **device**
+     * pixel, and the sharpest these rasters go. */
     percent: viewport.scale > 0 ? Math.round((viewport.scale / nativeScale) * 100) : 0,
     fit,
     zoomIn: () => zoomBy(BUTTON_STEP),

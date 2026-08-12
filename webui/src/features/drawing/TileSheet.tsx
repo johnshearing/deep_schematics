@@ -1,25 +1,44 @@
 /**
- * The sheet itself: 16 PNGs placed absolutely under one CSS transform.
+ * The sheet itself, painted onto a canvas at device resolution.
  *
- * There is no rendering work here and that is the point — `webui_ideas.md` §2 observed that
- * the images already exist and the manifest already carries their rectangles, so the viewer
- * is a coordinate system and a transform rather than a renderer.
+ * **This was 16 `<img>` elements under one CSS `transform: scale()`, and that is why the text
+ * was blurry.** Three compounding reasons, all of which the canvas removes rather than
+ * mitigates:
  *
- * The plane is measured in **PDF points**, not pixels. `scale` is the only thing that turns
- * points into screen pixels, which means anything else expressed in points — a marker at
- * `components[].location`, a conductor polyline out of `geometry.json` — drops in as a
- * sibling of the tiles and lands in the right place with no further arithmetic. That is the
- * seam the component overlay and the bidirectional citation are meant to arrive through.
+ * 1. The scaled plane carried `will-change: transform`, which promotes it to a composited
+ *    layer. The browser rasterizes such a layer once and then GPU-stretches the cached
+ *    texture as the transform changes — so zooming magnified a bitmap rasterized at the *old*
+ *    scale. "Magnifying does not help" is the signature of that bug, not of a low-resolution
+ *    source: a 1:1 crop of any tile is crisp, and label text on this sheet is 22.9 px tall at
+ *    400 DPI.
+ * 2. At native zoom that plane was 6800×4400 CSS px, past the maximum texture size on most
+ *    GPUs, which forces a reduced-scale rasterization and a stretch back up.
+ * 3. Everything was sized in CSS pixels, so on a 2× display even a correct rasterization was
+ *    upscaled once more before it reached the panel.
  *
- * The tiles overlap by 30 pt by design (the vision pass needed the margin). Drawn at their
- * own rectangles the overlaps paint identical pixels over each other, so there is nothing to
- * reconcile and no seams.
+ * A canvas has no composited-layer cache to go stale, no layer larger than the viewport, and
+ * a backing store measured in device pixels. Every frame is rasterized from the source PNGs at
+ * the current zoom, which is what the browser's own PDF viewer does in the tab the reader
+ * compared against — the difference being that we still stop at the tiles' 400 DPI, where the
+ * vector original does not stop at all. Rendering the PDF itself with pdf.js onto this same
+ * canvas is the remaining upgrade, and it changes nothing above this line.
+ *
+ * **The point-space seam is unchanged.** `paint.ts` projects PDF points onto the backing
+ * store, so a marker at `components[].location` or a conductor polyline out of `geometry.json`
+ * is still the same one-line conversion — it just goes through `tileDestRect` instead of
+ * through CSS `left`/`top`. Clickable overlays will sit in a DOM layer above this canvas,
+ * which is why the canvas does not swallow pointer events.
+ *
+ * The `<img>` elements survive as loaders. They are hidden and never painted directly, but
+ * they are how the browser fetches, decodes, caches and reports `load`/`error`, and doing that
+ * by hand with `new Image()` would buy nothing and lose the ability to assert on it.
  */
 
-import { memo } from 'react'
+import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { tileUrl } from '@/api/client'
 import type { Tile } from '@/api/types'
+import { paintSheet } from './paint'
 import type { Viewport } from './useTileViewport'
 
 interface Props {
@@ -28,7 +47,16 @@ interface Props {
   width: number
   height: number
   viewport: Viewport
+  /** Container size in CSS pixels. */
+  size: { width: number; height: number }
+  /** Device pixels per CSS pixel. */
+  dpr: number
   onTileSettled: (file: string, ok: boolean) => void
+}
+
+/** A broken image still has `complete === true`, so the natural size is the real test. */
+function ready(image: HTMLImageElement | undefined): HTMLImageElement | null {
+  return image && image.complete && image.naturalWidth > 0 ? image : null
 }
 
 export const TileSheet = memo(function TileSheet({
@@ -36,35 +64,79 @@ export const TileSheet = memo(function TileSheet({
   width,
   height,
   viewport,
+  size,
+  dpr,
   onTileSettled,
 }: Props) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const images = useRef(new Map<string, HTMLImageElement>())
+  const frame = useRef(0)
+  // Bumped on every load or error purely to re-run the paint effect. The images themselves
+  // live in a ref, so nothing else here would notice one arriving.
+  const [arrivals, setArrivals] = useState(0)
+
+  const settle = useCallback(
+    (file: string, ok: boolean) => {
+      setArrivals((n) => n + 1)
+      onTileSettled(file, ok)
+    },
+    [onTileSettled],
+  )
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const device = {
+      width: Math.max(1, Math.round(size.width * dpr)),
+      height: Math.max(1, Math.round(size.height * dpr)),
+    }
+    // Assigning either dimension clears the canvas, so only do it when it actually changed.
+    if (canvas.width !== device.width) canvas.width = device.width
+    if (canvas.height !== device.height) canvas.height = device.height
+
+    // A wheel burst delivers several events per frame and each one re-renders. Coalescing to
+    // one paint per frame keeps a fast zoom from queueing sixteen redundant redraws.
+    cancelAnimationFrame(frame.current)
+    frame.current = requestAnimationFrame(() => {
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      paintSheet({
+        ctx,
+        device,
+        dpr,
+        viewport,
+        sheet: { width, height },
+        tiles: tiles.map((tile) => ({
+          pdf_rect: tile.pdf_rect,
+          image: ready(images.current.get(tile.file)),
+        })),
+      })
+    })
+    return () => cancelAnimationFrame(frame.current)
+  }, [tiles, width, height, viewport, size.width, size.height, dpr, arrivals])
+
   return (
-    <div
-      className="absolute top-0 left-0 origin-top-left bg-white"
-      style={{
-        width,
-        height,
-        transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.scale})`,
-        willChange: 'transform',
-      }}
-    >
-      {tiles.map((tile) => {
-        const [x0, y0, x1, y1] = tile.pdf_rect
-        return (
+    <>
+      <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 block h-full w-full" />
+
+      {/* Loaders, not content. `hidden` still fetches and decodes; it just never composites,
+          which is the job — the canvas is the only thing that draws. */}
+      <div hidden aria-hidden="true">
+        {tiles.map((tile) => (
           <img
             key={tile.file}
             src={tileUrl(tile.file)}
-            // Empty rather than "tile row 1 column 4": the grid is an artifact of how the
-            // sheet was rendered and means nothing to a reader who cannot see it.
             alt=""
-            draggable={false}
-            onLoad={() => onTileSettled(tile.file, true)}
-            onError={() => onTileSettled(tile.file, false)}
-            className="pointer-events-none absolute select-none"
-            style={{ left: x0, top: y0, width: x1 - x0, height: y1 - y0 }}
+            ref={(element) => {
+              if (element) images.current.set(tile.file, element)
+              else images.current.delete(tile.file)
+            }}
+            onLoad={() => settle(tile.file, true)}
+            onError={() => settle(tile.file, false)}
           />
-        )
-      })}
-    </div>
+        ))}
+      </div>
+    </>
   )
 })
