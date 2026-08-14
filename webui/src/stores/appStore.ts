@@ -1,14 +1,55 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-import { getDrawing, getHealth, getQuestions, unlock } from '@/api/client'
-import type { DrawingSummary, Health, StarterQuestion } from '@/api/types'
+import { getDesignators, getDrawing, getHealth, getQuestions, unlock } from '@/api/client'
+import type {
+  Designator,
+  DesignatorIndex,
+  DesignatorKind,
+  DrawingSummary,
+  Health,
+  StarterQuestion,
+} from '@/api/types'
+import { buildLookup } from '@/lib/designators'
+
+/**
+ * What the reader is currently pointing at.
+ *
+ * **This lives in the store and never inside the viewer**, and that is the whole design. The
+ * Drawing tab pans to it and rings it; an answer's citations raise it; net highlighting, the
+ * net explorer, guided troubleshooting and simulation are all supposed to read this same
+ * field. Put it in the viewer and every one of them has to reach inside a component.
+ */
+export interface Selection {
+  kind: DesignatorKind
+  id: string
+  /**
+   * Where the reader pointed from.
+   *
+   * The viewer flies to a selection raised from an answer, and does *not* fly to one raised by
+   * a click on the drawing — you do not move the sheet under someone who has just put a finger
+   * on it. Recording the origin at the seam keeps that decision out of both call sites; the
+   * deterministic tables that come next will raise `'text'` too.
+   */
+  origin: 'text' | 'drawing'
+  /** Bumped on every selection, including a repeat of the current one. Clicking the same
+   * citation twice has to re-pan — the reader has usually scrolled away in between, and a
+   * no-op looks like a broken link. */
+  nonce: number
+}
 
 interface AppState {
   health: Health | null
   healthError: string | null
   drawing: DrawingSummary | null
   questions: StarterQuestion[]
+  /** Null while loading, and after a failure — in which case citations stay plain text and
+   * nothing else changes. */
+  designators: DesignatorIndex | null
+  /** Every id and unambiguous alias, case-folded. The allowlist a backticked span is matched
+   * against; see `lib/designators.ts` for why it is an allowlist. */
+  byToken: Map<string, Designator>
+  selection: Selection | null
   model: string
   /**
    * Empty means "no preference yet" — `App` resolves it against the enabled tabs and falls
@@ -29,6 +70,10 @@ interface AppState {
 
   setModel: (model: string) => void
   setActiveTab: (id: string) => void
+  /** Point at something. Callers that also need the drawing on screen switch tabs themselves:
+   * this store must not import the tab registry (see `activeTabId`). */
+  select: (kind: DesignatorKind, id: string, origin?: Selection['origin']) => void
+  clearSelection: () => void
   loadAll: () => Promise<void>
   refreshHealth: () => Promise<void>
   submitUnlock: (password: string) => Promise<boolean>
@@ -41,6 +86,9 @@ export const useAppStore = create<AppState>()(
       healthError: null,
       drawing: null,
       questions: [],
+      designators: null,
+      byToken: new Map(),
+      selection: null,
       model: 'sonnet',
       activeTabId: '',
       loaded: false,
@@ -50,17 +98,28 @@ export const useAppStore = create<AppState>()(
       setModel: (model) => set({ model }),
       setActiveTab: (activeTabId) => set({ activeTabId }),
 
+      select: (kind, id, origin = 'text') =>
+        set((state) => ({
+          selection: { kind, id, origin, nonce: (state.selection?.nonce ?? 0) + 1 },
+        })),
+      clearSelection: () => set({ selection: null }),
+
       loadAll: async () => {
-        const [health, drawing, questions] = await Promise.allSettled([
+        const [health, drawing, questions, designators] = await Promise.allSettled([
           getHealth(),
           getDrawing(),
           getQuestions(),
+          getDesignators(),
         ])
+        const index = designators.status === 'fulfilled' ? designators.value : null
         set({
           health: health.status === 'fulfilled' ? health.value : null,
           healthError: health.status === 'rejected' ? String(health.reason?.message ?? health.reason) : null,
           drawing: drawing.status === 'fulfilled' ? drawing.value : null,
           questions: questions.status === 'fulfilled' ? questions.value : [],
+          // Built once here rather than on every render of every citation in every answer.
+          designators: index,
+          byToken: buildLookup(index),
           loaded: true,
         })
         // Only adopt the server's default model on first load, so a visitor's choice sticks.

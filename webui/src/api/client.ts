@@ -7,7 +7,13 @@
  * 'self'` and mean it.
  */
 
-import type { DrawingSummary, Health, ServerEvent, StarterQuestion } from './types'
+import type {
+  DesignatorIndex,
+  DrawingSummary,
+  Health,
+  ServerEvent,
+  StarterQuestion,
+} from './types'
 
 const API = '/api'
 
@@ -67,6 +73,7 @@ export const tileUrl = (file: string) => `${API}/tiles/${encodeURIComponent(file
 
 export const getHealth = () => getJson<Health>('/health')
 export const getDrawing = () => getJson<DrawingSummary>('/drawing')
+export const getDesignators = () => getJson<DesignatorIndex>('/designators')
 export const getQuestions = () =>
   getJson<{ questions: StarterQuestion[] }>('/questions').then((r) => r.questions)
 

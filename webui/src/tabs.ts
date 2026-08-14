@@ -2,7 +2,8 @@ import type { ComponentType } from 'react'
 import { Map, MessageSquareText, type LucideIcon } from 'lucide-react'
 
 import { AskTab } from '@/features/ask/AskTab'
-import { DrawingTab, DRAWING_TAB_ID } from '@/features/drawing/DrawingTab'
+import { DrawingTab } from '@/features/drawing/DrawingTab'
+import { ASK_TAB_ID, DRAWING_TAB_ID } from '@/tabIds'
 
 /**
  * The tab registry — one array, consumed by both the trigger list and the panels.
@@ -15,8 +16,9 @@ import { DrawingTab, DRAWING_TAB_ID } from '@/features/drawing/DrawingTab'
  *
  * This module imports tab components and nothing imports it back. That is a rule, not an
  * accident: `appStore` used to import `TABS`, and the resulting cycle built the registry with
- * `undefined` entries whenever a tab component was the first module evaluated. A tab that
- * needs to know its own id declares the constant itself.
+ * `undefined` entries whenever a tab component was the first module evaluated. The ids
+ * themselves live in `tabIds.ts`, a leaf module, so that a component can *name* a tab —
+ * a citation sends the reader to the Drawing tab — without importing one.
  *
  * The queue, in the order `webui_ideas.md` recommends: net explorer and data tables
  * (deterministic, free, and they displace paid questions), then the tile viewer with
@@ -43,7 +45,7 @@ export interface TabDef {
 
 export const TABS: TabDef[] = [
   {
-    id: 'ask',
+    id: ASK_TAB_ID,
     label: 'Ask',
     icon: MessageSquareText,
     Component: AskTab,

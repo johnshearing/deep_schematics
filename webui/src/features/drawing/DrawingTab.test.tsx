@@ -10,12 +10,14 @@
  * a recording context — jsdom has no 2D context to assert through.
  */
 
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { DrawingTab, DRAWING_TAB_ID } from './DrawingTab'
-import type { DrawingSummary, TileManifest } from '@/api/types'
+import type { Designator, DesignatorIndex, DrawingSummary, TileManifest } from '@/api/types'
+import { buildLookup } from '@/lib/designators'
 import { useAppStore } from '@/stores/appStore'
+import { useChatStore } from '@/stores/chatStore'
 import { enabledTabs } from '@/tabs'
 
 const TILES: TileManifest = {
@@ -46,6 +48,26 @@ const DRAWING = {
   tiles: TILES,
 } satisfies DrawingSummary
 
+const COMPONENTS: Designator[] = [
+  { id: 'CR-BP', kind: 'component', label: 'relay — Run bypass relay.', on_sheet: true,
+    members: ['CR-BP'], point: [861, 679], rect: [861, 679, 861, 679] },
+  { id: 'CB1', kind: 'component', label: 'circuit breaker — 8A main.', on_sheet: true,
+    members: ['CB1'], point: [390, 118], rect: [390, 118, 390, 118] },
+  { id: 'UPSTREAM-MACHINE', kind: 'component', label: 'external — upstream machine.',
+    on_sheet: true, members: ['UPSTREAM-MACHINE'], point: null, rect: null },
+]
+const NET_110: Designator = {
+  id: '110', kind: 'net', label: 'control 24VDC, 8 terminals', on_sheet: true,
+  members: ['CR-BP', 'CB1', 'UPSTREAM-MACHINE'], point: [625.5, 398.5],
+  rect: [390, 118, 861, 679],
+}
+const INDEX: DesignatorIndex = {
+  drawing_number: 'PS20115MLM4-2',
+  counts: { component: 3, net: 1 },
+  located: 3,
+  entries: [...COMPONENTS, NET_110],
+}
+
 /** jsdom reports every element as 0×0, and a container with no size has nothing to fit to. */
 const SIZE = { width: 800, height: 600 }
 const descriptors = ['clientWidth', 'clientHeight'] as const
@@ -59,16 +81,29 @@ beforeEach(() => {
     configurable: true,
     get: () => SIZE.height,
   })
-  useAppStore.setState({ drawing: DRAWING, activeTabId: 'ask' })
+  useAppStore.setState({
+    drawing: DRAWING,
+    activeTabId: 'ask',
+    designators: INDEX,
+    byToken: buildLookup(INDEX),
+    selection: null,
+  })
 })
 
 afterEach(() => {
   for (const name of descriptors) delete (HTMLElement.prototype as never)[name]
-  useAppStore.setState({ activeTabId: 'ask' })
+  useAppStore.setState({
+    activeTabId: 'ask', designators: null, byToken: new Map(), selection: null,
+  })
+  useChatStore.setState({ composerText: '' })
 })
 
 function activate() {
   act(() => useAppStore.setState({ activeTabId: DRAWING_TAB_ID }))
+}
+
+function marker(id: string): HTMLButtonElement {
+  return screen.getByRole('button', { name: new RegExp(`^${id} —`) }) as HTMLButtonElement
 }
 
 describe('DrawingTab', () => {
@@ -116,6 +151,74 @@ describe('DrawingTab', () => {
     expect(screen.getByRole('link', { name: /source pdf/i }).getAttribute('href')).toBe(
       '/api/source',
     )
+  })
+
+  it('places a marker on every component that has a location, and only those', () => {
+    render(<DrawingTab />)
+    activate()
+
+    // Fit is 0.634 px/pt with the sheet centred, so CR-BP at (861, 679) lands at
+    // 12 + 861 × 0.634 = 558 px across. The projection itself is `paint.test.ts`'s job; what
+    // this pins is that the marker uses it at all rather than sitting at the origin.
+    expect(marker('CR-BP').style.left).toBe('558px')
+    expect(marker('CB1')).toBeTruthy()
+    // No location, so nowhere to put it — it stays citable, not clickable.
+    expect(screen.queryByRole('button', { name: /^UPSTREAM-MACHINE —/ })).toBeNull()
+  })
+
+  it('clicking a marker says what it is without moving the sheet', () => {
+    render(<DrawingTab />)
+    activate()
+    const before = screen.getByText('11%').textContent
+
+    fireEvent.click(marker('CR-BP'))
+
+    expect(useAppStore.getState().selection).toMatchObject({ id: 'CR-BP', origin: 'drawing' })
+    expect(screen.getByText('Run bypass relay.', { exact: false })).toBeTruthy()
+    // You do not move the sheet under someone who has just put a finger on it.
+    expect(screen.getByText('11%').textContent).toBe(before)
+  })
+
+  it('flies to a citation raised by an answer, and rings what the net runs through', async () => {
+    render(<DrawingTab />)
+    activate()
+    expect(screen.getByText('11%')).toBeTruthy()
+
+    act(() => useAppStore.getState().select('net', '110'))
+
+    // Net 110 spans 471 × 561 pt; framing that with padding is 420/561 = 0.749 px/pt, which
+    // against a native scale of 5.56 reads as 13%. The animation gets there over ~420 ms.
+    // The flight is a real rAF animation of about 420 ms, so this waits for the landing
+    // rather than the first frame. The timeout is generous because jsdom's rAF is a timer.
+    await waitFor(() => expect(screen.getByText('13%')).toBeTruthy(), { timeout: 4000 })
+    // Both located members are ringed, and the card names the third even though it has no
+    // marker — "runs through" is the answer to "what is on net 110".
+    expect(screen.getByRole('button', { name: 'CR-BP' })).toBeTruthy()
+    const offSheet = screen.getByRole('button', { name: 'UPSTREAM-MACHINE' }) as HTMLButtonElement
+    expect(offSheet.disabled).toBe(true)
+  })
+
+  it('hands a clicked component back to the composer as a question', () => {
+    render(<DrawingTab />)
+    activate()
+    fireEvent.click(marker('CB1'))
+    fireEvent.click(screen.getByRole('button', { name: /ask about this/i }))
+
+    // The loop closes: drawing → question → answer → drawing.
+    expect(useChatStore.getState().composerText).toContain('CB1')
+    expect(useAppStore.getState().activeTabId).toBe('ask')
+  })
+
+  it('keeps the selected marker visible when the overlay is switched off', () => {
+    render(<DrawingTab />)
+    activate()
+    fireEvent.click(marker('CR-BP'))
+    fireEvent.click(screen.getByRole('button', { name: /components/i }))
+
+    // Hiding the thing an answer just pointed at would be the one case the toggle must not
+    // cover — the reader turned the other 46 off, not this one.
+    expect(marker('CR-BP')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^CB1 —/ })).toBeNull()
   })
 
   it('offers no tab at all when the sheet has never been rendered to tiles', () => {

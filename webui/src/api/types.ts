@@ -75,6 +75,41 @@ export interface TileManifest {
   tiles: Tile[]
 }
 
+/**
+ * What kinds of thing can be selected. A plain union rather than a string because these four
+ * are the id spaces `circuit_logic.json` actually has — and because every future consumer of a
+ * selection (net highlighting, the net explorer, guided troubleshooting) switches on it.
+ */
+export type DesignatorKind = 'component' | 'terminal' | 'net' | 'wire'
+
+/** One citable identifier, and where on the sheet it is. */
+export interface Designator {
+  id: string
+  kind: DesignatorKind
+  /** One human line: what it is, for a tooltip and for the popover heading. */
+  label: string
+  /** False when the extraction invented the id (`W047`, `TB-0V:7`, `RECEPT1:3`). The reader is
+   * holding the sheet and will not find it there, so the UI has to say so. */
+  on_sheet: boolean
+  /** The components it is drawn through, whether or not they have a location. */
+  members: string[]
+  /** Centre of `rect`, in PDF points. Null for the handful of ids with no location anywhere —
+   * still citable, just not clickable. */
+  point: [number, number] | null
+  /** Bounding box of the located members, in PDF points. Equal to `point` for a component. */
+  rect: [number, number, number, number] | null
+  /** Other names for the same thing, components only. */
+  aliases?: string[]
+}
+
+export interface DesignatorIndex {
+  drawing_number: string | null
+  counts: Partial<Record<DesignatorKind, number>>
+  /** How many entries have a point. The rest are citable but not clickable. */
+  located: number
+  entries: Designator[]
+}
+
 export interface StarterQuestion {
   id: string
   text: string

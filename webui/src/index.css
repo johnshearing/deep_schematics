@@ -135,6 +135,34 @@
   padding: 0.08em 0.34em;
   white-space: nowrap;
 }
+/* A citation the designator index recognised: the same code span, plus the affordance that it
+   goes somewhere. Underlined rather than coloured-in, because an answer is dense with these —
+   `CR-BP`, `W048`, `TB-110:3` several to a sentence — and filling each one would turn the
+   paragraph into a ransom note. The colour arrives on hover, where the intent is. */
+.answer .cite {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+.answer .cite code {
+  text-decoration: underline dotted;
+  text-decoration-color: var(--color-primary);
+  text-underline-offset: 3px;
+}
+.answer .cite:hover code,
+.answer .cite:focus-visible code {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  text-decoration-style: solid;
+}
+.answer .cite:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 .answer pre {
   background: var(--color-muted);
   border: 1px solid var(--color-border);

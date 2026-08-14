@@ -10,6 +10,110 @@ Scope is the whole repository: the extraction skill, the server, the WebUI and t
 
 ---
 
+## 2026-08-12 — The answer and the drawing point at each other
+
+Job 1 of the previous "Recommended next jobs", built as one piece because the halves are
+worthless apart: a component overlay on its own is 47 dots nobody clicks, and clickable
+citations on their own have nothing to point at.
+
+**What a reader can now do.** An answer says *"the blue 18AWG wire from `CR-BP:A2` to the
+BYPASS 5A breaker (extraction id `W048`)"*; clicking either backticked span switches to the
+Drawing tab and flies the sheet to it. Going the other way, every component with a location is
+a marker: clicking one says what it is — class, description, the nets it is on — for free and
+with no model in the loop, and offers *Ask about this*, which puts a question in the composer
+and switches back. That is the loop closed in both directions.
+
+### The five pieces, and the seams that matter
+
+1. **`selection` lives in `appStore`, never in the viewer.** `{kind, id, origin, nonce}`. The
+   `nonce` is bumped on every selection including a repeat, because clicking the same citation
+   twice must re-pan — by then the reader has usually dragged the sheet elsewhere, and a silent
+   no-op reads as a broken link. `origin` is the field that was not in the plan and turned out
+   to be needed: the viewer flies to a selection raised from *text* and deliberately does not
+   fly to one raised by a click *on the drawing*, because you do not move the sheet under
+   someone who has just put a finger on it. Net highlighting, the net explorer and guided
+   troubleshooting all read this same field; putting it in the viewer would make every one of
+   them reach inside a component.
+
+2. **`/api/designators`** — new endpoint, `drawing.py`'s `designator_index()`. 275 entries for
+   this drawing (47 components, 131 terminals, 26 nets, 71 wires), 269 of them with a point,
+   57 KB uncompressed. Each entry carries `label` (one human line), `members` (the components
+   it is drawn through), `point`, `rect`, `aliases` and `on_sheet`.
+
+   *Points are derived, not stored.* `components[].location` is the only geometry this
+   extraction has, so a terminal borrows its parent component's point, a wire spans its two
+   endpoint components, and a net spans every component it touches. `rect` is that bounding
+   box and is what the viewer frames — which is why selecting net `110` zooms *out* to show all
+   five components it runs through, and selecting `CR-BP` zooms in. Six ids have no point at
+   all (the two off-page machines, the four referenced drawings); they stay in the index,
+   because a citation of one is legitimate and dropping it would make it unresolvable rather
+   than merely unclickable.
+
+   *Its own endpoint, not another field on `/api/drawing`.* Ten times the size of everything
+   else there, and it is the one thing whose absence has to degrade quietly: a client that
+   cannot load it gets plain-text citations, which is exactly what shipped before.
+
+   *`on_sheet` mirrors `prompts.py`.* The prompt's "Names that are not on the drawing" table is
+   now also four constants in `drawing.py`, and the file says outright that the two must change
+   together. A `W###`, a `TB-…:<n>` point number and a `RECEPT1:<n>` pin are ours; the UI marks
+   them *our id*, because a clickable label the reader cannot find on the sheet in their hands
+   is worse than an unclickable one.
+
+3. **`panTo(rect)` on `useTileViewport`** — the inverse of `zoomAt`. The destination is two
+   pure exported functions, `focusScale` and `centreOn`, because that is the part that can be
+   wrong: too far in and you land on blank paper, too far out and the thing you clicked is a
+   dot among fifty. A point target gets half of native zoom (≈4 pt lettering readable, about a
+   quarter of the sheet visible); a rectangle is framed with padding. The flight is animated —
+   interpolating the *centre in PDF space* and the scale geometrically, so the target stays
+   under the middle of the container the whole way — and any deliberate gesture cancels it,
+   including the pointer going down. `prefers-reduced-motion` gets the jump.
+
+4. **A `code` renderer in `Markdown.tsx` → `Citation.tsx`.** The prompt already requires
+   citations in backticks, so the hook was free. **Strictly an allowlist lookup, never a
+   pattern**: `W999` has the exact shape of a wire id and stays inert, because "the model wrote
+   something that looks like an id" is not evidence. A span is clickable only if the server
+   published it, it has a point, and there is a Drawing tab to click through to; otherwise it
+   renders exactly as before. `lib/designators.ts` holds the two lookup rules the real
+   extraction forces: ids beat aliases (`MXCS-M9` is both a component and an alias of another),
+   and an alias two components both claim is dropped rather than arbitrated (three are — "switch
+   relay", "run bypass relay", "24E-1 terminal"). Flying someone to the wrong relay
+   authoritatively is worse than not flying them anywhere.
+
+5. **`MarkerLayer.tsx`, a DOM sibling of the canvas.** Markers need hit-testing, focus, tab
+   order and tooltips, all free in the DOM and hand-rolled in canvas — and the canvas is
+   `pointer-events-none` precisely so this can sit on it. The opposite call still stands for net
+   highlighting: 149 polylines need none of that and are cheaper painted. Positions go through
+   `pointToCss`, which is `paint.ts`'s own `tileDestRect` divided by the device-pixel ratio;
+   there is one projection in this application, and a marker that computed its own could drift
+   off the component it names. A *Components* toggle turns the other 46 off; the selected one
+   and anything the selection runs through stay visible regardless, since hiding what an answer
+   just pointed at is the one case the toggle must not cover.
+
+### Two things worth knowing before touching this
+
+**A new leaf module, `tabIds.ts`.** The ids used to be declared by the tab components
+themselves, which was right while only a tab needed to name a tab. This job broke that:
+`Markdown` → `Citation` → `DrawingTab` → `AskTab` → `MessageView` → `Markdown` is a cycle, and
+this project has already lost an evening to exactly that failure (see `tabs.ts`'s header). A
+leaf module with no imports of its own cannot participate in one. `DrawingTab` re-exports
+`DRAWING_TAB_ID` so existing importers are unaffected.
+
+**The composer prefill is a starting point, not a submission.** Clicking *Ask about this* types
+the question and switches tabs; the reader presses Ask. Nothing in this job can spend money by
+itself, which is the property to preserve when the net explorer starts raising selections too.
+
+Tests: 66 server (up from 58) and 58 web (up from 31); `ruff` clean, `tsc -b` clean. The new
+web tests cover the failure modes that are silent in a browser — an alias resolving to the
+wrong component, a fenced code block turning into buttons, a marker rendering at the origin
+because it used the wrong projection, and a citation that pans nowhere because the tab had
+never been measured. Verified `/api/designators` against the real extraction on a scratch port:
+275 entries, 269 located, 57,186 bytes.
+
+**A running server does not pick this up.** The bundle is rebuilt into `server/app/static/`,
+but `python -m app` has no reloader — restart it.
+
+---
+
 ## 2026-08-11 — The drawing is sharp: a canvas at device resolution
 
 Follows the entry below, same day. The user reported that lettering on the sheet was hard to
@@ -438,184 +542,150 @@ Summarised from `git log` and the notes, for continuity. Detail lives in the pla
 
 # Recommended next jobs
 
-*Written 2026-08-11 after the Drawing tab landed, and rewritten the same day once the blurry
-text was fixed. This section is the standing recommendation and gets rewritten, not appended
-to. The previous job 1 was "make the drawing legible"; that is done — the entry at the top of
-this log records it — and the remainder of it has been rescoped and demoted to job 2 here.*
+*Rewritten 2026-08-12, after bidirectional citation landed. This section is the standing
+recommendation and gets rewritten, not appended to. The previous job 1 was "make the answer and
+the drawing point at each other"; it is done, and the entry at the top of this log records it.
+The previous job 2 (render the vector PDF) is unchanged and has been demoted to job 3, because
+two things now stand in front of it.*
 
-## 1. Make the answer and the drawing point at each other
+## 1. Deterministic browse: the net explorer and the tables
 
-This is a capability the application does not have, where job 2 refines something that already
-works. Do this one first.
+`webui_ideas.md` §4, ranked second in the road map and second in this section for the last two
+sessions. It goes first now for a reason that only became true this session: **it was the
+strongest idea that did not exploit the surface we had built, and now it is the strongest idea
+that does.** A row in a net table is a `selection`; the store already carries one, the viewer
+already knows how to fly to it, and the markers already know how to ring it. What was a table
+last week is a table wired into a drawing this week, for no extra work.
 
-`webui_ideas.md` §2 calls bidirectional citation *"the highest value-per-line-of-code idea in
-this document"* and ranks it third overall. It is now also the cheapest thing on the list,
-because the three hard parts are already built and paid for: a rendering surface we own, one
-coordinate system shared by the tiles, the components and the geometry, and — since the canvas
-landed — a projection function, `tileDestRect`, that already turns PDF points into screen
-positions for anything that asks.
-
-Today an answer says *"the blue 18AWG wire from `CR-BP:A2` to the BYPASS 5A breaker"* and the
-reader has to find `CR-BP` on a D-size sheet by eye. That is the gap. Closing it turns the
-answer from text you translate into a drawing you navigate — and it is the difference between
-the Drawing tab being a nice thing to have looked at once and being the thing you keep open.
-
-**Do it as one job, not three.** A component overlay on its own is 47 dots nobody clicks;
-clickable citations on their own have nothing to point at. Together they are the unlock.
+The case for it is otherwise unchanged and still the strongest on the list: it is free, it is
+instant, and **every question it answers is a question nobody pays $0.64 for.** §12 of
+`HowToUseThisSkill.md` is a 71-question bank, and a large fraction of it — what is on this net,
+what lands on this terminal block, what does this relay switch, what are the breaker ratings,
+what is in this cable — is a table lookup that a language model is a slow and expensive way to
+perform.
 
 ### The shape of it
 
-1. **`selection` in `appStore`** — `{kind: 'component' | 'net' | 'wire' | 'terminal', id} |
-   null`, plus a nonce so clicking the same citation twice re-pans. This is the seam, and it
-   is the piece to get right: put it in the store, never inside the viewer. Net highlighting,
-   the net explorer, guided troubleshooting and simulation all eventually read the same field.
-   If it lives in the viewer, every one of them has to reach inside.
-2. **`panTo(rectPt)` on `useTileViewport`** — animate the transform so a point in PDF space
-   ends up centred at a readable zoom. The maths is already there; this is the inverse of
-   `zoomAt`, about twenty lines.
-3. **A designator index on `/api/drawing`** — every component id, terminal id, net id and wire
-   id, plus `components[].aliases`, each with a point location where one exists. Needed
-   because an answer is prose and we have to know which tokens are real identifiers before
-   making them clickable. Deterministic, free, roughly 10 KB, and it is the same index the
-   global search in §4 wants later.
-4. **A `code` renderer in `Markdown.tsx`** — the prompt already requires citations in
-   backticks (`` `CR-BP` ``, `` `W048` ``, `` `TB-110:3` ``), and `code` is the one element
-   that file does not currently override, so the hook is free. A backtick span whose text is
-   in the index becomes a button that sets `selection`; everything else renders exactly as it
-   does now. **Keep it strictly an allowlist lookup** — no pattern matching on model output.
-5. **An overlay layer above the canvas** — 47 markers from `components[].location`. A DOM or
-   SVG sibling of the `<canvas>` in `TileSheet`, positioned with the same `tileDestRect`
-   projection the tiles use, which is why the canvas is `pointer-events-none`: it exists to be
-   drawn on top of. Clicking a marker sets `selection` the other way, prefilling the composer
-   with *"what does CR-BP do?"*, and closes the loop.
-
-   Markers belong in the DOM rather than painted into the canvas — they need hit-testing,
-   focus, keyboard access and tooltips, all of which are free in DOM and hand-rolled in canvas.
-   Highlighting a *net*, when that follows, is the opposite call: 149 polylines are cheaper
-   painted, and they need no hit-testing.
-
-### Two cautions
-
-`components[].location` is a **single point, not a bounding box** — fine for a marker and for a
-pan target, not for drawing a box around a component. Tighter geometry exists in
-`geometry.json` (`symbols[].center`, `labels[].bbox`, `boxes[]`) if it turns out to be wanted.
-
-And the citation rule from the 2026-08-10 prompt change means invented ids appear *in
-parentheses, after* the description — `(extraction id W048)`. The clickable target is that
-parenthesised span, not the leading phrase. Do not "fix" the prompt to put the id first; the
-reason it is second is that an electrician cannot find `W048` on the sheet.
-
-### What this sets up
-
-Net highlighting (§2) is the direct follow-on and becomes mostly free: `selection` already
-exists, and `geometry.json` has 149 conductor polylines to draw. Its one prerequisite is a
-normalisation pass joining the OCR'd conductor `net_label`s to `circuit_logic.json` net ids —
-`LI-A`→`L1-A`, `OV.`→`0V`, `130.`→`130` — and every conductor that will not join is a finding
-about the extraction, which is worth having on its own.
-
-### Files to read for this job
-
-The largest of the jobs here, and the only one crossing the server/client boundary. Read the
-data first — the shape of the index falls out of what is actually in `circuit_logic.json`, not
-out of the design above.
-
-**The data, and read it before writing any code:**
-
-| File | Why |
-|---|---|
-| `schematic_extraction/PS20115MLM4-2/extracted_docs/circuit_logic.json` | The index is built from this. Look in particular at `components[].location`, `components[].aliases`, and the id formats of `terminals[]`, `nets[]` and `wires[]` — those four id spaces are what step 4 has to allowlist. |
-| `schematic_extraction/PS20115MLM4-2/extracted_docs/EXTRACTION_NOTES.md` | Which identifiers are printed on the sheet and which were invented. That distinction decides what may be made clickable and what has to carry a caveat. |
-| `schematic_extraction/PS20115MLM4-2/extracted_docs/geometry.json` | Only if tighter geometry than a single point is wanted: `symbols[].center`, `labels[].bbox`, `boxes[]`, and `conductors[].points` for the net-highlighting follow-on. |
-
-**Server:**
-
-| File | Why |
-|---|---|
-| `server/app/drawing.py` | Where the designator index belongs, beside `tile_manifest()` and `drawing_summary()`. Its header already says the loader exposes the parsed document precisely so deterministic features like this can be added. |
-| `server/app/main.py` | `/api/drawing`, if the index ships as a separate endpoint rather than a new field. |
-| `server/tests/test_api.py` | The pattern every new endpoint here is tested against; `tests/conftest.py` for the miniature `extracted_docs` fixture the index will need entries in. |
-| `server/app/prompts.py` | The citation rules the clickable spans have to match — read it before assuming what an answer looks like. It is why ids appear in parentheses. |
-
-**WebUI:**
-
-| File | Why |
-|---|---|
-| `webui/src/stores/appStore.ts` | Where `selection` goes. Read the `activeTabId` comment first: it records why this store must not import the tab registry, and the same rule applies to anything added here. |
-| `webui/src/features/drawing/useTileViewport.ts` | `panTo` is the inverse of `zoomAt`; the clamping, the `isFit` bookkeeping and the DPR-aware `nativeScale` it has to respect are all here. |
-| `webui/src/features/drawing/paint.ts` | `tileDestRect` is the projection the markers reuse. Read it before writing a second one — there should only ever be one. |
-| `webui/src/features/drawing/TileSheet.tsx` | The overlay layer goes in as a sibling of the `<canvas>`. Its header records why the tiles stopped being CSS-positioned `<img>`s, which is context for not reintroducing that pattern for the markers. |
-| `webui/src/components/Markdown.tsx` | The `code` hook, and — more importantly — the security reasoning about model output that any new renderer must not undermine. |
-| `webui/src/components/Markdown.test.tsx` | Existing coverage of that untrusted-markdown contract; a clickable-citation renderer needs cases added to it, not around it. |
-| `webui/src/features/ask/MessageView.tsx`, `webui/src/features/ask/Composer.tsx` | The answer surface that raises a selection, and the composer a drawing click would prefill. |
-| `webui/src/api/types.ts` | The wire contract; the index type lands here. |
-
-**Design context:** `_claude_notes/webui_ideas.md` §2 (bidirectional citation, net highlighting,
-component overlay) and §7 (why every claim stays traceable to a row of the netlist).
-
-## 2. Render the vector PDF, so zoom does not run out at 400 DPI
-
-**Not urgent, and no longer about legibility.** The canvas now paints the tiles at full device
-resolution and a 1:1 crop of the source is crisp, so the sheet reads properly. What is left is
-a ceiling: past 100% the viewer is enlarging 400 DPI rasters, and the *Source PDF* tab — which
-is the browser re-rasterizing 148 KB of vector at whatever zoom you ask for — does not have
-that ceiling. Anyone comparing the two closely at high magnification will still see it.
-
-**The change.** Render the PDF page with pdf.js onto the canvas `TileSheet.tsx` already owns,
-at `viewport.scale × devicePixelRatio`, re-rendering when the zoom settles. Keep the tiles as
-the instant first paint — they arrive in one frame while the PDF is still being parsed — and as
-the fallback for an extraction with no source PDF beside it, which `source_document()` already
-reports as `null`. Nothing above the paint layer changes: `paint.ts` projects PDF points onto
-the backing store either way, so the overlay seam job 1 depends on is unaffected.
-
-**It is also cheaper than what ships today**, which is the counterintuitive part: 148 KB of
-vector instead of 2.2 MB of PNG, and a viewport-sized bitmap instead of the ~169 MB of decoded
-raster recorded as a known limit. That limit is the one thing the canvas did *not* fix, because
-at fit zoom every tile is on screen and none can be released.
-
-**Two things to know before starting.** The earlier argument against pdf.js was that this PDF
-has `has_embedded_text: false` and so yields no text layer — still true, still irrelevant to
-rendering quality. And pdf.js parses in a worker, so `CSP_BASE` needs `worker-src 'self'
-blob:`; nothing else in the policy moves.
+1. **A `Browse` tab** — one new file plus one entry in `tabs.ts`, which is what that registry
+   exists for. `DrawingTab.tsx` is the worked example of a second tab and `DrawingPanel.tsx` is
+   the worked example of the register to write in.
+2. **Server endpoints beside `designator_index()`** — the same shape and the same file. Nets
+   with their member terminals and wires, components with their terminals, cables with their
+   member wires. Half the groundwork is already there: `designator_index()` established the
+   pattern, the `on_sheet` flag, and the id spaces.
+3. **Every id in every table is a selection.** Clicking `CR-BP` in a table must do exactly what
+   clicking `CR-BP` in an answer does — `select(kind, id)` then switch to the Drawing tab. The
+   seam takes `origin: 'text'` for this; that is what it is for.
+4. **Answer the counting trap in the layout, not in prose.** Net 110 has 4 wires and 8
+   terminals. A net view that shows those as two separate labelled counts makes the trap
+   structurally impossible to fall into, which is better than warning about it.
+5. **Say which ids are ours.** `/api/designators` already carries `on_sheet` per id and the UI
+   already has the *our id* chip for it. A table of `TB-0V:1..12` without that mark is a table
+   of numbers the reader cannot find on the sheet in their hands.
 
 ### Files to read for this job
 
 | File | Why |
 |---|---|
-| `webui/src/features/drawing/TileSheet.tsx` | Owns the canvas, the paint effect and the rAF coalescing. Its header records why the `<img>` plane became a canvas, which is the context for not undoing any of it. |
-| `webui/src/features/drawing/paint.ts` | The projection and the draw routine. A pdf.js render lands as another source in `paintSheet`, not as a parallel code path. |
-| `webui/src/features/drawing/paint.test.ts` | What is currently guaranteed about that projection. Add to it rather than around it. |
-| `webui/src/features/drawing/useTileViewport.ts` | `nativeScale`, `useDevicePixelRatio` and the `size`/`dpr` the render must be sized against. The 400 DPI ceiling that `MAX_OVERZOOM` enforces is the thing being lifted. |
-| `webui/src/features/drawing/DrawingTab.tsx` | The zoom readout, its tooltip and the footer line all state the 400 DPI ceiling in words. |
-| `server/app/main.py` | `CSP_BASE` gains `worker-src`; `/api/source` becomes a fetch target rather than only a link. |
-| `server/tests/test_api.py` | `test_security_headers_are_set` and `test_source_drawing_is_served_inline` both assert on the CSP string. |
+| `schematic_extraction/PS20115MLM4-2/extracted_docs/circuit_logic.json` | The whole thing — the tables *are* the feature. `relationships[]` (402 of them) is the part no view uses yet. |
+| `.../EXTRACTION_NOTES.md` | The seven flagged inferences. Anything a table states as fact and the notes flag as inferred needs the caveat carried into the UI. |
+| `schematic_skills/references/HowToUseThisSkill.md` §12 | The 71-question bank these tables are meant to displace. Build for the questions that are actually in it. |
+| `server/app/drawing.py` | Where the endpoints go, and `designator_index()` as the pattern to copy — including why it is a separate endpoint and how `on_sheet` is derived. |
+| `server/app/main.py`, `server/tests/test_api.py` | The endpoint and its tests; `tests/conftest.py` for the miniature extraction, which now carries a located component, an unlocated one, aliases and a terminal block. |
+| `webui/src/tabs.ts`, `webui/src/tabIds.ts` | How a tab is added, and the no-cycle rule — read both headers before importing anything into anything. |
+| `webui/src/components/DrawingPanel.tsx` | Already answers §12 Q21–Q25 deterministically; the tone and density to match. |
+| `webui/src/stores/appStore.ts` | `selection` and `byToken`. A table raises the first and can resolve labels out of the second rather than refetching. |
+| `webui/src/lib/designators.ts` | `KIND_LABEL`, `suggestedQuestion` and the lookup rules. A table that wants "ask about this" should reuse the question wording, not invent a second one. |
+
+## 2. Highlight the net, on the drawing
+
+`webui_ideas.md` §2's third part, and the direct completion of what just shipped. Selecting net
+`110` currently frames the region and rings the five components it runs through; what it does
+not do is show the copper. `geometry.json` has 149 conductor polylines in the same point space,
+and `paint.ts` already paints in that space — so the drawing side is genuinely small.
+
+**Read this before planning it, because the data does not fully cooperate.** Of the 149
+conductors: 70 carry a `net_label` at all, and only 47 of those match a net id in
+`circuit_logic.json` exactly. Normalising the OCR (`LI-A`→`L1-A`, `OV.`→`0V`, `130.`→`130`,
+`"GND`→`GND`) recovers a handful more; the remaining 79 have no label whatsoever, and some of
+what is labelled is noise (`U`, `YY`, `+4`, `C4E-1`). By length, labelled conductors are about
+15,400 pt of 21,400 — **roughly two thirds of the copper, not all of it.**
+
+That is not a reason to skip the job. It is the reason to design it honestly:
+
+- Highlight what joins, and **say what did not**. "38 of the 71 wires on this net are drawn
+  here" is a true and useful statement; silently lighting up two thirds of a net and letting
+  the reader assume it is all of it is the failure mode this whole project is built against.
+- **Do not synthesise geometry.** Drawing a straight line between two component points because
+  no conductor joined would be inventing a wire route, and the netlist's authority rests on
+  never doing that.
+- Every conductor that will not join is a finding about the extraction, and the list of them is
+  worth having on its own — it is the first real audit of the OCR pass since it ran.
+- Paint the polylines into the canvas, not the DOM. They need no hit-testing, focus or
+  tooltips, and 149 of them as DOM nodes would be the opposite call from the markers for the
+  opposite reason. `MarkerLayer.tsx`'s header states the rule.
+
+### Files to read for this job
+
+| File | Why |
+|---|---|
+| `schematic_extraction/PS20115MLM4-2/extracted_docs/geometry.json` | `pages[0].conductors[]` — `points`, `net_label`, `spec_label`, `color`, `gauge`, `length`. Count the joins yourself before writing any code; the numbers above are the whole risk of this job. |
+| `.../circuit_logic.json` | `nets[]` and `wires[]` — the join target. `wires[]` carries colour, gauge and net, so `spec_label` is a second possible join key where `net_label` is missing. |
+| `server/app/drawing.py` | Where a conductor endpoint belongs, and `designator_index()` as the precedent for deriving geometry server-side rather than shipping 608 KB of raw vector to the browser. |
+| `webui/src/features/drawing/paint.ts` | `tileDestRect` and `pointToCss`. A polyline is the same projection applied to a list of points; there must not be a third. |
+| `webui/src/features/drawing/TileSheet.tsx` | Where the paint happens, and the rAF coalescing a highlight must not fight. |
+| `webui/src/features/drawing/MarkerLayer.tsx` | The DOM-vs-canvas rule, stated in its header with the reasoning. |
+| `webui/src/stores/appStore.ts` | `selection` — already carries `kind: 'net'`. Nothing new is needed in the seam, which is the point of having built it. |
+
+## 3. Render the vector PDF, so zoom does not run out at 400 DPI
+
+**Unchanged from the last two sessions, and still not urgent.** The canvas paints the tiles at
+full device resolution and a 1:1 crop of the source is crisp, so the sheet reads properly. What
+is left is a ceiling: past 100% the viewer is enlarging 400 DPI rasters, and the *Source PDF*
+tab — the browser re-rasterizing 148 KB of vector at whatever zoom you ask for — does not have
+that ceiling.
+
+**The change.** Render the PDF page with pdf.js onto the canvas `TileSheet.tsx` already owns, at
+`viewport.scale × devicePixelRatio`, re-rendering when the zoom settles. Keep the tiles as the
+instant first paint and as the fallback for an extraction with no source PDF beside it, which
+`source_document()` already reports as `null`.
+
+**Nothing above the paint layer changes** — and that now includes the marker overlay and the
+citation seam, both of which project through `paint.ts` and are indifferent to what filled the
+pixels underneath. It is also cheaper than what ships today: 148 KB of vector instead of 2.2 MB
+of PNG, and a viewport-sized bitmap instead of the ~169 MB of decoded raster recorded as a known
+limit — the one thing the canvas did *not* fix, because at fit zoom no tile can be released.
+
+**Two things to know before starting.** This PDF has `has_embedded_text: false` and so yields no
+text layer — still true, still irrelevant to rendering quality. And pdf.js parses in a worker,
+so `CSP_BASE` needs `worker-src 'self' blob:`; nothing else in the policy moves.
+
+### Files to read for this job
+
+| File | Why |
+|---|---|
+| `webui/src/features/drawing/TileSheet.tsx` | Owns the canvas, the paint effect and the rAF coalescing. Its header records why the `<img>` plane became a canvas — context for not undoing any of it. |
+| `webui/src/features/drawing/paint.ts` | A pdf.js render lands as another source in `paintSheet`, not as a parallel code path. |
+| `webui/src/features/drawing/paint.test.ts` | What is currently guaranteed about the projection, including the marker case. Add to it rather than around it. |
+| `webui/src/features/drawing/useTileViewport.ts` | `nativeScale`, `useDevicePixelRatio`, and the `MAX_OVERZOOM` ceiling this job lifts. Note that `focusScale` expresses the citation zoom as a fraction of native, so raising the ceiling changes where a citation lands unless it is rescoped. |
+| `webui/src/features/drawing/DrawingTab.tsx` | The zoom readout, its tooltip and the footer all state the 400 DPI ceiling in words. |
+| `server/app/main.py`, `server/tests/test_api.py` | `CSP_BASE` gains `worker-src`; two tests assert on the CSP string. |
 | `webui/index.html`, `webui/vite.config.ts` | The CSP meta tag is duplicated into the built bundle and must not drift from the server's; the pdf.js worker needs a bundler entry. |
 | `_claude_notes/webui_v1_plan.md` §3.4 | Where the CSP rules come from. Changing them without reading it is how the reasoning gets lost. |
 
-## The two runners-up, and why they are not first
+## The runner-up, and why it is not first
 
-**Deterministic browse and the net explorer** (§4, ranked second in the road map) is the
-strongest competing claim: it is free, instant, and every question it answers is a question
-nobody pays $0.64 for. It does not depend on anything above and could be built in parallel by
-someone else. It is second here only because it does not exploit the surface just built, and
-because the designator index in step 3 is half of its groundwork anyway.
-
-*Files to read:*
-`schematic_extraction/PS20115MLM4-2/extracted_docs/circuit_logic.json` (the whole thing — the
-tables are the feature) and `.../EXTRACTION_NOTES.md`; `server/app/drawing.py` and
-`server/app/main.py` for where deterministic endpoints live; `webui/src/tabs.ts` for how a tab
-is added — one new file plus one array entry, and note the no-cycle rule in its header;
-`webui/src/features/drawing/DrawingTab.tsx` as the worked example of a second tab;
-`webui/src/components/DrawingPanel.tsx`, which already answers §12 Q21–Q25 deterministically
-and shows the register to write in; `_claude_notes/webui_ideas.md` §4 for the feature list and
-§12 of `schematic_skills/references/HowToUseThisSkill.md` for the 71-question bank these
-tables are supposed to displace.
-
-**Extracting `PS10115MLC2-2.pdf` and linking the sheets** (§5) is the biggest capability
-unlock available — it turns *"you cannot tell from this sheet"* about net 130 and `CR-SW` into
+**Extracting `PS10115MLC2-2.pdf` and linking the sheets** (§5) is still the biggest capability
+unlock available — it turns *"you cannot tell from this sheet"* about net `130` and `CR-SW` into
 a real answer, and the PDF has been sitting in `ModLinx/source_docs/` unextracted the whole
-time. It is not recommended first because it is an extraction job rather than a WebUI job:
-step 4 of the skill is deliberately interactive, so it is a session with a human in it, not a
+time. It is not recommended first because it is an extraction job rather than a WebUI job: step
+4 of the skill is deliberately interactive, so it is a session with a human in it, not a
 feature. Worth scheduling as its own piece of work rather than deferring indefinitely.
+
+Note that it has grown a second half since the citation work landed: a second sheet means the
+server serves *two* drawings, and `/api/designators` becomes per-drawing — as does `selection`,
+which would need to say *which* sheet it points at. Cheap to do now, expensive to retrofit after
+a third consumer of the seam exists.
 
 *Files to read:*
 `schematic_skills/references/HowToUseThisSkill.md` **first and in full** — §2.1 the artifact

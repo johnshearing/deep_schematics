@@ -10,7 +10,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { overlaps, paintSheet, tileDestRect, type PaintTile } from './paint'
+import { overlaps, paintSheet, pointToCss, tileDestRect, type PaintTile } from './paint'
 
 /** The real sheet: 1224×792 pt rendered at 400 DPI into a 4×4 grid. */
 const SHEET = { width: 1224, height: 792 }
@@ -64,6 +64,27 @@ describe('tileDestRect', () => {
     const dest = tileDestRect([10, 20, 110, 70], { x: 5, y: 7, scale: 2 }, 2)
     // scale × dpr = 4 device px per point.
     expect(dest).toEqual({ x: 5 * 2 + 10 * 4, y: 7 * 2 + 20 * 4, w: 400, h: 200 })
+  })
+})
+
+describe('pointToCss', () => {
+  it('lands a marker on the same spot as the tile under it, at any density', () => {
+    // The property that matters is agreement with `tileDestRect`, not the numbers themselves:
+    // a marker that computes its own projection can drift off the drawing it annotates.
+    const viewport = { x: 37.4, y: -12.9, scale: 1.3 }
+    for (const dpr of [1, 2, 3]) {
+      const marker = pointToCss([861, 679], viewport, dpr)
+      const tile = tileDestRect([861, 679, 900, 700], viewport, dpr)
+      expect(marker.left).toBeCloseTo(tile.x / dpr, 6)
+      expect(marker.top).toBeCloseTo(tile.y / dpr, 6)
+    }
+  })
+
+  it('is in CSS pixels, because `left` and `top` are', () => {
+    // Same viewport, twice the density: the device-pixel origin doubles and the CSS one does
+    // not. Getting this backwards puts every marker at twice its offset on a retina display.
+    expect(pointToCss([100, 50], { x: 0, y: 0, scale: 2 }, 1)).toEqual({ left: 200, top: 100 })
+    expect(pointToCss([100, 50], { x: 0, y: 0, scale: 2 }, 2)).toEqual({ left: 200, top: 100 })
   })
 })
 

@@ -153,6 +153,11 @@ touching the code:
 - **Everything free is answered for free.** `/api/drawing` serves the title block, notes,
   references and counts straight from `circuit_logic.json`, answering a chunk of the §12
   question bank before anyone spends a token.
+- **The answer and the drawing point at each other.** Every identifier an answer cites in
+  backticks — `CR-BP`, `110`, `W048` — is a button that flies the Drawing tab to it, and every
+  component with a location is a marker that says what it is and offers the question back. The
+  clickable set is an allowlist served by `/api/designators`, never a pattern over model
+  output: if the server did not publish the id, the span stays plain text.
 - **The login is one line of `.env`.** `SWUI_DEMO_PASSWORD` turns on the button in the header;
   it is not compiled into the frontend and appears nowhere else. But the password alone does
   not close the server — `SWUI_ANONYMOUS_MODELS` decides what a stranger gets *without* it, and

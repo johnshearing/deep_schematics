@@ -42,10 +42,26 @@ const QUESTIONS = {
   ],
 }
 
+const DESIGNATORS = {
+  drawing_number: 'PS20115MLM4-2',
+  counts: { component: 1 },
+  located: 1,
+  entries: [
+    { id: 'CR-BP', kind: 'component', label: 'relay — Run bypass relay.', on_sheet: true,
+      members: ['CR-BP'], point: [861, 679], rect: [861, 679, 861, 679] },
+  ],
+}
+
 function stubFetch(drawing: object = DRAWING) {
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
-    const body = url.endsWith('/health') ? HEALTH : url.endsWith('/drawing') ? drawing : QUESTIONS
+    const body = url.endsWith('/health')
+      ? HEALTH
+      : url.endsWith('/drawing')
+        ? drawing
+        : url.endsWith('/designators')
+          ? DESIGNATORS
+          : QUESTIONS
     return new Response(JSON.stringify(body), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     })

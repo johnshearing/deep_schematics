@@ -53,6 +53,24 @@ export function tileDestRect(
   }
 }
 
+/**
+ * A point in PDF space, in **CSS** pixels — what a DOM overlay needs.
+ *
+ * Deliberately routed through `tileDestRect` rather than repeating `point × scale + offset`.
+ * There must be exactly one projection in this application: the moment a marker computes its
+ * own, it can disagree with the tile under it, and a marker half an inch off the component it
+ * names is worse than no marker. The `/ dpr` at the end is the only difference between the two
+ * — the canvas is measured in device pixels and `left`/`top` are not.
+ */
+export function pointToCss(
+  point: readonly [number, number],
+  viewport: Viewport,
+  dpr: number,
+): { left: number; top: number } {
+  const dest = tileDestRect([point[0], point[1], point[0], point[1]], viewport, dpr)
+  return { left: dest.x / dpr, top: dest.y / dpr }
+}
+
 export function overlaps(a: DeviceRect, b: DeviceRect): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 }
