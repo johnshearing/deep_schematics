@@ -8,6 +8,377 @@ Scope is the whole repository: the extraction skill, the server, the WebUI and t
 `webui_ideas.md` is the road map (where we are going), `webui_v1_plan.md` is the v1 design
 (why the server looks the way it does), and this file is the record of what actually landed.
 
+**One exception to "newest first": the very first section is forward-looking.** `NEXT UP — Job
+B, attempt 2` is the plan for the work in progress, written to stand alone so a new session can
+start from it and nothing else. Everything after it is history. When that work lands, it becomes
+a dated entry like the rest and the section goes.
+
+---
+
+## NEXT UP — Job B, attempt 2: the Locate editor
+
+**This section is the plan, not the record. It is written to be the only thing a new session
+needs to read before starting. Everything below it is history.**
+
+Attempt 1 of Job B was rejected by the user on 2026-08-15 and is archived, unmerged, on the
+local branch `job-b-attempt-1`. Read *What attempt 1 got wrong* before writing any code; the
+rejection was architectural, not a matter of bugs, and a second attempt that does not
+understand why will rebuild the same thing.
+
+### State of the repository, verified 2026-08-15
+
+    main          6e9276e, unchanged, tracks origin/main. NOTHING HAS BEEN PUSHED.
+                  Uncommitted in the working tree, all accepted and all green:
+                    Job A       server/app/prompts.py, server/tests/test_invocation.py
+                    fault 4     webui/src/features/drawing/MarkerLayer.tsx
+                                webui/src/features/drawing/DrawingTab.test.tsx
+                  plus these notes.
+    job-b-attempt-1   beb85a7  Job A alone, so it can be restored independently
+                      7003dfb  Job B attempt 1 — NOT ACCEPTED. Study only. Local only.
+
+- Tests on `main` right now: **67 server**, **59 web**; `ruff` and `tsc -b` clean.
+- **`server/app/static/` is gitignored.** Git cannot roll the built bundle back, so after any
+  checkout that changes the client, run `npm run build` or the server serves stale JavaScript.
+  This bit once already.
+- The remote is the last known-good state. Do not push until Job B attempt 2 works and the
+  user says so.
+
+### The four reported faults, and their real status
+
+| | Fault | Status on `main` |
+|---|---|---|
+| 1 | `TB-PB2SP`'s dot on the wrong conductor — authored (196, 382), actual row y = 348.3 | **open** |
+| 2 | Selecting `CR-ON:A2` labels the marker `CR-ON` and puts it where `CR-ON:A1` is | **open** — `DrawingTab.tsx:68`, `entry?.kind === 'component' ? entry.id : null`. That ternary *is* the fault |
+| 3 | `CR-SW:14` flies to the coil at (861, 704); the contact is drawn at (569, 473) | **open** |
+| 4 | A labelled marker's dot does not sit on its own point | **FIXED 2026-08-15**, uncommitted on `main`, done independently of Job B |
+
+**Fault 4 is done and needs no further work.** It was fixed on its own because the fix is pure
+DOM structure with no drawing-specific logic in it, so it had no reason to wait for the editor:
+the *button* is now the dot (no flex, no gap), so its two translations centre the dot on the
+point, and the label is absolutely positioned inside it through a new `LABEL_SIDE` constant,
+contributing nothing to the button's size. The label stays inside the button so it remains a hit
+target and the marker keeps one focusable half. `LABEL_SIDE` is east-only on purpose — when a
+per-point side arrives from the Locate editor it becomes an eight-way lookup and nothing else in
+that file changes. Seven unused directions were not written.
+
+Pinned by `anchors the dot on the point, so a label cannot drag it sideways` in
+`DrawingTab.test.tsx`, lifted from `7003dfb`. That test was verified to **fail** against the old
+flex-row structure before being kept — jsdom does no layout, so it asserts the mechanism (the
+button's box is the dot's box; the label is out of flow and cannot contribute to it) rather than
+a measured offset.
+
+Note for anyone reading older screenshots: fault 4 made *every* labelled dot look misplaced, and
+it is a different cause from the misplacement the user complained about in attempt 1. Do not
+conflate them. Faults 1, 2 and 3 remain open and are the editor's job.
+
+### What attempt 1 got wrong — the learning, in the user's words and mine
+
+Attempt 1 built `locations.json` plus a server-side derivation engine (`derive.py`,
+`scripts/seed_locations.py`) that proposed and ranked coordinates from two kinds of evidence.
+All 101 of its tests passed. It was still the wrong thing, for five reasons.
+
+**1. It was fitted to this one drawing.** Every constant in it traces to a fault observed on
+`PS20115MLM4-2`: the 45 pt limit past which a candidate is reported but not written, the 60 pt
+radius inside which a derived site suppresses the authored one, the refusal to net-project
+contact-function pins on a component that also has coil pins (which exists only because
+`CR1:11` landed 400 pt away at the coil), and exact-text-only OCR matching (whose stated reason
+is that *this* OCR reads `A1` as `AL` and `CR1` as `CRI`). On a second sheet — different hand,
+different row pitch, different OCR failures — not one of those numbers is justified and the
+exclusion rules may be silently wrong. **The goal is a library of many drawings; the test any
+design must pass is whether it survives drawing number two. This failed that test.**
+
+**2. A mediocre guesser makes work rather than saving it.** Screening the 41 located components
+against every wire endpoint, terminal dot and junction in `geometry.json` gives a median
+distance of **11 pt, with 17 over 15 pt and 10 over 25 pt** — on a sheet whose conductor rows
+are **16 pt apart**. So the machine's accuracy is roughly a coin flip on *which row*, which is
+the only thing that matters. A human must then audit every proposal instead of placing every
+point, which costs about the same per point and costs *more* when a proposal is confidently
+wrong, because first you have to notice that it is. A derived tier only pays if accuracy is very
+high or confidence is well calibrated. This was neither.
+
+**3. It made some dots worse, which was its whole justification.** `resolve_geometry`'s
+precedence meant a terminal that used to borrow a reasonable parent point could instead inherit
+a *derived site* that was further away, and `MarkerLayer` drew one dot per place — so a
+component that picked up a spurious second site got a spurious second dot. Adding a guessing
+layer added wrong dots. That is not a bug in it; it is what a guessing layer does.
+
+**4. Guessing belongs at index time, once.** The extraction's vision pass already produced
+`components[].location`. **That is the guess** — made by the thing actually looking at the
+pixels, at the one moment a human is already in the loop, since step 4 of the extraction skill
+is deliberately interactive. `derive.py` was a *second*, independent guessing stage, in a
+different language of evidence, living in the server, running long after the drawing was read,
+and unable to see the drawing at all. Two guessers with different owners and different failure
+modes. The user's rule, and it is the right one: **Claude gets its one chance to guess when the
+schematic is indexed; after that a human owns the positions.**
+
+**5. It built the accelerator and shipped it without the thing it accelerates.** The deliverable
+was always the editor (Job C in `drawing_fixes_plan_01.md`). Attempt 1 delivered 14 files of
+data plumbing and derivation and no editor, which is why the user's reaction was "much more
+complicated with many unnecessary files and scripts." **Effort belongs in making placement fast,
+not in guessing well.** 131 terminals at three seconds a click is under seven minutes. A fast
+editor beats a good guesser outright, and it never lies to you.
+
+### What to build in attempt 2
+
+One thing: **the editor the user described.** "A list of all indexed components and wires that
+lets me place dots and labels in the correct position, and lets me drag misplaced dots and
+labels to their correct positions."
+
+1. **A `Locate` tab** — `webui/src/features/locate/`, added to `tabs.ts`. `DrawingTab.tsx` is
+   the worked example of a second tab; read `tabIds.ts`'s no-cycle rule first.
+2. **A list of every indexed designator**, with a placed/unplaced state and a coverage count.
+   The index is 275 entries: 47 components, 131 terminals, 26 nets, 71 wires. **Only components
+   and terminals need a point.** A wire's geometry is its two endpoint terminals and a net's is
+   its members, so they are computed, never placed — placing terminals gives all 71 wires their
+   positions for free. Show them in the list anyway so the user can see and verify the result,
+   but marked as derived-from-endpoints, not as work to do.
+3. **Click to place. Drag to correct.** Drag was missing from the original Job C design and the
+   user is right that it is the obvious gesture for a dot that is visibly in the wrong spot.
+   Keyboard advance so a run of placements never needs the mouse to leave the sheet.
+4. **`locations.json` as the second authored file**, human-owned. The authored/generated rule,
+   already agreed with the user:
+
+        AUTHORED    author_circuit_logic.py   netlist: what connects
+                    locations.json            geometry: where it is drawn (human + editor)
+                              ↓ python author_circuit_logic.py
+        GENERATED   circuit_logic.json, custom_kg.json
+
+5. **Provenance with three states and no fourth**: `confirmed` (a human placed it), `seed` (the
+   extraction's own vision estimate, never dressed up as knowledge), `parent` (a terminal shown
+   at its component's point, always flagged). There is no `derived`, because nothing derives.
+   The UI must draw unconfirmed points differently from confirmed ones — nobody should be told
+   we know where `CR-BP:12` is while being shown an estimate.
+6. **Sites, kept.** `CR-BP` is drawn **three** times on this sheet (coil, `11`/`12` NC contact,
+   `21`/`24` NO contact), so component shape is per-drawing data and any fixed "coil + contact"
+   schema is wrong on arrival. A component has N sites; each site claims specific pins, and
+   **that assignment is explicit and human, never inferred from a pin's `function`** — `CR-BP`
+   has two terminals whose function is `common` (`11` and `21`) at different sites.
+7. **The editor behind its own password.** The user's requirement, and the reasoning is theirs:
+   permission to spend tokens and permission to edit the drawing are different permissions.
+   `editor_password` and an off-by-default `allow_edits` in `config.py`; with `allow_edits`
+   false the routes are **never registered**; `/api/health` publishes
+   `editing: {enabled, password_required}`; `POST /api/editor/unlock` mirrors `/api/unlock` at
+   the same `5/minute`, scope in memory only; `PUT /api/locations` requires that scope, is
+   whole-file and atomic (`os.replace`), and is refused if `drawing_number` disagrees.
+8. **Two things that will bite if forgotten.** `load_locations` is `lru_cache`d, so the writer
+   **must** call `load_locations.cache_clear()` or it saves a point and is handed back the old
+   one. And after a write, `circuit_logic.json` is stale until `author_circuit_logic.py` is
+   re-run — show a banner; do not run Python from the UI.
+9. **Validate per field, and publish what was refused.** One typo costs that field, not the
+   drawing, and everything refused lands in a `problems` list the UI shows. A coordinate a human
+   typed and the server silently ignored is the worst outcome available here.
+10. **Reuse the one projection.** `useTileViewport`, `TileSheet`, `paint.ts`'s `pointToCss` and
+    `MarkerLayer`. There is one projection in this application and this must not add a second.
+11. **Fold in fault 2** (fault 4 is already fixed) — a dedicated selection marker at the
+    selection's own point labelled `entry.id`, replacing the `DrawingTab.tsx:68` ternary, so
+    `CR-ON:A2` reads `CR-ON:A2` instead of borrowing its parent's marker. Faults 1 and 3 are
+    fixed by the editor itself: they are wrong coordinates, and a human placing points is the
+    fix. Do not chase them in code.
+
+### What not to build, and why each one is here
+
+- **No `derive.py`, no `seed_locations.py`, no ranking, no 45 pt or 60 pt thresholds, no
+  net projection, no printed-label matching.** This is the whole point of attempt 2.
+- **No fuzzy text matching, ever** — but note the corollary: since nothing is being matched
+  automatically, this simply does not arise. Do not reintroduce the machinery in order to
+  reintroduce the rule.
+- **Do not synthesise geometry.** Drawing a straight line between two component points because
+  no conductor joined would be inventing a wire route, and the netlist's authority rests on
+  never doing that.
+- **Do not infer a pin's site from its `function`.** See §6 above.
+- **No client-side pattern-matching of prose for identifiers.** `Citation.tsx`'s
+  allowlist-not-pattern rule is load-bearing: `W999` has the exact shape of a wire id and must
+  stay inert. Aliases here include English phrases ("switch relay", "run bypass relay"), three
+  of them already ambiguous between two components.
+- **Do not run `npx prettier`.** There is no prettier config, so it reformats to double quotes
+  and semicolons, against the house style. It happened once and was reverted.
+
+### What is worth salvaging from `7003dfb`, and what is not
+
+Read the branch diff rather than rebuilding blind. Worth taking:
+
+- ~~The **fault 4 anchoring fix** in `MarkerLayer.tsx`~~ — **already taken**, 2026-08-15. It is
+  on `main` (uncommitted) with its test. Do not take it twice.
+- `locations.py`'s **format, per-field validation and `problems` list**, and `resolve_geometry()`
+  as the single place that decides where anything is — with the `derived` tier deleted.
+- The **`places[]` / `sites[]` model** in `drawing.py`'s `designator_index()`, including
+  `placement`, and the rule that `places` is omitted when there is only one (269 of 275
+  entries). Also: nets and wires frame their *terminals*, not the components those sit on.
+- Refusing a `locations.json` written for a different page size **whole**, rather than applying
+  it at an offset.
+- `placesOf()` in `webui/src/lib/designators.ts` — read geometry through it, never read
+  `places` directly — and `MarkerLayer` drawing one dot per place, keyed `${id}@${site}`,
+  restricted to confirmed places so no spurious dots appear.
+- `author_circuit_logic.py` folding points into `components[].location`, `components[].sites[]`
+  and `terminals[].location`, leaving a terminal with **no** location when nothing is confirmed
+  rather than handing it its parent's — "somewhere on `CR-ON`" and "on `CR-ON:A2`" are different
+  claims, and the server does that substitution at read time and labels it.
+- `test_extraction_generator.py`'s **byte-identical regeneration** check: with no
+  `locations.json`, `circuit_logic.json` comes out identical to the committed one. Cheap, and it
+  is what guarantees generated files stay fully generated.
+
+Not worth taking: `derive.py`, `seed_locations.py`, `test_derive.py`, and the seeder half of
+`test_locations.py`.
+
+### Files to read before starting
+
+| File | Why |
+|---|---|
+| `_claude_notes/drawing_fixes_plan_01.md` | The approved six-job plan (A–F). Job C is the editor and is what attempt 2 actually is; Job E and Job F are below. Its Job B section is superseded by this one. |
+| `git show 7003dfb --stat`, then the diffs that matter | Attempt 1. Read the salvage list above and go straight to those files; do not read it all. |
+| `server/app/drawing.py` | `designator_index()` — where geometry is resolved and published, and the precedent for deriving server-side rather than shipping raw vector. Also the four `on_sheet` constants that must change together with `prompts.py`. |
+| `server/app/config.py`, `server/app/main.py` | The single `drawing_dir` knob; where `allow_edits`/`editor_password` and the new routes go; `/api/unlock` as the pattern to mirror; `CSP_BASE`. |
+| `webui/src/features/drawing/DrawingTab.tsx` | Line 68 is fault 2. Also the worked example of a tab, and the toolbar/viewport composition to reuse. |
+| `webui/src/features/drawing/MarkerLayer.tsx` | Line 72 is fault 4. Its header states the DOM-vs-canvas rule and the reasoning: markers need hit-testing, focus and tooltips; 149 conductor polylines do not and are cheaper painted. |
+| `webui/src/features/drawing/paint.ts`, `useTileViewport.ts` | `pointToCss`, `panTo`, `focusScale`, `centreOn`. The one projection, and how a row in a list flies the sheet to a point. |
+| `webui/src/tabs.ts`, `webui/src/tabIds.ts` | How a tab is added, and the no-cycle rule. Read both headers before importing anything into anything; this project has already lost an evening to an import cycle that produced a blank screen with no error. |
+| `webui/src/stores/appStore.ts` | `selection` — `{kind, id, origin, nonce}`. A list row raises `origin: 'text'` and the viewer flies to it; a click on the sheet raises `origin: 'drawing'` and it deliberately does not fly. |
+| `webui/src/lib/designators.ts` | `placesOf`, `KIND_LABEL`, `suggestedQuestion`, and the two lookup rules the real extraction forces: ids beat aliases, and an alias two components both claim is dropped rather than arbitrated. |
+| `schematic_extraction/PS20115MLM4-2/extracted_docs/author_circuit_logic.py` | The authored netlist, and where `locations.json` gets folded in. Corrections belong here and never in the JSON. |
+| `server/tests/conftest.py` | The miniature extraction the server tests run against: a located component, an unlocated one, aliases, a terminal block. |
+
+Do **not** read `geometry.json` (608 KB) or `circuit_logic.json` in full unless a specific
+question needs them; a single read of `geometry.json` costs roughly 150,000 tokens, which is
+about 300 full test runs. The measurements this section quotes were taken from it already.
+
+### Verification, in one command
+
+    cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
+      cd ../webui && npx vitest run; npx tsc -b --noEmit
+
+Semicolons, not `&&`, so one failure does not hide the state of the other three. Keep `-q`:
+verbose pytest prints a line per test and costs nine times as much output for no information
+when everything passes. A full green pass costs about 500 tokens of output — effectively free,
+and far cheaper than finding a break three edits later. Run `npm run build` once at the end,
+because it writes into the gitignored `server/app/static/`.
+
+A running server does not pick any of this up: `python -m app` has no reloader.
+
+**Still unverified by machine, and the reason to look before building more:** that `CR-ON:A2`
+lands on A2 and `CR-SW:14` on the contact **in a browser**. There is no browser automation in
+this environment.
+
+### The two jobs after this one
+
+- **Job E** — `TB-PB2SP` placed by hand as the first `confirmed` entry, at (154.5, 348.3): the
+  terminal dot on the `PB2-SP` conductor, which is the point the user's screenshot identified.
+  That is human authority. `TB-PB1SP` and the other screened candidates are **not** edited blind.
+- **Job F** — teach `schematic_skills` to emit a seed `locations.json` per new drawing and to
+  say in `SKILL.md` that the authored tier is two files. This is the part that makes drawing
+  number two cheap, and it is the whole point of the library goal.
+
+---
+
+## 2026-08-14 / 15 — Job A accepted; Job B attempt 1 rejected and archived
+
+**This entry replaces an earlier one that claimed Job A and the fault 4 anchoring fix were
+committed in `6e9276e`. Both claims were false — that commit touches neither `prompts.py` nor
+`test_invocation.py`, and the anchoring fix was inside Job B's uncommitted `MarkerLayer.tsx`
+diff. Checked against `git show`, not against the note. A commit claim in this file is worth
+verifying before relying on it.**
+
+Three faults were reported against the entry below, and investigating them found a fourth; all
+four are tabulated in the section above, along with what is still open. Fault 1 was not a
+one-off — the vision pass's coordinates are approximate everywhere, and on a sheet whose
+conductor rows are 16 pt apart, approximate means "wrong row".
+
+### The decision that shaped everything, and it was the user's
+
+Asked whether to derive the positions better, the user said a **human should confirm every
+point**, in a purpose-built screen, because the goal is a library of many drawings and a derived
+point is a guess with no owner. They also required the editor to sit behind **its own password**
+— permission to spend tokens and permission to edit the drawing are different permissions — and
+corrected a wrong assumption of mine: `CR-BP` is drawn *three* times, so component shape is
+per-drawing data and any fixed "coil + contact" schema is wrong on arrival.
+
+They also asked how a second geometry file squares with the project's original rule that
+`author_circuit_logic.py` is the only hand-edited file. Resolution: **there are now two authored
+files**, and the generator reads the second one, so generated files stay fully generated.
+
+### Job A — accepted, green, uncommitted on `main`
+
+**Prose linking fixed at the cause, in `prompts.py`.** The reported answer said *"CR-ON's coil
+(A1/A2)"*, which the old prompt permitted: it listed `A1`, `A2`, `11`, `14` as printed and said
+printed ids "may be cited bare". Nothing there is clickable, because the viewer links a citation
+only when it is a backticked identifier it can find in the drawing index.
+
+Two rules were added to the Citation section: every terminal is written `` `PARENT:PIN` ``,
+never a bare pin (this drawing has five terminals named `A1`, six named `11` and **thirty-one
+named `1`**), and a component is backticked the first time a sentence names it. The prompt says
+*why* — a backticked identifier is what the reader clicks — because a rule the model does not
+understand is one it drops under pressure. One contradiction had to be fixed at the same time:
+"may be cited bare" now reads "without the description — but still in backticks".
+`test_terminals_must_be_cited_with_their_component` in `test_invocation.py` pins all four
+strings, counts included, so a change to the extraction that moves those numbers fails there
+rather than quietly weakening the argument.
+
+**Not done and worth noting:** `PROMPT_VERSION` was not bumped, though the comparable prompt
+edit on 2026-08-10 bumped it to `v1.1`. Decide that when Job A is committed.
+
+### Job B attempt 1 — rejected, archived on `job-b-attempt-1` at `7003dfb`
+
+Built: `locations.json` with validation and `resolve_geometry()`, a `places[]`/`sites[]` model on
+`designator_index()`, client-side `placesOf()` and one-dot-per-place, `author_circuit_logic.py`
+folding points in, and — the part that was rejected — `derive.py` plus
+`scripts/seed_locations.py`, which proposed and ranked coordinates from net projection and
+printed-label matching. 101 server tests and 63 web tests, all green, `ruff` and `tsc` clean.
+
+The user rejected it on architectural grounds, not for failing its tests. The five reasons are
+set out in full in the section above and should be read there; in short: it was fitted to one
+drawing, an 11 pt median error on a 16 pt row pitch converts human work rather than saving it,
+it moved some dots further from their components, guessing belongs at index time rather than in
+the server, and it delivered the accelerator without the editor it was meant to accelerate.
+
+Two bugs the real drawing caught during that attempt, recorded because they are evidence for the
+rejection rather than problems to fix: `CR1:11` was proposed at its coil, 400 pt wrong, because
+net `0V` passes nearby; and `CR-SW`'s remote-only proposal deleted its main block, which is the
+reported fault inverted. Both needed a special-case rule to suppress, and both rules were
+particular to this sheet.
+
+### The rollback, 2026-08-15
+
+Branched `job-b-attempt-1` off `main`, committed Job A alone as `beb85a7` so it could be
+restored independently, then committed Job B and these notes as `7003dfb` with the rejection
+recorded in the commit message. Returned to `main` and restored Job A's two files. Job B's six
+new files left the working tree with the branch switch — they were tracked on the branch, so no
+`git clean` was needed and nothing was unrecoverable at any point. **The archive commit is what
+made every later step reversible; uncommitted work is the one state git cannot recover.**
+
+`main` verified after the rollback: 67 server tests, 58 web tests, `ruff` and `tsc` clean.
+`main` is still at `6e9276e` and `origin/main` has not moved. **Nothing was pushed, at the
+user's instruction: the remote is the last chance to reach a working state.**
+
+### Fault 4 restored on its own, after the rollback
+
+The rollback re-opened fault 4, because the anchoring fix had been sitting inside Job B's
+uncommitted `MarkerLayer.tsx` diff rather than in `6e9276e` where the old entry claimed it was.
+It was then restored **by itself**, on the argument that it is pure DOM structure with no
+drawing-specific logic in it and therefore had no reason to wait for the editor. Only the
+anchoring change was taken from `7003dfb`; Job B's `placesOf` flattening, per-place keying and
+placement states were deliberately left on the branch. Details are in the fault table at the top.
+
+Worth keeping as a working habit: the test was verified to fail against the old structure before
+being kept. A regression test that has never seen the bug red is an assertion, not a test — and
+here it cost one scripted patch-and-revert to establish, on a fix whose whole symptom is
+invisible without layout. `main` after it: **67 server, 59 web**, `ruff` and `tsc` clean, bundle
+rebuilt.
+
+One trap worth not rediscovering: **`server/app/static/` is gitignored**, so the built bundle
+still held Job B's JavaScript after the rollback and git could not revert it. Rebuilt with
+`npm run build`.
+
+### Measured on PS20115MLM4-2, and still true regardless of Job B
+
+- 47 components and 131 terminals; `/api/designators` publishes 275 entries (47 components, 131
+  terminals, 26 nets, 71 wires), 269 with a point, ~57 KB.
+- Screening the 41 located components against every wire endpoint, terminal dot and junction in
+  `geometry.json`: median distance **11 pt**, **17 over 15 pt**, **10 over 25 pt**. Conductor
+  rows are **16 pt apart**.
+- Six ids have no point at all: the two off-page machines and the four referenced drawings.
+  `TB-L1`, `CB1`, `TB-0V`, `TB-IINSP1` and `TB-IINSP2` are the components hardest to place.
+- `TB-PB2SP`'s correct terminal dot is at (154.5, 348.3) — the row the user's green arrow
+  pointed at, identified from their screenshot.
+
 ---
 
 ## 2026-08-12 — The answer and the drawing point at each other
@@ -547,6 +918,11 @@ recommendation and gets rewritten, not appended to. The previous job 1 was "make
 the drawing point at each other"; it is done, and the entry at the top of this log records it.
 The previous job 2 (render the vector PDF) is unchanged and has been demoted to job 3, because
 two things now stand in front of it.*
+
+**Read `NEXT UP — Job B, attempt 2` at the top of this file first. The Locate editor comes
+before every job listed here** — the three jobs below all present ids and fly the sheet to
+them, and all three are worth less while the points they fly to are unconfirmed estimates.
+Nothing in this section is stale, but none of it is next.
 
 ## 1. Deterministic browse: the net explorer and the tables
 

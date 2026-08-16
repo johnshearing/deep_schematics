@@ -12,6 +12,18 @@
  * here would eventually disagree with the tiles, and a marker half an inch off the component it
  * names is worse than no marker at all.
  *
+ * **The dot is the anchor, and the label hangs off it.** This used to be one flex row — dot then
+ * label — centred on the point, which meant the *dot* sat half a label's width to the left of the
+ * thing it marked: it moved when labels appeared at the 30% zoom threshold, and it moved further
+ * for a longer id (`TB-PB2SP` about 28 CSS px, `PB2` about 12). It was wrong by a whole conductor
+ * row at moderate zoom — rows on this sheet are 16 pt apart — and it produced a memorable false
+ * positive: `CR-ON`'s marker appeared to be sitting exactly on terminal A1, which was really the
+ * coil-centre point displaced left by the width of the word "CR-ON". Correct by accident. So the
+ * button *is* the dot, centred on the point by the only two translations in this file, and the
+ * label is absolutely positioned inside it, contributing nothing to its size. The label stays
+ * part of the button rather than becoming a sibling because it is a useful hit target and a
+ * marker should not have two focusable halves.
+ *
  * The layer itself is `pointer-events-none` so dragging the sheet still works between markers,
  * and each marker turns them back on for itself. Pointer events are stopped at the marker
  * rather than allowed to bubble, so pressing one never starts a pan — the container captures
@@ -22,6 +34,15 @@ import type { Designator } from '@/api/types'
 import { cn } from '@/lib/utils'
 import { pointToCss } from './paint'
 import type { Viewport } from './useTileViewport'
+
+/**
+ * Where the label sits relative to the dot. East, always, for now — the emptiest side is a
+ * property of the drawing and not of the marker, so it should arrive per point from the Locate
+ * editor's `locations.json` rather than be guessed here. When it does, this constant becomes a
+ * lookup on eight compass points and nothing else in this file changes. Seven unused directions
+ * are deliberately not written yet.
+ */
+const LABEL_SIDE = 'absolute top-1/2 left-full ml-1.5 -translate-y-1/2'
 
 interface Props {
   /** Components with a location. Anything without one is citable but has nowhere to sit. */
@@ -69,8 +90,10 @@ export function MarkerLayer({
             onDoubleClick={(event) => event.stopPropagation()}
             onClick={() => onSelect(entry)}
             className={cn(
-              'pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 items-center',
-              'gap-1 rounded-full focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]',
+              // No flex, no padding, no gap, nothing but the dot: the button's box is the dot's
+              // box, so these two translations put the dot itself on `point`.
+              'pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 rounded-full',
+              'focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]',
               'focus-visible:outline-none',
             )}
           >
@@ -88,6 +111,7 @@ export function MarkerLayer({
             {(showLabels || selected || related) && (
               <span
                 className={cn(
+                  LABEL_SIDE,
                   'rounded px-1 py-px font-mono text-[10px] leading-tight whitespace-nowrap',
                   // Its own background, because it sits over black line art on white paper and
                   // has to be legible against both.

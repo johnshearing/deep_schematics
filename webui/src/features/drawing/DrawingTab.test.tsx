@@ -166,6 +166,32 @@ describe('DrawingTab', () => {
     expect(screen.queryByRole('button', { name: /^UPSTREAM-MACHINE —/ })).toBeNull()
   })
 
+  it('anchors the dot on the point, so a label cannot drag it sideways', () => {
+    // The bug this pins was invisible to the assertion above: the marker's `left` was always
+    // the projected point, but the button was a flex row of dot *then* label centred on it, so
+    // the dot itself sat half a label's width to the left — further for a longer id, and it
+    // moved when labels appeared at the 30% threshold. jsdom does no layout, so what is
+    // asserted is the mechanism: the button's box is the dot's box, and the label is out of
+    // flow and therefore cannot contribute to it.
+    render(<DrawingTab />)
+    activate()
+
+    const dot = marker('CR-BP')
+    expect(dot.style.left).toBe('558px')
+    expect(dot.className).toContain('-translate-x-1/2')
+    expect(dot.className).not.toMatch(/\bflex\b|\bgap-/)
+    expect(dot.querySelectorAll('span')).toHaveLength(1)
+
+    // Selecting it makes the label appear regardless of zoom — the case that used to move the
+    // dot. It must not move, and the label must be positioned out of the button's flow.
+    fireEvent.click(dot)
+    const spans = marker('CR-BP').querySelectorAll('span')
+    expect(spans).toHaveLength(2)
+    expect(spans[1].textContent).toBe('CR-BP')
+    expect(spans[1].className).toContain('absolute')
+    expect(marker('CR-BP').style.left).toBe('558px')
+  })
+
   it('clicking a marker says what it is without moving the sheet', () => {
     render(<DrawingTab />)
     activate()

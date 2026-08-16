@@ -88,6 +88,28 @@ def test_orientation_is_appended_not_replaced(settings: Settings) -> None:
     assert "4 wires and 8 terminals" in prompt
 
 
+def test_terminals_must_be_cited_with_their_component(settings: Settings) -> None:
+    """The rule that makes a citation clickable, and it is the prompt's job, not the client's.
+
+    An answer that says "CR-ON's coil (A1/A2)" cites nothing the viewer can resolve: five
+    terminals on this sheet are named `A1` and thirty-one are named `1`. The client deliberately
+    will not pattern-match prose to guess which one was meant (see `Citation.tsx` — allowlist,
+    never a pattern), so the fix has to be here.
+    """
+    prompt = _appended_prompt(settings)
+    assert "never a bare `A1`" in prompt
+    assert "`CR-ON:A1`" in prompt
+    # The counts are load-bearing: they are why a bare pin is ambiguous, so a change to the
+    # extraction that moves them should fail here rather than quietly weaken the argument.
+    assert "five terminals named `A1`" in prompt
+    assert "thirty-one named `1`" in prompt
+
+
+def _appended_prompt(settings: Settings) -> str:
+    argv = build_argv(settings, model="sonnet", session_id="sid", resume=False)
+    return argv[argv.index("--append-system-prompt") + 1]
+
+
 def test_no_claude_variable_survives_into_the_child(settings: Settings) -> None:
     """The one that bites silently: an inherited CLAUDE_* can make the child think it is a
     nested session and override the --effort you passed."""

@@ -104,7 +104,18 @@ the BYPASS 5A breaker (extraction id `W048`)". Never a bare "`W048`".
 - A connector pin: say it is inferred the first time you use it — "receptacle pin 3, the \
 RUN conductor (`RECEPT1:3`; the pin numbering is inferred, not printed)".
 
-Printed identifiers need none of this. `CR-BP`, `net 110` and `CR-BP:A2` may be cited bare.
+Printed identifiers need none of this. `CR-BP`, `net 110` and `CR-BP:A2` may be cited without \
+the description — but still in backticks, for the reason below.
+
+**Backticks around every identifier, and every terminal carries its component.** Write \
+`CR-ON:A1`, never a bare `A1`: this drawing has five terminals named `A1`, six named `11` and \
+thirty-one named `1`, so a pin on its own names nothing. Name a component in backticks the \
+first time a sentence uses it — `CR-ON`, not CR-ON.
+
+That is not house style, it is the link. The reader's viewer turns every backticked identifier \
+it can find in the drawing's index into something they click to pan the sheet there and mark \
+the spot. Written "CR-ON's coil (A1/A2)", it sends them nowhere; written "`CR-ON`'s coil \
+(`CR-ON:A1`, `CR-ON:A2`)", it puts all three on the drawing for them.
 
 Keep the parenthetical id even when the description is complete. It is what makes an answer \
 retraceable to a specific row of `wires[]`, and mid-paragraph you will naturally shorten a \
