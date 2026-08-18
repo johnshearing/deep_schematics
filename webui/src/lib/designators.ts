@@ -10,7 +10,21 @@
  * awkward place to assert against.
  */
 
-import type { Designator, DesignatorIndex } from '@/api/types'
+import type { Designator, DesignatorIndex, Place } from '@/api/types'
+
+/**
+ * Everywhere this identifier is drawn, as one list whether the server sent one place or five.
+ *
+ * The payload omits `places` for the 269 of 275 entries that have a single point, because
+ * duplicating a coordinate into a second field costs bytes and says nothing. That optimisation
+ * must not leak into every caller: read the geometry through here, and a relay drawn in three
+ * places behaves like a terminal drawn in one.
+ */
+export function placesOf(entry: Designator): Place[] {
+  if (entry.places?.length) return entry.places
+  if (!entry.point) return []
+  return [{ point: entry.point, placement: entry.placement ?? 'seed' }]
+}
 
 /** Case and surrounding space are the only variation worth absorbing. An answer writes
  * `` `cr-bp` `` for `CR-BP` often enough; anything looser starts guessing. */

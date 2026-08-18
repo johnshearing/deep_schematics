@@ -10,15 +10,21 @@ import pytest
 
 from app.config import Settings
 from app.drawing import load_circuit_logic
+from app.locations import load_locations
 
 FAKE = Path(__file__).parent / "fake_claude.py"
 
 
 @pytest.fixture(autouse=True)
 def _clear_drawing_cache():
+    # Both parses are cached per directory, and every test writes a fresh `tmp_path`. Clearing
+    # around each one is also the rehearsal for the editor, which must clear `load_locations`
+    # after it writes or it will save a point and be handed back the old one.
     load_circuit_logic.cache_clear()
+    load_locations.cache_clear()
     yield
     load_circuit_logic.cache_clear()
+    load_locations.cache_clear()
 
 
 @pytest.fixture

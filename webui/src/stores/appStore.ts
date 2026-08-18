@@ -76,6 +76,10 @@ interface AppState {
   clearSelection: () => void
   loadAll: () => Promise<void>
   refreshHealth: () => Promise<void>
+  /** Re-read the designator index, which is what the Locate editor's save changes. Without it
+   * the editor would place a point, the file on disk would be right, and the Drawing tab would
+   * keep drawing the estimate until the page was reloaded. */
+  refreshDesignators: () => Promise<void>
   submitUnlock: (password: string) => Promise<boolean>
 }
 
@@ -124,6 +128,16 @@ export const useAppStore = create<AppState>()(
         })
         // Only adopt the server's default model on first load, so a visitor's choice sticks.
         if (health.status === 'fulfilled' && !get().model) set({ model: health.value.default_model })
+      },
+
+      refreshDesignators: async () => {
+        try {
+          const index = await getDesignators()
+          set({ designators: index, byToken: buildLookup(index) })
+        } catch {
+          // Keep the index we have. A failed refresh means the overlay is one save behind,
+          // which is a great deal better than every citation in every answer going inert.
+        }
       },
 
       refreshHealth: async () => {

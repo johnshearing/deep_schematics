@@ -66,6 +66,19 @@ class Settings(BaseSettings):
     #: the only thing standing between it and an offline-speed guess is this limit.
     unlock_rate_limit: str = "5/minute"
 
+    # --- the Locate editor, off by default ----------------------------------------------
+    #: Whether this server may write `locations.json` at all. **Off** unless someone says
+    #: otherwise, and when it is off the editing routes are never registered — so a public demo
+    #: has no write surface to attack rather than a guarded one.
+    allow_edits: bool = False
+    #: A *second* password, deliberately not `demo_password`. Permission to spend tokens and
+    #: permission to change where the drawing says things are are different permissions: the
+    #: first is shared with visitors, the second belongs to whoever owns the library.
+    editor_password: str = ""
+    #: Optional name stamped into `locations.json` as `by`. A point with an owner is the whole
+    #: argument for a human tier over a derived one, so it is worth being able to sign one.
+    editor_name: str = ""
+
     # --- serving -----------------------------------------------------------------------
     host: str = "127.0.0.1"
     port: int = 9700
@@ -101,6 +114,10 @@ class Settings(BaseSettings):
     @property
     def password_required(self) -> bool:
         return bool(self.demo_password)
+
+    @property
+    def editor_password_required(self) -> bool:
+        return bool(self.editor_password)
 
 
 @lru_cache

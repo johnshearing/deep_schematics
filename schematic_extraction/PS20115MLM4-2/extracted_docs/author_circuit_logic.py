@@ -11,13 +11,34 @@ generated from those tables rather than hand-written, so they cannot drift out o
 the netlist. The edges that are *not* derivable from a netlist - POWERS, PROTECTS, ACTUATES,
 COIL_CONTROLS_CONTACT, GROUNDED_TO, REFERENCES - are authored explicitly at the bottom.
 
-Re-run after correcting any reading:  python author_circuit_logic.py
+THERE ARE TWO AUTHORED FILES, and this is only the first of them.
+
+  this script    what is connected - the netlist, read by eye off the renders
+  locations.json where it is drawn  - points, put there by a human in the Locate editor
+
+Both are hand-maintained; everything else in this directory is generated. The x= / y= arguments
+in the comp() calls below are the *vision pass's estimate*, good to about 11 pt on this sheet
+and occasionally a whole conductor row out, so they are a seed and nothing more: wherever
+locations.json has a placed point, this script uses that instead and marks it. A component
+location with no "source" key is therefore an estimate; one with "source": "human" was placed
+by a person looking at the drawing.
+
+The split exists because this file is regenerated wholesale and a coordinate typed into
+circuit_logic.json would be erased by the next run. It also lets a component be drawn in more
+than one place, which relays on this sheet are: CR-SW has its coil in the right-hand column and
+its contact eight inches away, and CR-BP has three sites, because its NC and NO contacts are in
+different circuits. See "sites" in locations.json.
+
+Re-run after correcting any reading, or after editing locations.json:
+
+    python author_circuit_logic.py
 """
 
 import json
 from pathlib import Path
 
 OUT = Path(__file__).parent / "circuit_logic.json"
+LOCATIONS = Path(__file__).parent / "locations.json"
 
 DRAWING_NO = "PS20115MLM4-2"
 
@@ -767,6 +788,126 @@ terminals = [
     for c, t, fn, net in T
 ]
 
+
+def xy(point):
+    """A [x, y] pair from locations.json, or None. Anything else is somebody else's problem."""
+    if isinstance(point, list) and len(point) == 2:
+        try:
+            return float(point[0]), float(point[1])
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def read_locations():
+    """The second authored file, parsed once, or {} if it is absent or unreadable.
+
+    A broken locations.json must not stop the netlist being written: the netlist does not depend
+    on the geometry, so a typo in one must not cost the other.
+    """
+    try:
+        raw = json.loads(LOCATIONS.read_text("utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        print(f"  WARNING: locations.json ignored ({exc})")
+        return {}
+    if not isinstance(raw, dict):
+        print("  WARNING: locations.json ignored (not an object)")
+        return {}
+    return raw
+
+
+def fold_in_labels(items, section):
+    """Apply the wires/nets sections of locations.json: where each name is written.
+
+    Deliberately NOT a location. A wire's geometry is its two endpoint terminals, and drawing a
+    line between them because no conductor joined them would be inventing a route - the one thing
+    this netlist's authority rests on never doing. So a wire gets `label_location` and never
+    `location`, and the key says which it is.
+    """
+    applied = 0
+    for item in items:
+        body = section.get(item["id"])
+        point = xy((body or {}).get("label_point"))
+        if point is None:
+            continue
+        item["label_location"] = {"x": point[0], "y": point[1], "source": body.get("source")}
+        if isinstance(body.get("label"), dict):
+            item["label_location"]["label"] = body["label"]
+        applied += 1
+    return applied
+
+
+def fold_in_locations(components, terminals, raw):
+    """Apply locations.json - the second authored file - over the vision-pass estimates above.
+
+    Deliberately small: it applies what the file says and counts what it applied. Validation,
+    reference checking and the "whose guess is this" reporting live in the server's
+    app/locations.py, which is the one place that decides where anything is - duplicating that
+    judgement here is how the two would come to disagree. A file this cannot parse is skipped
+    with a warning, because a broken locations.json must not stop the netlist being written.
+
+    Precedence, matching the server: a terminal's own point, else the site that claims its pin,
+    else *nothing*. A terminal is deliberately left with no location rather than being handed its
+    parent's, because "somewhere on CR-ON" and "on CR-ON:A2" are different claims and this file
+    must not blur them. The server does that substitution at read time and labels it as such.
+    """
+    by_component = raw.get("components") or {}
+    fixed = raw.get("terminals") or {}
+    applied = {"sites": 0, "terminals": 0}
+
+    for component in components:
+        body = by_component.get(component["id"]) or {}
+        placed = [s for s in (body.get("sites") or []) if xy(s.get("point"))]
+        if not placed:
+            continue
+        component["sites"] = [
+            {
+                "id": s.get("id"),
+                "point": list(xy(s.get("point"))),
+                "terminals": [str(p) for p in (s.get("terminals") or [])],
+                "source": s.get("source"),
+                **({"label": s["label"]} if isinstance(s.get("label"), dict) else {}),
+            }
+            for s in placed
+        ]
+        # The first site is the component's primary point, which is what everything that wants
+        # one number per component gets. The others are only in `sites`.
+        x, y = xy(placed[0]["point"])
+        component["location"] = {
+            **(component.get("location") or {}),
+            "x": x,
+            "y": y,
+            "source": placed[0].get("source"),
+            "site": placed[0].get("id"),
+        }
+        applied["sites"] += len(placed)
+
+    claims = {}
+    for cid, body in by_component.items():
+        for site in body.get("sites") or []:
+            for pin in site.get("terminals") or []:
+                claims.setdefault(f"{cid}:{pin}", site)
+
+    for terminal in terminals:
+        own = fixed.get(terminal["id"])
+        site = claims.get(terminal["id"])
+        chosen = own if xy((own or {}).get("point")) else site
+        point = xy((chosen or {}).get("point"))
+        if point is None:
+            continue
+        terminal["location"] = {"x": point[0], "y": point[1], "source": chosen.get("source")}
+        if chosen is site:
+            terminal["location"]["site"] = site.get("id")
+        applied["terminals"] += 1
+
+    return applied
+
+
+LOCATED = read_locations()
+placed = fold_in_locations(C, terminals, LOCATED)
+
 net_members = {}
 for t in terminals:
     if t["net"]:
@@ -785,6 +926,10 @@ for i, (frm, to, colour, gauge, net, cable, note) in enumerate(W, start=1):
         "from_terminal": frm, "to_terminal": to, "cable": cable, "net": net,
         "description": note,
     })
+
+placed["labels"] = fold_in_labels(wires, LOCATED.get("wires") or {}) + fold_in_labels(
+    nets, LOCATED.get("nets") or {}
+)
 
 cable_members = {}
 for w in wires:
@@ -967,3 +1112,7 @@ print(f"  wires         {len(wires)}")
 print(f"  cables        {len(cables)}")
 print(f"  subsystems    {len(subsystems)}")
 print(f"  relationships {len(R)}")
+print(
+    f"  from locations.json: {placed['sites']} sites, {placed['terminals']} terminals, "
+    f"{placed['labels']} labels"
+)

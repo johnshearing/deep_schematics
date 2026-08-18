@@ -14,3 +14,4 @@
 
 export const ASK_TAB_ID = 'ask'
 export const DRAWING_TAB_ID = 'drawing'
+export const LOCATE_TAB_ID = 'locate'

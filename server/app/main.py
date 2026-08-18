@@ -44,10 +44,20 @@ from .drawing import (
     DrawingUnavailable,
     designator_index,
     drawing_summary,
+    load_circuit_logic,
     source_document,
     tile_file,
+    tile_manifest,
 )
 from .limits import ConcurrencyGate, SpendLedger, make_limiter
+from .locations import (
+    LocationsRefused,
+    load_locations,
+    locations_path,
+    resolve_geometry,
+    save_locations,
+    skeleton,
+)
 from .prompts import PROMPT_VERSION
 from .questions import starter_questions
 from .sessions import SessionStore
@@ -76,6 +86,18 @@ class UnlockRequest(BaseModel):
     password: str = ""
 
 
+class LocationsRequest(BaseModel):
+    """The whole `locations.json`, as the editor holds it.
+
+    `dict[str, Any]` rather than a modelled schema on purpose: `app/locations.py` is the one
+    validator, it reports per field into a `problems` list the editor shows, and a pydantic model
+    here would be a second one — rejecting the whole document with a 422 for a single bad
+    coordinate, in different words, before the first ever ran.
+    """
+
+    document: dict[str, Any]
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
 
@@ -101,8 +123,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=settings.dev_origins,
-            allow_methods=["GET", "POST"],
-            allow_headers=["Content-Type", "X-Demo-Password"],
+            # PUT is here for the Locate editor's one write. It is still only reachable when
+            # `allow_edits` registered the route — CORS decides who may call an endpoint, not
+            # whether it exists.
+            allow_methods=["GET", "POST", "PUT"],
+            allow_headers=["Content-Type", "X-Demo-Password", "X-Editor-Password"],
         )
 
     @app.middleware("http")
@@ -156,6 +181,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "default_model": settings.default_model,
             "anonymous_models": settings.anonymous_models,
             "password_required": settings.password_required,
+            # Whether this server has a Locate tab at all. Published rather than inferred,
+            # because with `allow_edits` false the routes do not exist and a client that
+            # discovered the tab by probing would offer a screen that cannot save.
+            "editing": {
+                "enabled": settings.allow_edits,
+                "password_required": settings.editor_password_required,
+                "by": settings.editor_name or None,
+            },
             "spend": {
                 "day": spend.day,
                 "spent_usd": spend.spent_usd,
@@ -255,6 +288,93 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not _check_password(settings_, body.password):
             raise HTTPException(401, "That is not the demo password.")
         return JSONResponse({"unlocked": True, "password_required": True})
+
+    # -- the Locate editor, only when this server was started to allow it -------------------
+    #
+    # Registered inside an `if`, which is the point: with `allow_edits` false there is no route
+    # to guess a password against, no handler to find a bug in, and nothing to rate-limit. A
+    # public demo is not a locked editor, it is a server with no editor in it.
+
+    if settings.allow_edits:
+
+        @app.post("/api/editor/unlock")
+        @limiter.limit(
+            lambda: app.state.settings.unlock_rate_limit,
+            exempt_when=lambda: not settings.rate_limit_enabled,
+        )
+        async def editor_unlock(request: Request, body: UnlockRequest) -> JSONResponse:
+            """Mirror of `/api/unlock`, on a *different* password and the same tight bucket.
+
+            The client keeps what it is given in memory only and sends it back as
+            `X-Editor-Password` — exactly how the demo password already works. That is the whole
+            "scope": no server-side session, so nothing to expire, leak or forge, and closing the
+            tab is a logout.
+            """
+            settings_ = app.state.settings
+            if not settings_.editor_password_required:
+                return JSONResponse({"unlocked": True, "password_required": False})
+            if not _check_editor_password(settings_, body.password):
+                raise HTTPException(401, "That is not the editor password.")
+            return JSONResponse({"unlocked": True, "password_required": True})
+
+        @app.get("/api/locations")
+        async def get_locations(
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """The authored geometry file, verbatim, or an empty one shaped like it.
+
+            Verbatim because the editor sends it straight back: anything this endpoint
+            normalised away — a `by`, an `at`, a comment field a later version adds — would be
+            silently deleted on the next save. An extraction nobody has placed anything on yet
+            gets `skeleton()` rather than a 404, so the load path has one shape.
+            """
+            _require_editor(app.state.settings, x_editor_password)
+            path = locations_path(settings.drawing_dir)
+            try:
+                document = json.loads(path.read_text("utf-8"))
+                present = True
+            except FileNotFoundError:
+                document, present = skeleton(*_drawing_identity(settings)), False
+            except (OSError, json.JSONDecodeError) as exc:
+                raise HTTPException(500, f"locations.json could not be read: {exc}") from exc
+            return {
+                "present": present,
+                "document": document,
+                "report": _locations_report(settings),
+            }
+
+        @app.put("/api/locations")
+        async def put_locations(
+            body: LocationsRequest,
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """Replace the file. Whole, atomic, and the parse cache cleared behind it.
+
+            Answers with the fresh `report`, so the editor is told what the *next* reader will
+            refuse rather than what this handler happened to like. `stale` is the banner: the
+            viewer is current the moment this returns, but `circuit_logic.json` — the artifact
+            the model reads — is behind until someone re-runs `author_circuit_logic.py`. This
+            server does not run Python on request, and should not start now.
+            """
+            _require_editor(app.state.settings, x_editor_password)
+            number, page = _drawing_identity(settings)
+            try:
+                save_locations(
+                    settings.drawing_dir,
+                    body.document,
+                    drawing_number=number,
+                    page_size_pt=page,
+                )
+            except LocationsRefused as exc:
+                raise HTTPException(409, str(exc)) from exc
+            except OSError as exc:
+                raise HTTPException(500, f"locations.json could not be written: {exc}") from exc
+            return {
+                "saved": True,
+                "report": _locations_report(settings),
+                "stale": "circuit_logic.json is behind locations.json — re-run "
+                "`python author_circuit_logic.py` in the extraction directory.",
+            }
 
     # -- the one endpoint that spends money -----------------------------------------------
 
@@ -422,6 +542,54 @@ async def _stream_turn(
         app.state.gate.release()
         if session.lock.locked():
             session.lock.release()
+
+
+def _drawing_identity(settings: Settings) -> tuple[str | None, list[float] | None]:
+    """Which drawing this server is serving, and at what page size — the two facts a stored
+    coordinate is only meaningful against. Both are best-effort: a drawing that has never been
+    tiled has no page size, and that is a reason to skip the check rather than to refuse."""
+    try:
+        number = (load_circuit_logic(settings.drawing_dir).get("drawing") or {}).get(
+            "drawing_number"
+        )
+    except DrawingUnavailable:
+        number = None
+    manifest = tile_manifest(settings.drawing_dir)
+    return (number if isinstance(number, str) else None), (
+        manifest["page_size_pt"] if manifest else None
+    )
+
+
+def _locations_report(settings: Settings) -> dict[str, Any]:
+    """What `/api/designators` publishes under `locations`, without rebuilding 275 entries.
+
+    Through the resolver rather than the raw parse, so the editor is told about the problems only
+    the netlist can reveal — a point placed on a component that has since been renamed, a pin two
+    sites both claim — and not merely about malformed JSON.
+    """
+    try:
+        doc = load_circuit_logic(settings.drawing_dir)
+    except DrawingUnavailable:
+        stored = load_locations(settings.drawing_dir)
+        return {"file": stored.present, **stored.counts(), "problems": list(stored.problems)}
+    manifest = tile_manifest(settings.drawing_dir)
+    geometry = resolve_geometry(
+        settings.drawing_dir, doc, manifest["page_size_pt"] if manifest else None
+    )
+    return geometry.report()
+
+
+def _require_editor(settings: Settings, supplied: str | None) -> None:
+    if not settings.editor_password_required:
+        return
+    if not (supplied and _constant_eq(supplied, settings.editor_password)):
+        raise HTTPException(401, "The editor is locked. Unlock it before saving.")
+
+
+def _check_editor_password(settings: Settings, supplied: str | None) -> bool:
+    if not settings.editor_password_required:
+        return True
+    return bool(supplied) and _constant_eq(supplied, settings.editor_password)
 
 
 def _check_password(settings: Settings, supplied: str | None) -> bool:

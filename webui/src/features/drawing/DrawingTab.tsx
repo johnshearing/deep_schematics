@@ -65,8 +65,28 @@ export function DrawingTab() {
   const located = useMemo(() => new Set(markers.map((m) => m.id)), [markers])
 
   const entry = selection ? (byToken.get(normalise(selection.id)) ?? null) : null
-  const selectedId = entry?.kind === 'component' ? entry.id : null
   const relatedIds = useMemo(() => new Set(entry?.members ?? []), [entry])
+  /**
+   * A marker for the selection itself — but only where there is a real place to put one.
+   *
+   * A component or a terminal has a point, so it gets a dot. A net's `point` is the centre of
+   * everything it touches and a wire's is the middle of its run; both are useful rectangles to
+   * frame and **neither is a place on the sheet**, so a dot there would sit on blank paper and
+   * claim to be net 110. They get a marker only once somebody has placed a `label_point` — where
+   * the name is actually printed — and then it sits on the text.
+   */
+  const selectedMarker = useMemo<Designator | null>(() => {
+    if (!entry) return null
+    if (entry.kind === 'component' || entry.kind === 'terminal') return entry.point ? entry : null
+    if (!entry.label_point) return null
+    return {
+      ...entry,
+      point: entry.label_point,
+      places: [
+        { point: entry.label_point, placement: 'confirmed', label_dir: entry.label_dir },
+      ],
+    }
+  }, [entry])
 
   /**
    * Nothing is fetched until the tab has been opened once.
@@ -232,13 +252,19 @@ export function DrawingTab() {
 
         {/* Above the canvas, which is `pointer-events-none` precisely so this can be clicked.
             Selected and related markers show through the toggle: hiding the thing an answer
-            just pointed at would be the one case where the overlay has to be visible. */}
+            just pointed at would be the one case where the overlay has to be visible.
+
+            `selected` is the whole entry rather than a component id. The tab used to compute
+            `entry.kind === 'component' ? entry.id : null` and let the parent component's marker
+            stand in for a selected terminal, so clicking a citation of `CR-ON:A2` ringed a dot
+            labelled `CR-ON` sitting on A1. A terminal is not its component; it gets its own
+            marker, at whatever point the index resolved for it, saying so. */}
         {armed && (
           <MarkerLayer
             markers={showMarkers ? markers : markers.filter((m) => relatedIds.has(m.id))}
             viewport={viewer.viewport}
             dpr={viewer.dpr}
-            selectedId={selectedId}
+            selected={selectedMarker}
             relatedIds={relatedIds}
             // Ids are legible from about a third of native zoom; below that they are a fog.
             showLabels={viewer.percent >= 30}

@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Designator, DesignatorIndex } from '@/api/types'
-import { buildLookup, normalise, resolve, suggestedQuestion } from './designators'
+import { buildLookup, normalise, placesOf, resolve, suggestedQuestion } from './designators'
 
 function entry(id: string, extra: Partial<Designator> = {}): Designator {
   return {
@@ -83,6 +83,34 @@ describe('normalise', () => {
     expect(normalise('  run   bypass relay ')).toBe('RUN BYPASS RELAY')
     // Not stripped: a citation is an exact token, and `CR-BP:A2` is not `CR-BP`.
     expect(normalise('CR-BP:A2')).toBe('CR-BP:A2')
+  })
+})
+
+describe('placesOf', () => {
+  it('hides the payload optimisation, so one place and three behave the same', () => {
+    // `places` is omitted for the 269 of 275 entries drawn in a single spot, because duplicating
+    // a coordinate into a second field costs bytes and says nothing. Every caller reading
+    // `entry.places` directly would then have to remember that, and one of them would not.
+    expect(placesOf(entry('CB1'))).toEqual([{ point: [10, 20], placement: 'seed' }])
+    expect(placesOf(entry('CR-BP', { placement: 'confirmed' }))).toEqual([
+      { point: [10, 20], placement: 'confirmed' },
+    ])
+
+    const relay = entry('CR-BP', {
+      // Drawn three times on the real sheet: coil, the 11/12 NC contact, the 21/24 NO contact.
+      places: [
+        { point: [861, 679], placement: 'confirmed', site: 'coil' },
+        { point: [714, 520], placement: 'confirmed', site: 'nc' },
+        { point: [592, 223], placement: 'seed', site: 'no' },
+      ],
+    })
+    expect(placesOf(relay).map((p) => p.site)).toEqual(['coil', 'nc', 'no'])
+  })
+
+  it('is empty for the six ids that are cited but never drawn', () => {
+    // The two off-page machines and the four referenced drawings. Citable, not clickable, and
+    // nothing may put a dot at the origin for them.
+    expect(placesOf(entry('UPSTREAM-MACHINE', { point: null, rect: null }))).toEqual([])
   })
 })
 

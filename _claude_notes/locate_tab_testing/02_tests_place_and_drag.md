@@ -1,0 +1,189 @@
+# T-1xx — picking, placing, advancing, dragging
+
+Index: `locate_tab_instruction_and_test_manual.md`. Vocabulary: `01_screen_and_vocabulary.md`.
+Ids and coordinates: `07_drawing_facts.md`.
+
+These are the tests that matter most, because they cover the gesture you will perform 178 times.
+Work through them in order — each one teaches the thing the next one assumes.
+
+**Before starting:** server running (index §1), Locate tab open, unlocked, filter on **To do**,
+advance checkbox **on**.
+
+---
+
+## T-100 · The list is the work queue
+
+**Do.** Look at the toolbar counts and the list.
+
+**Expected.** Counts read `1 of 178 placed · 177 to do · 0 of 97 wire and net labels` (the `1` is
+`DISCHARGE1:4`, already placed — see index §5). The list shows components and terminals only; no
+`W###` and no net numbers. Rows say `estimate` or `on its component`, except for **six** that say
+`nowhere` — the two off-page machines and the four referenced drawings, which have no position
+anywhere and never will (see known issue **K7** and `07_drawing_facts.md`).
+
+**If not.** Wrong filter, or `coverage()` in `model.ts`.
+
+---
+
+## T-110 · Picking a row arms it and flies the sheet to it
+
+**Do.** Click the row **`CR-BP`**.
+
+**Expected.** Four things at once:
+
+1. The row highlights.
+2. The target panel appears below the list, headed `CR-BP` with the badge `site main`.
+3. The sheet **flies** — animated, about 0.4 s — and lands with `CR-BP` centred, at **`50%`** zoom.
+   That number is not arbitrary: a target with no size of its own gets half of native resolution,
+   which is where 4 pt lettering becomes readable and about a quarter of the sheet is still visible.
+   The dot under the centre is **hollow** (it is the vision pass's estimate).
+4. The cursor over the sheet is a **crosshair**.
+
+**Why hollow matters.** That is the screen refusing to claim it knows where `CR-BP` is. Your click
+is what turns it solid.
+
+**Known issue K1.** Pan away, then click the `CR-BP` row again: it will **not** fly back. Expected,
+already logged, do not report.
+
+---
+
+## T-120 · A click places the point — and the pan-versus-place rule
+
+**Do.** With `CR-BP` armed, zoom out a little (`Fit` is fine), then **click** anywhere on the sheet.
+
+**Expected.**
+
+- A **filled red** dot appears exactly where you clicked, labelled `CR-BP` (if zoom ≥ 30%).
+- The save badge goes `unsaved`, then `saved` within about a second.
+- The `CR-BP` row **leaves the To do list** and the counts go to `2 of 178 placed`.
+- Because the advance is on, the target moves to the next unplaced row and the sheet flies there.
+
+**Then do.** Switch the filter to **Components**, click the `CR-BP` row, and read the coordinate in
+the target panel.
+
+**Expected.** A number pair with **at most one decimal place** — `612, 396` or `740.5, 511.2`, never
+`348.30000000000007`. Points are rounded to a tenth, which is already finer than anything printed on
+this sheet and keeps a hand-readable file readable.
+
+**Now the rule.** Press the pointer down on the sheet, **drag 100 px**, release.
+
+**Expected.** The sheet pans. **No point is placed.** The save badge stays as it was.
+
+**Why.** A placement is defined as *a click that did not move the sheet* — not as a click that
+moved the pointer less than N pixels. There is no tolerance to pick, and it also refuses a click
+that lands while the sheet is still flying to the previous target, where the coordinate under the
+cursor is not the one you were aiming at.
+
+**If a pan places a point.** `LocateTab.tsx` `onClick` / `pressedAt` — see `06_code_map.md`.
+
+---
+
+## T-130 · Placing a terminal, and precedence
+
+**Do.** Filter **Terminals**. Click `CR-BP:A1`. Note where the sheet lands and what the panel says.
+
+**Expected.** The panel says `unplaced`, and the prose explains that the viewer is showing
+`CR-BP`'s point and that this is *a different claim* from knowing where the pin is. The dot is
+hollow.
+
+**Do.** Click the sheet somewhere clearly away from the `CR-BP` dot — 40 pt or so.
+
+**Expected.** A filled dot at your click, labelled `CR-BP:A1`. The `CR-BP` component dot **stays
+where it was**. The panel now reads `its own point` with the coordinate.
+
+**The precedence you have just exercised**, and it is the whole reason terminals exist separately:
+
+    a terminal's own point   beats   the site claiming that pin   beats   its parent component
+
+`A1` and `A2` are about 20 pt apart as printed, so both need their own points even though both
+belong to the coil site.
+
+---
+
+## T-140 · Dragging a dot
+
+**Do.** Filter **Components**. Zoom to about 100% so you can see clearly. Press on the `CR-BP` dot,
+move about 50 px, release.
+
+**Expected.**
+
+- The dot follows the pointer while you hold it.
+- On release the save badge goes `unsaved` → `saved`.
+- The panel's coordinate updates.
+- The sheet does **not** pan.
+- Clicking a dot without moving it **selects** that row instead of dragging (this is K5: you cannot
+  place a point underneath an existing dot by clicking it — drag it, or zoom in and click beside it).
+
+**What a drag moves, and it is not always obvious.** A drag moves *whatever the dot's row names*:
+
+| Drag this dot | Moves |
+|---|---|
+| a component's dot | **that site** — and therefore every pin assigned to it |
+| a terminal's dot | **that pin's own point** only, even if it was showing its site's point |
+| a wire's or net's dot | **the label point** |
+
+Dragging a terminal that was sitting at its site's dot therefore *detaches* it: the site stays, the
+pin gets its own point. That is intended — it is how you separate `A1` from `A2`.
+
+**If the dot jumps somewhere far away on the first pixel of movement.** That is the projection, not
+the drag: `paint.ts` `cssToPoint`. Report the before and after coordinates.
+
+**If nothing happens at all and the sheet pans instead.** `MarkerLayer.tsx` `onDragPoint` is not
+reaching the marker. Note whether the cursor over the dot was a **move** cursor (four arrows) — if
+it was a grab hand, the Locate tab is not passing the handler.
+
+---
+
+## T-150 · The advance, and turning it off
+
+**Do.** Advance **on**. Filter **To do**. Place three rows in a row, clicking the sheet three times
+without touching the list in between.
+
+**Expected.** Each click places, then jumps to the next unplaced row and flies there. Counts climb
+by one each time. You never touch the list.
+
+**Do.** Untick *Move to the next unplaced after each click*. Pick one row and click the sheet twice
+in two different spots.
+
+**Expected.** Both clicks apply to the **same** row; the second overwrites the first. The target
+stays put. This is the mode for correcting one dot.
+
+**Do.** Tick it back on. Place until the *To do* list is short, then keep going past the end.
+
+**Expected.** The advance **wraps** to the first thing still outstanding rather than stopping — so
+nothing you skipped is left to be hunted for later. When nothing is left, the target clears and the
+panel disappears.
+
+---
+
+## T-160 · Unplacing
+
+**Do.** Filter **Terminals**, pick a terminal you have placed, click **Unplace**.
+
+**Expected.** Save badge cycles to `saved`. The row returns to `on its component` (or `nowhere` if
+its parent has no point). The dot goes hollow. In `locations.json` the entry is **gone from
+`terminals`** — not set to null, not left as an empty object.
+
+**Do.** Filter **Components**, pick a component with one site, click the **🗑** on that site.
+
+**Expected.** The component is removed from `locations.json` **entirely**, not left as
+`{"sites": []}`. Otherwise an untouched drawing's file fills up with empty records for everything
+anyone ever clicked, and the file stops being readable by a person — which is half its value.
+
+---
+
+## T-170 · The projection is shared with the Drawing tab
+
+This is the test that catches the single worst class of bug here: an editor whose arithmetic
+disagrees with the tiles would write coordinates that are wrong *by a consistent offset*, which is
+invisible while you are placing and obvious later.
+
+**Do.** Place a point on some visually unmistakable feature — a terminal dot printed on the sheet,
+or a corner of a box. Note the coordinate from the panel. Now switch to the **Drawing** tab and
+click any answer citation, or use the Components overlay to find the same designator.
+
+**Expected.** The Drawing tab's dot sits on the **same printed feature**, at any zoom, on any
+display. Both tabs go through `paint.ts` — there is exactly one projection in this application.
+
+**If they disagree.** Report both coordinates and the zoom percentage on each tab. That narrows it
+to `pointToCss` versus `cssToPoint` immediately.

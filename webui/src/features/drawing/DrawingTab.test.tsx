@@ -50,11 +50,19 @@ const DRAWING = {
 
 const COMPONENTS: Designator[] = [
   { id: 'CR-BP', kind: 'component', label: 'relay — Run bypass relay.', on_sheet: true,
-    members: ['CR-BP'], point: [861, 679], rect: [861, 679, 861, 679] },
+    members: ['CR-BP'], point: [861, 679], rect: [861, 679, 861, 679], placement: 'seed' },
   { id: 'CB1', kind: 'component', label: 'circuit breaker — 8A main.', on_sheet: true,
-    members: ['CB1'], point: [390, 118], rect: [390, 118, 390, 118] },
+    members: ['CB1'], point: [390, 118], rect: [390, 118, 390, 118], placement: 'confirmed' },
   { id: 'UPSTREAM-MACHINE', kind: 'component', label: 'external — upstream machine.',
-    on_sheet: true, members: ['UPSTREAM-MACHINE'], point: null, rect: null },
+    on_sheet: true, members: ['UPSTREAM-MACHINE'], point: null, rect: null, placement: null },
+]
+/** Two pins of the same relay. `A1` has been placed; `A2` has not, so the index hands back
+ * `CR-BP`'s own point and flags it `parent`. Both cases have to draw and read differently. */
+const TERMINALS: Designator[] = [
+  { id: 'CR-BP:A1', kind: 'terminal', label: 'coil terminal on CR-BP, net 110', on_sheet: true,
+    members: ['CR-BP'], point: [858, 668], rect: [858, 668, 858, 668], placement: 'confirmed' },
+  { id: 'CR-BP:A2', kind: 'terminal', label: 'coil terminal on CR-BP, net 0V', on_sheet: true,
+    members: ['CR-BP'], point: [861, 679], rect: [861, 679, 861, 679], placement: 'parent' },
 ]
 const NET_110: Designator = {
   id: '110', kind: 'net', label: 'control 24VDC, 8 terminals', on_sheet: true,
@@ -63,9 +71,9 @@ const NET_110: Designator = {
 }
 const INDEX: DesignatorIndex = {
   drawing_number: 'PS20115MLM4-2',
-  counts: { component: 3, net: 1 },
-  located: 3,
-  entries: [...COMPONENTS, NET_110],
+  counts: { component: 3, terminal: 2, net: 1 },
+  located: 5,
+  entries: [...COMPONENTS, ...TERMINALS, NET_110],
 }
 
 /** jsdom reports every element as 0×0, and a container with no size has nothing to fit to. */
@@ -192,6 +200,113 @@ describe('DrawingTab', () => {
     expect(marker('CR-BP').style.left).toBe('558px')
   })
 
+  it('labels a selected terminal with its own id, at its own point', async () => {
+    // The fault: the tab reduced a selection to `entry.kind === 'component' ? entry.id : null`
+    // and let the parent component's marker stand in for a selected terminal, so clicking a
+    // citation of `CR-BP:A1` ringed a dot labelled `CR-BP` — and put it wherever `CR-BP` is,
+    // which on the real sheet is the coil centre rather than the pin. Two wrong things at once,
+    // and both look like a working link.
+    render(<DrawingTab />)
+    activate()
+    // Raised as if from the sheet, so the viewer does not fly and the fit scale still holds —
+    // the flight itself is the net test's job, and it would centre the dot at 400 px.
+    act(() => useAppStore.getState().select('terminal', 'CR-BP:A1', 'drawing'))
+    await waitFor(() => expect(marker('CR-BP:A1')).toBeTruthy())
+
+    const dot = marker('CR-BP:A1')
+    expect(dot.getAttribute('aria-pressed')).toBe('true')
+    expect([...dot.querySelectorAll('span')].at(-1)?.textContent).toBe('CR-BP:A1')
+    // 858 pt, not CR-BP's 861: 12 + 858 × 0.634 = 556 px, against the relay's 558.
+    expect(dot.style.left).toBe('556px')
+    // And the component keeps its own dot, unpressed, under its own name.
+    expect(marker('CR-BP').getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('admits when a dot is the component’s point rather than the pin’s', async () => {
+    // `CR-BP:A2` has no point of its own, so the index hands back its parent's and says so.
+    // Drawing that identically to a placed point would tell the reader we know where A2 is.
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('terminal', 'CR-BP:A2', 'drawing'))
+    await waitFor(() => expect(marker('CR-BP:A2')).toBeTruthy())
+
+    const unplaced = marker('CR-BP:A2')
+    expect(unplaced.getAttribute('title')).toContain("the component's point, not this pin's")
+    // Hollow: white fill with the marker's colour as an inner ring, rather than a solid dot.
+    expect(unplaced.querySelector('span')?.className).toContain('bg-white')
+    expect(unplaced.querySelector('span')?.getAttribute('style')).toContain('inset')
+
+    // A placed one is filled and says who placed it, with no inline ring at all.
+    const placed = marker('CB1')
+    expect(placed.getAttribute('title')).toContain('placed by hand')
+    expect(placed.querySelector('span')?.className).not.toContain('bg-white')
+    expect(placed.querySelector('span')?.getAttribute('style')).toBeNull()
+  })
+
+  it('draws one dot per place for a component drawn more than once', () => {
+    // `CR-BP` is drawn three times on the real sheet — coil, NC contact, NO contact — and one
+    // dot per component would put the marker on a circuit the reader is not looking at.
+    const relay: Designator = {
+      ...COMPONENTS[0],
+      rect: [592, 223, 861, 679],
+      places: [
+        { point: [861, 679], placement: 'confirmed', site: 'coil' },
+        { point: [714, 520], placement: 'confirmed', site: 'nc' },
+        { point: [592, 223], placement: 'seed', site: 'no' },
+      ],
+    }
+    const index = { ...INDEX, entries: [relay, ...COMPONENTS.slice(1), ...TERMINALS, NET_110] }
+    useAppStore.setState({ designators: index, byToken: buildLookup(index) })
+
+    render(<DrawingTab />)
+    activate()
+    expect(screen.getAllByRole('button', { name: /^CR-BP — relay/ })).toHaveLength(3)
+    // Each dot names its site, so a tooltip can say which of the three you are looking at.
+    // 12 + 714 × 0.634 = 465 px, the NC contact rather than the coil's 558.
+    const nc = screen.getByRole('button', { name: /^CR-BP —.*\(nc\)/ }) as HTMLButtonElement
+    expect(nc.style.left).toBe('465px')
+  })
+
+  it('lands a wire citation on its name once somebody has placed it', async () => {
+    // A wire's `point` is the midpoint of its run, which is blank paper. Before a label point
+    // exists there is nothing honest to put a dot on, so the viewer frames the run and rings the
+    // ends. Once one exists the marker sits on the printed text — which is what a reader
+    // following `W048` is looking for.
+    const wire: Designator = {
+      id: 'W048', kind: 'wire', label: 'BLUE 18AWG wire, CR-BP:A2 → CB1:2', on_sheet: false,
+      members: ['CR-BP', 'CB1'], point: [625, 398], rect: [390, 118, 861, 679],
+    }
+    const bare = { ...INDEX, entries: [...COMPONENTS, ...TERMINALS, wire] }
+    useAppStore.setState({ designators: bare, byToken: buildLookup(bare) })
+
+    const view = render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('wire', 'W048', 'drawing'))
+    await waitFor(() => expect(screen.getByText(/BLUE 18AWG/)).toBeTruthy())
+    expect(screen.queryByRole('button', { name: /^W048 —/ })).toBeNull()
+    view.unmount()
+
+    const placed = { ...bare, entries: [...COMPONENTS, ...TERMINALS,
+      { ...wire, label_point: [742, 511] as [number, number], label_dir: 'w' as const }] }
+    useAppStore.setState({ designators: placed, byToken: buildLookup(placed) })
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('wire', 'W048', 'drawing'))
+
+    // 12 + 742 × 0.634 = 482 px — the label, not the 625 pt midpoint of the run.
+    const dot = await waitFor(() => marker('W048'))
+    expect(dot.style.left).toBe('482px')
+    expect([...dot.querySelectorAll('span')].at(-1)?.textContent).toBe('W048')
+  })
+
+  it('does not let a stray drag on the read-only sheet edit anything', () => {
+    // `MarkerLayer` becomes draggable only when it is handed an `onDragPoint`, and only the
+    // Locate editor hands it one. The Drawing tab must pan.
+    render(<DrawingTab />)
+    activate()
+    expect(marker('CR-BP').className).not.toContain('cursor-move')
+  })
+
   it('clicking a marker says what it is without moving the sheet', () => {
     render(<DrawingTab />)
     activate()
@@ -249,7 +364,9 @@ describe('DrawingTab', () => {
 
   it('offers no tab at all when the sheet has never been rendered to tiles', () => {
     const ids = (tilesAvailable: boolean) =>
-      enabledTabs({ drawingAvailable: true, tilesAvailable }).map((tab) => tab.id)
+      enabledTabs({ drawingAvailable: true, tilesAvailable, editingEnabled: false }).map(
+        (tab) => tab.id,
+      )
 
     expect(ids(true)).toContain(DRAWING_TAB_ID)
     expect(ids(false)).not.toContain(DRAWING_TAB_ID)

@@ -71,6 +71,27 @@ export function pointToCss(
   return { left: dest.x / dpr, top: dest.y / dpr }
 }
 
+/**
+ * The inverse of `pointToCss`: where on the sheet a click in the container landed.
+ *
+ * This is what the Locate editor turns a mouse position into, and it lives here rather than in
+ * that feature for the same reason everything else in this file does — there is one projection
+ * in this application, and an editor that placed points through its own arithmetic would put
+ * them where the tiles are not. `left`/`top` are CSS pixels relative to the container's
+ * top-left, so a caller subtracts `getBoundingClientRect()` first.
+ *
+ * Not exactly `pointToCss`'s inverse to the last decimal: that one rounds its result to whole
+ * device pixels, which at fit zoom is a fifth of a PDF point. Below the width of a conductor,
+ * and a human is about to look at the dot anyway.
+ */
+export function cssToPoint(
+  css: { left: number; top: number },
+  viewport: Viewport,
+): [number, number] {
+  if (!(viewport.scale > 0)) return [0, 0]
+  return [(css.left - viewport.x) / viewport.scale, (css.top - viewport.y) / viewport.scale]
+}
+
 export function overlaps(a: DeviceRect, b: DeviceRect): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 }

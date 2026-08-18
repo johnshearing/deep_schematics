@@ -69,6 +69,9 @@ Every setting is read from the environment or `server/.env` with the `SWUI_` pre
 | `SWUI_MAX_CONCURRENT_TURNS` | `2` | global |
 | `SWUI_DEMO_PASSWORD` | *(empty — disabled)* | §3.5. Set it and the UI asks for it. See "The demo password" below |
 | `SWUI_UNLOCK_RATE_LIMIT` | `5/minute` | guesses per IP against `/api/unlock` |
+| `SWUI_ALLOW_EDITS` | `false` | the Locate editor, and the only thing here that writes a file. See "The Locate editor" below |
+| `SWUI_EDITOR_PASSWORD` | *(empty)* | a **second** password, not the demo one |
+| `SWUI_EDITOR_NAME` | *(empty)* | stamped into `locations.json` as `by` on each point placed |
 | `SWUI_HOST` | `127.0.0.1` | `0.0.0.0` to accept connections from off the machine. Read only by `python -m app` |
 | `SWUI_PORT` | `9700` | as above |
 
@@ -98,11 +101,50 @@ The browser holds the password in memory for the tab and sends it as `X-Demo-Pas
 never written to `localStorage` — a shared demo secret has no business outliving the tab — so
 each reload asks again.
 
+## The Locate editor
+
+`SWUI_ALLOW_EDITS=true` adds a **Locate** tab and three routes. It is off by default because it
+is the only part of this server that writes a file, and what it writes is
+`<drawing>/locations.json` — the drawing's authored geometry, the second hand-maintained file
+beside `author_circuit_logic.py`.
+
+**With `SWUI_ALLOW_EDITS` false the routes are never registered.** Not guarded — absent. A
+read-only server is not a locked editor; it is a server with no editor in it, and there is
+nothing there to guess a password against. `/api/health` publishes
+`editing: {enabled, password_required, by}` so the UI knows whether to offer the tab at all.
+
+`SWUI_EDITOR_PASSWORD` is a **separate secret from `SWUI_DEMO_PASSWORD`**, and that is the point:
+permission to spend tokens and permission to change where the drawing says things are are
+different permissions. It works exactly as the demo password does — validated by
+`POST /api/editor/unlock` on the same tight `5/minute` bucket, held in the browser's memory only,
+returned as `X-Editor-Password`. Closing the tab is the logout. Leaving it empty opens the editor
+to anyone who can reach the server, which is reasonable on a laptop and nowhere else.
+
+**What can be placed, and the one thing that cannot.** A component gets N *sites* (`CR-BP` is drawn
+three times on this sheet — coil, NC contact, NO contact — so any fixed "coil + contact" schema is
+wrong on arrival), and a pin is assigned to a site explicitly, never inferred from its `function`.
+A terminal can carry a point of its own, which beats the site claiming it. A wire or a net carries
+only a `label_point` — where its **name** is printed — because its route is its two endpoint
+terminals and drawing a line between them where no conductor runs would be inventing geometry.
+There is deliberately nowhere in the format to say where a wire goes.
+
+Writes are **whole-file and atomic** (`os.replace`). Four things are refused outright — a payload
+that is not an object, an unknown `schema`, another drawing's `drawing_number`, another page's
+`page_size_pt` — because writing them would destroy work in exchange for something the reader
+discards anyway. Everything else is written and then *reported*: one bad coordinate costs that
+coordinate and lands in a `problems` list the editor shows, because a coordinate a human typed
+and the server silently ignored is the worst outcome available here.
+
+After a save, `circuit_logic.json` is **stale** until someone re-runs
+`python author_circuit_logic.py` in the extraction directory. The viewer is current immediately;
+the artifact the model reads is not. The editor says so in a banner and does not run Python from
+a web request.
+
 ## Endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/health` | server up, `claude` version, today's spend vs ceiling |
+| `GET` | `/api/health` | server up, `claude` version, today's spend vs ceiling, whether editing is on |
 | `GET` | `/api/drawing` | title block, notes, references, counts — free, no model call |
 | `GET` | `/api/source` | the source PDF, inline — `404` when none sits beside the extraction |
 | `GET` | `/api/tiles/{name}` | one rendered tile of the sheet; only names the manifest lists |
@@ -111,6 +153,15 @@ each reload asks again.
 | `POST` | `/api/unlock` | check the demo password without spending a question; own rate limit |
 | `POST` | `/api/ask` | NDJSON answer stream; rate-limited |
 | `POST` | `/api/turns/{turn_id}/cancel` | Stop button |
+
+Three more exist **only** when `SWUI_ALLOW_EDITS=true`, and all three require
+`X-Editor-Password` when one is configured:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/editor/unlock` | check the editor password; mirrors `/api/unlock`, own rate limit |
+| `GET` | `/api/locations` | `locations.json` verbatim, or an empty document shaped like it |
+| `PUT` | `/api/locations` | replace it, whole and atomically; answers with what was refused |
 
 ### The `/api/ask` stream
 

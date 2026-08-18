@@ -39,6 +39,27 @@ def test_password_required_follows_the_password(tmp_path: Path) -> None:
     assert _settings("SWUI_DEMO_PASSWORD=\n", tmp_path).password_required is False
 
 
+def test_the_editor_is_off_until_a_dotenv_turns_it_on(tmp_path: Path) -> None:
+    """`allow_edits` decides whether the write routes are registered at all, so it is the one
+    setting where a parsing surprise would be a silently writable public demo. Checked through a
+    `.env` file because that is the path every deployment uses, and because "false" is a
+    non-empty string — a naive read of it is `True`."""
+    assert Settings(_env_file=None).allow_edits is False  # type: ignore[call-arg]
+    assert _settings("SWUI_ALLOW_EDITS=true\n", tmp_path).allow_edits is True
+    assert _settings("SWUI_ALLOW_EDITS=false\n", tmp_path).allow_edits is False
+
+
+def test_the_editor_password_is_its_own_setting(tmp_path: Path) -> None:
+    """Spending tokens and editing the drawing are different permissions, so setting one must
+    not set the other."""
+    s = _settings("SWUI_DEMO_PASSWORD=visitor\nSWUI_EDITOR_PASSWORD=librarian\n", tmp_path)
+    assert (s.password_required, s.editor_password_required) == (True, True)
+    assert s.demo_password != s.editor_password
+
+    demo_only = _settings("SWUI_DEMO_PASSWORD=visitor\n", tmp_path)
+    assert demo_only.editor_password_required is False
+
+
 def test_host_and_port_come_from_the_env(tmp_path: Path) -> None:
     """`python -m app` binds these; a loopback default is unreachable from off the machine."""
     s = _settings("SWUI_HOST=0.0.0.0\nSWUI_PORT=9800\n", tmp_path)

@@ -18,6 +18,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from .locations import Spot, resolve_geometry
+
 #: The one fact about this drawing that a careful reader still gets wrong. The title block
 #: has no revision field; the `D` in the side tab and the SIZE box is the sheet size. §12 Q21
 #: exists purely to catch it, so we say it out loud on the front page rather than waiting to
@@ -117,29 +119,48 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
     server derived from `circuit_logic.json` — never by pattern-matching model output. So this
     endpoint is that list, and the client's rule is an exact, case-folded allowlist lookup.
 
-    It is also the pan target. `components[].location` is the one place this extraction records
-    where anything *is*, so every point below comes from it:
+    It is also the pan target, and every point below comes from `resolve_geometry()` — which
+    layers the human-authored `locations.json` over the vision-pass estimate the netlist has
+    always carried. In precedence order:
 
-    - a **component** is its own location;
-    - a **terminal** is its parent component's, because a terminal has no geometry of its own;
-    - a **wire** is the two endpoint components, so `rect` frames both ends of the run;
-    - a **net** is every component it touches, so `rect` frames the whole net.
+    - a **terminal** with its own placed point uses it;
+    - otherwise the **site** that claims that pin — this is what puts `CR-SW:14` on the contact
+      block instead of `CR-SW`'s coil eight inches away;
+    - otherwise its **parent component's** point, flagged `placement: "parent"` so the viewer can
+      admit it is showing the component and not the pin;
+    - a **component** is all of its sites, so a relay drawn in three places has three points and a
+      `rect` that frames them all;
+    - a **wire** is its two terminals and a **net** is every terminal on it, so `rect` frames the
+      run rather than the components it happens to pass through. Neither is ever *placed*: their
+      geometry is their endpoints', which is why placing 131 terminals gives 71 wires their
+      positions for free.
 
-    `point` is the centre of `rect` and is what a marker uses; `rect` is what the viewer frames.
-    Both are in PDF points — the same space as `tiles[].pdf_rect` and every bbox in
-    `geometry.json` — so the browser needs no registration step. Either may be `null`: six
-    components (the two off-page machines and the four referenced drawings) have no location,
-    and anything that reaches only those is a legitimate citation with nowhere to fly to.
+    `point` is the centre of `rect`; `rect` is what the viewer frames; `places` is every distinct
+    place the id is drawn — each with its own point, site name and `placement` — and is present
+    **only when there are two or more**. 269 of 275 entries on this drawing are a single point, and
+    duplicating that into a second field would grow the payload for nothing, so a client reads
+    `places` if it is there and falls back to `point` if it is not. All of it is in PDF points —
+    the same space as `tiles[].pdf_rect` and every bbox in `geometry.json` — so the browser needs
+    no registration step. Any of it may be `null`: six components (the two off-page machines and
+    the four referenced drawings) have no location, and a citation that reaches only those is
+    legitimate with nowhere to fly to.
+
+    `placement` travels with components and terminals because the viewer draws them, and a marker
+    has to be able to say how much it knows: `confirmed` (a person placed it, in the Locate
+    editor), `seed` (the extraction's own vision estimate, good to about 11 pt on this sheet and
+    occasionally a whole conductor row out), or `parent`. There is no fourth, because nothing
+    derives — see `locations.py`.
 
     Deliberately uncached and deliberately not part of `/api/drawing`: it is a few hundred
-    dictionary lookups over an already-cached parse, and keeping it separate means a client that
+    dictionary lookups over two already-cached parses, and keeping it separate means a client that
     fails to load it loses clickable citations and nothing else.
     """
     doc = load_circuit_logic(drawing_dir)
     components = [c for c in (doc.get("components") or []) if isinstance(c, dict)]
     terminals = [t for t in (doc.get("terminals") or []) if isinstance(t, dict)]
 
-    points = {c["id"]: p for c in components if (p := _point(c.get("location"))) and c.get("id")}
+    manifest = tile_manifest(drawing_dir)
+    geometry = resolve_geometry(drawing_dir, doc, manifest["page_size_pt"] if manifest else None)
     parent = {t.get("id"): t.get("parent_component") for t in terminals}
 
     entries: list[dict[str, Any]] = []
@@ -154,7 +175,7 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
                 "component",
                 _component_label(component),
                 [cid],
-                points,
+                geometry.component(cid),
                 on_sheet=True,
                 aliases=[a for a in (component.get("aliases") or []) if isinstance(a, str)],
             )
@@ -171,7 +192,7 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
                 "terminal",
                 _terminal_label(terminal),
                 [owner] if isinstance(owner, str) else [],
-                points,
+                [geometry.terminal(tid)],
                 on_sheet=not _invented_terminal(owner),
             )
         )
@@ -180,15 +201,17 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
         nid = net.get("id") if isinstance(net, dict) else None
         if not isinstance(nid, str):
             continue
-        members = [parent.get(t) for t in (net.get("member_terminals") or [])]
+        pins = [t for t in (net.get("member_terminals") or []) if isinstance(t, str)]
         entries.append(
             _entry(
                 nid,
                 "net",
                 _net_label(net),
-                members,
-                points,
+                [parent.get(t) for t in pins],
+                [geometry.terminal(t) for t in pins],
                 on_sheet=not nid.startswith(INVENTED_NET_PREFIX),
+                with_placement=False,
+                label_at=geometry.label(nid),
             )
         )
 
@@ -196,15 +219,25 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
         wid = wire.get("id") if isinstance(wire, dict) else None
         if not isinstance(wid, str):
             continue
-        ends = [parent.get(wire.get("from_terminal")), parent.get(wire.get("to_terminal"))]
+        ends = [wire.get("from_terminal"), wire.get("to_terminal")]
         entries.append(
-            _entry(wid, "wire", _wire_label(wire), ends, points, on_sheet=not WIRE_IDS_ARE_OURS)
+            _entry(
+                wid,
+                "wire",
+                _wire_label(wire),
+                [parent.get(t) for t in ends],
+                [geometry.terminal(t) if isinstance(t, str) else None for t in ends],
+                on_sheet=not WIRE_IDS_ARE_OURS,
+                with_placement=False,
+                label_at=geometry.label(wid),
+            )
         )
 
     return {
         "drawing_number": (doc.get("drawing") or {}).get("drawing_number"),
         "counts": dict(Counter(e["kind"] for e in entries)),
         "located": sum(1 for e in entries if e["point"]),
+        "locations": geometry.report(),
         "entries": entries,
     }
 
@@ -214,31 +247,56 @@ def _entry(
     kind: str,
     label: str,
     members: list[Any],
-    points: dict[str, tuple[float, float]],
+    placed: list[Spot | None],
     *,
     on_sheet: bool,
     aliases: list[str] | None = None,
+    with_placement: bool = True,
+    label_at: Spot | None = None,
 ) -> dict[str, Any]:
-    """One row of the index. `members` are the components it is drawn through — deduplicated in
-    order, kept whether or not they have a location, because the overlay rings the ones it can
-    place and the popover still names the rest."""
+    """One row of the index.
+
+    `members` are the components it is drawn through — deduplicated in order, kept whether or not
+    they have a location, because the overlay rings the ones it can place and the popover still
+    names the rest. `placed` is the geometry, already resolved, in the order the caller wants it
+    shown: the first one is the primary, which is what `placement` describes.
+
+    `label_at` is for wires and nets only, and is **not** geometry: `rect` still frames the run
+    from its endpoints. It is where the name is printed on the sheet, so a citation of `W048` can
+    land on the text instead of on the midpoint of a rectangle. Absent until a person places it.
+    """
     seen: list[str] = []
     for member in members:
         if isinstance(member, str) and member not in seen:
             seen.append(member)
 
-    placed = [points[m] for m in seen if m in points]
+    found = [p for p in placed if p is not None]
+    places: list[dict[str, Any]] = []
+    for p in found:
+        place: dict[str, Any] = {"point": [p.point[0], p.point[1]], "placement": p.placement}
+        if p.site:
+            place["site"] = p.site
+        # Which side of the dot the id is written on. Omitted far more often than not, and the
+        # viewer's default is east, so this only appears where a human moved one out of the way.
+        if p.label_dir:
+            place["label_dir"] = p.label_dir
+        # Deduplicated whole, not by coordinate: two terminals of a net at the same site are one
+        # dot, but the same point reached with different provenance is worth keeping apart.
+        if place not in places:
+            places.append(place)
+
+    points = [place["point"] for place in places]
     rect = (
         [
-            min(x for x, _ in placed),
-            min(y for _, y in placed),
-            max(x for x, _ in placed),
-            max(y for _, y in placed),
+            min(x for x, _ in points),
+            min(y for _, y in points),
+            max(x for x, _ in points),
+            max(y for _, y in points),
         ]
-        if placed
+        if points
         else None
     )
-    entry = {
+    entry: dict[str, Any] = {
         "id": identifier,
         "kind": kind,
         "label": label,
@@ -247,18 +305,18 @@ def _entry(
         "point": [(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2] if rect else None,
         "rect": rect,
     }
+    # Only when it says something `point` does not: see the docstring above on payload size.
+    if len(places) > 1:
+        entry["places"] = places
+    if with_placement:
+        entry["placement"] = found[0].placement if found else None
+    if label_at is not None:
+        entry["label_point"] = [label_at.point[0], label_at.point[1]]
+        if label_at.label_dir:
+            entry["label_dir"] = label_at.label_dir
     if aliases:
         entry["aliases"] = aliases
     return entry
-
-
-def _point(location: Any) -> tuple[float, float] | None:
-    if not isinstance(location, dict):
-        return None
-    try:
-        return float(location["x"]), float(location["y"])
-    except (KeyError, TypeError, ValueError):
-        return None
 
 
 def _invented_terminal(owner: Any) -> bool:

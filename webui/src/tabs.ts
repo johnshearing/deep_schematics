@@ -1,9 +1,10 @@
 import type { ComponentType } from 'react'
-import { Map, MessageSquareText, type LucideIcon } from 'lucide-react'
+import { Crosshair, Map, MessageSquareText, type LucideIcon } from 'lucide-react'
 
 import { AskTab } from '@/features/ask/AskTab'
 import { DrawingTab } from '@/features/drawing/DrawingTab'
-import { ASK_TAB_ID, DRAWING_TAB_ID } from '@/tabIds'
+import { LocateTab } from '@/features/locate/LocateTab'
+import { ASK_TAB_ID, DRAWING_TAB_ID, LOCATE_TAB_ID } from '@/tabIds'
 
 /**
  * The tab registry — one array, consumed by both the trigger list and the panels.
@@ -29,6 +30,10 @@ export interface TabContext {
   /** The sheet has been rendered to tiles. Without them there is nothing to view, so the tab
    * does not exist — a bare extraction degrades to exactly the UI it had before. */
   tilesAvailable: boolean
+  /** `/api/health` says this server was started with `SWUI_ALLOW_EDITS=true`. Published rather
+   * than probed: with edits off the routes are never registered, so a Locate tab on a public
+   * demo would be a screen that cannot save. */
+  editingEnabled: boolean
 }
 
 export interface TabDef {
@@ -63,6 +68,17 @@ export const TABS: TabDef[] = [
     keepMounted: true,
     // Annotated because `.sort()` below breaks the contextual typing from `TabDef[]`.
     isEnabled: (context: TabContext) => context.tilesAvailable,
+  },
+  {
+    id: LOCATE_TAB_ID,
+    label: 'Locate',
+    icon: Crosshair,
+    Component: LocateTab,
+    order: 30,
+    // Kept mounted for the same reason as the Drawing tab, plus one of its own: an unsaved draft
+    // and a half-finished run of placements must survive a trip to Ask to read something.
+    keepMounted: true,
+    isEnabled: (context: TabContext) => context.tilesAvailable && context.editingEnabled,
   },
 ].sort((a, b) => a.order - b.order)
 

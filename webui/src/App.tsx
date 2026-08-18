@@ -7,7 +7,8 @@ import { enabledTabs } from '@/tabs'
 import { useAppStore } from '@/stores/appStore'
 
 export function App() {
-  const { activeTabId, setActiveTab, loadAll, loaded, drawing, healthError } = useAppStore()
+  const { activeTabId, setActiveTab, loadAll, loaded, drawing, health, healthError } =
+    useAppStore()
 
   useEffect(() => {
     void loadAll()
@@ -16,6 +17,7 @@ export function App() {
   const tabs = enabledTabs({
     drawingAvailable: !!drawing,
     tilesAvailable: !!drawing?.tiles?.count,
+    editingEnabled: !!health?.editing?.enabled,
   })
   /**
    * The one place a tab id is reconciled with the registry.

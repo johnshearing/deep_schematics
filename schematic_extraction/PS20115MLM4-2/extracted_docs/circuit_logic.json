@@ -1825,7 +1825,12 @@
       "id": "DISCHARGE1:4",
       "parent_component": "DISCHARGE1",
       "function": "output",
-      "net": "130"
+      "net": "130",
+      "location": {
+        "x": 669.3,
+        "y": 627.2,
+        "source": "human"
+      }
     },
     {
       "id": "DISCHARGE1:5",

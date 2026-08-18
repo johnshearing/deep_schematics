@@ -10,7 +10,14 @@
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { overlaps, paintSheet, pointToCss, tileDestRect, type PaintTile } from './paint'
+import {
+  cssToPoint,
+  overlaps,
+  paintSheet,
+  pointToCss,
+  tileDestRect,
+  type PaintTile,
+} from './paint'
 
 /** The real sheet: 1224×792 pt rendered at 400 DPI into a 4×4 grid. */
 const SHEET = { width: 1224, height: 792 }
@@ -85,6 +92,41 @@ describe('pointToCss', () => {
     // not. Getting this backwards puts every marker at twice its offset on a retina display.
     expect(pointToCss([100, 50], { x: 0, y: 0, scale: 2 }, 1)).toEqual({ left: 200, top: 100 })
     expect(pointToCss([100, 50], { x: 0, y: 0, scale: 2 }, 2)).toEqual({ left: 200, top: 100 })
+  })
+})
+
+describe('cssToPoint', () => {
+  it('is the inverse of pointToCss, which is what makes a click a coordinate', () => {
+    // The Locate editor writes what this returns into an authored file, so the round trip is the
+    // property: place a dot on the sheet, click it, get the same point back. Its own arithmetic
+    // would eventually disagree with the tiles, and the dots would land plausibly and be wrong.
+    const viewport = { x: 12, y: 48.94, scale: 0.634 }
+    for (const point of [
+      [0, 0],
+      [154.5, 348.3],
+      [861, 679],
+      [1224, 792],
+    ] as [number, number][]) {
+      const css = pointToCss(point, viewport, 2)
+      const back = cssToPoint(css, viewport)
+      // `pointToCss` snaps to whole *device* pixels, so up to half of one comes back — 0.4 pt
+      // at this zoom, well under the 16 pt spacing of the rows this has to distinguish.
+      expect(back[0]).toBeCloseTo(point[0], 0)
+      expect(back[1]).toBeCloseTo(point[1], 0)
+    }
+  })
+
+  it('converts a CSS delta into a sheet delta when the offset is dropped', () => {
+    // How a drag moves a dot: the offset is zeroed so only the scale applies, which is why a
+    // drag needs no container rectangle and cannot drift as the sheet is panned under it.
+    const viewport = { x: 999, y: -40, scale: 0.634 }
+    const [dx, dy] = cssToPoint({ left: 63.4, top: -12.68 }, { ...viewport, x: 0, y: 0 })
+    expect(dx).toBeCloseTo(100, 6)
+    expect(dy).toBeCloseTo(-20, 6)
+  })
+
+  it('answers the origin rather than dividing by zero before the sheet is measured', () => {
+    expect(cssToPoint({ left: 400, top: 300 }, { x: 0, y: 0, scale: 0 })).toEqual([0, 0])
   })
 })
 

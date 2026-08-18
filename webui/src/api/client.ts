@@ -11,6 +11,9 @@ import type {
   DesignatorIndex,
   DrawingSummary,
   Health,
+  LocationsDocument,
+  LocationsResponse,
+  SaveLocationsResponse,
   ServerEvent,
   StarterQuestion,
 } from './types'
@@ -39,6 +42,60 @@ export async function unlock(password: string): Promise<void> {
   })
   if (!response.ok) throw new ApiError(response.status, await detail(response))
   setDemoPassword(password)
+}
+
+/**
+ * The editor password, when one is configured. A *second* secret, held the same way and for a
+ * stronger reason: permission to spend tokens and permission to change where the drawing says
+ * things are are different permissions, so this is never the demo password and never persisted.
+ * Closing the tab is the logout.
+ */
+let editorPassword = ''
+export function hasEditorPassword() {
+  return editorPassword.length > 0
+}
+
+/** Check the editor password before storing it. Throws `ApiError` (401) when it is wrong, and
+ * 404 when the server was not started with `SWUI_ALLOW_EDITS=true` — the routes do not exist. */
+export async function editorUnlock(password: string): Promise<void> {
+  const response = await fetch(`${API}/editor/unlock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  editorPassword = password
+}
+
+export async function getLocations(): Promise<LocationsResponse> {
+  const response = await fetch(`${API}/locations`, {
+    headers: { Accept: 'application/json', ...editorHeader() },
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  return (await response.json()) as LocationsResponse
+}
+
+/**
+ * Replace `locations.json` wholesale.
+ *
+ * Whole-file rather than a patch because the editor holds the document it loaded: there is no
+ * merge to get wrong, and a text file a human can also open stays the source of truth. The
+ * server writes it atomically and answers with the problems the *next* read will report.
+ */
+export async function putLocations(
+  document: LocationsDocument,
+): Promise<SaveLocationsResponse> {
+  const response = await fetch(`${API}/locations`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...editorHeader() },
+    body: JSON.stringify({ document }),
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  return (await response.json()) as SaveLocationsResponse
+}
+
+function editorHeader(): Record<string, string> {
+  return editorPassword ? { 'X-Editor-Password': editorPassword } : {}
 }
 
 export class ApiError extends Error {
