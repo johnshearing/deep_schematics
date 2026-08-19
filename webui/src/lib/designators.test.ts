@@ -72,6 +72,36 @@ describe('buildLookup', () => {
     expect(resolve(byToken, null)).toBeNull()
   })
 
+  it('reads `net 110` as net 110, and only where the kind agrees', () => {
+    // The most natural span a model writes, and until now the one that resolved to nothing: the
+    // entry's id is `110` and nets carry no aliases. The kind word has to agree, so a mismatched
+    // one cannot land the reader on something they did not name.
+    const byToken = buildLookup(
+      index([
+        entry('110', { kind: 'net' }),
+        entry('W048', { kind: 'wire' }),
+        entry('CR-BP:A1', { kind: 'terminal' }),
+      ]),
+    )
+    expect(resolve(byToken, 'net 110')?.id).toBe('110')
+    expect(resolve(byToken, 'NET 110')?.id).toBe('110')
+    expect(resolve(byToken, 'wire W048')?.id).toBe('W048')
+    expect(resolve(byToken, 'terminal CR-BP:A1')?.id).toBe('CR-BP:A1')
+    // Wrong kind, no destination — `110` is a net, not a wire and not a component.
+    expect(resolve(byToken, 'wire 110')).toBeNull()
+    expect(resolve(byToken, 'component 110')).toBeNull()
+    // And nothing else earns the tolerance: it is one leading kind word, not prose stripping.
+    expect(resolve(byToken, 'on net 110')).toBeNull()
+    expect(resolve(byToken, 'net 110 and 120')).toBeNull()
+    expect(resolve(byToken, 'W048 (blue)')).toBeNull()
+  })
+
+  it('lets an exact id beat the kind-word reading of the same span', () => {
+    // A component actually named `NET 110` keeps its own span, whatever else is in the index.
+    const byToken = buildLookup(index([entry('NET 110'), entry('110', { kind: 'net' })]))
+    expect(resolve(byToken, 'net 110')?.id).toBe('NET 110')
+  })
+
   it('survives an index that is missing or the wrong shape', () => {
     expect(buildLookup(null).size).toBe(0)
     expect(buildLookup({ entries: undefined } as unknown as DesignatorIndex).size).toBe(0)
@@ -118,5 +148,12 @@ describe('suggestedQuestion', () => {
   it('asks something specific to the kind of thing that was clicked', () => {
     expect(suggestedQuestion(entry('CR-BP'))).toContain('CR-BP')
     expect(suggestedQuestion(entry('110', { kind: 'net' }))).toMatch(/wires and how many terminals/)
+  })
+
+  it('opens a component wide rather than asking one thing about it', () => {
+    // Asked for 2026-08-19: at a marker the useful question is everything the extraction has,
+    // and the narrower version this replaced ("what does it do, and what is connected to it")
+    // got a narrower answer. Pinned because it is a product decision, not a wording accident.
+    expect(suggestedQuestion(entry('CR-BP'))).toBe('Please tell me all you can about CR-BP')
   })
 })

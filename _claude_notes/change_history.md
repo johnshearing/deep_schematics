@@ -119,6 +119,130 @@ Semicolons, not `&&`, so one failure does not hide the state of the other three.
 
 ---
 
+## 2026-08-19 — Four changes to the reading loop: Ask ⇄ Drawing
+
+The Locate-tab work of the same day is recorded in
+`_claude_notes/locate_tab_testing/locate_tab_instruction_and_test_manual.md` §5, not here. This
+entry is the other half of the day: the user had finished walking all 28 Locate tests, everything
+passed, and turned to **the loop a reader actually spends their time in** — read an answer, check
+it on the sheet, come back. Four requests, and the thread joining them is that the answer and the
+drawing are one document viewed two ways, so crossing between them should cost nothing.
+
+### 1. A clicked component asks for everything, not one facet
+
+*Ask about this* on a component's card put `What does CR-BP do, and what is connected to it?` in
+the composer. It is now `Please tell me all you can about CR-BP`.
+
+The narrow question was written to be exemplary — short, specific, two clauses. Standing at a
+marker that is the wrong instinct: the reader has just arrived somewhere and does not yet know
+which facet they want, and a two-clause question gets a two-clause answer with the relay's other
+two sites, its ratings and the nets it switches left out. The other three kinds keep their
+specific questions, because a terminal, a net and a wire each have one fact a reader is nearly
+always after, and "everything about net `110`" is a table the deterministic views in
+`webui_ideas.md` §1 will give away without a model at all.
+
+`suggestedQuestion` in `webui/src/lib/designators.ts`, one test pinning the exact string, because
+it is a product decision and not a wording accident.
+
+### 2. `F2` shuttles between Ask and Drawing
+
+The user noticed they were using *Ask about this* as a **tab switch** and asked for a real one.
+That observation is the finding here: two ways across the seam existed and both were round trips
+with a side effect — a citation moves the sheet, *Ask about this* rewrites the composer — so
+neither was a way to simply *look*.
+
+`F2` toggles: on the Drawing tab it goes to Ask, anywhere else it goes to the drawing. Bare `F2`
+only; with any modifier it belongs to the browser or a screen reader.
+
+**Why `F2` and not a letter.** It has to work while the caret is in the composer, which is where a
+reader sits on the Ask tab, so bare letters are out. It must not be something the browser has
+claimed: `Ctrl`/`Alt` plus a digit switches browser tabs, `Alt+D` is the address bar,
+`Ctrl+Shift+D` is bookmarks. Nearly every function key is taken too — `F1` help, `F3` find, `F5`
+reload, `F6` toolbar, `F11` full screen, `F12` dev tools — and `F2` is not, in any of the three
+engines, and a textarea does nothing with it either.
+
+Bound in `App.tsx`, deliberately, not in a tab: a tab that is not mounted cannot listen for the
+key that would show it, and `keepMounted` is a performance decision that must not become the
+reason a shortcut works. It is not bound at all when the sheet was never tiled — there is no
+Drawing tab then, and a key that silently does nothing is worse than no key. Advertised in three
+places a reader is already looking: the composer's hint line, the drawing's footer strip, and the
+`title` on both tab triggers.
+
+### 3. More of the model's identifiers become links
+
+The citation seam has worked since 2026-08-12 and the model uses it "pretty well". The user asked
+whether it could be pushed further. Reading the prompt against the client's actual lookup found a
+real defect rather than a matter of degree:
+
+**`Citation.tsx` matches the *whole* backticked span, verbatim, against the designator index.** So
+`` `net 110` `` matches nothing — the entry's id is `110`, and nets carry no aliases — while
+net `` `110` `` links. The old prompt's own example was `` `net 110` ``, and its troubleshooting
+section printed the model path with **one** pair of backticks around the entire line, which turns
+the most useful line in the answer into the one place the reader cannot click. The prompt was
+teaching two of the failure modes it was meant to prevent.
+
+So the Citation section gains a subsection stating the mechanism and six rules that follow from
+it: one identifier per span and nothing else inside the backticks; spelled as `circuit_logic.json`
+spells it; **every** occurrence rather than the first in a sentence (the old wording licensed a
+bare mention afterwards, and a reader scrolled back three screens needs the link in front of
+them); in every table cell; on every hop of a path; and the id in the sentence rather than a
+pronoun or a paraphrase. Plus a closing instruction to re-read the draft once for links only,
+which is the cheapest pass available. Both bad examples are fixed.
+
+`PROMPT_VERSION` is `v1.2`. Every archived turn records it, so the effect of this change is
+measurable against v1.1 answers rather than a matter of impression —
+`test_terminals_must_be_cited_with_their_component` still holds the counts that make a bare pin
+ambiguous.
+
+**And the client meets it halfway.** `resolve` in `lib/designators.ts` now reads a span of the
+form `<kind> <id>` — `` `net 110` ``, `` `wire W048` `` — as that id, *provided the kind word
+agrees with the kind the index gave it*. A reader does not care whose fault a dead link was, and
+this is the one near-miss worth absorbing because it is the phrase English wants. It is still not
+a pattern match and the allowlist still holds: the id must be in the index exactly, an exact hit
+on the whole span always wins first (a component actually named `NET 110` keeps its own span), and
+`` `component 110` `` resolves to nothing rather than to net `110`. Nothing else is stripped —
+`` `on net 110` `` and `` `W048 (blue)` `` stay plain, which is what keeps rule 1 of the prompt
+worth obeying.
+
+### 4. Escape clears the selection on the Drawing tab
+
+The same key, with the same meaning, as the Locate tab's Escape from 2026-08-19: what a button
+does, the key should do. A selection is a mode — a ringed dot, a card over the corner of the
+sheet, a marker that stays visible through the *Components* toggle — and the only way out was a
+20 px ✕ in that card, which costs a pointer trip away from the thing being read.
+
+On `window` rather than on the sheet, because the selection usually arrived from a citation on the
+*other* tab and nothing in the viewer has focus afterwards. Guarded three ways, and each guard is
+a bug that would otherwise exist: by the active tab, so a hidden Drawing tab cannot disarm the
+Locate editor's target; by `defaultPrevented`; and by a text-field check, so Escape in the unlock
+field or the composer is that box's first. It also does not swallow an Escape when nothing is
+selected — a dialog elsewhere may want it.
+
+`isTextField` moved from `LocateTab.tsx` to a new leaf module `webui/src/lib/keys.ts`, since both
+handlers now need the same rule and the reasoning behind it (checkboxes hold focus but nothing is
+being composed in them) is worth stating once.
+
+### Verify
+
+    cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
+      cd ../webui && npx vitest run; npx tsc -b --noEmit
+
+**105 server, 119 web** (eight new: the component question, the `F2` shuttle and its absence
+without tiles, three for Escape, and two for the `<kind> <id>` span), ruff and tsc clean. `npm run build` has been run, so
+`server/app/static/` is current; the server needs a restart for `prompts.py` — with `python -m
+app` there is no reloader, and an unrestarted server answers with v1.1.
+
+Four things to try, on a running server:
+
+| | Do | Expect |
+|---|---|---|
+| **D-1** | Ask anything, click a component citation, press *Ask about this* | Back on Ask, composer reads `Please tell me all you can about <id>` |
+| **D-2** | Press `F2` on either tab, repeatedly, including with the caret in the composer | Ask ⇄ Drawing every press; the sheet keeps its pan and zoom; nothing is typed into the box |
+| **D-3** | Click a marker, then press `Escape` — then again with the composer focused | Card and ring gone the first time; the second time the box loses focus and any selection stands |
+| **D-4** | Ask a troubleshooting question ("no 24 V at the bypass relay") | More clickable spans than before, including inside tables and on every hop of the path; no `` `net 110` `` and no whole-path spans |
+
+---
+
 ## 2026-08-17 — What the editor was missing, and the flag that hid all of it
 
 The user opened the app after the entry below landed and reported seeing **none** of it —

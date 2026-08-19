@@ -7,6 +7,9 @@ import { useChatStore } from '@/stores/chatStore'
 
 export function Composer() {
   const { model, health, refreshHealth, unlocked } = useAppStore()
+  // Only advertise the shortcut where there is a Drawing tab for it to reach; an extraction that
+  // was never tiled has none. `App` owns the key itself — see the comment on its handler.
+  const hasDrawing = useAppStore((s) => !!s.drawing?.tiles?.count)
   const { busy, composerText, setComposerText, send, stop } = useChatStore()
   const textarea = useRef<HTMLTextAreaElement>(null)
 
@@ -71,8 +74,10 @@ export function Composer() {
         )}
       </div>
       <p className="mt-1.5 text-[11px] text-muted-foreground">
-        Enter to send, Shift+Enter for a new line. Answers are read-only and cite wire, net and
-        terminal IDs — check them against the drawing before acting on one.
+        Enter to send, Shift+Enter for a new line.{' '}
+        {hasDrawing && <>F2 shows the drawing, and brings you back.{' '}</>}
+        Answers are read-only and cite wire, net and terminal IDs — check them against the drawing
+        before acting on one.
       </p>
     </div>
   )

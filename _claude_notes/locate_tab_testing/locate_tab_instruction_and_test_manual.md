@@ -37,7 +37,7 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **105 server, 111 web, ruff clean, tsc clean** — except that
+Expected right now: **105 server, 119 web, ruff clean, tsc clean** — except that
 `test_the_committed_artifact_is_exactly_what_the_generator_writes` is red whenever `locations.json`
 has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a failure; re-run the
 generator (§5) and it goes green.
@@ -140,7 +140,10 @@ and the id is not enough to say where to go.
                       cd schematic_extraction/PS20115MLM4-2/extracted_docs
                       && python author_circuit_logic.py
                       Do not hand-edit it — it is generated.
-    tests             105 server (104 + that one), 111 web, ruff and tsc clean
+    tests             105 server (104 + that one), 119 web, ruff and tsc clean
+                      — eight of the web tests are the Drawing-tab work of the same
+                      day (F2, Escape, the component question); change_history.md
+                      2026-08-19 has it. Nothing in this manual moved.
     server            not running; start it as in §1
     git               locations.json is tracked now, and modified against its last
                       commit — it is authored content and the one thing here git

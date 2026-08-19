@@ -350,6 +350,52 @@ describe('DrawingTab', () => {
     expect(useAppStore.getState().activeTabId).toBe('ask')
   })
 
+  it('gives Escape the same job as the ✕ on the card', () => {
+    // A selection is a mode — a ringed dot, a card over the corner of the sheet, and a marker
+    // that shows through the Components toggle — and the only way out used to be a 20 px target
+    // in a corner. Same key, same meaning as the Locate tab's Escape.
+    render(<DrawingTab />)
+    activate()
+    fireEvent.click(marker('CR-BP'))
+    expect(screen.getByText('Run bypass relay.', { exact: false })).toBeTruthy()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(useAppStore.getState().selection).toBeNull()
+    expect(screen.queryByText('Run bypass relay.', { exact: false })).toBeNull()
+  })
+
+  it('leaves Escape alone when this tab is not the one on screen', () => {
+    // The listener is on `window`, because a selection usually arrives from a citation on the
+    // Ask tab and nothing here has focus afterwards. That makes the tab guard the only thing
+    // stopping this from disarming the Locate editor's target from a hidden tab.
+    render(<DrawingTab />)
+    activate()
+    fireEvent.click(marker('CR-BP'))
+    act(() => useAppStore.setState({ activeTabId: 'locate' }))
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(useAppStore.getState().selection).not.toBeNull()
+  })
+
+  it('lets a box being typed into have the first Escape', () => {
+    // The unlock field lives in the header, outside the tabs, and is on screen while this tab
+    // is. Escape in a text field means "abandon what I am typing", and that is its own event.
+    render(<DrawingTab />)
+    activate()
+    fireEvent.click(marker('CR-BP'))
+
+    const field = document.createElement('input')
+    document.body.appendChild(field)
+    field.focus()
+    fireEvent.keyDown(field, { key: 'Escape' })
+
+    expect(useAppStore.getState().selection).not.toBeNull()
+    expect(document.activeElement).not.toBe(field)
+    field.remove()
+  })
+
   it('keeps the selected marker visible when the overlay is switched off', () => {
     render(<DrawingTab />)
     activate()

@@ -44,6 +44,7 @@ import { MarkerLayer } from '@/features/drawing/MarkerLayer'
 import { cssToPoint } from '@/features/drawing/paint'
 import { TileSheet } from '@/features/drawing/TileSheet'
 import { useTileViewport, type Rect, type Viewport } from '@/features/drawing/useTileViewport'
+import { isTextField } from '@/lib/keys'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
 import { useLocateStore } from '@/stores/locateStore'
@@ -267,8 +268,8 @@ export function LocateTab() {
    * writes into an authored file. Until this existed the only way out of it was into another one
    * — picking a different row — so a person who had finished placing and just wanted to look at
    * the drawing had a crosshair and a live target for the rest of the session. The Drawing tab
-   * has always had the way out, as the ✕ on its selection card; this is the same idea reached by
-   * the key as well as by the button on the target panel.
+   * had the way out already as the ✕ on its selection card, and now has this key too, on the same
+   * reasoning: what a button does, Escape should do.
    *
    * On `window` rather than on the sheet, because the thing you want to escape from is usually
    * something you armed *in the list*, and the sheet does not have focus then. Guarded by the
@@ -596,15 +597,6 @@ const EMPTY_SET: Set<string> = new Set()
  * numbers a person reads as numbers, and `W9` after `W047` is the kind of small wrongness that
  * makes someone stop trusting the list. */
 const BY_ID = new Intl.Collator(undefined, { numeric: true })
-
-/** Whether a keystroke belongs to something being typed into, and so is not the tab's to take.
- * The pin chips are checkboxes: they hold focus, but nothing is being composed in them, so
- * Escape over one means the same as Escape over the sheet. */
-function isTextField(node: EventTarget | null): node is HTMLElement {
-  if (!(node instanceof HTMLElement)) return false
-  if (node.isContentEditable || node.tagName === 'TEXTAREA') return true
-  return node.tagName === 'INPUT' && (node as HTMLInputElement).type !== 'checkbox'
-}
 
 /** Everything in the index is *something* a person can put somewhere: components and terminals a
  * point, wires and nets a label. Nothing in the list is inert. */

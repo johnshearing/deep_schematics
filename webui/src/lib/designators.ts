@@ -4,7 +4,8 @@
  * **This is an allowlist, and that is the security property.** The text being matched is model
  * output. Pattern-matching it — "anything that looks like `W###`" — would let an answer mint
  * clickable targets, and the whole point of the citation seam is that a clickable span is one
- * the server said exists. So: exact lookup, case-folded, nothing else.
+ * the server said exists. So: exact lookup, case-folded, and the one bounded tolerance
+ * documented on `resolve` — which still resolves only ids the index holds.
  *
  * Pure, because the ambiguity rules below are the part that can be wrong and a store is an
  * awkward place to assert against.
@@ -68,13 +69,41 @@ export function buildLookup(index: DesignatorIndex | null): Map<string, Designat
   return byToken
 }
 
+/**
+ * The one span shape tolerated beyond an exact id, and the reason it is safe.
+ *
+ * `` `net 110` `` is the most natural thing a model can write and it used to resolve to nothing:
+ * the entry's id is `110`, nets carry no aliases, and the lookup is of the whole span. The prompt
+ * now says to write net `` `110` ``, and `prompts.py` is where that belongs — but the client can
+ * meet it halfway for free, and a reader does not care whose fault a dead link was.
+ *
+ * **This is still not a pattern match.** The id has to be in the index, exactly, and the kind word
+ * has to *agree* with the kind the index gave it — so `` `component 1` `` cannot land on a net
+ * named `1`. Nothing here can name a target the server did not.
+ */
+const KIND_WORD: Record<string, Designator['kind']> = {
+  COMPONENT: 'component',
+  TERMINAL: 'terminal',
+  NET: 'net',
+  WIRE: 'wire',
+}
+
 /** The entry a backticked span points at, or null if it points at nothing. */
 export function resolve(
   byToken: Map<string, Designator>,
   token: string | null | undefined,
 ): Designator | null {
   if (!token) return null
-  return byToken.get(normalise(token)) ?? null
+  const key = normalise(token)
+  const exact = byToken.get(key)
+  // An exact hit always wins, so a component actually called `NET 110` keeps its own span.
+  if (exact) return exact
+
+  const parts = /^([A-Z]+) (.+)$/.exec(key)
+  const kind = parts && KIND_WORD[parts[1]]
+  if (!kind) return null
+  const entry = byToken.get(parts![2])
+  return entry?.kind === kind ? entry : null
 }
 
 /** What to call this kind of thing in a sentence. */
@@ -86,11 +115,18 @@ export const KIND_LABEL: Record<Designator['kind'], string> = {
 }
 
 /** The question a click on the drawing puts in the composer. It is a starting point, not a
- * submission — the reader edits it and presses Ask, so it must be short and specific. */
+ * submission — the reader edits it and presses Ask, so it must be short.
+ *
+ * **A component's is deliberately open-ended**, asked for by the user 2026-08-19: standing at a
+ * marker, the useful first question is not one facet of the thing but everything the extraction
+ * has on it — what it is, what it switches, every net and wire that lands on it, and where else
+ * it is drawn. A narrow question gets a narrow answer and hides the rest. The other three kinds
+ * stay specific because each has one fact a reader is nearly always after, and because a net or
+ * a wire's "everything" is a table the deterministic views will give away for free. */
 export function suggestedQuestion(entry: Designator): string {
   switch (entry.kind) {
     case 'component':
-      return `What does ${entry.id} do, and what is connected to it?`
+      return `Please tell me all you can about ${entry.id}`
     case 'terminal':
       return `What lands on ${entry.id}, and what net is it on?`
     case 'net':

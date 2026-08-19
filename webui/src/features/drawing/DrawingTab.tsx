@@ -28,6 +28,7 @@ import { SOURCE_URL } from '@/api/client'
 import type { Designator } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { normalise, suggestedQuestion } from '@/lib/designators'
+import { isTextField } from '@/lib/keys'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
 import { useChatStore } from '@/stores/chatStore'
@@ -131,6 +132,37 @@ export function DrawingTab() {
     panTo.current(target)
     // The nonce is what makes a repeat of the same citation count as a new instruction.
   }, [ready, selection?.nonce, selection?.origin])
+
+  /**
+   * **Escape is the ✕ on the selection card.** Nothing selected, no ring, no card.
+   *
+   * The same rule as the Locate tab's Escape (see `LocateTab.tsx`), and for the same reason: a
+   * selection is a *mode* — it rings a dot, keeps that dot visible through the Components toggle,
+   * and holds a card over the bottom-left corner of the sheet — and a mode needs a way out that
+   * is not a small target in a corner. Reaching for the ✕ costs a pointer trip away from the
+   * thing being read.
+   *
+   * On `window` rather than on the sheet, because the selection usually arrived from a citation
+   * on the *other* tab, and nothing here has focus after that. Guarded by the active tab so a
+   * keypress meant for the Locate editor cannot clear this one, and by the same text-field rule,
+   * so an Escape pressed in a box (the unlock field, the composer) is that box's first.
+   */
+  useEffect(() => {
+    if (activeTabId !== DRAWING_TAB_ID) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (isTextField(event.target)) {
+        event.target.blur()
+        return
+      }
+      // Nothing selected is not this tab's Escape to swallow: a dialog elsewhere may want it.
+      if (!useAppStore.getState().selection) return
+      event.preventDefault()
+      clearSelection()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [activeTabId, clearSelection])
 
   const ask = useCallback(() => {
     if (!entry) return
@@ -285,7 +317,8 @@ export function DrawingTab() {
 
       <p className="border-t px-4 py-1 text-[11px] text-muted-foreground">
         Drag to pan · scroll to zoom · double-click to zoom in · <Key>0</Key> fits the sheet ·
-        arrow keys nudge.{' '}
+        arrow keys nudge · <Key>Esc</Key> clears the selection · <Key>F2</Key> switches between
+        this tab and Ask.{' '}
         {markers.length > 0 && (
           <>
             Click a marker for what that component is, or click any{' '}

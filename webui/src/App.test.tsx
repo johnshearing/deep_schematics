@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App } from './App'
+import { useAppStore } from './stores/appStore'
 import { TABS } from './tabs'
 
 /**
@@ -68,7 +69,11 @@ function stubFetch(drawing: object = DRAWING) {
   }))
 }
 
-beforeEach(() => stubFetch())
+beforeEach(() => {
+  stubFetch()
+  // `activeTabId` is persisted, so one test's tab switch is the next test's starting state.
+  useAppStore.setState({ activeTabId: '' })
+})
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -102,6 +107,42 @@ describe('App', () => {
     render(<App />)
     expect(await screen.findByRole('tab', { name: /drawing/i })).toBeTruthy()
     expect(screen.getByRole('tab', { name: /ask/i })).toBeTruthy()
+  })
+
+  it('shuttles between Ask and Drawing on F2, and only where there is a drawing', async () => {
+    // Reading an answer and checking it on the sheet is one job in two places. The two ways
+    // across that existed both had a side effect — a citation moves the sheet, "Ask about this"
+    // rewrites the composer — so neither was a way to simply look.
+    stubFetch({
+      ...DRAWING,
+      tiles: {
+        page_size_pt: [1224, 792], dpi: 400, rows: 1, cols: 1, count: 1,
+        tiles: [{ file: 'tile_r1c1.png', row: 1, col: 1, pdf_rect: [0, 0, 1224, 792],
+                  pixels: [6800, 4400] }],
+      },
+    })
+    render(<App />)
+    await screen.findByRole('tab', { name: /drawing/i })
+
+    fireEvent.keyDown(window, { key: 'F2' })
+    await waitFor(() => expect(useAppStore.getState().activeTabId).toBe('drawing'))
+    fireEvent.keyDown(window, { key: 'F2' })
+    await waitFor(() => expect(useAppStore.getState().activeTabId).toBe('ask'))
+
+    // The browser and the screen readers own every F2 with a modifier on it.
+    fireEvent.keyDown(window, { key: 'F2', ctrlKey: true })
+    expect(useAppStore.getState().activeTabId).toBe('ask')
+  })
+
+  it('does not bind F2 when the sheet was never rendered to tiles', async () => {
+    // There is no Drawing tab then, and a key that silently does nothing is worse than no key.
+    render(<App />)
+    await screen.findByText('PS20115MLM4-2')
+    const before = useAppStore.getState().activeTabId
+
+    fireEvent.keyDown(window, { key: 'F2' })
+
+    expect(useAppStore.getState().activeTabId).toBe(before)
   })
 
   it('renders the drawing, the counts and the starter questions', async () => {
