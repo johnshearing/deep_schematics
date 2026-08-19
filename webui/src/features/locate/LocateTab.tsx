@@ -208,6 +208,41 @@ export function LocateTab() {
     if (measured && focusRef.current) panTo.current(focusRef.current)
   }, [measured, target?.id])
 
+  /**
+   * **Escape puts the screen back the way it started.** Nothing armed, no red dot, the hand back
+   * on the sheet.
+   *
+   * Being armed is a *mode*, and it is the one mode in this application where the next click
+   * writes into an authored file. Until this existed the only way out of it was into another one
+   * — picking a different row — so a person who had finished placing and just wanted to look at
+   * the drawing had a crosshair and a live target for the rest of the session. The Drawing tab
+   * has always had the way out, as the ✕ on its selection card; this is the same idea reached by
+   * the key as well as by the button on the target panel.
+   *
+   * On `window` rather than on the sheet, because the thing you want to escape from is usually
+   * something you armed *in the list*, and the sheet does not have focus then. Guarded by the
+   * active tab so a keypress meant for the Drawing tab does not silently disarm this one.
+   *
+   * A text field gets the first Escape for itself and only loses focus: half a typed site name
+   * is work, and Escape is the key people press to abandon it. The second Escape, now that focus
+   * has left the field, clears the target.
+   */
+  useEffect(() => {
+    if (activeTabId !== LOCATE_TAB_ID) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (isTextField(event.target)) {
+        event.target.blur()
+        return
+      }
+      if (!useLocateStore.getState().target) return
+      event.preventDefault()
+      setTarget(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [activeTabId, setTarget])
+
   const stamp = useCallback(
     () => ({ by: health?.editing?.by ?? null, at: new Date().toISOString() }),
     [health?.editing?.by],
@@ -362,6 +397,7 @@ export function LocateTab() {
                 onEdit={edit}
                 onLabelDir={setLabelDir}
                 onClear={clear}
+                onClose={() => setTarget(null)}
               />
             </div>
           )}
@@ -380,7 +416,7 @@ export function LocateTab() {
           ref={viewer.containerRef}
           tabIndex={0}
           role="application"
-          aria-label="Schematic sheet. Click to place the selected designator; drag a dot to correct it."
+          aria-label="Schematic sheet. Click to place the selected designator; drag a dot to correct it; press Escape to select nothing and go back to panning."
           className={cn(
             'relative min-h-0 flex-1 touch-none overflow-hidden bg-muted select-none',
             target ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing',
@@ -446,7 +482,9 @@ export function LocateTab() {
       </div>
 
       <p className="border-t px-4 py-1 text-[11px] text-muted-foreground">
-        Pick a row, then click the sheet to place it · drag any dot to correct it · filled dots
+        Pick a row, then click the sheet to place it · drag any dot to correct it ·{' '}
+        <kbd className="rounded border px-1 py-px font-mono text-[10px] text-foreground">Esc</kbd>{' '}
+        selects nothing and gives the hand back · filled dots
         were placed by hand, hollow ones are the indexing pass&apos;s estimate. Saved to{' '}
         <span className="font-mono">locations.json</span>, which is authored and belongs in git
         beside <span className="font-mono">author_circuit_logic.py</span>.
@@ -468,6 +506,15 @@ export function LocateTab() {
 }
 
 const EMPTY_SET: Set<string> = new Set()
+
+/** Whether a keystroke belongs to something being typed into, and so is not the tab's to take.
+ * The pin chips are checkboxes: they hold focus, but nothing is being composed in them, so
+ * Escape over one means the same as Escape over the sheet. */
+function isTextField(node: EventTarget | null): node is HTMLElement {
+  if (!(node instanceof HTMLElement)) return false
+  if (node.isContentEditable || node.tagName === 'TEXTAREA') return true
+  return node.tagName === 'INPUT' && (node as HTMLInputElement).type !== 'checkbox'
+}
 
 /** Everything in the index is *something* a person can put somewhere: components and terminals a
  * point, wires and nets a label. Nothing in the list is inert. */

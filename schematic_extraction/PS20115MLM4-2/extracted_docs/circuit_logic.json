@@ -656,9 +656,11 @@
       "power_domain": "24VDC",
       "normal_state": "de-energized (11-12 closed, 21-24 open)",
       "location": {
-        "x": 861,
-        "y": 679,
-        "zone": "bottom-right"
+        "x": 860.5,
+        "y": 678.8,
+        "zone": "bottom-right",
+        "source": "human",
+        "site": "Coil"
       },
       "part_number": null,
       "manufacturer": null,
@@ -667,6 +669,44 @@
         "RUN BYPASS RELAY",
         "bypass relay",
         "run bypass relay"
+      ],
+      "sites": [
+        {
+          "id": "Coil",
+          "point": [
+            860.5,
+            678.8
+          ],
+          "terminals": [
+            "A1",
+            "A2"
+          ],
+          "source": "human"
+        },
+        {
+          "id": "NC",
+          "point": [
+            713.4,
+            539.8
+          ],
+          "terminals": [
+            "11",
+            "12"
+          ],
+          "source": "human"
+        },
+        {
+          "id": "NO",
+          "point": [
+            586.3,
+            226.2
+          ],
+          "terminals": [
+            "21",
+            "24"
+          ],
+          "source": "human"
+        }
       ]
     },
     {
@@ -681,9 +721,11 @@
       "power_domain": "24VDC",
       "normal_state": "de-energized (contact 11-14 open)",
       "location": {
-        "x": 861,
-        "y": 704,
-        "zone": "bottom-right"
+        "x": 861.0,
+        "y": 704.0,
+        "zone": "bottom-right",
+        "source": "human",
+        "site": "Coil"
       },
       "part_number": null,
       "manufacturer": null,
@@ -692,6 +734,32 @@
         "SWITCH RELAY",
         "switch relay",
         "CR SW"
+      ],
+      "sites": [
+        {
+          "id": "Coil",
+          "point": [
+            861.0,
+            704.0
+          ],
+          "terminals": [
+            "A1",
+            "A2"
+          ],
+          "source": "human"
+        },
+        {
+          "id": "main",
+          "point": [
+            564.4,
+            473.6
+          ],
+          "terminals": [
+            "11",
+            "14"
+          ],
+          "source": "human"
+        }
       ]
     },
     {
@@ -867,9 +935,11 @@
       "power_domain": "control_signal",
       "normal_state": "connected to the downstream machine",
       "location": {
-        "x": 760,
-        "y": 560,
-        "zone": "centre-bottom"
+        "x": 596.9,
+        "y": 521.5,
+        "zone": "centre-bottom",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -878,6 +948,17 @@
         "discharge interface",
         "discharge cable",
         "male 6-pin mini cable"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            596.9,
+            521.5
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -1537,61 +1618,111 @@
       "id": "CR-BP:A1",
       "parent_component": "CR-BP",
       "function": "coil",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 850.2,
+        "y": 682.7,
+        "source": "human"
+      }
     },
     {
       "id": "CR-BP:A2",
       "parent_component": "CR-BP",
       "function": "coil",
-      "net": "125"
+      "net": "125",
+      "location": {
+        "x": 870.7,
+        "y": 684.5,
+        "source": "human"
+      }
     },
     {
       "id": "CR-BP:11",
       "parent_component": "CR-BP",
       "function": "common",
-      "net": "111"
+      "net": "111",
+      "location": {
+        "x": 707.2,
+        "y": 535.8,
+        "source": "human"
+      }
     },
     {
       "id": "CR-BP:12",
       "parent_component": "CR-BP",
       "function": "NC_contact",
-      "net": "110"
+      "net": "110",
+      "location": {
+        "x": 722.4,
+        "y": 534.9,
+        "source": "human"
+      }
     },
     {
       "id": "CR-BP:21",
       "parent_component": "CR-BP",
       "function": "common",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 601.8,
+        "y": 236.6,
+        "source": "human"
+      }
     },
     {
       "id": "CR-BP:24",
       "parent_component": "CR-BP",
       "function": "NO_contact",
-      "net": "RUN"
+      "net": "RUN",
+      "location": {
+        "x": 585.9,
+        "y": 237.1,
+        "source": "human"
+      }
     },
     {
       "id": "CR-SW:A1",
       "parent_component": "CR-SW",
       "function": "coil",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 849.8,
+        "y": 708.7,
+        "source": "human"
+      }
     },
     {
       "id": "CR-SW:A2",
       "parent_component": "CR-SW",
       "function": "coil",
-      "net": "130"
+      "net": "130",
+      "location": {
+        "x": 871.1,
+        "y": 708.6,
+        "source": "human"
+      }
     },
     {
       "id": "CR-SW:11",
       "parent_component": "CR-SW",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 562.6,
+        "y": 488.7,
+        "source": "human"
+      }
     },
     {
       "id": "CR-SW:14",
       "parent_component": "CR-SW",
       "function": "NO_contact",
-      "net": "110"
+      "net": "110",
+      "location": {
+        "x": 576.9,
+        "y": 488.4,
+        "source": "human"
+      }
     },
     {
       "id": "BYPASS-CB:1",
@@ -1807,19 +1938,34 @@
       "id": "DISCHARGE1:1",
       "parent_component": "DISCHARGE1",
       "function": "output",
-      "net": "111"
+      "net": "111",
+      "location": {
+        "x": 661.4,
+        "y": 530.8,
+        "source": "human"
+      }
     },
     {
       "id": "DISCHARGE1:2",
       "parent_component": "DISCHARGE1",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 660.6,
+        "y": 547.0,
+        "source": "human"
+      }
     },
     {
       "id": "DISCHARGE1:3",
       "parent_component": "DISCHARGE1",
       "function": "output",
-      "net": "120"
+      "net": "120",
+      "location": {
+        "x": 660.7,
+        "y": 563.6,
+        "source": "human"
+      }
     },
     {
       "id": "DISCHARGE1:4",
@@ -1827,8 +1973,8 @@
       "function": "output",
       "net": "130",
       "location": {
-        "x": 669.3,
-        "y": 627.2,
+        "x": 662.0,
+        "y": 580.6,
         "source": "human"
       }
     },
@@ -1836,13 +1982,23 @@
       "id": "DISCHARGE1:5",
       "parent_component": "DISCHARGE1",
       "function": "output",
-      "net": "DINSP1"
+      "net": "DINSP1",
+      "location": {
+        "x": 662.8,
+        "y": 596.7,
+        "source": "human"
+      }
     },
     {
       "id": "DISCHARGE1:6",
       "parent_component": "DISCHARGE1",
       "function": "output",
-      "net": "DINSP2"
+      "net": "DINSP2",
+      "location": {
+        "x": 661.8,
+        "y": 618.3,
+        "source": "human"
+      }
     },
     {
       "id": "TB-IINSP1:1",
@@ -2065,7 +2221,12 @@
         "TB-110:3",
         "TB-110:4"
       ],
-      "description": "The start/stop signal net shared between machines. It ties together the CR-SW N.O. contact 14, the CR-ON coil return A2, the CR-BP N.C. contact 12, the infeed interface and the four points of terminal block 110. Pulling 110 down to 0V energizes the CR-ON coil and runs the machine."
+      "description": "The start/stop signal net shared between machines. It ties together the CR-SW N.O. contact 14, the CR-ON coil return A2, the CR-BP N.C. contact 12, the infeed interface and the four points of terminal block 110. Pulling 110 down to 0V energizes the CR-ON coil and runs the machine.",
+      "label_location": {
+        "x": 926.3,
+        "y": 485.7,
+        "source": "human"
+      }
     },
     {
       "id": "111",
@@ -2215,7 +2376,12 @@
       "to_terminal": "TB-L1:1",
       "cable": "CABLE-POWER-IN",
       "net": "L1",
-      "description": ""
+      "description": "",
+      "label_location": {
+        "x": 231.1,
+        "y": 50.5,
+        "source": "human"
+      }
     },
     {
       "id": "W002",
@@ -2225,7 +2391,12 @@
       "to_terminal": "TB-N:1",
       "cable": "CABLE-POWER-IN",
       "net": "N",
-      "description": ""
+      "description": "",
+      "label_location": {
+        "x": 231.4,
+        "y": 66.9,
+        "source": "human"
+      }
     },
     {
       "id": "W003",
@@ -2675,7 +2846,12 @@
       "to_terminal": "TB-110:3",
       "cable": null,
       "net": "110",
-      "description": ""
+      "description": "",
+      "label_location": {
+        "x": 925.3,
+        "y": 516.2,
+        "source": "human"
+      }
     },
     {
       "id": "W048",

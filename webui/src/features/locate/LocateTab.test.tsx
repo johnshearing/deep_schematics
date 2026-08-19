@@ -313,6 +313,54 @@ describe('LocateTab', () => {
     expect(useLocateStore.getState().document!.components).toEqual({})
   })
 
+  it('gives Escape back the empty screen it started with', async () => {
+    // Armed is a mode, and it is the mode where a click writes into an authored file. Before
+    // this the only exit from it was into another one — picking a different row — so somebody
+    // who had finished placing and just wanted to look at the sheet kept a crosshair and a live
+    // target for the rest of the session.
+    await open()
+    fireEvent.click(row('CR-BP'))
+    expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP', site: 'main' })
+    expect(sheet().className).toContain('cursor-crosshair')
+
+    // On `window`, because what you are escaping from was armed in the *list* and the sheet does
+    // not have focus then.
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(useLocateStore.getState().target).toBeNull()
+    expect(screen.queryByRole('option', { selected: true })).toBeNull()
+    // The hand is back, and — the part that matters — a click is a click again.
+    expect(sheet().className).toContain('cursor-grab')
+    clickSheet(400, 300)
+    expect(useLocateStore.getState().document!.components).toEqual({})
+  })
+
+  it('offers the same way out as a button, because a key nobody knows about is not a way out', async () => {
+    await open()
+    fireEvent.click(row('CR-BP'))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }))
+
+    expect(useLocateStore.getState().target).toBeNull()
+    // The panel is the visible evidence that something is armed, so it goes with the target.
+    expect(screen.queryByRole('button', { name: 'Clear selection' })).toBeNull()
+  })
+
+  it('lets a text field have the first Escape, so half a typed name is not lost', async () => {
+    await open()
+    fireEvent.click(screen.getByLabelText(/move to the next unplaced/i))
+    fireEvent.click(row('CR-BP'))
+    clickSheet(400, 300)
+
+    const name = screen.getByLabelText('Name of site main') as HTMLInputElement
+    name.focus()
+    fireEvent.keyDown(name, { key: 'Escape' })
+    expect(globalThis.document.activeElement).not.toBe(name)
+    expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP', site: 'main' })
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(useLocateStore.getState().target).toBeNull()
+  })
+
   it('makes its dots draggable, unlike the read-only viewer', async () => {
     // Drag is `MarkerLayer`'s `onDragPoint`, and the property that matters at this seam is which
     // tab passes it: a stray drag on the Drawing tab must pan the sheet, never edit the file.

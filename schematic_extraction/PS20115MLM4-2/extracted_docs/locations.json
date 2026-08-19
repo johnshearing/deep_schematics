@@ -1,0 +1,367 @@
+{
+  "drawing_number": "PS20115MLM4-2",
+  "schema": 1,
+  "page_size_pt": [
+    1224,
+    792
+  ],
+  "components": {
+    "DISCHARGE1": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            596.9,
+            521.5
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-18T02:16:21.795Z"
+        }
+      ]
+    },
+    "CR-BP": {
+      "sites": [
+        {
+          "id": "Coil",
+          "terminals": [
+            "A1",
+            "A2"
+          ],
+          "point": [
+            860.5,
+            678.8
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-18T14:19:03.990Z"
+        },
+        {
+          "id": "NC",
+          "terminals": [
+            "11",
+            "12"
+          ],
+          "point": [
+            713.4,
+            539.8
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-18T13:07:43.555Z"
+        },
+        {
+          "id": "NO",
+          "terminals": [
+            "21",
+            "24"
+          ],
+          "point": [
+            586.3,
+            226.2
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-18T13:32:30.022Z"
+        }
+      ]
+    },
+    "CR-SW": {
+      "sites": [
+        {
+          "id": "Coil",
+          "terminals": [
+            "A1",
+            "A2"
+          ],
+          "point": [
+            861,
+            704
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-18T13:40:50.814Z"
+        },
+        {
+          "id": "main",
+          "terminals": [
+            "11",
+            "14"
+          ],
+          "point": [
+            564.4,
+            473.6
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-18T13:42:40.145Z"
+        }
+      ]
+    },
+    "CR-ON": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            864.2,
+            485.4
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-18T21:51:50.393Z"
+        }
+      ]
+    },
+    "BYPASS-CB": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            385.7,
+            664.4
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-18T21:52:34.177Z"
+        }
+      ]
+    }
+  },
+  "terminals": {
+    "DISCHARGE1:6": {
+      "point": [
+        661.8,
+        618.3
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T02:02:22.603Z",
+      "label": {
+        "dir": "s"
+      }
+    },
+    "DISCHARGE1:5": {
+      "point": [
+        662.8,
+        596.7
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T02:02:11.343Z",
+      "label": {
+        "dir": "s"
+      }
+    },
+    "DISCHARGE1:4": {
+      "point": [
+        662,
+        580.6
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T02:02:59.162Z",
+      "label": {
+        "dir": "s"
+      }
+    },
+    "DISCHARGE1:3": {
+      "point": [
+        660.7,
+        563.6
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T02:03:27.645Z",
+      "label": {
+        "dir": "s"
+      }
+    },
+    "DISCHARGE1:2": {
+      "point": [
+        660.6,
+        547
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T02:03:36.359Z",
+      "label": {
+        "dir": "s"
+      }
+    },
+    "DISCHARGE1:1": {
+      "point": [
+        661.4,
+        530.8
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T02:03:51.310Z",
+      "label": {
+        "dir": "s"
+      }
+    },
+    "CR-BP:A1": {
+      "point": [
+        850.2,
+        682.7
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T03:14:58.865Z",
+      "label": {
+        "dir": "sw"
+      }
+    },
+    "CR-BP:A2": {
+      "point": [
+        870.7,
+        684.5
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T03:16:24.392Z",
+      "label": {
+        "dir": "se"
+      }
+    },
+    "CR-BP:21": {
+      "point": [
+        601.8,
+        236.6
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T03:19:19.561Z",
+      "label": {
+        "dir": "se"
+      }
+    },
+    "CR-BP:24": {
+      "point": [
+        585.9,
+        237.1
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T03:19:48.567Z",
+      "label": {
+        "dir": "sw"
+      }
+    },
+    "CR-BP:12": {
+      "point": [
+        722.4,
+        534.9
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T03:29:23.136Z",
+      "label": {
+        "dir": "se"
+      }
+    },
+    "CR-BP:11": {
+      "point": [
+        707.2,
+        535.8
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T03:28:47.948Z",
+      "label": {
+        "dir": "sw"
+      }
+    },
+    "CR-SW:11": {
+      "point": [
+        562.6,
+        488.7
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T13:44:47.517Z",
+      "label": {
+        "dir": "sw"
+      }
+    },
+    "CR-SW:14": {
+      "point": [
+        576.9,
+        488.4
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T13:45:09.893Z",
+      "label": {
+        "dir": "se"
+      }
+    },
+    "CR-SW:A2": {
+      "point": [
+        871.1,
+        708.6
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T13:48:55.500Z",
+      "label": {
+        "dir": "s"
+      }
+    },
+    "CR-SW:A1": {
+      "point": [
+        849.8,
+        708.7
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T13:47:35.015Z",
+      "label": {
+        "dir": "s"
+      }
+    }
+  },
+  "wires": {
+    "W001": {
+      "label_point": [
+        231.1,
+        50.5
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T02:34:47.001Z"
+    },
+    "W002": {
+      "label_point": [
+        231.4,
+        66.9
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T02:37:00.495Z"
+    },
+    "W047": {
+      "label_point": [
+        925.3,
+        516.2
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T14:01:18.391Z"
+    }
+  },
+  "nets": {
+    "110": {
+      "label_point": [
+        926.3,
+        485.7
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-18T14:04:29.533Z"
+    }
+  }
+}

@@ -23,6 +23,7 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 | T-140 | Dragging a dot; what a drag moves | | |
 | T-150 | The advance, wrapping, and turning it off | | |
 | T-160 | Unplace, and removing the last site drops the record | | |
+| T-165 | `Esc` (or ✕) selects nothing and gives the hand back | | |
 | T-170 | The Locate and Drawing tabs agree on where a point is | | |
 
 ## T-2xx — sites and pins — `03_tests_sites_and_pins.md`

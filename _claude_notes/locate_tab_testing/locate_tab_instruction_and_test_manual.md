@@ -37,7 +37,10 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **105 server, 100 web, ruff clean, tsc clean.**
+Expected right now: **105 server, 103 web, ruff clean, tsc clean** — except that
+`test_the_committed_artifact_is_exactly_what_the_generator_writes` is red whenever `locations.json`
+has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a failure; re-run the
+generator (§5) and it goes green.
 
 ---
 
@@ -100,15 +103,23 @@ whole.
 
 ---
 
-## 5. State of the system, 2026-08-17
+## 5. State of the system, 2026-08-18
 
-    locations.json    1 terminal placed: DISCHARGE1:4 at (669.3, 627.2), by "js"
-                      components {} · wires {} · nets {}
-    circuit_logic.json  regenerated to match. Do not hand-edit it — it is generated.
-    tests             105 server, 100 web, ruff and tsc clean
+    locations.json    a real run's worth of work, all by "js":
+                      5 components over 8 sites — CR-BP Coil/NC/NO, CR-SW Coil/main,
+                      DISCHARGE1, CR-ON, BYPASS-CB
+                      16 terminals with their own points · 3 wire labels · 1 net label
+    circuit_logic.json  BEHIND locations.json, so
+                      test_the_committed_artifact_is_exactly_what_the_generator_writes
+                      is red. That is K6/H9 working. Re-run the generator:
+                      cd schematic_extraction/PS20115MLM4-2/extracted_docs
+                      && python author_circuit_logic.py
+                      Do not hand-edit it — it is generated.
+    tests             105 server (104 + that one), 103 web, ruff and tsc clean
     server            not running; start it as in §1
     git               nothing committed, nothing pushed. locations.json is authored
-                      content and is the one thing here git cannot recover.
+                      content, is not yet tracked, and is the one thing here git
+                      cannot recover.
 
 **The editor is the only supported way to change `locations.json`.** Hand-editing it is not
 forbidden — it is a text file, and being readable by a person is the point — but the editor holds
@@ -125,6 +136,7 @@ The first column is what the user says. Use this to pick one leaf document, not 
 |---|---|---|
 | No Locate tab at all | §1 above | `SWUI_ALLOW_EDITS`; `tabs.ts` `isEnabled` |
 | Password rejected, or the tab shows the lock forever | `05_tests_save_and_recover.md` T-400 | `main.py` `_require_editor`, `locateStore.unlock` |
+| Stuck in placing mode — a dot stays red, the cursor stays a crosshair | `02_tests_place_and_drag.md` T-165 | the `Escape` effect in `LocateTab.tsx`; `TargetPanel.tsx` `Header` ✕ |
 | Dot lands in the wrong place on the sheet | `02_tests_place_and_drag.md` | `paint.ts` `cssToPoint` — the projection |
 | Click does nothing | `02_tests_place_and_drag.md` T-120 | the pan-versus-place rule in `LocateTab.tsx` `onClick` |
 | Drag does nothing, or drags the sheet instead | `02_tests_place_and_drag.md` T-140 | `MarkerLayer.tsx` `onDragPoint` |

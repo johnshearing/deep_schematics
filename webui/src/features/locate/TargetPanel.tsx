@@ -13,7 +13,7 @@
  * and this panel is where a person says which is which.
  */
 
-import { Crosshair, Plus, Trash2 } from 'lucide-react'
+import { Crosshair, Plus, Trash2, X } from 'lucide-react'
 
 import type { Compass, Designator, LocationsDocument } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
@@ -45,6 +45,10 @@ interface Props {
   onEdit: (change: (document: LocationsDocument) => LocationsDocument) => void
   onLabelDir: (target: Target, dir: Compass | null) => void
   onClear: (target: Target) => void
+  /** Disarm: nothing selected, nothing red, the hand back on the sheet. The panel owns the
+   * visible half of that because the panel *is* the evidence something is armed — the same
+   * relationship the Drawing tab's selection card has with its red marker. */
+  onClose: () => void
 }
 
 export function TargetPanel({
@@ -56,14 +60,17 @@ export function TargetPanel({
   onEdit,
   onLabelDir,
   onClear,
+  onClose,
 }: Props) {
   if (LABELLABLE.has(entry.kind)) {
-    return <LabelPanel {...{ entry, document, target, onLabelDir, onClear }} />
+    return <LabelPanel {...{ entry, document, target, onLabelDir, onClear, onClose }} />
   }
   return entry.kind === 'component' ? (
-    <ComponentPanel {...{ entry, document, target, pinsOf, onTarget, onEdit, onLabelDir, onClear }} />
+    <ComponentPanel
+      {...{ entry, document, target, pinsOf, onTarget, onEdit, onLabelDir, onClear, onClose }}
+    />
   ) : (
-    <TerminalPanel {...{ entry, document, target, onLabelDir, onClear }} />
+    <TerminalPanel {...{ entry, document, target, onLabelDir, onClear, onClose }} />
   )
 }
 
@@ -81,13 +88,14 @@ function LabelPanel({
   target,
   onLabelDir,
   onClear,
-}: Pick<Props, 'entry' | 'document' | 'target' | 'onLabelDir' | 'onClear'>) {
+  onClose,
+}: Pick<Props, 'entry' | 'document' | 'target' | 'onLabelDir' | 'onClear' | 'onClose'>) {
   const stored = storedLabel(document, entry.id)
   const point = stored?.label_point ?? entry.label_point ?? null
 
   return (
     <div className="space-y-2">
-      <Header entry={entry} note={point ? 'label placed' : 'label not placed'} />
+      <Header entry={entry} note={point ? 'label placed' : 'label not placed'} onClose={onClose} />
       <p className="text-[11px] text-muted-foreground">
         {point ? (
           <>
@@ -129,6 +137,7 @@ function ComponentPanel({
   onEdit,
   onLabelDir,
   onClear,
+  onClose,
 }: Props) {
   const sites = sitesOf(document, entry.id)
   const pins = pinsOf(entry.id)
@@ -136,7 +145,7 @@ function ComponentPanel({
 
   return (
     <div className="space-y-2">
-      <Header entry={entry} note={`site ${armed ?? '—'}`} />
+      <Header entry={entry} note={`site ${armed ?? '—'}`} onClose={onClose} />
 
       {sites.map((site) => {
         const active = site.id === armed
@@ -251,14 +260,19 @@ function TerminalPanel({
   target,
   onLabelDir,
   onClear,
-}: Pick<Props, 'entry' | 'document' | 'target' | 'onLabelDir' | 'onClear'>) {
+  onClose,
+}: Pick<Props, 'entry' | 'document' | 'target' | 'onLabelDir' | 'onClear' | 'onClose'>) {
   const own = document.terminals?.[entry.id]
   const [componentId, pin] = splitTerminal(entry.id)
   const site = pin ? siteClaiming(document, componentId, pin) : null
 
   return (
     <div className="space-y-2">
-      <Header entry={entry} note={own ? 'its own point' : site ? `site ${site.id}` : 'unplaced'} />
+      <Header
+        entry={entry}
+        note={own ? 'its own point' : site ? `site ${site.id}` : 'unplaced'}
+        onClose={onClose}
+      />
       <p className="text-[11px] text-muted-foreground">
         {own ? (
           <>
@@ -294,7 +308,15 @@ function TerminalPanel({
   )
 }
 
-function Header({ entry, note }: { entry: Designator; note: string }) {
+function Header({
+  entry,
+  note,
+  onClose,
+}: {
+  entry: Designator
+  note: string
+  onClose: () => void
+}) {
   return (
     <div className="flex items-baseline gap-2">
       <span className="font-mono text-sm text-foreground">{entry.id}</span>
@@ -302,6 +324,19 @@ function Header({ entry, note }: { entry: Designator; note: string }) {
       <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
         {entry.label}
       </span>
+      {/* The way back to nothing-selected. Armed is a *mode* — the next click on the sheet
+          writes a coordinate into an authored file — and a mode with no visible way out is a
+          trap, however well Escape works for the people who know about it. */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-6 shrink-0 self-center"
+        aria-label="Clear selection"
+        title="Nothing selected: the pointer goes back to panning the sheet (Esc)"
+        onClick={onClose}
+      >
+        <X />
+      </Button>
     </div>
   )
 }

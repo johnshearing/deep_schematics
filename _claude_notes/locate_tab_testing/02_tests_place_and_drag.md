@@ -172,6 +172,40 @@ anyone ever clicked, and the file stops being readable by a person — which is 
 
 ---
 
+## T-165 · Selecting nothing, and getting the hand back
+
+**Do.** Pick any row, so the cursor over the sheet is a crosshair and one dot is red. Now press
+**`Esc`**.
+
+**Expected.**
+
+- The red dot goes back to blue.
+- The row stops being highlighted and the target panel disappears.
+- The cursor over the sheet is a **hand** again, closing to a grab when you hold the button.
+- A click on the sheet now places **nothing** — the save badge does not move.
+
+**Do.** Pick a row again and click the **✕** at the right of the target panel's header.
+
+**Expected.** Exactly the same four things. The key and the button are the same action; the button
+exists because a key nobody has been told about is not a way out.
+
+**Do.** Pick a component you have placed, click into its **site-name box**, type a character, and
+press `Esc`.
+
+**Expected.** The **first** `Esc` only leaves the box — the target stays armed and the panel stays
+up. A **second** `Esc` clears the target. Half a typed name is work, and `Esc` is the key people
+press to abandon it, so the field gets first refusal.
+
+**Why this test exists.** Being armed is a *mode*, and it is the one mode in this application where
+the next click writes a coordinate into an authored file. Until this existed the only exit from it
+was into another one — picking a different row — so somebody who had finished placing and wanted
+to read the drawing kept a crosshair and a live target for the rest of the session.
+
+**If not.** `LocateTab.tsx` — the `Escape` effect (a `window` listener, guarded on `activeTabId`)
+and `isTextField`. For the button, `TargetPanel.tsx` `Header`.
+
+---
+
 ## T-170 · The projection is shared with the Drawing tab
 
 This is the test that catches the single worst class of bug here: an editor whose arithmetic

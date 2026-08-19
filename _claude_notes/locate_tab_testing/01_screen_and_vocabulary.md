@@ -159,6 +159,11 @@ Appears under the list when a row is picked. It always names the target out loud
 click writes a coordinate into an authored file and there must never be doubt about which id it
 lands on.
 
+**✕ at the right of its header** is the way back to nothing selected — no red dot, no crosshair,
+the hand back on the sheet. `Esc` does the same from anywhere on the tab, and a text field gets
+the first `Esc` for itself (it only loses focus, so half a typed site name survives). Being armed
+is a mode, and this is the way out of it; see T-165.
+
 **For a component** — one block per site:
 
 - the **site name**, editable. See known issue K3: select-all and type, do not backspace to empty.
@@ -190,7 +195,8 @@ do not want the sheet flying away. Placing a wire or net **label** never advance
 
 Same viewer as the Drawing tab — the same tiles, the same one projection. Drag to pan, scroll to
 zoom, double-click to zoom in, `0` fits, arrows nudge. The cursor is a crosshair whenever a target
-is armed.
+is armed, and a hand whenever one is not — so the cursor is the readout for which mode you are in.
+`Esc` selects nothing and gives the hand back.
 
 ---
 
