@@ -631,9 +631,11 @@
       "power_domain": "24VDC",
       "normal_state": "de-energized (machine stopped)",
       "location": {
-        "x": 861,
-        "y": 464,
-        "zone": "right-centre"
+        "x": 860.6,
+        "y": 463.8,
+        "zone": "right-centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -642,6 +644,17 @@
         "MODLINX RUN relay",
         "run relay",
         "CR ON"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            860.6,
+            463.8
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -774,9 +787,11 @@
       "power_domain": "24VDC",
       "normal_state": "open (bypass not selected) unless the operator switches it on",
       "location": {
-        "x": 385,
-        "y": 664,
-        "zone": "bottom-centre"
+        "x": 385.7,
+        "y": 664.4,
+        "zone": "bottom-centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -784,6 +799,17 @@
         "BYPASS 5AMP CIRCUIT BREAKER",
         "bypass breaker",
         "bypass switch"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            385.7,
+            664.4
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {

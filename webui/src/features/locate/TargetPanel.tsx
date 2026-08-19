@@ -13,14 +13,16 @@
  * and this panel is where a person says which is which.
  */
 
+import { useRef, useState } from 'react'
 import { Crosshair, Plus, Trash2, X } from 'lucide-react'
 
-import type { Compass, Designator, LocationsDocument } from '@/api/types'
+import type { Compass, Designator, LocationsDocument, StoredSite } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
   assignTerminal,
+  canRenameSite,
   LABELLABLE,
   nextSiteId,
   renameSite,
@@ -155,13 +157,13 @@ function ComponentPanel({
             className={cn('rounded-md border px-2 py-1.5', active && 'border-[var(--color-ring)]')}
           >
             <div className="flex items-center gap-1.5">
-              <input
-                value={site.id}
-                aria-label={`Name of site ${site.id}`}
-                onChange={(event) =>
-                  onEdit((d) => renameSite(d, entry.id, site.id, event.target.value))
-                }
-                className="w-24 rounded border bg-background px-1.5 py-0.5 font-mono text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
+              <SiteName
+                componentId={entry.id}
+                site={site}
+                document={document}
+                armed={active}
+                onEdit={onEdit}
+                onTarget={onTarget}
               />
               <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
                 {site.point ? `${site.point[0]}, ${site.point[1]}` : 'unplaced'}
@@ -251,6 +253,111 @@ function ComponentPanel({
         </p>
       )}
     </div>
+  )
+}
+
+/**
+ * The site's name — typed a **word** at a time.
+ *
+ * It used to be a box whose `value` was the document's and whose every keystroke called
+ * `renameSite`, and that arrangement had two separate faults that together let a person enter
+ * exactly one character before having to reach for the mouse:
+ *
+ * 1. `renameSite` refuses an empty or colliding name by returning the document **unchanged**, so
+ *    the first backspace — which necessarily passes through a shorter, and eventually an empty,
+ *    name — was rejected and the box snapped back to what it had said before. It looked frozen.
+ * 2. A rename that *was* accepted changed `site.id`, which is this row's React key, so the input
+ *    was unmounted and a new one mounted in its place between one keystroke and the next. The
+ *    focus went with the old element.
+ *
+ * So the box holds its own text and the document is written **once**, on Enter or when focus
+ * leaves. Renaming becomes a thing you finish rather than a thing you do per character, the
+ * intermediate states nothing would accept are never offered to anything, and the remount happens
+ * at a moment when nobody is typing. (index K3, code map H4.)
+ *
+ * A refused name is **kept on screen with its reason**, not reverted: the same rule as the
+ * `problems` strip — a value a person typed and the editor discarded silently is the worst
+ * outcome available here. `Esc` is the way to abandon it, and gives back the stored name.
+ */
+function SiteName({
+  componentId,
+  site,
+  document,
+  armed,
+  onEdit,
+  onTarget,
+}: {
+  componentId: string
+  site: StoredSite
+  document: LocationsDocument
+  /** Whether this is the site the next click on the sheet is aimed at. */
+  armed: boolean
+} & Pick<Props, 'onEdit' | 'onTarget'>) {
+  const [text, setText] = useState(site.id)
+  const [refused, setRefused] = useState<string | null>(null)
+  /**
+   * `text` again, in a ref, and not redundant: `commit` runs from a blur, and the blur that
+   * follows `Esc` is dispatched by the `keydown` handler on `window` — inside the same event, and
+   * so possibly before React has re-rendered with the reverted text. The commit has to read what
+   * the box means *now*, or Escape would save the keystrokes it was pressed to abandon.
+   */
+  const typed = useRef(site.id)
+
+  const type = (value: string) => {
+    typed.current = value
+    setText(value)
+    setRefused(null)
+  }
+
+  const commit = () => {
+    const next = typed.current.trim()
+    if (next === site.id) {
+      type(site.id)
+      return
+    }
+    if (!canRenameSite(document, componentId, site.id, next)) {
+      setRefused(next ? `${componentId} already has a site called ${next}` : 'A site needs a name')
+      return
+    }
+    setRefused(null)
+    onEdit((d) => renameSite(d, componentId, site.id, next))
+    // The target names its site by id, so a rename the target did not follow would leave the next
+    // click on the sheet writing a *second* site under the old name.
+    if (armed) onTarget({ id: componentId, site: next })
+  }
+
+  return (
+    <span className="flex min-w-0 flex-col">
+      <input
+        value={text}
+        aria-label={`Name of site ${site.id}`}
+        aria-invalid={refused ? true : undefined}
+        title={
+          refused ??
+          'A name you will recognise on the sheet — coil, NC, NO. Press Enter or click away to ' +
+            'apply it; Esc puts it back.'
+        }
+        onChange={(event) => type(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          // Enter only takes the focus off; the blur is what commits, so there is one write path
+          // and not two that could disagree.
+          if (event.key === 'Enter') {
+            event.preventDefault()
+            event.currentTarget.blur()
+          }
+          if (event.key === 'Escape') type(site.id)
+        }}
+        className={cn(
+          'w-24 rounded border bg-background px-1.5 py-0.5 font-mono text-[11px] outline-none',
+          'focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]',
+          refused && 'border-[var(--color-danger)]',
+        )}
+      />
+      {refused && (
+        <span className="mt-0.5 text-[10px] text-[var(--color-danger)]">{refused}</span>
+      )}
+    </span>
   )
 }
 

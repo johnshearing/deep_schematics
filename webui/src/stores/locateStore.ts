@@ -43,8 +43,15 @@ interface LocateState {
 
   /** What the next click on the sheet places. */
   target: Target | null
-  /** Move to the next unplaced row after each placement. On by default, because that is the
-   * run; off when someone is correcting one dot and does not want to be yanked away. */
+  /**
+   * Move to the next unplaced row after each placement.
+   *
+   * **Off by default**, and deliberately: the advance is what turns a long run of placements into
+   * one gesture, but it is also the only control here that moves the target without being asked,
+   * and a person who has not met it yet reads that as the editor losing their place. So it is
+   * opt-in — tick it when you sit down to walk the list, and the sheet stays where you put it
+   * until you do.
+   */
   advance: boolean
 
   saveState: SaveState
@@ -77,7 +84,7 @@ export const useLocateStore = create<LocateState>()((set, get) => ({
   loading: false,
   error: null,
   target: null,
-  advance: true,
+  advance: false,
   saveState: 'clean',
   saveError: null,
   stale: null,

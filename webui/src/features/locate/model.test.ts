@@ -13,6 +13,7 @@ import {
   clear,
   coverage,
   assignTerminal,
+  canRenameSite,
   draftPlacement,
   editorPlaces,
   emptyDocument,
@@ -133,6 +134,13 @@ describe('sites', () => {
     expect(renameSite(doc, 'CR-BP', 'nc', 'coil')).toBe(doc)
     expect(renameSite(doc, 'CR-BP', 'nc', '  ')).toBe(doc)
     expect(renameSite(doc, 'CR-BP', 'nc', 'no').components['CR-BP'].sites[1].id).toBe('no')
+
+    // The same rule, asked in advance, so the box can say *why* rather than reverting in silence.
+    // Its own name is allowed: that is a rename that changes nothing, not a collision.
+    expect(canRenameSite(doc, 'CR-BP', 'nc', 'coil')).toBe(false)
+    expect(canRenameSite(doc, 'CR-BP', 'nc', '  ')).toBe(false)
+    expect(canRenameSite(doc, 'CR-BP', 'nc', 'nc')).toBe(true)
+    expect(canRenameSite(doc, 'CR-BP', 'nc', ' no ')).toBe(true)
   })
 
   it('carries a label side, and takes it off again', () => {

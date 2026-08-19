@@ -158,9 +158,12 @@ beforeEach(() => {
     byToken: buildLookup(INDEX),
     activeTabId: LOCATE_TAB_ID,
   })
+  // `advance: false` here is the store's own default restated, not a choice this suite is making:
+  // the advance is opt-in, and a test that silently arranged for it to be on would be testing a
+  // screen nobody is handed.
   useLocateStore.setState({
     document: null, report: null, unlocked: false, loading: false, error: null,
-    target: null, advance: true, saveState: 'clean', saveError: null, stale: null,
+    target: null, advance: false, saveState: 'clean', saveError: null, stale: null,
   })
   stubServer()
 })
@@ -188,6 +191,17 @@ function row(id: string) {
 
 function sheet() {
   return screen.getByRole('application')
+}
+
+/** The ids in the list, in the order they are on screen — the row's monospace first line. */
+function ids(): string[] {
+  return screen
+    .getAllByRole('option')
+    .map((option) => option.querySelector('.font-mono')?.textContent ?? '')
+}
+
+function advance() {
+  return screen.getByLabelText(/move to the next unplaced/i) as HTMLInputElement
 }
 
 /** Click somewhere on the sheet. `fireEvent.click` alone is not enough: the tab snapshots the
@@ -266,8 +280,28 @@ describe('LocateTab', () => {
     expect(screen.getByText(/1 of 1 wire and net labels/)).toBeTruthy()
   })
 
+  it('lists everything in alphabetical order, and that is the order the advance walks', async () => {
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'All' }))
+
+    // The index arrives grouped by kind, which is the order the extraction happened to walk: the
+    // component, then its pins in netlist order, then the wires. By id a component and its pins
+    // arrive together, because a terminal's id *is* its parent's plus its pin.
+    expect(ids()).toEqual(['CR-BP', 'CR-BP:11', 'CR-BP:A1', 'W047'])
+  })
+
+  it('leaves the advance off until it is asked for', async () => {
+    // Off in the store itself, not merely in this suite's setup: the advance is the one control
+    // that moves the target without being asked, and someone meeting the screen for the first
+    // time reads that as having lost their place.
+    expect(useLocateStore.getInitialState().advance).toBe(false)
+    await open()
+    expect(advance().checked).toBe(false)
+  })
+
   it('places the picked row where the sheet was clicked, then moves to the next', async () => {
     await open()
+    fireEvent.click(advance())
     fireEvent.click(row('CR-BP'))
 
     // (400, 300) in the container. Fit is 776/1224 = 0.63399 px/pt at origin (12, 48.94), so
@@ -283,14 +317,15 @@ describe('LocateTab', () => {
       source: 'human',
       by: 'js',
     })
-    // Placed, so the run moves on rather than making the user choose what to do next.
-    expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP:A1', site: null })
+    // Placed, so the run moves on rather than making the user choose what to do next — and it
+    // moves to the next row *down the list as displayed*, which is alphabetical, so `:11` and not
+    // the `:A1` that happened to come first out of the extraction.
+    expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP:11', site: null })
     expect(screen.getByText(/1 of 3 placed/)).toBeTruthy()
   })
 
-  it('stays put when the advance is switched off, for correcting one dot', async () => {
+  it('stays put while the advance is off, for correcting one dot', async () => {
     await open()
-    fireEvent.click(screen.getByLabelText(/move to the next unplaced/i))
     fireEvent.click(row('CR-BP'))
     clickSheet(400, 300)
     expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP', site: 'main' })
@@ -347,7 +382,6 @@ describe('LocateTab', () => {
 
   it('lets a text field have the first Escape, so half a typed name is not lost', async () => {
     await open()
-    fireEvent.click(screen.getByLabelText(/move to the next unplaced/i))
     fireEvent.click(row('CR-BP'))
     clickSheet(400, 300)
 
@@ -359,6 +393,59 @@ describe('LocateTab', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(useLocateStore.getState().target).toBeNull()
+  })
+
+  it('takes a whole word into the site name without losing focus', async () => {
+    // The fault this pins: the box used to rename the site on every keystroke, which changed
+    // `site.id` — the row's React key — and unmounted the input from under the caret, so a person
+    // got one character per trip to the mouse. The intermediate names are also ones `renameSite`
+    // would refuse, so nothing may be written until the name is finished.
+    await open()
+    fireEvent.click(row('CR-BP'))
+    clickSheet(400, 300)
+
+    const name = screen.getByLabelText('Name of site main') as HTMLInputElement
+    name.focus()
+    for (const value of ['mai', 'ma', 'm', '', 'c', 'co', 'coi', 'coil']) {
+      fireEvent.change(name, { target: { value } })
+      expect(globalThis.document.activeElement).toBe(name)
+      expect(name.value).toBe(value)
+    }
+    const sites = () => useLocateStore.getState().document!.components['CR-BP'].sites
+    expect(sites()[0].id).toBe('main')
+
+    fireEvent.keyDown(name, { key: 'Enter' })
+    fireEvent.blur(name)
+
+    expect(sites()).toHaveLength(1)
+    expect(sites()[0].id).toBe('coil')
+    // The target has to follow the rename, or the next click on the sheet would write a *second*
+    // site under the old name.
+    expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP', site: 'coil' })
+  })
+
+  it('keeps a refused site name on screen with its reason, rather than snapping back', async () => {
+    await open()
+    fireEvent.click(row('CR-BP'))
+    clickSheet(400, 300)
+    fireEvent.click(screen.getByRole('button', { name: 'Another site' }))
+    clickSheet(500, 300)
+
+    const second = screen.getByLabelText('Name of site site-2') as HTMLInputElement
+    fireEvent.change(second, { target: { value: 'main' } })
+    fireEvent.blur(second)
+
+    // Two sites called `main` is not a document the server would accept, so the rename does not
+    // happen — but what the user typed stays on screen to be corrected, and says why. A value
+    // somebody typed and the editor discarded in silence is the worst outcome available here.
+    expect(second.value).toBe('main')
+    expect(screen.getByText(/already has a site called main/)).toBeTruthy()
+    const sites = useLocateStore.getState().document!.components['CR-BP'].sites
+    expect(sites.map((site) => site.id)).toEqual(['main', 'site-2'])
+
+    // And Escape is the way to give it up, which puts the stored name back.
+    fireEvent.keyDown(second, { key: 'Escape' })
+    expect(second.value).toBe('site-2')
   })
 
   it('makes its dots draggable, unlike the read-only viewer', async () => {

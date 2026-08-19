@@ -16,12 +16,12 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 
 | Test | What it checks | Result | Notes if not P |
 |---|---|:--:|---|
-| T-100 | The list is the work queue; counts read `1 of 178 placed` | | |
+| T-100 | The list is the work queue, alphabetical; counts read `1 of 178 placed` | | |
 | T-110 | Picking a row arms it, panel appears, sheet flies to 50% | | |
 | T-120 | A click places; a pan does **not** place | | |
 | T-130 | Placing a terminal; own point beats parent | | |
 | T-140 | Dragging a dot; what a drag moves | | |
-| T-150 | The advance, wrapping, and turning it off | | |
+| T-150 | The advance: off to begin with, turned on, wrapping | | |
 | T-160 | Unplace, and removing the last site drops the record | | |
 | T-165 | `Esc` (or ✕) selects nothing and gives the hand back | | |
 | T-170 | The Locate and Drawing tabs agree on where a point is | | |
@@ -32,7 +32,7 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 |---|---|:--:|---|
 | T-200 | One site, created by the first click, named `main` | | |
 | T-210 | Three sites on `CR-BP`, three dots | | |
-| T-220 | Renaming sites to `coil` / `nc` / `no` | | |
+| T-220 | Renaming sites to `coil` / `nc` / `no` — a whole word, one write, a visible refusal | | |
 | T-230 | Assigning pins; a pin moves rather than duplicating | | |
 | T-240 | `A1` and `A2` get their own points, 20 pt apart | | |
 | T-250 | Removing a site returns its pins to `on its component` | | |

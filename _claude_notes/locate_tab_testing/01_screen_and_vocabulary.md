@@ -65,17 +65,18 @@ coordinate. That was built once and rejected.
 ├──────────────────────────┤                  the sheet                             │
 │ ⃝ CR-BP        estimate  │            (click to place · drag a dot)                │
 │   relay — Run bypass…    │                                                        │
+│ ⃝ CR-BP:11   on its comp │            (rows in alphabetical order)                 │
 │ ⃝ CR-BP:A1   on its comp │                                                        │
 │ ✓ TB-110:4       placed  │                                                        │
 │   …                      │                                                        │
-├──────────────────────────┤                                                        │
-│ CR-BP  [site main]       │                                                        │
+┝━━━━━━━━━━━━━━━━━━━━━━━━━━┥  ← accent edge, shaded ground: the panel is in front of │
+│ CR-BP  [site main]       │     the list, not the end of it                         │
 │ ┌ main   861, 679  ⌖place│                                                        │
 │ │ A1 A2 11 12 21 24      │  ← the target panel                                    │
 │ │ label  ▦▦▦             │                                                        │
 │ └ [+ Another site]       │                                                        │
 ├──────────────────────────┤                                                        │
-│ ☑ Move to the next unplac│                                                        │
+│ ☐ Move to the next unplac│  ← off by default                                      │
 └──────────────────────────┴────────────────────────────────────────────────────────┘
   Pick a row, then click the sheet to place it · drag any dot to correct it · …
 ```
@@ -140,6 +141,14 @@ disappeared" report.
 One row per designator: a state icon, the id in monospace, its one-line description, an optional
 `our id` badge, and the state in words on the right.
 
+**In alphabetical order by id, under every filter.** The index arrives from the server grouped by
+kind — 47 components, then 131 terminals, then the wires and nets — which is the order the
+extraction happened to walk and no order at all when you are looking for one row among 275. Sorted
+by id, a component and its pins arrive together, because a terminal's id *is* its component's id
+plus its pin: `CR-BP`, `CR-BP:11`, `CR-BP:12`, `CR-BP:A1`. Numbers sort as numbers, so pin `3`
+comes before pin `21`. This is also the order the advance walks — "the next one" means the next one
+down the list you are reading.
+
 | Row says | Icon | Meaning |
 |---|---|---|
 | `placed` | ✓ green | confirmed — you put it there |
@@ -155,8 +164,10 @@ numbers.
 
 ### The target panel
 
-Appears under the list when a row is picked. It always names the target out loud, because the next
-click writes a coordinate into an authored file and there must never be doubt about which id it
+Appears under the list when a row is picked, and is **visibly set apart from it**: a 2 px edge in
+the ring colour, a filled grey ground, and a shadow cast upward over the list, because the panel is
+in front of the list rather than the end of it. It always names the target out loud, because the
+next click writes a coordinate into an authored file and there must never be doubt about which id it
 lands on.
 
 **✕ at the right of its header** is the way back to nothing selected — no red dot, no crosshair,
@@ -166,7 +177,10 @@ is a mode, and this is the way out of it; see T-165.
 
 **For a component** — one block per site:
 
-- the **site name**, editable. See known issue K3: select-all and type, do not backspace to empty.
+- the **site name**, editable a whole word at a time. Nothing is written while you type; the name
+  lands on `Enter` or when you click away. A name that is empty, or one another site already has,
+  is refused **on screen** — red edge, reason underneath, what you typed left there to fix. `Esc`
+  puts the stored name back. (This was K3.)
 - the **coordinate**, or `unplaced`.
 - **place / placing** — aims the next click at *this* site. `placing` means it is armed.
 - **🗑** — removes this site entirely.
@@ -187,9 +201,11 @@ be**. That is not a missing feature. See `04_tests_labels.md`.
 
 ### The advance checkbox
 
-*Move to the next unplaced after each click.* On by default. It is what turns 131 placements into a
-run instead of 131 decisions about what to do next. Turn it off when you are correcting one dot and
-do not want the sheet flying away. Placing a wire or net **label** never advances, on or off.
+*Move to the next unplaced after each click.* **Off by default** — tick it when you sit down to
+walk the list. It is what turns 131 placements into a run instead of 131 decisions about what to do
+next, and it is also the only control on this screen that moves the target without being asked,
+which is why it is opt-in: with it off the sheet stays exactly where you put it. It advances in
+**list order**, which is alphabetical. Placing a wire or net **label** never advances, on or off.
 
 ### The sheet
 

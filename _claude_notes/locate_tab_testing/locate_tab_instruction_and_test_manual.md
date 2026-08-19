@@ -37,7 +37,7 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **105 server, 103 web, ruff clean, tsc clean** — except that
+Expected right now: **105 server, 107 web, ruff clean, tsc clean** — except that
 `test_the_committed_artifact_is_exactly_what_the_generator_writes` is red whenever `locations.json`
 has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a failure; re-run the
 generator (§5) and it goes green.
@@ -105,6 +105,17 @@ whole.
 
 ## 5. State of the system, 2026-08-18
 
+**Four changes to the screen since the tests above were first walked**, all in the left-hand
+column, none of them touching what gets written into `locations.json`:
+
+1. The **advance starts off** (`01_screen_and_vocabulary.md` §The advance checkbox, T-120, T-150).
+2. The **list is alphabetical by id** under every filter, and the advance walks that same order
+   (§The list, T-100, T-150).
+3. The **target panel is set apart from the list** — accent edge, shaded ground, shadow over the
+   list (§The target panel).
+4. The **site-name box takes a whole word** and refuses a bad name visibly. That is **K3, fixed**
+   (T-220).
+
     locations.json    a real run's worth of work, all by "js":
                       5 components over 8 sites — CR-BP Coil/NC/NO, CR-SW Coil/main,
                       DISCHARGE1, CR-ON, BYPASS-CB
@@ -115,7 +126,7 @@ whole.
                       cd schematic_extraction/PS20115MLM4-2/extracted_docs
                       && python author_circuit_logic.py
                       Do not hand-edit it — it is generated.
-    tests             105 server (104 + that one), 103 web, ruff and tsc clean
+    tests             105 server (104 + that one), 107 web, ruff and tsc clean
     server            not running; start it as in §1
     git               nothing committed, nothing pushed. locations.json is authored
                       content, is not yet tracked, and is the one thing here git
@@ -148,6 +159,8 @@ The first column is what the user says. Use this to pick one leaf document, not 
 | Red strip across the top | `05_tests_save_and_recover.md` T-430 | `locations.py` `parse`, `resolve_geometry` |
 | Drawing tab still shows the old dot | `05_tests_save_and_recover.md` T-420 | `appStore.refreshDesignators` |
 | The counts in the toolbar look wrong | `01_screen_and_vocabulary.md` §Toolbar | `model.ts` `coverage` |
+| The rows are in a strange order, or the advance jumps somewhere unexpected | `01_screen_and_vocabulary.md` §The list | the `entries` memo and `BY_ID` in `LocateTab.tsx` — the list and `nextUnplaced` share one order |
+| The site-name box loses focus, snaps back, or saves per keystroke | `03_tests_sites_and_pins.md` T-220 | `TargetPanel.tsx` `SiteName`; `06_code_map.md` §H4 |
 
 ---
 
@@ -160,7 +173,7 @@ if one bites harder than described. Full reasoning is in `06_code_map.md`.
 |---|---|---|---|
 | **K1** | Picking the same row twice does not re-fly the sheet | After you pan away, clicking the row again leaves you where you are. The Drawing tab solved this with a `nonce`; the Locate tab has none. | small — a nonce on the target |
 | **K2** | Two tabs, or a hand edit, silently lose work | The draft is a whole document loaded once. The last save wins and discards everything it never saw. | medium — a version on the file, refused on mismatch |
-| **K3** | The site-name box appears frozen if you empty it | `renameSite` refuses an empty or colliding name by returning the document unchanged, so the input snaps back. Select-all and type instead of backspacing. | small — local input state |
+| ~~**K3**~~ | ~~The site-name box appears frozen if you empty it~~ | **Fixed 2026-08-18.** The box holds its own text and writes the document once, on `Enter` or blur, so a whole word goes in without the caret leaving; a refused name stays on screen with its reason. T-220 tests it. | done — `TargetPanel.tsx` `SiteName`, `model.ts` `canRenameSite` |
 | **K4** | The eight-way label control does nothing until the point exists | Place first, then choose the side. | small — create-on-set |
 | **K5** | You cannot place a point *under* an existing dot by clicking it | The dot swallows the click and retargets instead. Zoom in, or drag the dot. | design question |
 | **K6** | `circuit_logic.json` goes stale after every save | Deliberate — the banner says so and `test_the_committed_artifact_is_exactly_what_the_generator_writes` goes red until you re-run the generator. | not a bug |

@@ -356,6 +356,26 @@ export function removeSite(
   )
 }
 
+/**
+ * Whether this name can be committed: something after trimming, and not one of the component's
+ * *other* sites.
+ *
+ * Exported so the input box can say *why* a name was refused instead of silently reverting. The
+ * rule lives here, once, and `renameSite` asks the same question — a panel that decided for itself
+ * what was acceptable would eventually disagree with the function that does the renaming.
+ */
+export function canRenameSite(
+  document: LocationsDocument,
+  componentId: string,
+  siteId: string,
+  next: string,
+): boolean {
+  const trimmed = next.trim()
+  if (!trimmed) return false
+  if (trimmed === siteId) return true
+  return !sitesOf(document, componentId).some((site) => site.id === trimmed)
+}
+
 export function renameSite(
   document: LocationsDocument,
   componentId: string,

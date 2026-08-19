@@ -75,17 +75,24 @@ hiding the others. Report how many site blocks the panel shows versus how many d
 
 ## T-220 · Renaming a site
 
-**Do.** In the `main` block, select the whole name and type `coil`. Rename `site-2` to `nc` and
-`site-3` to `no`.
+**Do.** In the `main` block, backspace the name away a character at a time, type `coil`, and press
+`Enter`. Rename `site-2` to `nc` and `site-3` to `no` the same way.
 
-**Expected.** Names update as you type; the dots' tooltips follow. The file shows
-`"id": "coil"` etc.
+**Expected.** The box takes the whole word without the caret ever leaving it — backspacing to
+empty is fine, and so is typing on afterwards. **Nothing is written while you type.** The name
+lands in the file when you press `Enter` or click away: the save badge goes `unsaved` once, not
+once per keystroke, and the dots' tooltips follow. The file shows `"id": "coil"` etc.
 
-**Known issue K3, and you will hit it if you do this the other way.** If you **backspace** the name
-to empty, the box snaps back to the old name and appears frozen. `renameSite` refuses an empty name
-by returning the document unchanged, and the input is driven straight off the document. Same thing
-if you type a name another site already has. **Select-all and type**; do not backspace to empty.
-This is logged, do not report it.
+**Then do.** Rename `nc` to `coil` — a name the component already uses — and click away.
+
+**Expected.** The rename is refused, because two sites called `coil` is not a document the server
+would accept. What you typed **stays in the box** with a red edge and the reason under it
+(`CR-BP already has a site called coil`), so it can be corrected rather than retyped. `Esc` gives
+the stored name back.
+
+*(This was known issue **K3** — the box used to accept one character at a time and appear frozen
+if you emptied it. Both halves are fixed: the box holds its own text, and the document is written
+once. If it ever behaves per-keystroke again, `TargetPanel.tsx` `SiteName` is the owner.)*
 
 ---
 

@@ -6,8 +6,8 @@ Ids and coordinates: `07_drawing_facts.md`.
 These are the tests that matter most, because they cover the gesture you will perform 178 times.
 Work through them in order — each one teaches the thing the next one assumes.
 
-**Before starting:** server running (index §1), Locate tab open, unlocked, filter on **To do**,
-advance checkbox **on**.
+**Before starting:** server running (index §1), Locate tab open, unlocked, filter on **To do**. The
+advance checkbox starts **off** — T-120 and T-150 say when to tick it.
 
 ---
 
@@ -17,7 +17,9 @@ advance checkbox **on**.
 
 **Expected.** Counts read `1 of 178 placed · 177 to do · 0 of 97 wire and net labels` (the `1` is
 `DISCHARGE1:4`, already placed — see index §5). The list shows components and terminals only; no
-`W###` and no net numbers. Rows say `estimate` or `on its component`, except for **six** that say
+`W###` and no net numbers, **in alphabetical order by id**, so each component is followed by its own
+pins (`CR-BP`, `CR-BP:11`, `CR-BP:12`, … `CR-BP:A1`) rather than by the next component.
+Rows say `estimate` or `on its component`, except for **six** that say
 `nowhere` — the two off-page machines and the four referenced drawings, which have no position
 anywhere and never will (see known issue **K7** and `07_drawing_facts.md`).
 
@@ -56,7 +58,9 @@ already logged, do not report.
 - A **filled red** dot appears exactly where you clicked, labelled `CR-BP` (if zoom ≥ 30%).
 - The save badge goes `unsaved`, then `saved` within about a second.
 - The `CR-BP` row **leaves the To do list** and the counts go to `2 of 178 placed`.
-- Because the advance is on, the target moves to the next unplaced row and the sheet flies there.
+- The target **stays on `CR-BP`** and the sheet stays where it is, because the advance is off until
+  you ask for it. Tick *Move to the next unplaced after each click* and place one more: now the
+  target moves to the next unplaced row and the sheet flies there. Untick it again before going on.
 
 **Then do.** Switch the filter to **Components**, click the `CR-BP` row, and read the coordinate in
 the target panel.
@@ -134,19 +138,19 @@ it was a grab hand, the Locate tab is not passing the handler.
 
 ---
 
-## T-150 · The advance, and turning it off
+## T-150 · The advance, and turning it on
 
-**Do.** Advance **on**. Filter **To do**. Place three rows in a row, clicking the sheet three times
-without touching the list in between.
+**Do.** Tick *Move to the next unplaced after each click* — it starts **off**. Filter **To do**.
+Place three rows in a row, clicking the sheet three times without touching the list in between.
 
-**Expected.** Each click places, then jumps to the next unplaced row and flies there. Counts climb
-by one each time. You never touch the list.
+**Expected.** Each click places, then jumps to the next unplaced row **down the list** — the list is
+alphabetical, so after `CR-BP` comes `CR-BP:11`, not whichever pin the extraction listed first — and
+flies there. Counts climb by one each time. You never touch the list.
 
-**Do.** Untick *Move to the next unplaced after each click*. Pick one row and click the sheet twice
-in two different spots.
+**Do.** Untick it again. Pick one row and click the sheet twice in two different spots.
 
 **Expected.** Both clicks apply to the **same** row; the second overwrites the first. The target
-stays put. This is the mode for correcting one dot.
+stays put. This is the mode for correcting one dot, and it is the one you start in.
 
 **Do.** Tick it back on. Place until the *To do* list is short, then keep going past the end.
 

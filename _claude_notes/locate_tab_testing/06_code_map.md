@@ -81,7 +81,9 @@ Two things to hold on to:
 | The screen, click-to-place, the advance, the overlay | `webui/src/features/locate/LocateTab.tsx` | `LocateTab`, `put`, `aim`, `editable`, `PasswordGate`, `SaveStatus` |
 | Leaving placing mode — `Esc`, and the ✕ on the panel | `webui/src/features/locate/LocateTab.tsx` | the `Escape` effect (a `window` listener guarded on `activeTabId`), `isTextField`; `TargetPanel.tsx` `Header` |
 | Rows and their state words | `webui/src/features/locate/WorkList.tsx` | `STATE` |
+| **The order of every list on the left**, and so the order the advance walks | `webui/src/features/locate/LocateTab.tsx` | the `entries` memo, `BY_ID` (an `Intl.Collator`, `numeric`) |
 | Sites, pins, the compass, the wire/net panel | `webui/src/features/locate/TargetPanel.tsx` | `ComponentPanel`, `TerminalPanel`, `LabelPanel`, `LabelSide` |
+| The site-name box: local text, one write, visible refusal | `webui/src/features/locate/TargetPanel.tsx` | `SiteName` — and see hazard H4 |
 | Draft, debounced autosave, unlock, load | `webui/src/stores/locateStore.ts` | `edit`, `place`, `save`, `load`, `unlock`, `SAVE_DEBOUNCE_MS` = 900 |
 | Re-reading the index after a save | `webui/src/stores/appStore.ts` | `refreshDesignators` |
 | Whether the tab exists | `webui/src/tabs.ts` | `isEnabled: tilesAvailable && editingEnabled`; `editingEnabled` from `health.editing.enabled` in `App.tsx` |
@@ -104,7 +106,7 @@ wrong, it is wrong here.
 | What does a click write? | `place` → `setSitePoint` \| `setTerminalPoint` \| `setLabelPoint` |
 | Which site holds this pin? | `siteClaiming` (first claim wins) |
 | Pin assignment | `assignTerminal` (strips the pin from every other site first) |
-| Site naming | `nextSiteId` (`main`, `site-2`, …), `renameSite` (refuses empty/colliding) |
+| Site naming | `nextSiteId` (`main`, `site-2`, …), `renameSite` (refuses empty/colliding), `canRenameSite` (the same rule, asked before typing is committed) |
 | Removing things | `clear`, `removeSite` — both drop the parent record when it empties |
 | Rounding and provenance stamping | `signed` (private) — one decimal place, `source: human`, `by`, `at` |
 
@@ -144,11 +146,25 @@ The fly effect is keyed `[measured, target?.id]`. Same id, no effect, no flight.
 solved the identical problem with a `nonce` on the selection; the Locate target has none. Fix: add a
 counter to the target and include it in the dependency list.
 
-### H4 — Controlled inputs driven off the document *(index K3)*
+### H4 — Controlled inputs driven off the document — **fixed 2026-08-18** *(index K3)*
 
-The site-name box's `value` is the document's, and `renameSite` refuses empty or colliding names by
-returning the document unchanged — so the box snaps back and looks frozen. Fix: local input state,
-committed on blur or Enter.
+It was two faults that looked like one. The box's `value` was the document's, and `renameSite`
+refuses an empty or colliding name by returning the document unchanged, so the box snapped back and
+looked frozen; and a rename that *was* accepted changed `site.id`, which is the site row's React
+key, so the input was unmounted between keystrokes and the focus went with it. Either way: one
+character per trip to the mouse.
+
+Now `TargetPanel.tsx` `SiteName` holds its own text and calls `renameSite` **once**, on `Enter` or
+blur. `model.ts` `canRenameSite` is the same rule asked in advance, so a refusal is shown with its
+reason instead of reverting silently, and the panel cannot drift from what `renameSite` will accept.
+Two details worth knowing before changing it: the commit reads a **ref**, not the state, because the
+blur that follows `Esc` can be dispatched before React has re-rendered with the reverted text; and a
+successful rename **retargets** (`onTarget`) when that site is the armed one, or the next click on
+the sheet would write a second site under the old name.
+
+*The general lesson, which still applies elsewhere:* any input whose `value` comes from a document a
+pure function may refuse needs local state. `PasswordGate` and the Ask composer are fine — nothing
+refuses their intermediate values.
 
 ### H5 — The compass needs the point to exist first *(index K4)*
 

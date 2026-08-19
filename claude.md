@@ -23,8 +23,19 @@ Everything worked as expected.
 Now I hope to make the following improvements to the WebUI.  
 Our focus will be on the "Locate" tab in the WebUI.  
 
+The following are my requests:
+
+When clicking on a component marker (a blue dot) I notice that correct item on the list is highlighted in green - that is good.
+My problem is that the user has to scroll around in the list in order to see that highlighted item.
+Please scroll the list when a user clicks on a marker so that the list item for the marker selected is showing.
+
+When clicking on a list item, 
 
 
+
+Finally, if you start the server for testing then please close it down when you are finished testing so that I can control it again from the console.
+I also think it would be good to memorize that request so that you will remember to do that in future Claude Code sessions.
+Perhaps you have already made a note about this. In that case please let me know that this has already been accomplished.
 
  
  

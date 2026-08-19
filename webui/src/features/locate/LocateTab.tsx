@@ -129,7 +129,22 @@ export function LocateTab() {
     void load(drawing?.drawing_number ?? null, tiles?.page_size_pt ?? null)
   }, [ready, loading, needsPassword, unlocked, load, drawing?.drawing_number, tiles?.page_size_pt])
 
-  const entries = useMemo(() => designators?.entries ?? [], [designators])
+  /**
+   * The index, **in alphabetical order by id**, and this is the order everything on the left uses.
+   *
+   * The server publishes the index grouped by kind, which is the order the extraction happened to
+   * walk — 47 components, then 131 terminals, then the wires and nets. That is no order at all to
+   * a person looking for one row among 275: `CR-BP` and its six pins sat a hundred rows apart. By
+   * id they arrive together, because a terminal's id *is* its component's id plus its pin.
+   *
+   * Sorted here, once, rather than in `WorkList`, so that the list and `nextUnplaced` cannot
+   * disagree: "the next one" has to mean the next one **down the list you are reading**, or the
+   * advance looks like it is jumping at random.
+   */
+  const entries = useMemo(
+    () => [...(designators?.entries ?? [])].sort((a, b) => BY_ID.compare(a.id, b.id)),
+    [designators],
+  )
 
   const stateOf = useCallback(
     (entry: Designator) => (document ? rowState(document, entry) : (entry.placement ?? 'none')),
@@ -387,7 +402,18 @@ export function LocateTab() {
           </div>
 
           {document && targetEntry && target && editable(targetEntry) && (
-            <div className="border-t px-3 py-2">
+            /**
+             * Lifted off the list, not merely appended to it.
+             *
+             * The list and this panel are different things — one is 275 rows you scan past, the
+             * other is the one row that is *armed*, and the next click on the sheet writes into an
+             * authored file because of it. Sharing a hairline border with the row above made the
+             * panel read as more list, and a person could not see where the scrolling ended and
+             * the controls began. So: the accent colour on a 2 px edge, a filled ground, and a
+             * shadow cast upward over the list, which is the one cue that says *in front of*
+             * rather than *after*.
+             */
+            <div className="border-t-2 border-[var(--color-ring)] bg-muted px-3 py-2 shadow-[0_-6px_14px_-6px_rgb(0_0_0/0.3)]">
               <TargetPanel
                 entry={targetEntry}
                 document={document}
@@ -506,6 +532,11 @@ export function LocateTab() {
 }
 
 const EMPTY_SET: Set<string> = new Set()
+
+/** `numeric` so that a pin `3` comes before a pin `21` rather than after it: these ids end in
+ * numbers a person reads as numbers, and `W9` after `W047` is the kind of small wrongness that
+ * makes someone stop trusting the list. */
+const BY_ID = new Intl.Collator(undefined, { numeric: true })
 
 /** Whether a keystroke belongs to something being typed into, and so is not the tab's to take.
  * The pin chips are checkboxes: they hold focus, but nothing is being composed in them, so
