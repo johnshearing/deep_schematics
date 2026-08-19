@@ -13,6 +13,7 @@
  * tells you whether you placed them right.
  */
 
+import { useEffect, useRef } from 'react'
 import { CircleCheck, CircleDashed, CircleSlash, Link2, Tag } from 'lucide-react'
 
 import type { Designator } from '@/api/types'
@@ -74,6 +75,29 @@ interface Props {
 }
 
 export function WorkList({ entries, stateOf, targetId, onPick }: Props) {
+  /**
+   * **Bring the armed row to where it can be seen.**
+   *
+   * The list is 275 rows and the armed one is marked only by its shading, so a target that
+   * arrives from anywhere other than a click in the list — a dot on the sheet, the advance, a
+   * site button on the panel — was being highlighted somewhere off screen. The user then had to
+   * scroll the list hunting for the row the editor had already chosen for them, which is exactly
+   * the searching this screen exists to remove.
+   *
+   * `block: 'nearest'` so a row that is already visible does not move: picking rows in the list
+   * must not make the list jump under the pointer, and re-picking the row you are looking at
+   * should do nothing at all.
+   *
+   * Keyed on the entries as well as the target, because changing the filter re-lays-out the list
+   * under an unchanged target and the row lands somewhere new.
+   */
+  const armedRow = useRef<HTMLLIElement | null>(null)
+  useEffect(() => {
+    // Optional-called: jsdom has no layout and so no `scrollIntoView`, and a list that throws
+    // when a row is picked is worse than one that does not scroll in a test.
+    armedRow.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [targetId, entries])
+
   if (!entries.length) {
     return (
       <p className="px-3 py-6 text-center text-xs text-muted-foreground">
@@ -89,7 +113,7 @@ export function WorkList({ entries, stateOf, targetId, onPick }: Props) {
         const { label, tone, Icon } = STATE[state]
         const picked = entry.id === targetId
         return (
-          <li key={entry.id}>
+          <li key={entry.id} ref={picked ? armedRow : undefined}>
             <button
               type="button"
               role="option"

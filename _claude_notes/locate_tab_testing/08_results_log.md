@@ -25,6 +25,7 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 | T-160 | Unplace, and removing the last site drops the record | | |
 | T-165 | `Esc` (or ✕) selects nothing and gives the hand back | | |
 | T-170 | The Locate and Drawing tabs agree on where a point is | | |
+| T-180 | The list scrolls the armed row into view, and stays put when it need not move | | |
 
 ## T-2xx — sites and pins — `03_tests_sites_and_pins.md`
 
@@ -32,6 +33,7 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 |---|---|:--:|---|
 | T-200 | One site, created by the first click, named `main` | | |
 | T-210 | Three sites on `CR-BP`, three dots | | |
+| T-215 | Getting to the site you meant: the row fits the sheet, a dot arms itself, the site buttons fly | | |
 | T-220 | Renaming sites to `coil` / `nc` / `no` — a whole word, one write, a visible refusal | | |
 | T-230 | Assigning pins; a pin moves rather than duplicating | | |
 | T-240 | `A1` and `A2` get their own points, 20 pt apart | | |

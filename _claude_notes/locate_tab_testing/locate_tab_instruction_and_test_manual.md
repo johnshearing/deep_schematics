@@ -37,7 +37,7 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **105 server, 107 web, ruff clean, tsc clean** — except that
+Expected right now: **105 server, 111 web, ruff clean, tsc clean** — except that
 `test_the_committed_artifact_is_exactly_what_the_generator_writes` is red whenever `locations.json`
 has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a failure; re-run the
 generator (§5) and it goes green.
@@ -103,10 +103,10 @@ whole.
 
 ---
 
-## 5. State of the system, 2026-08-18
+## 5. State of the system, 2026-08-19
 
-**Four changes to the screen since the tests above were first walked**, all in the left-hand
-column, none of them touching what gets written into `locations.json`:
+**Eight changes to the screen since the tests above were first walked**, none of them touching
+what gets written into `locations.json`:
 
 1. The **advance starts off** (`01_screen_and_vocabulary.md` §The advance checkbox, T-120, T-150).
 2. The **list is alphabetical by id** under every filter, and the advance walks that same order
@@ -116,21 +116,35 @@ column, none of them touching what gets written into `locations.json`:
 4. The **site-name box takes a whole word** and refuses a bad name visibly. That is **K3, fixed**
    (T-220).
 
+The last four are all one change of mind, made 2026-08-19: **a flight is asked for, never inferred
+from the target having changed.** Every one of these was the same effect keyed on the row's id,
+and the id is not enough to say where to go.
+
+5. The **list scrolls the armed row into view** whenever the target arrives from somewhere other
+   than a click in the list — a dot, the advance, a site button (T-180).
+6. **Clicking a dot arms *that* dot's site** and closes in on it, rather than arming the first
+   site the component happens to have and flying there (T-215).
+7. **Picking a row that is drawn in more than one place fits the whole sheet**, so all of its dots
+   are on screen at once instead of one of them filling the view (T-215).
+8. The **`place` / `placing` buttons fly to their site** — including the one already armed, which
+   is **K1, fixed** (T-215, T-110).
+
     locations.json    a real run's worth of work, all by "js":
-                      5 components over 8 sites — CR-BP Coil/NC/NO, CR-SW Coil/main,
-                      DISCHARGE1, CR-ON, BYPASS-CB
-                      16 terminals with their own points · 3 wire labels · 1 net label
-    circuit_logic.json  BEHIND locations.json, so
+                      6 components over 9 sites — CR-BP Coil/NC/NO, CR-SW Coil/NO,
+                      DISCHARGE1, CR-ON, BYPASS-CB, CB2
+                      18 terminals with their own points · 3 wire labels · 1 net label
+    circuit_logic.json  regenerated 2026-08-19 and current, so
                       test_the_committed_artifact_is_exactly_what_the_generator_writes
-                      is red. That is K6/H9 working. Re-run the generator:
+                      is green. It goes red again after your next save — that is K6/H9
+                      working, not a failure. Re-run the generator:
                       cd schematic_extraction/PS20115MLM4-2/extracted_docs
                       && python author_circuit_logic.py
                       Do not hand-edit it — it is generated.
-    tests             105 server (104 + that one), 107 web, ruff and tsc clean
+    tests             105 server (104 + that one), 111 web, ruff and tsc clean
     server            not running; start it as in §1
-    git               nothing committed, nothing pushed. locations.json is authored
-                      content, is not yet tracked, and is the one thing here git
-                      cannot recover.
+    git               locations.json is tracked now, and modified against its last
+                      commit — it is authored content and the one thing here git
+                      cannot regenerate, so commit it when a run of placement ends.
 
 **The editor is the only supported way to change `locations.json`.** Hand-editing it is not
 forbidden — it is a text file, and being readable by a person is the point — but the editor holds
@@ -160,6 +174,8 @@ The first column is what the user says. Use this to pick one leaf document, not 
 | Drawing tab still shows the old dot | `05_tests_save_and_recover.md` T-420 | `appStore.refreshDesignators` |
 | The counts in the toolbar look wrong | `01_screen_and_vocabulary.md` §Toolbar | `model.ts` `coverage` |
 | The rows are in a strange order, or the advance jumps somewhere unexpected | `01_screen_and_vocabulary.md` §The list | the `entries` memo and `BY_ID` in `LocateTab.tsx` — the list and `nextUnplaced` share one order |
+| The green row is highlighted somewhere I have to scroll to find | `02_tests_place_and_drag.md` T-180 | `WorkList.tsx` `armedRow` — the `scrollIntoView` effect |
+| The sheet flies to the wrong one of a component's dots, or does not fly at all | `03_tests_sites_and_pins.md` T-215 | `LocateTab.tsx` `framing` and `flyTo` — **every** flight is asked for by a call site |
 | The site-name box loses focus, snaps back, or saves per keystroke | `03_tests_sites_and_pins.md` T-220 | `TargetPanel.tsx` `SiteName`; `06_code_map.md` §H4 |
 
 ---
@@ -171,7 +187,7 @@ if one bites harder than described. Full reasoning is in `06_code_map.md`.
 
 | # | What | Effect | Fix is |
 |---|---|---|---|
-| **K1** | Picking the same row twice does not re-fly the sheet | After you pan away, clicking the row again leaves you where you are. The Drawing tab solved this with a `nonce`; the Locate tab has none. | small — a nonce on the target |
+| ~~**K1**~~ | ~~Picking the same row twice does not re-fly the sheet~~ | **Fixed 2026-08-19.** A flight is now something a call site *asks for* rather than something an effect infers from the row's id having changed, so asking twice flies twice — picking the row again, or pressing the `placing` button of the site you are on, brings you back after panning away. T-110 and T-215 test it. | done — `LocateTab.tsx` `flyTo`, `framing` |
 | **K2** | Two tabs, or a hand edit, silently lose work | The draft is a whole document loaded once. The last save wins and discards everything it never saw. | medium — a version on the file, refused on mismatch |
 | ~~**K3**~~ | ~~The site-name box appears frozen if you empty it~~ | **Fixed 2026-08-18.** The box holds its own text and writes the document once, on `Enter` or blur, so a whole word goes in without the caret leaving; a refused name stays on screen with its reason. T-220 tests it. | done — `TargetPanel.tsx` `SiteName`, `model.ts` `canRenameSite` |
 | **K4** | The eight-way label control does nothing until the point exists | Place first, then choose the side. | small — create-on-set |

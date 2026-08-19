@@ -77,6 +77,9 @@ Two things to hold on to:
 | **The one projection**, both directions | `webui/src/features/drawing/paint.ts` | `pointToCss`, `cssToPoint` |
 | Pan, zoom, fly-to | `webui/src/features/drawing/useTileViewport.ts` | `panTo`, `focusScale`, `centreOn` |
 | Dots: one per place, filled vs hollow, label side, drag | `webui/src/features/drawing/MarkerLayer.tsx` | `Marker`, `LABEL_SIDE`, `PLACEMENT_NOTE`, `onDragPoint`, `DRAG_SLOP` |
+| **Which dot was clicked** — `onSelect` carries the `place`, not just the entry | `webui/src/features/drawing/MarkerLayer.tsx` | `onSelect(entry, place)` |
+| **Where the sheet goes, and who asks** | `webui/src/features/locate/LocateTab.tsx` | `flyTo`, `framing`, `at`, `sheetRect` — and see hazard H3 |
+| Scrolling the armed row into view | `webui/src/features/locate/WorkList.tsx` | `armedRow` |
 | **Every rule the editor applies** | `webui/src/features/locate/model.ts` | see below |
 | The screen, click-to-place, the advance, the overlay | `webui/src/features/locate/LocateTab.tsx` | `LocateTab`, `put`, `aim`, `editable`, `PasswordGate`, `SaveStatus` |
 | Leaving placing mode — `Esc`, and the ✕ on the panel | `webui/src/features/locate/LocateTab.tsx` | the `Escape` effect (a `window` listener guarded on `activeTabId`), `isTextField`; `TargetPanel.tsx` `Header` |
@@ -140,11 +143,27 @@ Small, and it turns silent data loss into a visible refusal. **This is the first
 point and is handed the old one back. `save_locations` does. If a new write path is ever added
 elsewhere, this is the trap. `test_a_saved_point_is_visible_to_the_very_next_read` fails without it.
 
-### H3 — Picking the same row twice does not re-fly *(index K1)*
+### H3 — A flight inferred from the target — **fixed 2026-08-19** *(index K1)*
 
-The fly effect is keyed `[measured, target?.id]`. Same id, no effect, no flight. The Drawing tab
-solved the identical problem with a `nonce` on the selection; the Locate target has none. Fix: add a
-counter to the target and include it in the dependency list.
+The fly effect used to be keyed `[measured, target?.id]`, and three separate complaints came out of
+that one line, all of them because **the row's id is not enough to say where to go, and "the target
+changed" is not the same question as "the user wants to be taken there"**:
+
+- arming `CR-BP`'s NO contact flew to its coil, because the id names three dots and the effect took
+  the first;
+- arming the same site twice did nothing, because the id had not changed *(K1)*;
+- dragging a dot belonging to another row flew the sheet away mid-gesture, because the drag
+  retargets as a side effect.
+
+Now every call site asks: `flyTo(rect)` bumps a nonce and the effect flies to it, and `framing`
+decides what the rectangle is — a named site's dot, the **whole sheet** for a row drawn in more than
+one place, one point, or the server's estimate rectangle. `flyTo(null)` is "stay where you are", and
+it is what the drag, a rename, and a site with no point yet all pass. The nonce is load-bearing:
+`entry.rect` is the same array object on two picks of the same row, so without it React would bail
+out of the state change and the second ask would be silent.
+
+The effect is still an effect rather than a direct call, because a row can be picked before the
+container has been measured — the flight is remembered and made when the sheet has a size.
 
 ### H4 — Controlled inputs driven off the document — **fixed 2026-08-18** *(index K3)*
 

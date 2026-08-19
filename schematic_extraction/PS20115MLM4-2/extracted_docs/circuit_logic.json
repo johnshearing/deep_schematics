@@ -287,9 +287,11 @@
       "power_domain": "24VDC",
       "normal_state": "closed (ON)",
       "location": {
-        "x": 640,
-        "y": 52,
-        "zone": "top-centre-right"
+        "x": 653.0,
+        "y": 50.9,
+        "zone": "top-centre-right",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -297,6 +299,17 @@
         "20 amp breaker",
         "20AMP CIRCUIT BREAKER",
         "DC breaker"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            653.0,
+            50.9
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -699,7 +712,7 @@
         {
           "id": "NC",
           "point": [
-            713.4,
+            715.2,
             539.8
           ],
           "terminals": [
@@ -762,7 +775,7 @@
           "source": "human"
         },
         {
-          "id": "main",
+          "id": "NO",
           "point": [
             564.4,
             473.6
@@ -1356,13 +1369,23 @@
       "id": "CB2:1",
       "parent_component": "CB2",
       "function": "input",
-      "net": "+24V"
+      "net": "+24V",
+      "location": {
+        "x": 647.2,
+        "y": 56.3,
+        "source": "human"
+      }
     },
     {
       "id": "CB2:2",
       "parent_component": "CB2",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 661.3,
+        "y": 56.3,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-A:1",

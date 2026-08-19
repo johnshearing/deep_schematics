@@ -44,8 +44,15 @@ anywhere and never will (see known issue **K7** and `07_drawing_facts.md`).
 **Why hollow matters.** That is the screen refusing to claim it knows where `CR-BP` is. Your click
 is what turns it solid.
 
-**Known issue K1.** Pan away, then click the `CR-BP` row again: it will **not** fly back. Expected,
-already logged, do not report.
+**Do.** Pan the sheet away from the dot, then click the `CR-BP` row again.
+
+**Expected.** It flies **back**. Asking twice flies twice — that was known issue **K1**, and it was
+fixed on 2026-08-19 by making a flight something the click asks for rather than something an effect
+works out from the row's id having changed. If nothing happens, K1 has come back: `LocateTab.tsx`
+`flyTo`.
+
+**One exception, and it is deliberate:** a row drawn in more than one place fits the whole sheet
+instead of closing in on one of its dots. That is T-215.
 
 ---
 
@@ -225,3 +232,29 @@ display. Both tabs go through `paint.ts` — there is exactly one projection in 
 
 **If they disagree.** Report both coordinates and the zoom percentage on each tab. That narrows it
 to `pointToCss` versus `cssToPoint` immediately.
+
+---
+
+## T-180 · The list follows the sheet
+
+**Do.** Filter **To do** and scroll the list a long way down — far enough that the rows near the top
+are off screen. Now click a **dot** near the top of the sheet, belonging to one of those rows.
+
+**Expected.** The list **scrolls to the row that dot belongs to**, and that row is the highlighted
+one. You should not have to hunt for it.
+
+**Do.** Now click a row that is already visible in the middle of the list.
+
+**Expected.** The list does **not** move. Scrolling is `nearest`: a row already on screen stays
+exactly where it is, so picking rows never makes the list jump under the pointer.
+
+**Do.** Tick the advance and place two or three rows in a row.
+
+**Expected.** The list follows the advance down as well.
+
+**Why this test exists.** The armed row was always highlighted; it was just often highlighted
+somewhere you could not see. On 275 rows that turns every click on a dot into a scroll-and-search
+in the list — which is the searching this whole screen exists to remove.
+
+**If not.** `WorkList.tsx` `armedRow` — the `scrollIntoView` effect, keyed on the target id and on
+the entries (the filter re-lays-out the list under an unchanged target).

@@ -37,13 +37,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Crosshair, Lock, Map, Maximize2, Minus, Plus, Save } from 'lucide-react'
 
-import type { Designator } from '@/api/types'
+import type { Designator, LocationsDocument, Place } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MarkerLayer } from '@/features/drawing/MarkerLayer'
 import { cssToPoint } from '@/features/drawing/paint'
 import { TileSheet } from '@/features/drawing/TileSheet'
-import { useTileViewport, type Viewport } from '@/features/drawing/useTileViewport'
+import { useTileViewport, type Rect, type Viewport } from '@/features/drawing/useTileViewport'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
 import { useLocateStore } from '@/stores/locateStore'
@@ -210,18 +210,54 @@ export function LocateTab() {
     if (activeTabId === LOCATE_TAB_ID && !locked) setArmed(true)
   }, [activeTabId, locked])
 
-  /** Fly to whatever is being placed. Keyed on the id rather than the whole target, so retargeting
-   * a second site of the same component does not yank the sheet away from the first. */
+  /**
+   * **A flight is asked for, never inferred from the target having changed.**
+   *
+   * It used to be an effect keyed on `target?.id`, and every fault that produced came from the
+   * same place: the id is not enough to say where to go, and "changed" is not the same question
+   * as "the user wants to be taken there". Arming `CR-BP`'s NO contact took the sheet to its
+   * coil, because the id names three dots and the effect picked the first; arming the same site
+   * twice did nothing at all, because the id had not changed (that was K1/H3); and dragging a dot
+   * belonging to some *other* row flew the sheet away mid-drag, because the target changed as a
+   * side effect of the gesture.
+   *
+   * So every call site says what it wants framed, and `flyTo(null)` — the drag, the rename, a
+   * site with no point yet — says "leave the sheet where it is". The nonce is what makes asking
+   * for the same rectangle twice fly twice: `entry.rect` is the same array on both picks, and
+   * without it React would bail out of the state change and the second ask would be silent.
+   */
   const panTo = useRef(viewer.panTo)
   panTo.current = viewer.panTo
-  const focusRef = useRef<[number, number, number, number] | null>(null)
-  focusRef.current = marked?.point
-    ? [marked.point[0], marked.point[1], marked.point[0], marked.point[1]]
-    : (targetEntry?.rect ?? null)
+  /** The whole sheet, which is what a component drawn in more than one place is framed against. */
+  const sheetRect = useMemo<Rect>(() => [0, 0, width, height], [width, height])
+  const [focus, setFocus] = useState<{ rect: Rect; nonce: number } | null>(null)
+  const flights = useRef(0)
+  const flyTo = useCallback((rect: Rect | null) => {
+    if (!rect) return
+    flights.current += 1
+    setFocus({ rect, nonce: flights.current })
+  }, [])
+  // The flight is an effect rather than a call, because the sheet behind an unopened tab has no
+  // size yet: a row picked before the container is measured is remembered and flown to the
+  // moment it can be.
   const measured = armed && viewer.viewport.scale > 0
   useEffect(() => {
-    if (measured && focusRef.current) panTo.current(focusRef.current)
-  }, [measured, target?.id])
+    if (measured && focus) panTo.current(focus.rect)
+  }, [measured, focus])
+
+  /** Arm a row from the list, and take the sheet to it — see `framing` for what "to it" means
+   * when the row is drawn in three places. */
+  const pick = useCallback(
+    (entry: Designator) => {
+      if (!document) {
+        setTarget({ id: entry.id, site: null })
+        return
+      }
+      setTarget(aim(entry, document))
+      flyTo(framing(document, entry, sheetRect))
+    },
+    [document, flyTo, sheetRect, setTarget],
+  )
 
   /**
    * **Escape puts the screen back the way it started.** Nothing armed, no red dot, the hand back
@@ -272,10 +308,17 @@ export function LocateTab() {
       // A label is a nicety rather than outstanding work, so placing one does not advance —
       // being thrown to an unrelated terminal after tidying a wire's name is not a run.
       if (!advance || target.label) return
-      const after = nextUnplaced(entries, useLocateStore.getState().document ?? document, target.id)
-      setTarget(after ? aim(after, useLocateStore.getState().document ?? document) : null)
+      const placed = useLocateStore.getState().document ?? document
+      const after = nextUnplaced(entries, placed, target.id)
+      setTarget(after ? aim(after, placed) : null)
+      // The run takes the sheet with it, or the next click would be aimed at something that is
+      // not on screen.
+      if (after) flyTo(framing(placed, after, sheetRect))
     },
-    [document, target, targetEntry?.kind, place, stamp, advance, entries, setTarget],
+    [
+      document, target, targetEntry?.kind, place, stamp, advance, entries, setTarget, flyTo,
+      sheetRect,
+    ],
   )
 
   /**
@@ -395,9 +438,7 @@ export function LocateTab() {
               entries={visible}
               stateOf={stateOf}
               targetId={target?.id ?? null}
-              onPick={(entry) =>
-                setTarget(document ? aim(entry, document) : { id: entry.id, site: null })
-              }
+              onPick={pick}
             />
           </div>
 
@@ -419,7 +460,13 @@ export function LocateTab() {
                 document={document}
                 target={target}
                 pinsOf={pinsOf}
-                onTarget={setTarget}
+                /* `fly` is set by the site buttons and by nothing else. Retargeting also happens
+                   after a rename and when a new site is started, and neither is a request to be
+                   taken anywhere — one has not moved and the other has nowhere to go yet. */
+                onTarget={(next, fly) => {
+                  setTarget(next)
+                  if (fly) flyTo(framing(document, targetEntry, sheetRect, next.site))
+                }}
                 onEdit={edit}
                 onLabelDir={setLabelDir}
                 onClear={clear}
@@ -488,7 +535,19 @@ export function LocateTab() {
               selected={marked}
               relatedIds={EMPTY_SET}
               showLabels={viewer.percent >= 30}
-              onSelect={(entry) => setTarget(aim(entry, document))}
+              /* The dot that was clicked, not the row's first one. Somebody clicking `CR-BP`'s
+                 NO contact is almost always about to move *that* dot, and arming the coil and
+                 flying to it instead left them to drag the sheet back to where they had been
+                 looking. So the click names the site, and the sheet closes in on the dot under
+                 the pointer rather than going anywhere. */
+              onSelect={(entry, place) => {
+                setTarget(
+                  entry.kind === 'component' && place.site
+                    ? { id: entry.id, site: place.site }
+                    : aim(entry, document),
+                )
+                flyTo(at(place.point))
+              }}
               /* Drag moves whatever the dot's row names: a component's dot is its site, a
                  terminal's is that pin's own point. Never both — a gesture that silently moved
                  five other pins because they share a site would be the worst kind of surprise in
@@ -561,6 +620,44 @@ function aim(entry: Designator, document: Parameters<typeof nextSiteId>[0]): Tar
   if (entry.kind !== 'component') return { id: entry.id, site: null }
   const existing = document.components?.[entry.id]?.sites?.[0]?.id
   return { id: entry.id, site: existing ?? nextSiteId(document, entry.id) }
+}
+
+/** A point as a rectangle of no size, which is what `panTo` frames a single dot with. */
+function at(point: Place['point']): Rect {
+  return [point[0], point[1], point[0], point[1]]
+}
+
+/**
+ * What the sheet should show for this row — and the answer is different for a component that is
+ * drawn in more than one place.
+ *
+ * - **A named site** is framed on its own dot. That is a site button on the panel, and it is the
+ *   only way to say "take me to *that* one". A site with no point yet gets `null`: there is
+ *   nothing to fly to, and jumping somewhere arbitrary the moment "Another site" is pressed
+ *   would throw away the view the user was about to place into.
+ * - **Several places and no site named** frames the **whole sheet**. `CR-BP` is a relay whose
+ *   coil, NC contact and NO contact are in three different circuits, and flying to one of them
+ *   tells the reader nothing about the other two — it looks exactly like a component drawn once.
+ *   Seeing all three dots at once is the fact worth having, and it is a fact about the sheet
+ *   rather than about any one dot, so the sheet is the frame.
+ * - **One place** is framed on it, and **none at all** falls back to the server's rectangle,
+ *   which for an unplaced row is the indexing pass's estimate — a rough place to start looking,
+ *   and the reason the fly happens at all.
+ */
+function framing(
+  document: LocationsDocument,
+  entry: Designator,
+  sheet: Rect,
+  site?: string | null,
+): Rect | null {
+  const places = editorPlaces(document, entry)
+  if (site) {
+    const named = places.find((place) => place.site === site)
+    return named ? at(named.point) : null
+  }
+  if (places.length > 1) return sheet
+  if (places.length === 1) return at(places[0].point)
+  return entry.rect ?? null
 }
 
 function SaveStatus({

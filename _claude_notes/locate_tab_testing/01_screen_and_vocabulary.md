@@ -136,6 +136,11 @@ a coordinate you typed and the server silently ignored is the worst outcome avai
 A row leaving *To do* the moment you place it is correct, and is the single most common "it
 disappeared" report.
 
+**The list scrolls itself to the armed row.** Whenever the target arrives from somewhere other than
+a click in the list — a dot on the sheet, the advance, a site button — the list brings that row into
+view, so the green highlight is never somewhere you have to hunt for. A row already on screen does
+not move (T-180).
+
 ### The list
 
 One row per designator: a state icon, the id in monospace, its one-line description, an optional
@@ -182,7 +187,10 @@ is a mode, and this is the way out of it; see T-165.
   is refused **on screen** — red edge, reason underneath, what you typed left there to fix. `Esc`
   puts the stored name back. (This was K3.)
 - the **coordinate**, or `unplaced`.
-- **place / placing** — aims the next click at *this* site. `placing` means it is armed.
+- **place / placing** — aims the next click at *this* site, **and takes the sheet there**.
+  `placing` means it is armed, and pressing it in that state is how you fly back to the site you
+  are working on after panning away. These buttons are the only thing on screen that names one
+  site of several, so they are also how you *find* one (T-215).
 - **🗑** — removes this site entirely.
 - **the pin chips** — every pin the netlist gives this component. Click one to say it is drawn at
   this site. A pin already claimed by another site shows struck through; clicking it **moves** it.

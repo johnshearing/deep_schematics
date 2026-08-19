@@ -73,6 +73,51 @@ hiding the others. Report how many site blocks the panel shows versus how many d
 
 ---
 
+## T-215 · Getting to the site you meant
+
+Three dots under one id is the moment this screen can lose you: the row names all three, and until
+2026-08-19 everything that moved the sheet moved it to whichever one was created first. These four
+gestures are the way around a component drawn more than once. **Do them with `CR-BP`'s three sites
+from T-210 in place.**
+
+**Do.** Pan and zoom somewhere else entirely, then click the `CR-BP` **row**.
+
+**Expected.** The sheet zooms out to **fit the whole drawing** — not to one of the three dots — and
+you can see all three at once, spread across the sheet. That is the fact worth having: a relay drawn
+in three circuits looks exactly like a relay drawn once if you are shown only one of its dots.
+Rows drawn in a single place are unchanged and still fly in to `50%` (T-110).
+
+**Do.** Now click the dot on the **NO contact** — the third site created, near (592, 223).
+
+**Expected.** The sheet closes in on **that** dot, at `50%`. The panel's armed site becomes `no`
+(the `no` block says `placing`, the others say `place`), and the list scrolls to `CR-BP` if it had
+moved away. Before this it armed `coil` and flew to the coil, most of a sheet away, so anybody who
+clicked a dot in order to **move** it had to drag the sheet back to where they had just been.
+
+**Do.** With the panel showing all three site blocks, press the **`place`** button on `nc`.
+
+**Expected.** The sheet flies to the **NC contact** and `nc` becomes the armed site. The site blocks
+are the only thing on screen that names one site of several, so their buttons are how you visit
+them.
+
+**Do.** Pan away, then press the **`placing`** button — the one on the site already armed.
+
+**Expected.** It flies **back** to that site. The button that is already active is not inert; it is
+how you return to where you were working. (That is **K1**, and it is fixed.)
+
+**Do.** Press **+ Another site**, then drag a dot.
+
+**Expected.** Neither moves the sheet. A site that does not exist yet has nowhere to fly to, and a
+drag must never pull the sheet out from under the gesture.
+
+**If a flight goes to the wrong dot, or does not happen.** `LocateTab.tsx` `framing` decides *what*
+is framed — a named site, the whole sheet, or one point — and `flyTo` is what every call site asks.
+Say which gesture you used and what the zoom percentage read afterwards: `50%` is "one dot, closed
+in on", and anything near the `Fit` percentage is "the whole sheet" — which of the two you got says
+immediately which branch of `framing` ran.
+
+---
+
 ## T-220 · Renaming a site
 
 **Do.** In the `main` block, backspace the name away a character at a time, type `coil`, and press

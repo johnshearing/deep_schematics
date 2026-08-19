@@ -101,7 +101,12 @@ interface Props {
   /** Ids read well at high zoom and become a grey fog at fit zoom, where the dots alone are
    * already enough to say "there are things here". */
   showLabels: boolean
-  onSelect: (entry: Designator) => void
+  /**
+   * A dot was clicked. **The `place` is the dot that was clicked, not the entry's first one** —
+   * `CR-BP` has three, and a caller told only the id has to guess which, which is how selecting
+   * the NO contact used to fly the sheet to the coil.
+   */
+  onSelect: (entry: Designator, place: Place) => void
   /**
    * Locate editor only. When given, every dot becomes draggable and reports where it was
    * dropped, in PDF points — which is the obvious gesture for a dot that is visibly in the
@@ -176,7 +181,7 @@ interface MarkerProps {
   dpr: number
   state: 'plain' | 'related' | 'selected'
   showLabel: boolean
-  onSelect: (entry: Designator) => void
+  onSelect: (entry: Designator, place: Place) => void
   onDragPoint?: (entry: Designator, place: Place, point: [number, number]) => void
   onDragEnd?: () => void
 }
@@ -248,7 +253,7 @@ function Marker({
           dragged.current = false
           return
         }
-        onSelect(entry)
+        onSelect(entry, place)
       }}
       className={cn(
         // No flex, no padding, no gap, nothing but the dot: the button's box is the dot's

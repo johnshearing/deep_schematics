@@ -43,7 +43,11 @@ interface Props {
   /** Every pin the netlist gives this component, so a site's membership is a checklist rather
    * than something to type. */
   pinsOf: (componentId: string) => string[]
-  onTarget: (target: Target) => void
+  /**
+   * Arm something else. `fly` asks the sheet to come too, and only the site buttons set it: a
+   * rename has not moved anything, and a site that does not exist yet has nowhere to go.
+   */
+  onTarget: (target: Target, fly?: boolean) => void
   onEdit: (change: (document: LocationsDocument) => LocationsDocument) => void
   onLabelDir: (target: Target, dir: Compass | null) => void
   onClear: (target: Target) => void
@@ -172,8 +176,16 @@ function ComponentPanel({
                 variant={active ? 'default' : 'ghost'}
                 size="sm"
                 className="ml-auto h-6"
-                onClick={() => onTarget({ id: entry.id, site: site.id })}
-                title="Aim the next click on the sheet at this site"
+                /* Also the way to *find* a site. A component drawn three times has three of
+                   these, and the button is the only thing on screen that names one of them, so
+                   pressing it takes the sheet to that dot — including the one already armed,
+                   which is how you get back to it after panning away. */
+                onClick={() => onTarget({ id: entry.id, site: site.id }, true)}
+                title={
+                  active
+                    ? 'The next click on the sheet lands here. Press to go back to this site.'
+                    : 'Aim the next click on the sheet at this site, and show it'
+                }
               >
                 <Crosshair />
                 {active ? 'placing' : 'place'}

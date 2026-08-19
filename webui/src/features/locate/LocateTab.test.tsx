@@ -89,6 +89,10 @@ const SIZE = { width: 800, height: 600 }
 /** Every PUT the editor made, in order, so a test can look at the file it would have written. */
 let saved: Record<string, unknown>[] = []
 
+/** Every `scrollIntoView` the list asked for, and the row it asked for it on. jsdom has no
+ * layout and so no implementation of its own — the list calls it optionally for that reason. */
+let scrolled: ReturnType<typeof vi.fn>
+
 function stubServer(options: { unlockOk?: boolean; report?: typeof EMPTY_REPORT } = {}) {
   vi.stubGlobal(
     'fetch',
@@ -143,6 +147,12 @@ function json(body: unknown, status = 200) {
 
 beforeEach(() => {
   saved = []
+  scrolled = vi.fn()
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    writable: true,
+    value: scrolled,
+  })
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
     configurable: true,
     get: () => SIZE.width,
@@ -169,7 +179,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  for (const name of ['clientWidth', 'clientHeight'] as const) {
+  for (const name of ['clientWidth', 'clientHeight', 'scrollIntoView'] as const) {
     delete (HTMLElement.prototype as never)[name]
   }
   vi.unstubAllGlobals()
@@ -210,6 +220,46 @@ function clickSheet(x: number, y: number) {
   fireEvent.pointerDown(sheet(), { pointerId: 1, button: 0 })
   fireEvent.pointerUp(sheet(), { pointerId: 1 })
   fireEvent.click(sheet(), { clientX: x, clientY: y })
+}
+
+/**
+ * Make every flight arrive at once, so a test can say **where the sheet went**.
+ *
+ * `panTo` interpolates over 420 ms of real time, and what is worth pinning here is the
+ * destination rather than the easing — so this borrows the path the viewport already has for
+ * somebody who asked their operating system for less motion, which sets the final viewport
+ * directly. Stubbed per test rather than in `beforeEach`: the placement tests click the sheet
+ * immediately after arming a row, and they mean the coordinate under the *unmoved* sheet.
+ */
+function landsAtOnce() {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+}
+
+/** The zoom the toolbar is showing. 11% is the whole sheet fitted, 9% is the whole sheet with
+ * the wider padding a *flight* uses, and 50% is `FOCUS_ZOOM` — one dot, closed in on. */
+function percent(): number {
+  return Number(screen.getByText(/^\d+%$/).textContent!.replace('%', ''))
+}
+
+/** A dot on the sheet. Its accessible name is `id — label (site). how well it is known`. */
+function dot(name: RegExp) {
+  return screen.getByRole('button', { name })
+}
+
+/** Give `CR-BP` the two sites a relay drawn twice has, and leave the second one armed. On the
+ * `All` filter, because a placed component is no longer in `To do` and these tests go back to
+ * its row afterwards. */
+function twoSites() {
+  fireEvent.click(screen.getByRole('button', { name: 'All' }))
+  fireEvent.click(row('CR-BP'))
+  clickSheet(300, 200)
+  fireEvent.click(screen.getByRole('button', { name: 'Another site' }))
+  clickSheet(500, 400)
 }
 
 describe('LocateTab', () => {
@@ -494,6 +544,82 @@ describe('LocateTab', () => {
     // and re-running the generator is a human's job at a terminal.
     expect(screen.getByText(/circuit_logic\.json is behind/)).toBeTruthy()
   })
+
+  it('scrolls the list to the row a dot on the sheet just armed', async () => {
+    // The row was already being highlighted; it was being highlighted somewhere off screen. On
+    // 275 rows that left the user scrolling the list to find the row the editor had chosen for
+    // them, which is the searching this screen exists to remove.
+    await open()
+    scrolled.mockClear()
+    fireEvent.click(dot(/^CR-BP:11 — common terminal/))
+
+    expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP:11', site: null })
+    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest' })
+    // On the armed row itself, and `nearest` so a row already in view does not move.
+    const row = scrolled.mock.instances.at(-1) as HTMLElement
+    expect(row.textContent).toContain('CR-BP:11')
+  })
+
+  it('arms the dot that was clicked, not the row’s first one', async () => {
+    // `CR-BP` is drawn three times on the real sheet. Clicking its NO contact used to arm the
+    // *coil* — whichever site was created first — and fly there, so somebody who clicked a dot in
+    // order to move it was dropped somewhere else entirely and had to drag the sheet back.
+    landsAtOnce()
+    await open()
+    twoSites()
+    fireEvent.click(row('CR-BP'))
+    expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP', site: 'main' })
+
+    fireEvent.click(dot(/^CR-BP — relay.*\(site-2\)/))
+
+    expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP', site: 'site-2' })
+    // And the sheet closed in on the dot under the pointer rather than going to the other one.
+    expect(percent()).toBe(50)
+  })
+
+  it('shows the whole sheet for a row that is drawn in more than one place', async () => {
+    landsAtOnce()
+    await open()
+    twoSites()
+
+    fireEvent.click(row('CR-BP'))
+
+    // 9%: the whole 1224×792 sheet in an 800×600 container, at the padding a flight uses. Flying
+    // to one of a relay's three sites says nothing about the other two — it looks exactly like a
+    // component drawn once, which is the misreading that matters most on this screen.
+    expect(percent()).toBe(9)
+    // A row drawn in one place is still framed on it, at FOCUS_ZOOM.
+    fireEvent.click(row('CR-BP:11'))
+    expect(percent()).toBe(50)
+  })
+
+  it('takes the sheet to the site whose button was pressed, including the armed one', async () => {
+    landsAtOnce()
+    await open()
+    twoSites()
+    fireEvent.click(row('CR-BP'))
+    expect(percent()).toBe(9)
+
+    // The site rows are the only thing on screen that names one site of several, so the button
+    // that aims the next click is also the way to go and look at it.
+    fireEvent.click(screen.getByRole('button', { name: 'place' }))
+    expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP', site: 'site-2' })
+    expect(percent()).toBe(50)
+
+    // And pressing it again on the site already armed — the one that says "placing" — flies back
+    // to it. That is index K1: the fly used to be keyed on the row's id, so asking for the same
+    // one twice was silent, and after panning away there was no way back.
+    fireEvent.click(screen.getByRole('button', { name: 'Fit' }))
+    expect(percent()).toBe(11)
+    fireEvent.click(screen.getByRole('button', { name: 'placing' }))
+    expect(percent()).toBe(50)
+  })
+
+  // Not tested here: that dragging a dot leaves the sheet where it is. Dragging retargets, and
+  // while the flight was keyed on the target's id that meant dragging a dot belonging to some
+  // other row flew the sheet out from under the gesture. It is fixed — a drag asks for no
+  // flight — but jsdom's pointer events carry no coordinates, so a drag written here reports
+  // `NaN` for where it was dropped and would be pinning nothing. Same reason as T-140.
 
   it('shows every coordinate the server refused', async () => {
     stubServer({
