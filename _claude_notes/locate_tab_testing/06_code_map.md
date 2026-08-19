@@ -5,7 +5,7 @@ Index: `locate_tab_instruction_and_test_manual.md`.
 **This document exists so that troubleshooting does not begin with a search.** It is never needed to
 *run* a test. Read it when a test has failed and you need to know where to look.
 
-Symbol names below were verified against the tree on 2026-08-17. Line numbers are deliberately
+Symbol names below were verified against the tree on 2026-08-19. Line numbers are deliberately
 absent — they rot; names do not.
 
 ---
@@ -82,7 +82,8 @@ Two things to hold on to:
 | Scrolling the armed row into view | `webui/src/features/locate/WorkList.tsx` | `armedRow` |
 | **Every rule the editor applies** | `webui/src/features/locate/model.ts` | see below |
 | The screen, click-to-place, the advance, the overlay | `webui/src/features/locate/LocateTab.tsx` | `LocateTab`, `put`, `aim`, `editable`, `PasswordGate`, `SaveStatus` |
-| Leaving placing mode — `Esc`, and the ✕ on the panel | `webui/src/features/locate/LocateTab.tsx` | the `Escape` effect (a `window` listener guarded on `activeTabId`), `isTextField`; `TargetPanel.tsx` `Header` |
+| Leaving placing mode — `Esc`, and the ✕ on the panel | `webui/src/features/locate/LocateTab.tsx` | the `Escape` effect (a `window` listener guarded on `activeTabId`); `TargetPanel.tsx` `Header`. **`isTextField` moved out on 2026-08-19** — it is `webui/src/lib/keys.ts` now, shared with the Drawing tab's Escape. See hazard H10 |
+| Which tab is on screen, and the key that changes it | `webui/src/App.tsx` | the `F2` effect (`hasDrawingTab`, bare key only) — `F2` crosses to the Drawing tab from here and back; `tabIds.ts` holds the ids |
 | Rows and their state words | `webui/src/features/locate/WorkList.tsx` | `STATE` |
 | **The order of every list on the left**, and so the order the advance walks | `webui/src/features/locate/LocateTab.tsx` | the `entries` memo, `BY_ID` (an `Intl.Collator`, `numeric`) |
 | Sites, pins, the compass, the wire/net panel | `webui/src/features/locate/TargetPanel.tsx` | `ComponentPanel`, `TerminalPanel`, `LabelPanel`, `LabelSide` |
@@ -211,6 +212,28 @@ puts a wrong timestamp in an authored file. Not worth fixing; worth knowing.
 
 By design, and now enforced: `test_the_committed_artifact_is_exactly_what_the_generator_writes` is
 red until the generator is re-run. Not a bug.
+
+### H10 — Two `window` Escape listeners, and only a tab guard between them *(added 2026-08-19)*
+
+Since the Drawing tab got the same key on 2026-08-19, **two components bind `Escape` on `window`**:
+this tab's clears the armed target, the Drawing tab's clears the selection. Both are mounted at all
+times (`keepMounted`), so the *only* thing keeping them apart is the `if (activeTabId !== …) return`
+at the top of each effect. Drop or mistype one of those guards and pressing `Escape` while placing
+also clears the reader's selection on the other tab, or worse, the reverse — a hidden tab disarming
+the target under a run of placements. If a report says *"`Esc` did something I did not ask for"*,
+that guard is the first thing to read.
+
+Three details they deliberately share, held in `webui/src/lib/keys.ts` and in the comment on each
+effect:
+
+- **A text field gets the first `Esc`** (`isTextField`, which counts a checkbox as *not* a field —
+  the pin chips hold focus but nothing is being composed in them).
+- **Neither swallows an `Escape` it has no use for.** With nothing armed and nothing selected the
+  event is left alone, so a dialog can still close on it.
+- **They clear different things, and neither clears the other's.** `Esc` on this tab leaves the
+  Drawing tab's selection card exactly as it was, which is correct — the selection is the reader's
+  place in the sheet, not a mode this editor owns — but it does mean "`Esc` did not close the box"
+  is a true observation about the *other* tab and not a bug.
 
 ---
 

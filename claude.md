@@ -21,21 +21,23 @@ Please note: I have worked through the lessons which are also tests.
 Everything worked as expected.  
 
 Now I hope to make the following improvements to the WebUI.  
-Our focus will be on the "Drawing" tab in the WebUI.  
+Our focus will be on the "Drawing" and "Locate" tabs in the WebUI.  
+Right now we are only having a conversation. There is no codeing to be done now.  
 
-The following are my requests:
+The following are my requests:  
 
-I notice when clicking on the hyperlink, perhaps labeled "CR-BP", in the answer given on the "Ask" tab, I am taken to the "Drawing" tab, the drawing zooms in on the CR-BP marker, and there is an information/dialog box in the lower left corner of the screen. Also there is a button labeled "Ask about this". When pressing this button, we are brought back to the "Ask" tab and the text control where a question is asked get filled in with the following: "What does CR-BP do, and what is connected to it?"
-Please change that question to "Please tell me all you can about CP-BP"
+How can we better see nets and wires on the "Drawing" and "Locate" tabs?   
 
-Also, clicking on the "Ask about this" button is a good way to quickly switch between the "Ask" tab and the "Drawing" tab.
-I am wondering if there is a hot key combination or some other method you can think of for quickly switching between the "Ask" tab and the "Drawing" tab.
+I notice when clicking on the hyperlink labeled "120" in the answer given on the "Ask" tab, I am taken to the "Drawing" tab, the drawing zooms in on Net 120, and there is an information/dialog box in the lower left corner of the screen that names all the components which make up Net 120. Then I notice that most but not all the points have been given markers (the red dots). In this case, The information/dialog box says 120 runs through Bypass-CB, CR2, DISCHARGE1, INFEED1, TB-120. All of these components have been given markers except for CR2. This is all good because this means that the system is already aware of what wires make up Net 120.  
 
-Also, In a previous session you changed the prompt such that when the model answers questions, any references to components, terminals, wires, and nets have a hyperlink to that marker in the drawing. The model now does a pretty good job of providing hyperlinks when referring to these but it would be helpful if it did this more. I realize that ai models are non-deterministic an so nothing can be 100 percent, but I am wondering if performance in this are can be improved.
+With regard to the above:
+1. Is there a way to ensure that all components mentioned in the information/dialog box are given markers when clicking on the "120 hypeerlink"?  
+2. Even better, When clicking on the hyperlink labeled "120" in the answer given on the "Ask" tab, is it possible to highlight all the wires on that net?  
+   To accomplish this we just need to highlight all the wires on the net.  
+   So what ever is done to highlight the nets should just be an extension of highlighting wires.  
+   And to highlight the wires we just need to know what terminals they are connected to, and the terminals need to be placed on the drawing correctly.
 
-Finally, on the "Locate" tab, you recently attached behavior to the escape key which deactivates the a marker if selected and also closes the dialog/information box.
-On the "Drawing" tab you already can deactivate the marker by closing the information/dialog box. 
-Please also attach this behavior to the escape key when on the "Drawing" tab.
+Assuming I place all the terminals at the correct positions on the drawing, is it possible to highlight wires and nets when viewing the "Drawing" and "Locate" tabs in the WebUI? If so, please lets discuss a plan and then formalize the plan for implementation.
 
  
  

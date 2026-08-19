@@ -212,8 +212,10 @@ the next click writes a coordinate into an authored file. Until this existed the
 was into another one — picking a different row — so somebody who had finished placing and wanted
 to read the drawing kept a crosshair and a live target for the rest of the session.
 
-**If not.** `LocateTab.tsx` — the `Escape` effect (a `window` listener, guarded on `activeTabId`)
-and `isTextField`. For the button, `TargetPanel.tsx` `Header`.
+**If not.** `LocateTab.tsx` — the `Escape` effect (a `window` listener, guarded on `activeTabId`).
+For the button, `TargetPanel.tsx` `Header`. `isTextField` is in `webui/src/lib/keys.ts` since
+2026-08-19, when the Drawing tab got the same key: there are **two** `window` Escape listeners now
+and the tab guard is all that separates them, so read `06_code_map.md` §H10 before changing either.
 
 ---
 
@@ -224,8 +226,9 @@ disagrees with the tiles would write coordinates that are wrong *by a consistent
 invisible while you are placing and obvious later.
 
 **Do.** Place a point on some visually unmistakable feature — a terminal dot printed on the sheet,
-or a corner of a box. Note the coordinate from the panel. Now switch to the **Drawing** tab and
-click any answer citation, or use the Components overlay to find the same designator.
+or a corner of a box. Note the coordinate from the panel. Now switch to the **Drawing** tab —
+**`F2`** does it in one keystroke from anywhere, and `F2` again brings you back — and click any
+answer citation, or use the Components overlay to find the same designator.
 
 **Expected.** The Drawing tab's dot sits on the **same printed feature**, at any zoom, on any
 display. Both tabs go through `paint.ts` — there is exactly one projection in this application.

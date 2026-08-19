@@ -105,7 +105,7 @@ whole.
 
 ## 5. State of the system, 2026-08-19
 
-**Eight changes to the screen since the tests above were first walked**, none of them touching
+**Nine changes to the screen since the tests above were first walked**, none of them touching
 what gets written into `locations.json`:
 
 1. The **advance starts off** (`01_screen_and_vocabulary.md` §The advance checkbox, T-120, T-150).
@@ -129,6 +129,15 @@ and the id is not enough to say where to go.
 8. The **`place` / `placing` buttons fly to their site** — including the one already armed, which
    is **K1, fixed** (T-215, T-110).
 
+The ninth came from the Drawing-tab work later on 2026-08-19 and is not this tab's, but it is
+visible from here and it changes how a placement run feels:
+
+9. **`F2` crosses to the Drawing tab and back**, from anywhere, including with the caret in a
+   site-name box. The armed target, the draft and each tab's own pan and zoom survive the trip
+   (§The sheet in `01_screen_and_vocabulary.md`, **T-425** — a new test, not yet walked). The same
+   session gave the Drawing tab its own `Escape`, which is why there are now two `window` Escape
+   listeners and one new hazard, **H10**.
+
     locations.json    a real run's worth of work, all by "js":
                       6 components over 9 sites — CR-BP Coil/NC/NO, CR-SW Coil/NO,
                       DISCHARGE1, CR-ON, BYPASS-CB, CB2
@@ -142,8 +151,10 @@ and the id is not enough to say where to go.
                       Do not hand-edit it — it is generated.
     tests             105 server (104 + that one), 119 web, ruff and tsc clean
                       — eight of the web tests are the Drawing-tab work of the same
-                      day (F2, Escape, the component question); change_history.md
-                      2026-08-19 has it. Nothing in this manual moved.
+                      day (F2, Escape, the component question, and a v1.2 prompt);
+                      change_history.md 2026-08-19 has it. What moved in here:
+                      isTextField now lives in webui/src/lib/keys.ts, hazard H10 is
+                      new, and T-425 is a new test nobody has walked.
     server            not running; start it as in §1
     git               locations.json is tracked now, and modified against its last
                       commit — it is authored content and the one thing here git
@@ -165,6 +176,9 @@ The first column is what the user says. Use this to pick one leaf document, not 
 | No Locate tab at all | §1 above | `SWUI_ALLOW_EDITS`; `tabs.ts` `isEnabled` |
 | Password rejected, or the tab shows the lock forever | `05_tests_save_and_recover.md` T-400 | `main.py` `_require_editor`, `locateStore.unlock` |
 | Stuck in placing mode — a dot stays red, the cursor stays a crosshair | `02_tests_place_and_drag.md` T-165 | the `Escape` effect in `LocateTab.tsx`; `TargetPanel.tsx` `Header` ✕ |
+| `Esc` did something nobody asked for, on this tab or the other one | `06_code_map.md` **§H10** | there are two `window` Escape listeners since 2026-08-19 — this tab's and the Drawing tab's — and the `activeTabId` guard is all that separates them |
+| The tab changed by itself, or `F2` does nothing | `01_screen_and_vocabulary.md` §The sheet, T-425 | the `F2` effect in `App.tsx`; it is not bound at all when the sheet was never tiled |
+| The armed target or the zoom resets when I come back from the drawing | `05_tests_save_and_recover.md` **T-425** | `keepMounted` on both entries in `tabs.ts`; then `06_code_map.md` §H1 |
 | Dot lands in the wrong place on the sheet | `02_tests_place_and_drag.md` | `paint.ts` `cssToPoint` — the projection |
 | Click does nothing | `02_tests_place_and_drag.md` T-120 | the pan-versus-place rule in `LocateTab.tsx` `onClick` |
 | Drag does nothing, or drags the sheet instead | `02_tests_place_and_drag.md` T-140 | `MarkerLayer.tsx` `onDragPoint` |

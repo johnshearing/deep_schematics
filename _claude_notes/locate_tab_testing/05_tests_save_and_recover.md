@@ -69,8 +69,8 @@ Paste it verbatim.
 ## T-420 · The Drawing tab is not one save behind
 
 **Do.** Place a point for a component whose dot you can find on the **Drawing** tab. Note the
-coordinate. Switch to the **Drawing** tab **without reloading the page**. Find that component's
-marker.
+coordinate. Switch to the **Drawing** tab **without reloading the page** — `F2` is the one
+keystroke that does it — and find that component's marker.
 
 **Expected.** It is at the **new** coordinate, and it is **filled** rather than hollow — the Drawing
 tab now knows a person placed it. Hover it: the tooltip says *"placed by hand"*.
@@ -81,6 +81,32 @@ keeps drawing the estimate. Owner: `appStore.refreshDesignators`, called from th
 
 **If it is stale.** Reload the page and check again. If a reload fixes it, the refresh call is not
 happening; if a reload does not fix it, the write did not land and this is really T-410.
+
+---
+
+## T-425 · Crossing to the drawing mid-run costs nothing *(added 2026-08-19)*
+
+**Do.** Tick the advance and place two or three points, so you are in the middle of a run. Now,
+**immediately after a click** — inside the second, while the badge still says `unsaved` — press
+`F2`, look at the drawing, and press `F2` again to come back.
+
+**Expected.** Everything is where you left it: the same row armed, the target panel up with the same
+site, the sheet at the same pan and zoom, and the badge reading `saved` — the autosave is a timer in
+the store and it fires whether or not the tab is on screen. The Drawing tab keeps its own pan and
+zoom independently of this one.
+
+**Why this test exists.** Both tabs are `keepMounted`, and this is the test that says so out loud.
+If that ever changes, coming back here **remounts** the editor, which calls `load()` again — and
+`load()` reads the file, so a draft that had not been saved yet would be silently replaced by what
+is on disk. That is hazard H1 wearing different clothes, and now that `F2` makes the crossing
+effortless it will happen a hundred times a session instead of twice.
+
+**If the target or the zoom resets.** Read `webui/src/tabs.ts` first: `keepMounted: true` on both
+the Drawing and Locate entries is what this test is really checking. Then `06_code_map.md` §H1.
+
+**If a point you placed just before pressing `F2` is missing from the file.** That is a genuine
+fault and worth a full report — `SAVE_DEBOUNCE_MS` is 900, so the write should have gone out while
+you were on the other tab.
 
 ---
 

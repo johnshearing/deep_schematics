@@ -58,6 +58,7 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 | T-400 | The gate; the demo password does not open the editor | | |
 | T-410 | Autosave, coalescing, the Save button | | |
 | T-420 | The Drawing tab is not one save behind | | |
+| T-425 | `F2` to the drawing and back mid-run loses nothing | | |
 | T-430 | Refusals appear in the red strip, per field | | |
 | T-440 | **The stale-draft hazard — confirm or refute** | | |
 | T-450 | Regeneration, and the test that goes red until you do | | |

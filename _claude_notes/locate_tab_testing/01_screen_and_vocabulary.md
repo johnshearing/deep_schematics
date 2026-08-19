@@ -222,6 +222,13 @@ zoom, double-click to zoom in, `0` fits, arrows nudge. The cursor is a crosshair
 is armed, and a hand whenever one is not — so the cursor is the readout for which mode you are in.
 `Esc` selects nothing and gives the hand back.
 
+**`F2` leaves for the Drawing tab, and `F2` brings you back** (2026-08-19). Worth knowing mid-run,
+because the answer to *"is that dot really on the right conductor row?"* is on the other tab: your
+armed target, the panel, the unsaved draft and this sheet's pan and zoom all survive the trip, and
+the two tabs hold their pan and zoom separately. T-425 is that test. The key is bound
+application-wide in `App.tsx`, not by this tab, so it also works while the caret is in a site-name
+box — where it does nothing to the text.
+
 ---
 
 ## Dots on the sheet
