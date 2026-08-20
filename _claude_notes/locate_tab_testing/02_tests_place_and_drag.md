@@ -51,8 +51,59 @@ fixed on 2026-08-19 by making a flight something the click asks for rather than 
 works out from the row's id having changed. If nothing happens, K1 has come back: `LocateTab.tsx`
 `flyTo`.
 
-**One exception, and it is deliberate:** a row drawn in more than one place fits the whole sheet
-instead of closing in on one of its dots. That is T-215.
+**Two exceptions, both deliberate:** a row drawn in more than one place fits the whole sheet instead
+of closing in on one of its dots (T-215), and **nothing flies at all while you are zoomed in past
+50%** (T-115).
+
+---
+
+## T-115 · Zoomed in past 50%, the sheet stays where you put it (2026-08-19, not yet walked)
+
+**The complaint this came from**, and it is worth having in your head before you test it: *"when I
+select a terminal, the page zooms to 50% and centres on the marker. That is good when I am zoomed
+all the way out. But when I am already past 50% I usually have the marker in front of me and control
+of it, so moving the drawing interrupts the work."*
+
+**Do.** Pick any row and let the sheet fly to it — `50%`, as T-110 says. Now press **`+`** once (or
+the toolbar `+`): the readout says `70%`. Pan a little, so the dot is off centre. Now pick a
+**different** row in the list.
+
+**Expected.**
+
+- The row arms: it highlights, the target panel changes to it, the cursor stays a crosshair, and a
+  click on the sheet would place *that* row. Everything about **arming** is unchanged.
+- **The sheet does not move.** The zoom readout still says `70%` and the drawing has not shifted by
+  a pixel — not re-centred, not zoomed, nothing.
+
+**Do.** Tick the advance and place two rows in a row, still at `70%`.
+
+**Expected.** Same: each click places and the target moves on down the list, and the sheet stays
+still. The same rule covers the site buttons and clicking a dot — **every** flight, not just the
+one from the list.
+
+**Do.** Now press `Fit` (or `0`), so the readout says about `11%`, and pick a row again.
+
+**Expected.** It flies, exactly as T-110 describes, landing at `50%`. **Below the ceiling nothing
+has changed at all.**
+
+**Do.** Zoom to exactly `50%` — `Fit`, then pick a row, which lands you there — pan away, and pick
+another row.
+
+**Expected.** It flies. The rule is *closer in than 50%*, not *at* 50%, so 50% itself still gets the
+old behaviour. This is the boundary, and it is the one place to be careful when reporting: say what
+the readout said.
+
+**Why 50% and not some other number.** It is the same 50% a flight lands at (`FOCUS_ZOOM`), which
+means a flight can never zoom you *in* from there — from anywhere closer it can only take
+magnification away. One constant, read from one place; if the flight zoom ever changes, the ceiling
+follows it.
+
+**If the sheet still flies while you are zoomed in.** `LocateTab.tsx` — `FLY_CEILING_PERCENT` and
+the guard in the flight effect, which reads the zoom from a **ref** so that it is the zoom at the
+moment of the flight rather than at the render that asked for one.
+
+**If nothing flies any more, at any zoom** — including from `Fit` — the ref is the first suspect,
+then `viewer.percent`.
 
 ---
 
@@ -228,7 +279,8 @@ invisible while you are placing and obvious later.
 **Do.** Place a point on some visually unmistakable feature — a terminal dot printed on the sheet,
 or a corner of a box. Note the coordinate from the panel. Now switch to the **Drawing** tab —
 **`F2`** does it in one keystroke from anywhere, and `F2` again brings you back — and click any
-answer citation, or use the Components overlay to find the same designator.
+answer citation, or switch on the group the designator belongs to (`Components`, `Terminals` or
+`Wire & net labels` — see T-190) and find its dot.
 
 **Expected.** The Drawing tab's dot sits on the **same printed feature**, at any zoom, on any
 display. Both tabs go through `paint.ts` — there is exactly one projection in this application.
@@ -261,3 +313,54 @@ in the list — which is the searching this whole screen exists to remove.
 
 **If not.** `WorkList.tsx` `armedRow` — the `scrollIntoView` effect, keyed on the target id and on
 the entries (the filter re-lays-out the list under an unchanged target).
+
+---
+
+## T-190 · The Drawing tab shows the same three groups (2026-08-19, not yet walked)
+
+**New, and asked for from this manual.** The Locate tab has filtered its list by *Components*,
+*Terminals* and *Wire & net labels* since it was written. The Drawing tab drew components and
+nothing else, so a placement run had no way to check a **pin** from the reader's side — which is the
+side that matters, and which T-170 asks you to check for components only. It now has all three.
+
+**The one difference from this tab, and it is deliberate.** Over here the filter picks which rows you
+are *working through*, so exactly one at a time is right. Over there you are reading, and the useful
+questions are comparisons — *is that pin on the same conductor row as its relay* — so all three are
+**independent switches** and any combination is allowed, including none.
+
+**Do.** Switch to the **Drawing** tab (`F2`). Find the three buttons in the toolbar, left of the
+zoom controls.
+
+**Expected.** `Components` is **on**, `Terminals` and `Wire & net labels` are **off** — the view this
+tab has always had, so nothing appears unasked. A group with nothing to draw has **no button at
+all**: on a drawing where nobody has placed a label yet there are only two.
+
+**Expected, added 2026-08-19 on request.** A group that is **on** is a **filled** button — the same
+way this tab's filter buttons show which filter is in effect — and one that is off is plain. Press
+each in turn and read only the buttons: at any moment you can say which of the three are in effect
+without looking at the sheet, which matters here precisely because any combination is legal. It was
+`aria-pressed` plus a slightly brighter word before, which a screen reader could tell you and a
+person could not.
+
+**Do.** Press `Terminals`.
+
+**Expected.** The pins appear **and the components stay**. Both, at once, is the whole point.
+
+**Expected, and this is the thing to look at.** Most terminals are **hollow dots sitting on top of
+their component's dot** — that is a pin nobody has placed, drawn at its component's point, and the
+tooltip says so in words. Zoom past 30% and the ids appear; a pin with its own point separates from
+its relay by the 10–20 pt that made this editor necessary. **The fog is expected.** It is the honest
+picture of how much is still guessed, and it is why the group starts off.
+
+**Do.** Click one of those pin dots.
+
+**Expected.** The card names the **pin** — `CR-BP:A1`, kind `terminal` — not its relay. Press
+`Ask about this` and the composer gets the terminal's question, not the component's.
+
+**Why this test exists.** `onMarker` used to raise every click as `{kind: 'component'}`, because
+components were the only things with dots. The card looks the entry up by **id**, so a wrong `kind`
+would have drawn a perfectly correct-looking card while putting a lie in the store — and every
+consumer of a selection switches on `kind`. Nothing on screen would have told you.
+
+**If not.** `DrawingTab.tsx` — `LAYERS` and the `layers` memo for what is drawn, `shown` for the
+switches, `onMarker` for the kind. Five tests in `DrawingTab.test.tsx` cover it.

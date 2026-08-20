@@ -22,24 +22,22 @@ Everything worked as expected.
 
 Now I hope to make the following improvements to the WebUI.  
 Our focus will be on the "Drawing" and "Locate" tabs in the WebUI.  
-Right now we are only having a conversation. There is no codeing to be done now.  
-
-The following are my requests:  
-
-How can we better see nets and wires on the "Drawing" and "Locate" tabs?   
-
-I notice when clicking on the hyperlink labeled "120" in the answer given on the "Ask" tab, I am taken to the "Drawing" tab, the drawing zooms in on Net 120, and there is an information/dialog box in the lower left corner of the screen that names all the components which make up Net 120. Then I notice that most but not all the points have been given markers (the red dots). In this case, The information/dialog box says 120 runs through Bypass-CB, CR2, DISCHARGE1, INFEED1, TB-120. All of these components have been given markers except for CR2. This is all good because this means that the system is already aware of what wires make up Net 120.  
-
-With regard to the above:
-1. Is there a way to ensure that all components mentioned in the information/dialog box are given markers when clicking on the "120 hypeerlink"?  
-2. Even better, When clicking on the hyperlink labeled "120" in the answer given on the "Ask" tab, is it possible to highlight all the wires on that net?  
-   To accomplish this we just need to highlight all the wires on the net.  
-   So what ever is done to highlight the nets should just be an extension of highlighting wires.  
-   And to highlight the wires we just need to know what terminals they are connected to, and the terminals need to be placed on the drawing correctly.
-
-Assuming I place all the terminals at the correct positions on the drawing, is it possible to highlight wires and nets when viewing the "Drawing" and "Locate" tabs in the WebUI? If so, please lets discuss a plan and then formalize the plan for implementation.
-
  
+The following is my request:  
+
+
+On the "Drawing" tab I can filter on components, terminals, and labels for wires and nets.  
+It would be good if the filter buttons were highlighted when active so that I would know which filters are in effect.  
+Please create that behavior.   
+
+Also, on the "Locate" tab, I placed the terminals DISC1:L1, DISC1:L2, and DISC1:L3 with their labels oriented to the west but when viewing these on the "Drawing" tab, the labels are oriented east of the terminal which is the default orientation rather than the orientation that I selected.  
+Please fix this.  
+
+
+Finally, I notice that while on the "Locate" tab, when I select a terminal or component, the page zooms to 50 percent and centers on the selected marker. This is good when I am zoomed all the way out to fit the page, but when I am already past a 50 percent zoom that usually means that I am already at maximum magnification and already have control of the marker. In this case, changing the the magnification and moving the drawing interupts the work flow. So please leave the current behavior if the magnification is less than or equal to 50 percent. But if the magnification is greater than 50 percent then please do not move the drawing or change the magnification. 
+
+
+
  
 
 

@@ -35,7 +35,10 @@
           ],
           "source": "human",
           "by": "js",
-          "at": "2026-08-18T14:19:03.990Z"
+          "at": "2026-08-18T14:19:03.990Z",
+          "label": {
+            "dir": "n"
+          }
         },
         {
           "id": "NC",
@@ -58,12 +61,15 @@
             "24"
           ],
           "point": [
-            586.3,
-            226.2
+            594.1,
+            241.5
           ],
           "source": "human",
           "by": "js",
-          "at": "2026-08-18T13:32:30.022Z"
+          "at": "2026-08-20T00:11:57.168Z",
+          "label": {
+            "dir": "s"
+          }
         }
       ]
     },
@@ -81,7 +87,10 @@
           ],
           "source": "human",
           "by": "js",
-          "at": "2026-08-18T13:40:50.814Z"
+          "at": "2026-08-18T13:40:50.814Z",
+          "label": {
+            "dir": "n"
+          }
         },
         {
           "id": "NO",
@@ -90,27 +99,47 @@
             "14"
           ],
           "point": [
-            564.4,
-            473.6
+            569.5,
+            473.5
           ],
           "source": "human",
           "by": "js",
-          "at": "2026-08-18T13:42:40.145Z"
+          "at": "2026-08-20T00:17:09.226Z"
         }
       ]
     },
     "CR-ON": {
       "sites": [
         {
-          "id": "main",
-          "terminals": [],
+          "id": "Coil",
+          "terminals": [
+            "A1",
+            "A2"
+          ],
           "point": [
             860.6,
             463.8
           ],
           "source": "human",
           "by": "js",
-          "at": "2026-08-19T01:54:20.760Z"
+          "at": "2026-08-19T01:54:20.760Z",
+          "label": {
+            "dir": "s"
+          }
+        },
+        {
+          "id": "NO",
+          "terminals": [
+            "11",
+            "14"
+          ],
+          "point": [
+            594,
+            208
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-20T00:15:16.196Z"
         }
       ]
     },
@@ -120,12 +149,15 @@
           "id": "main",
           "terminals": [],
           "point": [
-            385.7,
-            664.4
+            385.4,
+            660.7
           ],
           "source": "human",
           "by": "js",
-          "at": "2026-08-18T21:52:34.177Z"
+          "at": "2026-08-20T00:03:52.179Z",
+          "label": {
+            "dir": "s"
+          }
         }
       ]
     },
@@ -140,7 +172,226 @@
           ],
           "source": "human",
           "by": "js",
-          "at": "2026-08-19T03:12:00.251Z"
+          "at": "2026-08-19T03:12:00.251Z",
+          "label": {
+            "dir": "s"
+          }
+        }
+      ]
+    },
+    "TB-24E1-B": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            467,
+            176.8
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T19:40:17.268Z",
+          "label": {
+            "dir": "n"
+          }
+        }
+      ]
+    },
+    "TB-DIR": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            643.8,
+            176.9
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T19:39:54.729Z",
+          "label": {
+            "dir": "n"
+          }
+        }
+      ]
+    },
+    "TB-GND-B": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            489.4,
+            110.7
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T19:40:58.222Z",
+          "label": {
+            "dir": "n"
+          }
+        }
+      ]
+    },
+    "DISC1": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            360,
+            96.3
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T22:53:07.673Z",
+          "label": {
+            "dir": "s"
+          }
+        }
+      ]
+    },
+    "CB1": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            472.3,
+            48.4
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T22:54:12.234Z",
+          "label": {
+            "dir": "s"
+          }
+        }
+      ]
+    },
+    "PLG1": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            120.1,
+            90.4
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T22:56:03.100Z",
+          "label": {
+            "dir": "w"
+          }
+        }
+      ]
+    },
+    "TB-L1": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            257.3,
+            54.3
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T22:56:47.499Z",
+          "label": {
+            "dir": "w"
+          }
+        }
+      ]
+    },
+    "TB-N": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            273.8,
+            87.2
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T22:59:05.759Z",
+          "label": {
+            "dir": "s"
+          }
+        }
+      ]
+    },
+    "TB-GND-A": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            290.6,
+            106
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T22:59:27.383Z",
+          "label": {
+            "dir": "s"
+          }
+        }
+      ]
+    },
+    "PLG2": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            120.1,
+            155.8
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T22:59:58.466Z",
+          "label": {
+            "dir": "s"
+          }
+        }
+      ]
+    },
+    "EARTH": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            317.7,
+            115.6
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T23:01:25.087Z",
+          "label": {
+            "dir": "s"
+          }
+        }
+      ]
+    },
+    "DOOR-GND": {
+      "sites": [
+        {
+          "id": "main",
+          "terminals": [],
+          "point": [
+            415.4,
+            116.5
+          ],
+          "source": "human",
+          "by": "js",
+          "at": "2026-08-19T23:06:55.836Z",
+          "label": {
+            "dir": "n"
+          }
         }
       ]
     }
@@ -376,6 +627,156 @@
       "source": "human",
       "by": "js",
       "at": "2026-08-19T18:28:36.489Z"
+    },
+    "DISC1:T3": {
+      "point": [
+        384.9,
+        84.6
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T19:42:21.609Z"
+    },
+    "DISC1:T2": {
+      "point": [
+        384.9,
+        67.6
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T19:42:37.627Z"
+    },
+    "DISC1:T1": {
+      "point": [
+        385.3,
+        51.1
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T19:43:26.670Z"
+    },
+    "DISC1:L3": {
+      "point": [
+        367.6,
+        83.8
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T19:43:42.998Z",
+      "label": {
+        "dir": "w"
+      }
+    },
+    "DISC1:L2": {
+      "point": [
+        369.1,
+        67.3
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T19:43:06.763Z",
+      "label": {
+        "dir": "w"
+      }
+    },
+    "DISC1:L1": {
+      "point": [
+        368.4,
+        50.7
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T19:43:15.447Z",
+      "label": {
+        "dir": "w"
+      }
+    },
+    "DOOR-GND:1": {
+      "point": [
+        415.3,
+        116.6
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T23:07:26.630Z",
+      "label": {
+        "dir": "s"
+      }
+    },
+    "PLG1:W": {
+      "point": [
+        137.4,
+        67.1
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T23:17:47.491Z"
+    },
+    "PLG1:G": {
+      "point": [
+        137.5,
+        83.6
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T23:18:22.015Z"
+    },
+    "PLG1:B": {
+      "point": [
+        137.4,
+        50.6
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T23:17:28.580Z"
+    },
+    "TB-L1:1": {
+      "point": [
+        268,
+        50.5
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T23:19:03.332Z"
+    },
+    "TB-N:1": {
+      "point": [
+        284.9,
+        83.5
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T23:20:34.975Z"
+    },
+    "TB-GND-A:1": {
+      "point": [
+        301.2,
+        102.5
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-19T23:21:01.897Z"
+    },
+    "BYPASS-CB:1": {
+      "point": [
+        381.5,
+        663.9
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-20T00:03:06.835Z",
+      "label": {
+        "dir": "w"
+      }
+    },
+    "BYPASS-CB:2": {
+      "point": [
+        389.8,
+        663.7
+      ],
+      "source": "human",
+      "by": "js",
+      "at": "2026-08-20T00:03:35.687Z"
     }
   },
   "wires": {

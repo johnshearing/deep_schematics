@@ -43,7 +43,12 @@ import { Button } from '@/components/ui/button'
 import { MarkerLayer } from '@/features/drawing/MarkerLayer'
 import { cssToPoint } from '@/features/drawing/paint'
 import { TileSheet } from '@/features/drawing/TileSheet'
-import { useTileViewport, type Rect, type Viewport } from '@/features/drawing/useTileViewport'
+import {
+  FOCUS_ZOOM,
+  useTileViewport,
+  type Rect,
+  type Viewport,
+} from '@/features/drawing/useTileViewport'
 import { isTextField } from '@/lib/keys'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
@@ -81,6 +86,22 @@ const FILTERS: { id: Filter; label: string; title: string }[] = [
   },
   { id: 'all', label: 'All', title: 'Everything in the index' },
 ]
+
+/**
+ * The zoom past which a flight is refused, as a percentage of native resolution — and refused
+ * whole: neither the magnification nor the position moves.
+ *
+ * `FOCUS_ZOOM` is where a flight *lands*, so above it every flight is a zoom **out**. And past
+ * it you are almost always at a magnification you chose on purpose, in order to work on one dot:
+ * the marker is on screen, the pointer is next to it, and being *taken* to it is being taken away
+ * from what you were doing — the sheet moves, the scale changes, and the gain is a centring you
+ * did not need. Below the ceiling nothing changes at all, because that is the case the flight was
+ * built for: the sheet fitted at 11%, the dot a speck somewhere off to one side.
+ *
+ * It is a *ceiling on the flight*, not a mode: the fly-to arithmetic, the framing rules and every
+ * call site are untouched, and zooming back out to 50% or less makes them all work as before.
+ */
+const FLY_CEILING_PERCENT = Math.round(FOCUS_ZOOM * 100)
 
 export function LocateTab() {
   const drawing = useAppStore((s) => s.drawing)
@@ -226,6 +247,12 @@ export function LocateTab() {
    * site with no point yet — says "leave the sheet where it is". The nonce is what makes asking
    * for the same rectangle twice fly twice: `entry.rect` is the same array on both picks, and
    * without it React would bail out of the state change and the second ask would be silent.
+   *
+   * **And one thing the call sites do not decide: a flight is refused above `FLY_CEILING_PERCENT`.**
+   * Asking is still the only way to be flown anywhere; the ceiling only says that from closer in
+   * than a flight would take you, the answer is no. It lives here rather than in each caller
+   * because the reason is a property of the *viewport* — how magnified the sheet already is — and
+   * not of which row was picked.
    */
   const panTo = useRef(viewer.panTo)
   panTo.current = viewer.panTo
@@ -242,8 +269,18 @@ export function LocateTab() {
   // size yet: a row picked before the container is measured is remembered and flown to the
   // moment it can be.
   const measured = armed && viewer.viewport.scale > 0
+  /** Held in a ref for the same reason `panTo` is: the zoom that decides whether to fly is the
+   * one at the moment of the flight, and a re-render at a new zoom is not a request to fly. An
+   * unmeasured sheet reads 0, which is below the ceiling — the first flight of a session is
+   * exactly the one worth making. */
+  const percent = useRef(viewer.percent)
+  percent.current = viewer.percent
   useEffect(() => {
-    if (measured && focus) panTo.current(focus.rect)
+    if (!measured || !focus) return
+    // Already closer in than the flight would take us: leave the sheet alone, both of it — the
+    // magnification and the position. See `FLY_CEILING_PERCENT`.
+    if (percent.current > FLY_CEILING_PERCENT) return
+    panTo.current(focus.rect)
   }, [measured, focus])
 
   /** Arm a row from the list, and take the sheet to it — see `framing` for what "to it" means
@@ -570,7 +607,8 @@ export function LocateTab() {
       <p className="border-t px-4 py-1 text-[11px] text-muted-foreground">
         Pick a row, then click the sheet to place it · drag any dot to correct it ·{' '}
         <kbd className="rounded border px-1 py-px font-mono text-[10px] text-foreground">Esc</kbd>{' '}
-        selects nothing and gives the hand back · filled dots
+        selects nothing and gives the hand back · past {FLY_CEILING_PERCENT}% zoom, picking a row
+        leaves the sheet exactly where it is · filled dots
         were placed by hand, hollow ones are the indexing pass&apos;s estimate. Saved to{' '}
         <span className="font-mono">locations.json</span>, which is authored and belongs in git
         beside <span className="font-mono">author_circuit_logic.py</span>.

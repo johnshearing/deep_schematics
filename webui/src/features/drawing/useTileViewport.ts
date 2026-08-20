@@ -46,8 +46,12 @@ const PAD = 12
 const FOCUS_PAD = 90
 /** Zoom for a focus target with no size of its own — a component, a terminal. Half of native
  * is where 4 pt lettering becomes readable and about a quarter of the sheet is still visible,
- * which is the balance between "I can read it" and "I can see what it is next to". */
-const FOCUS_ZOOM = 0.5
+ * which is the balance between "I can read it" and "I can see what it is next to".
+ *
+ * Exported because it is also the ceiling above which the Locate tab refuses a flight: a flight
+ * never zooms in past this, so from anywhere closer it can only zoom out. A caller that wants
+ * that rule must read the number from here rather than restate `0.5`. */
+export const FOCUS_ZOOM = 0.5
 /** Long enough to be followed by eye, short enough not to be waited on. */
 const FOCUS_MS = 420
 /** Past its own resolution the raster only gets softer, but a little overzoom is how you read

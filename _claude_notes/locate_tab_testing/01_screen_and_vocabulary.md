@@ -229,6 +229,24 @@ the two tabs hold their pan and zoom separately. T-425 is that test. The key is 
 application-wide in `App.tsx`, not by this tab, so it also works while the caret is in a site-name
 box — where it does nothing to the text.
 
+**And the Drawing tab now shows the same three groups this filter does** (2026-08-19, later the same
+day). `Components`, `Terminals` and `Wire & net labels`, in its own toolbar, in those words. Until
+then it drew components only, so `F2` could check a component from the reader's side but never a
+**pin** — and the pins are the 131 placements. One difference, and it is deliberate: over there they
+are **independent switches**, not one exclusive choice, because a reader's question is a comparison
+(*is that pin on the same row as its relay?*) and both halves have to be visible at once. T-190 and
+T-360 are those tests. Since 2026-08-19 (third change of the day) those switches are **filled when
+they are on**, the same way this tab's filter buttons are: with three of them and every combination
+legal, "which filters are in effect" has to be readable on all three at once.
+
+**Past 50% zoom, picking a row leaves the sheet exactly where it is** (2026-08-19). Below that
+nothing has changed — the sheet flies and lands at 50%, which is T-110. But 50% is also where a
+flight *lands*, so from anywhere closer every flight is a zoom out, and past it you are normally at
+a magnification you chose in order to work on one dot: it is already on screen and the pointer is
+beside it. So above the ceiling neither the magnification nor the position moves, for a row, the
+advance, a site button or a dot alike. **T-115** is that test, and the footer under the sheet says
+so. Zoom back out to 50% or less and every flight works as it always did.
+
 ---
 
 ## Dots on the sheet
@@ -243,3 +261,10 @@ box — where it does nothing to the text.
   honest to draw: its `point` is the midpoint of a bounding box, which is usually blank paper.
 - Dots are **draggable here and nowhere else**. The Drawing tab passes no drag handler, so a stray
   drag there pans the sheet and cannot edit the file.
+- The **Drawing tab draws the same dots, by the same rules** — one per place, filled versus hollow,
+  the label side you chose — but which ones it draws is its own three switches rather than this
+  filter. Same `MarkerLayer`, same one projection; only the question "which of these do I want to
+  see" is answered separately, because the two screens are being read for different reasons.
+  *"The label side you chose" was a claim and not a fact until 2026-08-19:* a dot that is the only
+  one its designator has — which is 269 of 275 — reached that tab without its side and came out
+  east. **T-335** is the test that keeps it honest.

@@ -149,9 +149,11 @@
       "power_domain": "115VAC",
       "normal_state": "closed when the panel is switched on",
       "location": {
-        "x": 390,
-        "y": 90,
-        "zone": "top-centre-left"
+        "x": 377.0,
+        "y": 48.2,
+        "zone": "top-centre-left",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -159,6 +161,20 @@
         "panel disconnect",
         "main disconnect",
         "DISC1"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            377.0,
+            48.2
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "n"
+          }
+        }
       ]
     },
     {
@@ -221,15 +237,31 @@
       "power_domain": "0V_common",
       "normal_state": "bonded to earth",
       "location": {
-        "x": 485,
-        "y": 110,
-        "zone": "top-centre"
+        "x": 489.4,
+        "y": 110.7,
+        "zone": "top-centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "GND terminal",
         "door ground terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            489.4,
+            110.7
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "n"
+          }
+        }
       ]
     },
     {
@@ -346,15 +378,31 @@
       "power_domain": "24VDC",
       "normal_state": "energized whenever CB2 is closed",
       "location": {
-        "x": 468,
-        "y": 215,
-        "zone": "centre"
+        "x": 467.0,
+        "y": 176.8,
+        "zone": "centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "24E-1 terminal",
         "secondary 24V terminal block"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            467.0,
+            176.8
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "n"
+          }
+        }
       ]
     },
     {
@@ -457,15 +505,31 @@
       "power_domain": "control_signal",
       "normal_state": "de-energized unless the reverse breaker is closed",
       "location": {
-        "x": 660,
-        "y": 183,
-        "zone": "centre"
+        "x": 643.8,
+        "y": 176.9,
+        "zone": "centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "DIR terminal",
         "direction terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            643.8,
+            176.9
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "n"
+          }
+        }
       ]
     },
     {
@@ -1255,37 +1319,67 @@
       "id": "DISC1:L1",
       "parent_component": "DISC1",
       "function": "line",
-      "net": "L1"
+      "net": "L1",
+      "location": {
+        "x": 368.4,
+        "y": 50.7,
+        "source": "human"
+      }
     },
     {
       "id": "DISC1:T1",
       "parent_component": "DISC1",
       "function": "output",
-      "net": "L1-A"
+      "net": "L1-A",
+      "location": {
+        "x": 385.3,
+        "y": 51.1,
+        "source": "human"
+      }
     },
     {
       "id": "DISC1:L2",
       "parent_component": "DISC1",
       "function": "line",
-      "net": null
+      "net": null,
+      "location": {
+        "x": 369.1,
+        "y": 67.3,
+        "source": "human"
+      }
     },
     {
       "id": "DISC1:T2",
       "parent_component": "DISC1",
       "function": "output",
-      "net": null
+      "net": null,
+      "location": {
+        "x": 384.9,
+        "y": 67.6,
+        "source": "human"
+      }
     },
     {
       "id": "DISC1:L3",
       "parent_component": "DISC1",
       "function": "neutral",
-      "net": "N"
+      "net": "N",
+      "location": {
+        "x": 367.6,
+        "y": 83.8,
+        "source": "human"
+      }
     },
     {
       "id": "DISC1:T3",
       "parent_component": "DISC1",
       "function": "output",
-      "net": "N-1"
+      "net": "N-1",
+      "location": {
+        "x": 384.9,
+        "y": 84.6,
+        "source": "human"
+      }
     },
     {
       "id": "CB1:1",
@@ -1669,8 +1763,8 @@
       "function": "coil",
       "net": "24E-1",
       "location": {
-        "x": 850.2,
-        "y": 682.7,
+        "x": 850.3,
+        "y": 679.2,
         "source": "human"
       }
     },
@@ -1680,8 +1774,8 @@
       "function": "coil",
       "net": "125",
       "location": {
-        "x": 870.7,
-        "y": 684.5,
+        "x": 871.4,
+        "y": 679.1,
         "source": "human"
       }
     },
@@ -1837,13 +1931,23 @@
       "id": "TB-130:1",
       "parent_component": "TB-130",
       "function": "common",
-      "net": "130"
+      "net": "130",
+      "location": {
+        "x": 818.7,
+        "y": 580.0,
+        "source": "human"
+      }
     },
     {
       "id": "TB-130:2",
       "parent_component": "TB-130",
       "function": "common",
-      "net": "130"
+      "net": "130",
+      "location": {
+        "x": 818.7,
+        "y": 650.9,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:1",

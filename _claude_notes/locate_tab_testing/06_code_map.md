@@ -56,6 +56,7 @@ Two things to hold on to:
 | Writing: atomic, whole-file, four refusals | `server/app/locations.py` | `save_locations`, `LocationsRefused` |
 | The empty document a fresh drawing gets | `server/app/locations.py` | `skeleton` |
 | Publishing `point`/`rect`/`places`/`placement`/`label_point` | `server/app/drawing.py` | `designator_index`, `_entry` |
+| **Whether `places` is published at all** — and it must be whenever a place carries a `label_dir`, single dot or not, because that field exists nowhere else in the payload | `server/app/drawing.py` | `_entry`, the `len(places) > 1 or any("label_dir" …)` test. This was the 2026-08-19 label-side fault (T-335): 269 of 275 entries are single, and eliding their `places` elided the side a human chose |
 | Which ids the extraction invented (`our id`) | `server/app/drawing.py` | `WIRE_IDS_ARE_OURS`, `INVENTED_TERMINAL_PREFIX`, `INVENTED_TERMINAL_PARENTS`, `INVENTED_NET_PREFIX` |
 | The gate — routes registered or not | `server/app/main.py` | `if settings.allow_edits:` inside `create_app` |
 | Password check | `server/app/main.py` | `_require_editor`, `_check_editor_password` |
@@ -78,7 +79,13 @@ Two things to hold on to:
 | Pan, zoom, fly-to | `webui/src/features/drawing/useTileViewport.ts` | `panTo`, `focusScale`, `centreOn` |
 | Dots: one per place, filled vs hollow, label side, drag | `webui/src/features/drawing/MarkerLayer.tsx` | `Marker`, `LABEL_SIDE`, `PLACEMENT_NOTE`, `onDragPoint`, `DRAG_SLOP` |
 | **Which dot was clicked** — `onSelect` carries the `place`, not just the entry | `webui/src/features/drawing/MarkerLayer.tsx` | `onSelect(entry, place)` |
+| **Which groups the Drawing tab draws** — the same three this tab filters by, as independent switches | `webui/src/features/drawing/DrawingTab.tsx` | `Layer`, `LAYERS`, the `layers` memo, `shown`, the `markers` memo |
+| A wire or net turned into something drawable — **its label point, never its route** | `webui/src/features/drawing/DrawingTab.tsx` | `atLabelPoint` (shared by the layer and by `selectedMarker`, so a label dot cannot exist in one path and not the other) |
+| What kind a click on the sheet raises | `webui/src/features/drawing/DrawingTab.tsx` | `onMarker` — `marker.kind`, **not** the `'component'` it was hard-coded to before 2026-08-19 |
+| Which components the selection card may offer as links | `webui/src/features/drawing/DrawingTab.tsx` | `located` — built from the components group whether or not it is switched on; see hazard H11 |
 | **Where the sheet goes, and who asks** | `webui/src/features/locate/LocateTab.tsx` | `flyTo`, `framing`, `at`, `sheetRect` — and see hazard H3 |
+| **When the sheet goes nowhere however hard it is asked** | `webui/src/features/locate/LocateTab.tsx` | `FLY_CEILING_PERCENT` (= `FOCUS_ZOOM` × 100, imported, never restated) and the `percent` ref in the flight effect. Above it no flight moves anything: T-115 |
+| Which groups the Drawing tab has switched on, visibly | `webui/src/features/drawing/DrawingTab.tsx` | the `LAYERS.map` in the toolbar — `variant={shown[id] ? 'default' : 'ghost'}`, filled meaning on, as on this tab's filters |
 | Scrolling the armed row into view | `webui/src/features/locate/WorkList.tsx` | `armedRow` |
 | **Every rule the editor applies** | `webui/src/features/locate/model.ts` | see below |
 | The screen, click-to-place, the advance, the overlay | `webui/src/features/locate/LocateTab.tsx` | `LocateTab`, `put`, `aim`, `editable`, `PasswordGate`, `SaveStatus` |
@@ -235,12 +242,33 @@ effect:
   place in the sheet, not a mode this editor owns — but it does mean "`Esc` did not close the box"
   is a true observation about the *other* tab and not a bug.
 
+### H11 — "Which dots do I want" is not "which components exist" *(added 2026-08-19)*
+
+The Drawing tab's three layer switches decide what gets **drawn**. Two other things read the same
+component list and must not be answered by a switch:
+
+- **`located`**, which decides whether a `runs through` chip on the selection card is a live link or a
+  dead one. It is built from the components group **whether or not that group is switched on**. Wire
+  it to the visible markers instead and switching Components off silently kills every link on every
+  net's card — which looks exactly like the extraction not knowing where those components are.
+- **The selection, and anything the selection runs through, shows through a switched-off group.**
+  Hiding the thing an answer just pointed at is the one case the overlay must stay visible for. That
+  is why `markers` filters *per group* rather than gating one list on a boolean: `layers[id].markers`
+  when the group is on, `…filter(m => relatedIds.has(m.id))` when it is off.
+
+If a report says *"the chips went dead"* or *"my citation stopped landing on anything"* and the
+person had been pressing toolbar buttons, this is it.
+
 ---
 
 ## 5. Invariants — if one of these is violated, that is the bug
 
 1. **There is no way to author a wire's route.** Not in the file, not in the editor, not in the API.
    A wire carries `label_point` and nothing else. Owner: `LABELLABLE`, `_labels`, `fold_in_labels`.
+   **Nor is one ever drawn.** No dot appears at a wire's or a net's `point` — that is the centre of a
+   bounding box, which is usually blank paper — on either tab. `atLabelPoint` in `DrawingTab.tsx`
+   returns `null` until somebody has said where the *name* is printed, and the wire/net layer and the
+   selected marker both go through it, so neither can grow the behaviour the other lacks.
 2. **There is exactly one projection.** Every screen coordinate goes through `paint.ts`. A second
    one would eventually disagree with the tiles.
 3. **There are three placements and no fourth.** `confirmed`, `seed`, `parent`. Nothing derives a

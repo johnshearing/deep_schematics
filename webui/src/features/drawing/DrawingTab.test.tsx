@@ -76,6 +76,30 @@ const INDEX: DesignatorIndex = {
   entries: [...COMPONENTS, ...TERMINALS, NET_110],
 }
 
+/** A wire whose name somebody has said where to find. `point` is the middle of its run and is
+ * blank paper; `label_point` is where `BLUE 18AWG` is actually printed, and it is the only thing
+ * the labels group ever draws. */
+const W048: Designator = {
+  id: 'W048', kind: 'wire', label: 'BLUE 18AWG wire, CR-BP:A2 → CB1:2', on_sheet: false,
+  members: ['CR-BP', 'CB1'], point: [625, 398], rect: [390, 118, 861, 679],
+  label_point: [742, 511], label_dir: 'w',
+}
+
+/** The index with something in all three groups, which is what the layer switches are about. */
+function withLabels() {
+  const index: DesignatorIndex = {
+    ...INDEX,
+    counts: { component: 3, terminal: 2, net: 1, wire: 1 },
+    entries: [...COMPONENTS, ...TERMINALS, NET_110, W048],
+  }
+  useAppStore.setState({ designators: index, byToken: buildLookup(index) })
+}
+
+/** A layer switch in the toolbar, by the word on it. */
+function group(name: string): HTMLButtonElement {
+  return screen.getByRole('button', { name }) as HTMLButtonElement
+}
+
 /** jsdom reports every element as 0×0, and a container with no size has nothing to fit to. */
 const SIZE = { width: 800, height: 600 }
 const descriptors = ['clientWidth', 'clientHeight'] as const
@@ -406,6 +430,153 @@ describe('DrawingTab', () => {
     // cover — the reader turned the other 46 off, not this one.
     expect(marker('CR-BP')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /^CB1 —/ })).toBeNull()
+  })
+
+  it('offers the Locate tab’s three groups, with only components on to begin with', () => {
+    // The Locate tab has filtered its list by Components / Terminals / Wire & net labels since it
+    // was written; this tab drew components and nothing else. Same three groups, same words — but
+    // the default view stays what it was, because 131 terminals appearing unasked is a fog.
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+
+    expect(group('Components').getAttribute('aria-pressed')).toBe('true')
+    expect(group('Terminals').getAttribute('aria-pressed')).toBe('false')
+    expect(group('Wire & net labels').getAttribute('aria-pressed')).toBe('false')
+
+    expect(marker('CB1')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^CR-BP:A1 —/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^W048 —/ })).toBeNull()
+  })
+
+  it('shows which groups are switched on in the button, not only to a screen reader', () => {
+    // The switches were three ghost buttons with `aria-pressed` and a slightly brighter word on
+    // whichever was on. Any combination of the three is legal, so "which filters are in effect"
+    // has to be readable on all three at once — and it was being answered by studying the sheet,
+    // which is the thing the switches change. Filled means on, as on the Locate tab's filters.
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+
+    expect(group('Components').className).toContain('bg-primary')
+    expect(group('Terminals').className).not.toContain('bg-primary')
+    expect(group('Wire & net labels').className).not.toContain('bg-primary')
+
+    fireEvent.click(group('Terminals'))
+    expect(group('Terminals').className).toContain('bg-primary')
+    // Independent switches: turning one on does not turn another off, and both say so.
+    expect(group('Components').className).toContain('bg-primary')
+
+    fireEvent.click(group('Components'))
+    expect(group('Components').className).not.toContain('bg-primary')
+    expect(group('Components').getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('draws terminals when asked, without taking the components away', () => {
+    // Independent switches rather than one exclusive choice, because the question that needs them
+    // is a comparison — is that pin on the same conductor row as its relay — and both halves have
+    // to be on screen at once.
+    render(<DrawingTab />)
+    activate()
+    fireEvent.click(group('Terminals'))
+
+    // 12 + 858 × 0.634 = 556 px: the pin's own point, against the relay's 558.
+    expect(marker('CR-BP:A1').style.left).toBe('556px')
+    expect(marker('CR-BP')).toBeTruthy()
+    expect(group('Components').getAttribute('aria-pressed')).toBe('true')
+
+    // `A2` has no point of its own, so it borrows its component's and admits it in words rather
+    // than becoming a second confident-looking dot.
+    expect(marker('CR-BP:A2').getAttribute('title')).toContain(
+      "the component's point, not this pin's",
+    )
+  })
+
+  it('writes an id on the side a human chose, even where that is the dot’s only place', () => {
+    // The reported fault: `DISC1:L1`–`L3` were placed with their labels **west** on the Locate
+    // tab and came back east here. Nothing was wrong on this side of it — the index elided
+    // `places` for every entry with a single dot, and `label_dir` has nowhere else to live, so
+    // the viewer fell back to its default and silently replaced the one thing about that dot the
+    // person had explicitly chosen. `_entry` in `server/app/drawing.py` publishes it now; this is
+    // the half that has to honour it.
+    const west: Designator = {
+      ...TERMINALS[0],
+      places: [{ point: [858, 668], placement: 'confirmed', label_dir: 'w' }],
+    }
+    const index = { ...INDEX, entries: [...COMPONENTS, west, TERMINALS[1], NET_110] }
+    useAppStore.setState({ designators: index, byToken: buildLookup(index) })
+
+    render(<DrawingTab />)
+    activate()
+    fireEvent.click(group('Terminals'))
+    // Clicked, because ids are hidden below 30% zoom and the sheet starts fitted at 11%.
+    fireEvent.click(marker('CR-BP:A1'))
+
+    const label = [...marker('CR-BP:A1').querySelectorAll('span')].at(-1) as HTMLSpanElement
+    expect(label.textContent).toBe('CR-BP:A1')
+    // West is the label mirrored across the dot: `right-full` rather than `left-full`.
+    expect(label.className).toContain('right-full')
+    expect(label.className).not.toContain('left-full')
+    // Its relay is ringed as related, so its own label shows too — and says nothing about a
+    // side, so it keeps the default east. Both cases on screen at once.
+    const relay = [...marker('CR-BP').querySelectorAll('span')].at(-1) as HTMLSpanElement
+    expect(relay.textContent).toBe('CR-BP')
+    expect(relay.className).toContain('left-full')
+  })
+
+  it('raises a clicked dot under its own kind, not always as a component', () => {
+    // `onMarker` hard-coded `'component'` while components were the only things with dots. Every
+    // consumer of a selection switches on `kind`, and the card's own lookup is by id — so the wrong
+    // kind would have looked perfectly correct on screen and been wrong in the store.
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+
+    fireEvent.click(group('Terminals'))
+    fireEvent.click(marker('CR-BP:A1'))
+    expect(useAppStore.getState().selection).toMatchObject({
+      kind: 'terminal', id: 'CR-BP:A1', origin: 'drawing',
+    })
+
+    fireEvent.click(group('Wire & net labels'))
+    fireEvent.click(marker('W048'))
+    expect(useAppStore.getState().selection).toMatchObject({
+      kind: 'wire', id: 'W048', origin: 'drawing',
+    })
+  })
+
+  it('draws a wire or net label on its printed name, and offers no switch until one exists', () => {
+    // Net 110 in the base index has no label point, so the group is empty. An empty group gets no
+    // button: a pressed switch that changes nothing on the sheet reads as broken rather than as
+    // "nobody has placed one yet".
+    const view = render(<DrawingTab />)
+    activate()
+    expect(screen.queryByRole('button', { name: 'Wire & net labels' })).toBeNull()
+    view.unmount()
+
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+    fireEvent.click(group('Wire & net labels'))
+
+    // 12 + 742 × 0.634 = 482 px — the label, not the 625 pt midpoint of the run. That midpoint is
+    // blank paper, and a dot there would claim to be the wire.
+    expect(marker('W048').style.left).toBe('482px')
+  })
+
+  it('keeps the selection card’s links live when the components are switched off', async () => {
+    render(<DrawingTab />)
+    activate()
+    // From the sheet, so nothing flies and the fit scale still holds.
+    act(() => useAppStore.getState().select('net', '110', 'drawing'))
+    await waitFor(() => expect(screen.getByText('control 24VDC', { exact: false })).toBeTruthy())
+
+    fireEvent.click(group('Components'))
+
+    // "What does net 110 run through" is not the same question as "what do I want dots for". The
+    // switch hides the dots; the chips still offer every member the sheet knows a place for.
+    expect(group('CR-BP').disabled).toBe(false)
+    expect(group('UPSTREAM-MACHINE').disabled).toBe(true)
   })
 
   it('offers no tab at all when the sheet has never been rendered to tiles', () => {

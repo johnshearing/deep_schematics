@@ -37,7 +37,7 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **105 server, 119 web, ruff clean, tsc clean** — except that
+Expected right now: **106 server, 127 web, ruff clean, tsc clean** — except that
 `test_the_committed_artifact_is_exactly_what_the_generator_writes` is red whenever `locations.json`
 has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a failure; re-run the
 generator (§5) and it goes green.
@@ -63,9 +63,9 @@ Read the index (this file) plus **only** what the symptom calls for.
 | File | What is in it | Pull it in when |
 |---|---|---|
 | `01_screen_and_vocabulary.md` | The screen, region by region; every button, badge and dot style; the words *site*, *pin*, *seed*, *parent*, *label*. | Always, on a first read. Any report about something *looking* wrong. |
-| `02_tests_place_and_drag.md` | **T-100–T-1xx.** Picking a row, click-to-place, the advance, dragging a dot, the pan-versus-place rule. | Anything about a point landing in the wrong spot, or not landing. |
+| `02_tests_place_and_drag.md` | **T-100–T-1xx.** Picking a row, click-to-place, the advance, dragging a dot, the pan-versus-place rule, the flight ceiling (T-115), and (T-190) the Drawing tab's three layer switches. | Anything about a point landing in the wrong spot, or not landing — or about the sheet moving, or refusing to. |
 | `03_tests_sites_and_pins.md` | **T-200–T-2xx.** Components drawn more than once, adding/renaming/removing sites, assigning pins to sites. | Anything about `CR-BP`, `CR-SW`, multiple dots, or pins. |
-| `04_tests_labels.md` | **T-300–T-3xx.** Wire and net label points, and the eight label sides. | Anything about a label, or about wires and nets. |
+| `04_tests_labels.md` | **T-300–T-3xx.** Wire and net label points, the eight label sides, and (T-335) whether the side you chose survives to the Drawing tab. | Anything about a label, or about wires and nets. |
 | `05_tests_save_and_recover.md` | **T-400–T-4xx.** Autosave, the Save button, restart, refusals, the `problems` strip, regenerating `circuit_logic.json`. | Anything about work not persisting, or a red strip. |
 | `06_code_map.md` | Every behaviour → the file and function that owns it. The data flow end to end. The known hazards, with reasoning. | Always, when troubleshooting. Never needed to *run* a test. |
 | `07_drawing_facts.md` | The concrete ids and coordinates on `PS20115MLM4-2` the tests refer to — relay pin lists, the three `CR-BP` sites, `W048`, net `110`. | When a test names an id and you need to know what it is. |
@@ -105,7 +105,7 @@ whole.
 
 ## 5. State of the system, 2026-08-19
 
-**Nine changes to the screen since the tests above were first walked**, none of them touching
+**Ten changes to the screen since the tests above were first walked**, none of them touching
 what gets written into `locations.json`:
 
 1. The **advance starts off** (`01_screen_and_vocabulary.md` §The advance checkbox, T-120, T-150).
@@ -138,23 +138,62 @@ visible from here and it changes how a placement run feels:
    session gave the Drawing tab its own `Escape`, which is why there are now two `window` Escape
    listeners and one new hazard, **H10**.
 
+The tenth is not this tab's either, and it was asked for **from this manual** — §6 below is where the
+gap showed up:
+
+10. **The Drawing tab shows the same three groups this tab filters by** — `Components`, `Terminals`
+    and `Wire & net labels`, in its own toolbar, in those words. It drew components and nothing else
+    before, so `F2` could check a *component* from the reader's side and never a **pin**, which is
+    131 of the 178 placements. One deliberate difference: they are **independent switches** rather
+    than one exclusive choice, because a reader's question is a comparison — *is that pin on the same
+    conductor row as its relay?* — and both halves have to be on screen at once. Only `Components`
+    starts on, so the tab looks exactly as it did until you ask for more. **T-190** and **T-360** are
+    the new tests, neither walked. It also fixed a fault nothing on screen would have shown you: a
+    click on the sheet used to raise every marker as `kind: 'component'`, so a clicked pin would have
+    entered the store as a component with a terminal's id. New hazard **H11**.
+
+**Three more, later on 2026-08-19, all asked for after a real placement run.** The first two are
+this tab's neighbours and the third is this tab's own:
+
+11. **The Drawing tab's three switches are filled when they are on.** Any combination of them is
+    legal, so *which filters are in effect* has to be readable on all three buttons at once; it was
+    `aria-pressed` and a slightly brighter word, which is a state a screen reader could report and a
+    person could not see. **T-190** gained a paragraph.
+
+12. **The label side reaches the Drawing tab.** `DISC1:L1`–`L3` were placed with their labels west
+    and came out east — the default — because the index publishes `places` only when it says
+    something `point` and `placement` cannot, and "one dot" was read as "says nothing". `label_dir`
+    lives nowhere else in the payload, so 269 of the 275 entries dropped the one thing about the dot
+    a human had chosen by hand. `_entry` in `server/app/drawing.py`; **T-335** is the new test, and
+    it is **the only server change in this group**, so it needs a restart.
+
+13. **Past 50% zoom, nothing flies.** Picking a row, the advance, a site button and a dot all still
+    *arm* exactly as before, but the sheet does not move — neither magnification nor position. 50% is
+    where a flight lands, so from closer in every flight is a zoom out, and past it you are normally
+    at a magnification you chose in order to work on one dot you can already see. At 50% and below
+    nothing changed. **T-115** is the new test; the ceiling is one constant read from `FOCUS_ZOOM`.
+
     locations.json    a real run's worth of work, all by "js":
                       6 components over 9 sites — CR-BP Coil/NC/NO, CR-SW Coil/NO,
                       DISCHARGE1, CR-ON, BYPASS-CB, CB2
                       18 terminals with their own points · 3 wire labels · 1 net label
-    circuit_logic.json  regenerated 2026-08-19 and current, so
+    circuit_logic.json  **behind locations.json right now**, so
                       test_the_committed_artifact_is_exactly_what_the_generator_writes
-                      is green. It goes red again after your next save — that is K6/H9
-                      working, not a failure. Re-run the generator:
+                      is the one red server test. That is K6/H9 working, not a
+                      failure — a save happened after the last regeneration. Fix it
+                      with one command, and it is a human's command by design:
                       cd schematic_extraction/PS20115MLM4-2/extracted_docs
                       && python author_circuit_logic.py
                       Do not hand-edit it — it is generated.
-    tests             105 server (104 + that one), 119 web, ruff and tsc clean
-                      — eight of the web tests are the Drawing-tab work of the same
-                      day (F2, Escape, the component question, and a v1.2 prompt);
-                      change_history.md 2026-08-19 has it. What moved in here:
-                      isTextField now lives in webui/src/lib/keys.ts, hazard H10 is
-                      new, and T-425 is a new test nobody has walked.
+    tests             106 server (105 green + the stale one above), 127 web, ruff and
+                      tsc clean. Eight of the web tests are the Drawing-tab work of
+                      the same day (F2, Escape, the component question, and a v1.2
+                      prompt), five more are the layer switches of change 10, and
+                      three are changes 11–13; change_history.md 2026-08-19 has all of
+                      them. What moved in here: isTextField now lives in
+                      webui/src/lib/keys.ts, FOCUS_ZOOM is exported from
+                      useTileViewport.ts, hazards H10 and H11 are new, and T-115,
+                      T-190, T-335, T-360 and T-425 are new tests nobody has walked.
     server            not running; start it as in §1
     git               locations.json is tracked now, and modified against its last
                       commit — it is authored content and the one thing here git
@@ -186,9 +225,16 @@ The first column is what the user says. Use this to pick one leaf document, not 
 | A pin ends up at the wrong site | `03_tests_sites_and_pins.md` T-230 | `model.ts` `assignTerminal`, `siteClaiming` |
 | A wire will not let me place it | `04_tests_labels.md` — this is **by design** | `model.ts` `LABELLABLE` |
 | Label does not move to the side I picked | `04_tests_labels.md` T-330 | `MarkerLayer.tsx` `LABEL_SIDE`; place the point *first* |
+| The side is right here and wrong on the Drawing tab | `04_tests_labels.md` **T-335** | `drawing.py` `_entry` — `places` must be published whenever a place carries `label_dir`, even a single one; `label_dir` lives nowhere else in the payload |
+| The sheet will not fly to the row I picked | `02_tests_place_and_drag.md` **T-115** — check the zoom first | above 50% that is deliberate: `FLY_CEILING_PERCENT` in `LocateTab.tsx`. Below it, `flyTo`/`framing` (T-110) |
 | Work disappeared | `05_tests_save_and_recover.md` T-440 | **`06_code_map.md` §H1** — read this before anything else |
 | Red strip across the top | `05_tests_save_and_recover.md` T-430 | `locations.py` `parse`, `resolve_geometry` |
 | Drawing tab still shows the old dot | `05_tests_save_and_recover.md` T-420 | `appStore.refreshDesignators` |
+| The Drawing tab will not show me terminals, or wire and net labels | `02_tests_place_and_drag.md` **T-190**, `04_tests_labels.md` **T-360** | its own three switches in the toolbar, `DrawingTab.tsx` `LAYERS` and `shown` — a group with nothing to draw has no button at all |
+| I cannot tell which of the Drawing tab's three switches are on | `02_tests_place_and_drag.md` **T-190** | filled means on since 2026-08-19 — the `variant` on the `LAYERS.map` buttons in `DrawingTab.tsx` |
+| The Drawing tab is a fog of dots after I pressed Terminals | **expected** — `02_tests_place_and_drag.md` T-190 | most pins have no point of their own and are drawn hollow on their component's dot. That is the honest picture, and it is why the group starts off |
+| A dot on the Drawing tab named a component when I clicked a pin | `02_tests_place_and_drag.md` T-190 | `DrawingTab.tsx` `onMarker` — it must pass `marker.kind`, not `'component'` |
+| The `runs through` chips on the Drawing tab went dead | `06_code_map.md` **§H11** | `located` is built from the components group regardless of its switch; if it reads the visible markers instead, turning Components off kills every link |
 | The counts in the toolbar look wrong | `01_screen_and_vocabulary.md` §Toolbar | `model.ts` `coverage` |
 | The rows are in a strange order, or the advance jumps somewhere unexpected | `01_screen_and_vocabulary.md` §The list | the `entries` memo and `BY_ID` in `LocateTab.tsx` — the list and `nextUnplaced` share one order |
 | The green row is highlighted somewhere I have to scroll to find | `02_tests_place_and_drag.md` T-180 | `WorkList.tsx` `armedRow` — the `scrollIntoView` effect |
@@ -240,6 +286,10 @@ Nine files in _claude_notes/locate_tab_testing/, with the one you named as the i
 | `06_code_map.md` | Behaviour → file and symbol, data flow, nine hazards, seven invariants | 3.0k |
 | `07_drawing_facts.md` | The real ids and coordinates, so nobody reads geometry.json (150k tokens) | 1.7k |
 | `08_results_log.md` | All 28 tests as a blank table for you to mark up | 0.9k |
+
+*(**32** now — T-425 was added with the `F2` work, T-190 and T-360 with the Drawing tab's layer
+switches, and T-115 and T-335 with changes 11–13, all on 2026-08-19. §5 above is the current count;
+this section is kept as written.)*
 
 28 numbered tests. Each one doubles as a lesson — what to click, what should happen, and why it matters — so working through them in order teaches the whole screen. Each also says where to look if it fails, so a report of "T-142 failed, the dot landed half an inch left" points straight at paint.ts cssToPoint.
 

@@ -15,17 +15,27 @@
  * is still one click away for the two jobs it is better at: printing, and a second monitor.
  *
  * *And now the surface is used for it.* This file composes three layers over one transform:
- * the tiles (`TileSheet`, a canvas), the components (`MarkerLayer`, DOM), and what is currently
- * selected (`SelectionCard`). It owns none of that logic — the selection lives in `appStore`
- * because half of it is raised from the answer on the other tab, and the projection lives in
- * `paint.ts` because the markers and the tiles must not disagree about where a point is.
+ * the tiles (`TileSheet`, a canvas), the things you can click (`MarkerLayer`, DOM), and what is
+ * currently selected (`SelectionCard`). It owns none of that logic — the selection lives in
+ * `appStore` because half of it is raised from the answer on the other tab, and the projection
+ * lives in `paint.ts` because the markers and the tiles must not disagree about where a point is.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Crosshair, ExternalLink, ImageOff, Map, Maximize2, Minus, Plus } from 'lucide-react'
+import {
+  CircleDot,
+  Crosshair,
+  ExternalLink,
+  ImageOff,
+  Map,
+  Maximize2,
+  Minus,
+  Plus,
+  Tag,
+} from 'lucide-react'
 
 import { SOURCE_URL } from '@/api/client'
-import type { Designator } from '@/api/types'
+import type { Designator, DesignatorKind } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { normalise, suggestedQuestion } from '@/lib/designators'
 import { isTextField } from '@/lib/keys'
@@ -43,6 +53,84 @@ import { useTileViewport } from './useTileViewport'
  * importing it — see that file's header for the cycle this avoids. */
 export { DRAWING_TAB_ID }
 
+/**
+ * The three kinds of dot this sheet can show — the same three groups the Locate tab filters its
+ * list by, and deliberately the same words.
+ *
+ * **Toggles, not one exclusive choice, and that is the one difference from the Locate tab.** Over
+ * there the filter picks which rows you are *working through*, so exactly one at a time is what you
+ * want. Here you are reading, and the useful questions are comparisons: is that pin on the same
+ * conductor row as its relay, is `W048`'s printed name anywhere near the run it belongs to. Both
+ * halves of a comparison have to be on screen at once, so each group is its own switch. It is also
+ * a superset of the exclusive version — turn two off and you have filtered to the third — and it
+ * keeps the thing the single `Components` switch was originally for: turning everything off to look
+ * at the drawing itself.
+ *
+ * Only components start on, so the sheet looks the way it always has until you ask for more. That
+ * matters more here than it sounds: this drawing has 47 components and 131 terminals, and most of
+ * those terminals have no point of their own, so *Terminals* on its own draws a hollow dot on top
+ * of each component's dot. Honest — the tooltip says whose point it really is — but it is a fog,
+ * and nobody should meet it without having asked.
+ */
+type Layer = 'components' | 'terminals' | 'labels'
+
+/** The two kinds whose position on the sheet is where their *name* is printed, never a route. */
+const LABELLED: ReadonlySet<DesignatorKind> = new Set<DesignatorKind>(['wire', 'net'])
+
+const LAYERS: {
+  id: Layer
+  label: string
+  Icon: typeof Crosshair
+  /** The tooltip. `shown` is how many have somewhere honest to sit; `total` how many the index
+   * holds. The gap between the two is the point of saying both. */
+  note: (shown: number, total: number) => string
+}[] = [
+  {
+    id: 'components',
+    label: 'Components',
+    Icon: Crosshair,
+    note: (shown, total) =>
+      `${shown} of the ${total} components have a location on this sheet. Click one to see what ` +
+      `it is.`,
+  },
+  {
+    id: 'terminals',
+    label: 'Terminals',
+    Icon: CircleDot,
+    note: (shown, total) =>
+      `${shown} of the ${total} terminals have a point to draw. A hollow dot is its component's ` +
+      `own point standing in for a pin nobody has placed, so it sits on the component's dot — ` +
+      `zoom in, or place the pin on the Locate tab.`,
+  },
+  {
+    id: 'labels',
+    label: 'Wire & net labels',
+    Icon: Tag,
+    note: (shown, total) =>
+      `${shown} of the ${total} wires and nets have had the place their name is printed put on ` +
+      `record. That is all a wire or a net can carry here: its route is its two endpoint ` +
+      `terminals, and this system never draws a line no conductor joined.`,
+  },
+]
+
+/**
+ * A wire or a net drawn where its **name** is printed, or null if nobody has said where that is.
+ *
+ * A component or a terminal has a point, so it gets a dot. A net's `point` is the centre of
+ * everything it touches and a wire's is the middle of its run; both are useful rectangles to frame
+ * and **neither is a place on the sheet**, so a dot there would sit on blank paper and claim to be
+ * net 110. They get a marker only once somebody has placed a `label_point` — where the name is
+ * actually written — and then it sits on the text.
+ */
+function atLabelPoint(entry: Designator): Designator | null {
+  if (!entry.label_point) return null
+  return {
+    ...entry,
+    point: entry.label_point,
+    places: [{ point: entry.label_point, placement: 'confirmed', label_dir: entry.label_dir }],
+  }
+}
+
 export function DrawingTab() {
   const drawing = useAppStore((s) => s.drawing)
   const activeTabId = useAppStore((s) => s.activeTabId)
@@ -58,36 +146,71 @@ export function DrawingTab() {
   const [width, height] = tiles?.page_size_pt ?? [1, 1]
   const viewer = useTileViewport({ width, height, dpi: tiles?.dpi ?? 400 })
 
-  const [showMarkers, setShowMarkers] = useState(true)
-  const markers = useMemo(
-    () => (designators?.entries ?? []).filter((e) => e.kind === 'component' && e.point),
-    [designators],
+  /** One switch per group, and the initial state is exactly the view this tab has always had. */
+  const [shown, setShown] = useState<Record<Layer, boolean>>({
+    components: true,
+    terminals: false,
+    labels: false,
+  })
+
+  /** Every group, whether or not it is switched on: the toolbar needs the counts of the hidden
+   * ones to offer them, and `located` below has to keep answering for components regardless. */
+  const layers = useMemo<Record<Layer, { markers: Designator[]; total: number }>>(() => {
+    const entries = designators?.entries ?? []
+    const counts = designators?.counts ?? {}
+    const components = entries.filter((e) => e.kind === 'component' && e.point)
+    const terminals = entries.filter((e) => e.kind === 'terminal' && e.point)
+    const labels = entries
+      .filter((e) => LABELLED.has(e.kind))
+      .map(atLabelPoint)
+      .filter((e): e is Designator => e !== null)
+    return {
+      components: { markers: components, total: counts.component ?? components.length },
+      terminals: { markers: terminals, total: counts.terminal ?? terminals.length },
+      labels: {
+        markers: labels,
+        total: (counts.wire ?? 0) + (counts.net ?? 0) || labels.length,
+      },
+    }
+  }, [designators])
+
+  /**
+   * Which component ids the selection card may offer as links, and it is **not** the same question
+   * as which dots are drawn. A net's card lists every component it runs through; those buttons are
+   * live for the ones the sheet knows a place for and dead for the off-page machines. Switching the
+   * Components layer off is about what you want to look at, and must not silently kill those links.
+   */
+  const located = useMemo(
+    () => new Set(layers.components.markers.map((m) => m.id)),
+    [layers.components.markers],
   )
-  const located = useMemo(() => new Set(markers.map((m) => m.id)), [markers])
 
   const entry = selection ? (byToken.get(normalise(selection.id)) ?? null) : null
   const relatedIds = useMemo(() => new Set(entry?.members ?? []), [entry])
-  /**
-   * A marker for the selection itself — but only where there is a real place to put one.
-   *
-   * A component or a terminal has a point, so it gets a dot. A net's `point` is the centre of
-   * everything it touches and a wire's is the middle of its run; both are useful rectangles to
-   * frame and **neither is a place on the sheet**, so a dot there would sit on blank paper and
-   * claim to be net 110. They get a marker only once somebody has placed a `label_point` — where
-   * the name is actually printed — and then it sits on the text.
-   */
+  /** A marker for the selection itself — at its own point, under its own name, and only where
+   * there is a real place to put one. See `atLabelPoint` for the wire and net case. */
   const selectedMarker = useMemo<Designator | null>(() => {
     if (!entry) return null
     if (entry.kind === 'component' || entry.kind === 'terminal') return entry.point ? entry : null
-    if (!entry.label_point) return null
-    return {
-      ...entry,
-      point: entry.label_point,
-      places: [
-        { point: entry.label_point, placement: 'confirmed', label_dir: entry.label_dir },
-      ],
-    }
+    return atLabelPoint(entry)
   }, [entry])
+
+  /**
+   * The dots, group by group.
+   *
+   * A group that is switched **off** still contributes anything the selection runs through: hiding
+   * the thing an answer just pointed at is the one case where the overlay has to be visible, and it
+   * is why this is a filter per group rather than one `markers` list gated on a boolean.
+   */
+  const markers = useMemo(
+    () =>
+      LAYERS.flatMap(({ id }) =>
+        shown[id]
+          ? layers[id].markers
+          : layers[id].markers.filter((m) => relatedIds.has(m.id)),
+      ),
+    [layers, relatedIds, shown],
+  )
 
   /**
    * Nothing is fetched until the tab has been opened once.
@@ -170,8 +293,15 @@ export function DrawingTab() {
     setActiveTab(ASK_TAB_ID)
   }, [entry, setActiveTab, setComposerText])
 
+  /**
+   * **The marker's own kind, not `'component'`.** It was hard-coded while components were the only
+   * things with dots, and the moment terminals and labels got them that constant became a lie: a
+   * click on `CR-BP:A1` would have raised `{kind: 'component', id: 'CR-BP:A1'}`, and every consumer
+   * of a selection switches on `kind`. The lookup that feeds the card is by id and would have
+   * papered over it here, which is exactly what makes it worth naming.
+   */
   const onMarker = useCallback(
-    (marker: Designator) => select('component', marker.id, 'drawing'),
+    (marker: Designator) => select(marker.kind, marker.id, 'drawing'),
     [select],
   )
 
@@ -205,18 +335,32 @@ export function DrawingTab() {
         )}
 
         <div className="ml-auto flex items-center gap-1">
-          {markers.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-pressed={showMarkers}
-              onClick={() => setShowMarkers((on) => !on)}
-              title={`${markers.length} of the ${designators?.counts.component ?? markers.length} components have a location on this sheet. Click one to see what it is.`}
-              className={cn('h-8', showMarkers && 'text-foreground')}
-            >
-              <Crosshair />
-              Components
-            </Button>
+          {/* A group with nothing to draw offers no switch — a pressed `Wire & net labels` that
+              changed nothing on the sheet would read as broken rather than as empty. The Locate
+              tab is where those labels come from, so the honest answer is that there are none
+              yet, and the toolbar says it by having no button. */}
+          {LAYERS.map(({ id, label, Icon, note }) =>
+            layers[id].markers.length === 0 ? null : (
+              <Button
+                key={id}
+                /* **Filled when the group is on**, which is how the Locate tab has drawn its own
+                   filter buttons since it was written. It was `aria-pressed` plus a slightly
+                   brighter word before, and with three ghost buttons side by side that is not a
+                   state you can read: "which filters are in effect" became a question you
+                   answered by studying the sheet — the very thing the switches change. Any
+                   combination is legal here, so the answer has to be legible on all three at
+                   once, not inferred from the odd one out. */
+                variant={shown[id] ? 'default' : 'ghost'}
+                size="sm"
+                aria-pressed={shown[id]}
+                onClick={() => setShown((on) => ({ ...on, [id]: !on[id] }))}
+                title={note(layers[id].markers.length, layers[id].total)}
+                className="h-8"
+              >
+                <Icon />
+                {label}
+              </Button>
+            ),
           )}
           <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={viewer.zoomOut}>
             <Minus />
@@ -283,8 +427,6 @@ export function DrawingTab() {
         )}
 
         {/* Above the canvas, which is `pointer-events-none` precisely so this can be clicked.
-            Selected and related markers show through the toggle: hiding the thing an answer
-            just pointed at would be the one case where the overlay has to be visible.
 
             `selected` is the whole entry rather than a component id. The tab used to compute
             `entry.kind === 'component' ? entry.id : null` and let the parent component's marker
@@ -293,7 +435,7 @@ export function DrawingTab() {
             marker, at whatever point the index resolved for it, saying so. */}
         {armed && (
           <MarkerLayer
-            markers={showMarkers ? markers : markers.filter((m) => relatedIds.has(m.id))}
+            markers={markers}
             viewport={viewer.viewport}
             dpr={viewer.dpr}
             selected={selectedMarker}
@@ -319,9 +461,13 @@ export function DrawingTab() {
         Drag to pan · scroll to zoom · double-click to zoom in · <Key>0</Key> fits the sheet ·
         arrow keys nudge · <Key>Esc</Key> clears the selection · <Key>F2</Key> switches between
         this tab and Ask.{' '}
-        {markers.length > 0 && (
+        {layers.components.markers.length > 0 && (
           <>
-            Click a marker for what that component is, or click any{' '}
+            <span className="font-medium text-foreground">Components</span>,{' '}
+            <span className="font-medium text-foreground">Terminals</span> and{' '}
+            <span className="font-medium text-foreground">Wire &amp; net labels</span> above are
+            three independent switches — the same three groups the Locate tab filters by. Click any
+            dot for what it is, or click any{' '}
             <span className="font-medium text-foreground">identifier in an answer</span> to fly
             here and land on it.{' '}
           </>

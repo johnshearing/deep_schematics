@@ -138,6 +138,39 @@ the file and no drag gesture for text. If eight ever proves too coarse, that is 
 
 ---
 
+## T-335 · The side you chose reaches the Drawing tab (2026-08-19, not yet walked)
+
+**This is the fault that was reported**, in the reporter's words: *"I placed DISC1:L1, DISC1:L2 and
+DISC1:L3 with their labels oriented to the west, but on the Drawing tab the labels are east of the
+terminal — the default, rather than what I selected."*
+
+**Do.** Pick a terminal that is the **only** dot its designator has — any pin with its own point:
+`DISC1:L1` is the reported one. Set its label side to `w` (T-330) and confirm on **this** tab, at
+30% zoom or more, that the id sits to the **left** of the dot.
+
+**Do.** `F2` to the **Drawing** tab, press `Terminals`, and find that same dot. (Zoom to 30% or more
+or ids are hidden — that is H7, not this.)
+
+**Expected.** The id is on the **west** side there too, at any zoom, on either tab. Try two or three
+sides and check each; then check a dot you have never set a side on and confirm it is **east**, which
+is the default and must stay the default.
+
+**Where the fault was, because it is a good example of a whole class.** Nothing was wrong with the
+viewer. The index publishes a `places` array only when it says something the flat `point` and
+`placement` fields cannot — and "a single dot" used to be taken as "says nothing", which is true of
+the coordinate and false of the label side, because `label_dir` lives **only** in `places`. So 269
+of the 275 entries dropped it on the way out of the server and the viewer applied its default. Both
+halves of that sentence looked correct in isolation: the editor wrote the file properly, the file
+held `"label": {"dir": "w"}`, and the viewer honoured every `label_dir` it was given.
+
+**If it is still east.** Look at the API before the UI:
+`curl -s localhost:9700/api/designators | python -m json.tool | grep -A3 'DISC1:L1'` — if there is
+no `places` array on that entry, it is `_entry` in `server/app/drawing.py`; if there is one and it
+carries `label_dir`, it is `LABEL_SIDE` in `MarkerLayer.tsx`. And remember a server change needs a
+restart (index §1).
+
+---
+
 ## T-340 · Removing a label point
 
 **Do.** Pick a wire whose label you placed, and click **Remove the label point**.
@@ -172,3 +205,41 @@ That is the honest fallback: without a label point there is no place on the shee
 **If the Drawing tab shows an old state.** It re-reads the index after every save — but if it is
 stale, that is `appStore.refreshDesignators`, covered by T-420 in
 `05_tests_save_and_recover.md`.
+
+---
+
+## T-360 · Every label at once, without a citation (2026-08-19, not yet walked)
+
+T-350 checks one label, reached the way a reader reaches it — through an answer. This checks the
+**set**, which is the question a person placing them actually has: *which names have I done?*
+
+**Do.** Place label points for two or three wires and a net. Switch to the **Drawing** tab and press
+**`Wire & net labels`** in the toolbar (see T-190 for the three groups).
+
+**Expected.** Every label point you have placed gets a dot, all at once, **on the printed text** —
+and nothing else does. The ones you have not placed are simply absent. Press the button again and
+they all go.
+
+**Expected, and this is the invariant.** A wire's `point` — the midpoint of its bounding box — gets
+**no dot, ever**, in this group or any other. That midpoint is usually blank paper, and a dot there
+would sit on nothing and claim to be `W048`. Likewise a net's centroid. If you see a dot on empty
+paper carrying a wire's or a net's name, that is the bug this whole design exists to prevent, and it
+is worth a report on its own.
+
+**Expected.** Clicking one selects it as a **wire** or a **net**, and the card names it as such with
+its `runs through` chips live for the endpoints. Not as a component.
+
+**Do.** Before you have placed any, look at the toolbar.
+
+**Expected.** There is **no `Wire & net labels` button at all** — two buttons, not three. A switch
+that changes nothing when pressed reads as broken; no switch reads as *nobody has placed one yet*,
+which is the truth, and the Locate tab is where you fix it.
+
+**If the count looks wrong.** The tooltip on the button says `n of m` — how many have a label point
+against how many wires and nets exist. That is the same pair the Locate toolbar reports as
+`n of m wire and net labels`; if the two disagree, the Drawing tab is one save behind and that is
+T-420.
+
+**If not.** `DrawingTab.tsx` `atLabelPoint` — the one function that turns a wire or a net into
+something drawable, shared with the selected-marker path so a label dot cannot appear in one and not
+the other.

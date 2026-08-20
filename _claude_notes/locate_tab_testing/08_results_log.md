@@ -18,6 +18,7 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 |---|---|:--:|---|
 | T-100 | The list is the work queue, alphabetical; counts read `1 of 178 placed` | | |
 | T-110 | Picking a row arms it, panel appears, sheet flies to 50% | | |
+| T-115 | Past 50% zoom the sheet stays put; below it, unchanged | | |
 | T-120 | A click places; a pan does **not** place | | |
 | T-130 | Placing a terminal; own point beats parent | | |
 | T-140 | Dragging a dot; what a drag moves | | |
@@ -26,6 +27,7 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 | T-165 | `Esc` (or ✕) selects nothing and gives the hand back | | |
 | T-170 | The Locate and Drawing tabs agree on where a point is | | |
 | T-180 | The list scrolls the armed row into view, and stays put when it need not move | | |
+| T-190 | The Drawing tab shows the same three groups, filled when on; a clicked pin is a **terminal** | | |
 
 ## T-2xx — sites and pins — `03_tests_sites_and_pins.md`
 
@@ -48,8 +50,10 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 | T-310 | Placing a wire's label point; no `point` key in the file | | |
 | T-320 | A net label lands in the `nets` section | | |
 | T-330 | The eight label sides; the dot does not move | | |
+| T-335 | The side you chose survives to the Drawing tab — **the reported fault** | | |
 | T-340 | Removing a label point leaves the route intact | | |
 | T-350 | A wire citation lands on its label on the Drawing tab | | |
+| T-360 | Every placed label at once on the Drawing tab; no dot on blank paper | | |
 
 ## T-4xx — saving and recovering — `05_tests_save_and_recover.md`
 

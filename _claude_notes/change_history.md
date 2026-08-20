@@ -119,6 +119,188 @@ Semicolons, not `&&`, so one failure does not hide the state of the other three.
 
 ---
 
+## 2026-08-19 — Three things a real placement run asked for
+
+Three requests, from the user, after driving the manual and then doing an actual run of
+placements. None of them is a new capability; all three are the same complaint in three places —
+**the screen knew something and was not saying it, or said something nobody asked it to.**
+
+### 1. The Drawing tab's three switches say which ones are on
+
+They were ghost buttons carrying `aria-pressed` and, when on, a slightly brighter word. That is a
+state a screen reader can report and a person cannot see. It matters more here than for a normal
+toggle because the three groups are **independent** by design (2026-08-19, entry below), so at any
+moment the honest question is *which of these are in effect* — and the answer was being worked out
+by studying the sheet, which is the thing the switches change.
+
+Filled when on, plain when off, which is what the Locate tab's filter buttons have always done.
+One `variant` expression, and the `text-foreground` class it replaces is gone.
+
+### 2. The label side reaches the reader — `places` is not only about several dots
+
+The report: `DISC1:L1`, `L2` and `L3` were placed with their labels **west**, on the Locate tab,
+and came out **east** on the Drawing tab. East is the default.
+
+The cause is worth writing down because everything in the chain was individually correct.
+`_entry()` in `server/app/drawing.py` publishes a `places` array **only when it says something the
+flat `point` and `placement` fields cannot**, and that rule was implemented as `len(places) > 1`.
+For a coordinate that is exactly right: 269 of this drawing's 275 entries have one dot, and
+duplicating each into a second field is bytes saying nothing. But **`label_dir` has nowhere else to
+live** — there is no flat field for it — so a single-dot entry silently lost the one property of that
+dot a human had chosen by hand, and the viewer applied its default. The editor wrote the file
+correctly, the file held `"label": {"dir": "w"}`, `resolve_geometry()` resolved it, and the viewer
+honours every `label_dir` it is given. It was dropped in the one step between.
+
+The condition is now `len(places) > 1 or any("label_dir" in place …)`. **`site` is deliberately not
+in it:** a site names *which of several dots this is*, and with one dot there are no several. The
+effect on the real drawing is 48 more entries carrying `places`, every one of them because somebody
+chose a side.
+
+**This is the group's only server change**, which matters operationally: `python -m app` has no
+reloader.
+
+### 3. Past 50% zoom, nothing flies
+
+In the user's words: *"when I select a terminal, the page zooms to 50% and centres on the marker.
+That is good when I am zoomed all the way out. But when I am already past 50% I usually have the
+marker in front of me and control of it, so moving the drawing interrupts the work."*
+
+That is the flight doing exactly what it was built for, in the one situation where it is wrong. The
+ceiling is not a new number: `FOCUS_ZOOM` is where a flight *lands*, so **from anywhere closer than
+it, a flight can only take magnification away** — and past it you are normally at a zoom you chose
+in order to work on one dot, which is on screen with the pointer beside it. So above the ceiling
+neither the scale nor the position moves.
+
+Three things about how it was done, each of which was the alternative not taken:
+
+- **One guard, in the flight effect, not in five call sites.** The reason is a property of the
+  *viewport* — how magnified the sheet already is — and not of which row was picked, so every asker
+  gets the same answer: the list, the advance, the site buttons, a click on a dot.
+- **The zoom is read from a ref**, so it is the zoom at the moment of the flight rather than at the
+  render that asked for one. An unmeasured sheet reads 0, which is below the ceiling — the first
+  flight of a session is exactly the one worth making.
+- **`FOCUS_ZOOM` is exported and multiplied by 100** rather than `50` being written down twice. If
+  the flight zoom ever changes, the ceiling follows it, because the ceiling *is* the flight zoom.
+
+It applies to the advance too, and that is a deliberate call rather than an oversight: at working
+magnification the advance's next row may be somewhere else on the sheet, and the old comment on that
+code says *"the run takes the sheet with it, or the next click would be aimed at something that is
+not on screen"* — which is true at fit zoom and not what somebody working at 100% asked for. The
+footer under the sheet states the rule, because a flight that silently does not happen is otherwise
+indistinguishable from one that is broken.
+
+### Verification
+
+127 web tests (three new — the visible switch state, a west label on a single-dot terminal, and the
+ceiling with its boundary at exactly 50%), 106 server (one new: a single place keeps its label side),
+`ruff` and `tsc` clean, bundle rebuilt into `server/app/static/`. The one red server test is the
+documented one, `test_the_committed_artifact_is_exactly_what_the_generator_writes` — K6/H9,
+`circuit_logic.json` behind the current `locations.json` after the user's own placement run, fixed by
+`cd schematic_extraction/PS20115MLM4-2/extracted_docs && python author_circuit_logic.py`, which is a
+human's command at a terminal by design. Not touched here.
+
+### The manual, in the same session
+
+**T-115** (the ceiling, including the boundary at exactly 50% and the "below it nothing changed"
+half) in `02_tests_place_and_drag.md`, **T-335** (the label side from the reader's side, with the
+`curl` that separates a server fault from a client one) in `04_tests_labels.md`, a paragraph on the
+filled switches in **T-190**, all three in `08_results_log.md`, index §5 changes 11–13 with the new
+counts, three new symptom rows in §6, and three rows in `06_code_map.md` — the `places` rule, the
+flight ceiling, and where "filled means on" lives.
+
+---
+
+## 2026-08-19 — The Drawing tab gets the Locate tab's three groups
+
+One request, from a user who had just finished walking the Locate manual: *"On the Locate tab we
+can filter the list to show Components, Terminals, or Wire and Net Labels. On the Drawing tab I
+can only see components."*
+
+The gap is worth stating plainly, because it had been there since the marker overlay was built and
+nobody noticed. **The Locate tab exists because 131 terminal points are guesses that a human has to
+confirm, and the Drawing tab is where you check a placement from the reader's side** — T-170 in the
+manual is that test. It could only ever check a *component*. The 131 pins, which are the actual
+work, had no view at all outside the editor that wrote them.
+
+### What landed
+
+`DrawingTab.tsx` grew a `Layer` vocabulary — `components`, `terminals`, `labels` — with one
+toolbar button each, using the Locate tab's exact words (`Wire & net labels`, ampersand and all)
+because two screens naming the same three groups differently is how a vocabulary rots.
+
+**They are independent switches, not one exclusive choice, and that is the one place this
+deliberately diverges from the Locate tab.** Over there the filter picks which rows you are
+*working through*, so exactly one at a time is right. Here you are reading, and every question
+worth having the switches for is a comparison: *is that pin on the same conductor row as its
+relay*, *is `W048`'s printed name anywhere near the run it belongs to*. Both halves have to be on
+screen at once. It is also strictly a superset — switch two off and you have filtered to the
+third — and it preserves what the original single `Components` toggle was for, which was turning
+everything off to look at the drawing itself.
+
+Only `Components` starts on. That is not timidity about changing a default: this sheet has 47
+components and 131 terminals, and most of those terminals have no point of their own, so
+*Terminals* alone paints a hollow dot on top of each component's dot. It is honest — hollow means
+estimated and the tooltip says whose point it really is — but it is a fog, and nobody should meet
+it without having asked for it. T-190 says so in the manual, so it reads as expected rather than
+as breakage.
+
+A group with nothing to draw gets **no button**. A pressed switch that changes nothing on the
+sheet reads as broken; an absent switch reads as *nobody has placed one yet*, which is true, and
+the Locate tab is where you fix it.
+
+### The bug that came out of it, which nothing on screen would have shown
+
+`onMarker` raised every click as `select('component', marker.id, 'drawing')`. Hard-coded, and
+correct for exactly as long as components were the only things with dots. The moment a pin got one,
+a click on `CR-BP:A1` would have put `{kind: 'component', id: 'CR-BP:A1'}` in the store — and the
+selection card looks its entry up **by id**, so the card would have been perfectly right while the
+store held a lie. Every future consumer of a selection switches on `kind`: net highlighting, the net
+explorer, guided troubleshooting. It is `marker.kind` now, and a test asserts a clicked pin is a
+`terminal` and a clicked label is a `wire`.
+
+### Two things that had to be kept apart
+
+Both are hazard **H11** in the code map, because both are the kind of coupling that looks like
+tidying up:
+
+- **`located` is not "which dots are drawn".** It decides whether a `runs through` chip on a net's
+  card is a live link or a dead one, and it is built from the components group *whether or not the
+  group is switched on*. Wired to the visible markers instead, switching `Components` off would
+  silently kill every link on every card — indistinguishable from the extraction not knowing where
+  those components are.
+- **A switched-off group still contributes the selection and anything it runs through.** Hiding the
+  thing an answer just pointed at is the one case the overlay must stay visible for. So `markers`
+  filters per group rather than gating one list on a boolean.
+
+### The invariant, restated where it can now be violated
+
+A wire's `point` is the midpoint of its bounding box and a net's is the centroid of everything it
+touches. **Neither is a place on the sheet**, and a dot on either would sit on blank paper carrying
+a real identifier. The wire/net layer and the selected marker now both go through one
+`atLabelPoint()`, which returns `null` until a human has said where the *name* is printed — so
+neither path can grow the behaviour the other lacks. That is invariant 1 in the code map, extended
+from *"there is no way to author a route"* to *"and no dot is ever drawn as if there were"*.
+
+### Verification
+
+124 web tests (five new, all in `DrawingTab.test.tsx`), `tsc` clean, and the bundle rebuilt into
+`server/app/static/`. 105 server tests with the one documented red:
+`test_the_committed_artifact_is_exactly_what_the_generator_writes`, which is K6/H9 —
+`circuit_logic.json` is behind the committed `locations.json` and re-running
+`author_circuit_logic.py` is a human's command at a terminal by design. No server code was touched
+by this change.
+
+### The manual, updated in the same session
+
+The request asked for it, and the manual is what turned the gap into a request in the first place —
+so: **T-190** (the three groups, the expected fog, the clicked pin is a terminal) in
+`02_tests_place_and_drag.md`, **T-360** (every label at once, and no dot on blank paper) in
+`04_tests_labels.md`, both in `08_results_log.md` and both unwalked. Index §5 change 10, four new
+symptom rows in §6, hazard **H11** and four new client rows in `06_code_map.md`, and the note in
+`01_screen_and_vocabulary.md` that the other tab now speaks the same three words.
+
+---
+
 ## 2026-08-19 — Four changes to the reading loop: Ask ⇄ Drawing
 
 The Locate-tab work of the same day is recorded in

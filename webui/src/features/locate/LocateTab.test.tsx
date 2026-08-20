@@ -615,6 +615,45 @@ describe('LocateTab', () => {
     expect(percent()).toBe(50)
   })
 
+  it('leaves the sheet alone when it is already closer in than a flight would take it', async () => {
+    // Reported after a placement run: picking a row at working magnification threw the sheet back
+    // to 50% and re-centred it, which is the flight doing exactly what it was built for — and
+    // exactly the wrong thing. Past `FOCUS_ZOOM` you are at a magnification you chose in order to
+    // work on one dot: it is on screen, the pointer is beside it, and every flight from there is a
+    // zoom *out*. So above the ceiling neither the scale nor the position moves.
+    landsAtOnce()
+    await open()
+    fireEvent.click(row('CR-BP:11'))
+    expect(percent()).toBe(50)
+
+    // 50% × 1.4 = 70%: the first zoom past the ceiling rather than at it.
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+    expect(percent()).toBe(70)
+    // Panned off centre, so "the sheet did not move" is a claim about the position as well as the
+    // scale: a flight re-centres, which in an 800 px container means the dot at 400 px.
+    fireEvent.keyDown(sheet(), { key: 'ArrowRight' })
+    const off = dot(/^CR-BP:11 — common terminal/).style.left
+    expect(off).not.toBe('400px')
+
+    fireEvent.click(row('CR-BP:A1'))
+
+    // Armed, and the panel followed — the row was picked, only the sheet stayed put.
+    expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP:A1', site: null })
+    expect(percent()).toBe(70)
+    expect(dot(/^CR-BP:11 — common terminal/).style.left).toBe(off)
+
+    // And at the ceiling exactly a flight is still a flight — this is a rule about being closer
+    // in than 50%, not about being at it.
+    fireEvent.click(screen.getByRole('button', { name: 'Fit' }))
+    expect(percent()).toBe(11)
+    fireEvent.click(row('CR-BP:11'))
+    expect(percent()).toBe(50)
+    fireEvent.keyDown(sheet(), { key: 'ArrowRight' })
+    fireEvent.click(row('CR-BP:A1'))
+    expect(percent()).toBe(50)
+    expect(dot(/^CR-BP:A1 — coil terminal/).style.left).toBe('400px')
+  })
+
   // Not tested here: that dragging a dot leaves the sheet where it is. Dragging retargets, and
   // while the flight was keyed on the target's id that meant dragging a dot belonging to some
   // other row flew the sheet out from under the gesture. It is fixed — a drag asks for no

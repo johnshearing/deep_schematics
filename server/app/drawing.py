@@ -306,7 +306,14 @@ def _entry(
         "rect": rect,
     }
     # Only when it says something `point` does not: see the docstring above on payload size.
-    if len(places) > 1:
+    #
+    # A **single** place still earns the field when it carries a `label_dir`, because the flat
+    # fields have nowhere to put one — `point` and `placement` are all there is — and the viewer's
+    # default is east. Elided, a pin whose label a human moved west to keep it off a conductor came
+    # back east on the Drawing tab: the one thing about that dot the person had explicitly chosen,
+    # silently replaced by the default. `site` is deliberately *not* in this test: it names which
+    # of several dots this is, and with one dot there are no several.
+    if len(places) > 1 or any("label_dir" in place for place in places):
         entry["places"] = places
     if with_placement:
         entry["placement"] = found[0].placement if found else None

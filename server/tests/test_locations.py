@@ -126,6 +126,32 @@ def test_a_component_drawn_in_two_places_publishes_both(drawing_dir: Path) -> No
     assert "places" not in index(drawing_dir)["CB1"]
 
 
+def test_a_single_dot_still_publishes_the_side_its_label_was_put_on(drawing_dir: Path) -> None:
+    """The reported fault, and the exception to the rule directly above.
+
+    `places` is elided for a single-dot entry because it would only repeat `point` — except that
+    `label_dir` has nowhere else to go. `point` and `placement` are the only flat fields, and the
+    viewer's default is east, so a pin whose label a human deliberately moved west to keep it off a
+    conductor came back east on the Drawing tab: the one thing about that dot the person had chosen
+    by hand, replaced by the default with nothing on screen saying so. `site` stays out of the test
+    — it names which of several dots this is, and with one dot there are no several.
+    """
+    write_locations(
+        drawing_dir,
+        {**LOCATIONS, "terminals": {"CB1:2": {"point": [307, 90], "source": "human",
+                                             "label": {"dir": "w"}}}},
+    )
+    entries = index(drawing_dir)
+
+    assert entries["CB1:2"]["places"] == [
+        {"point": [307.0, 90.0], "placement": "confirmed", "label_dir": "w"}
+    ]
+    # Unchanged where nothing was chosen: 269 of the real 275 entries say nothing about a side,
+    # and publishing east on every one of them would be bytes saying "default".
+    assert "places" not in entries["CB1"]
+    assert "places" not in entries["TB-110:1"]
+
+
 def test_a_net_frames_its_terminals_not_the_components_they_sit_on(drawing_dir: Path) -> None:
     """Before sites existed these were the same thing. They stop being the same the moment a net
     reaches one contact of a relay drawn in three places: framing the component would zoom out
