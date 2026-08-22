@@ -39,9 +39,11 @@
       "power_domain": "115VAC",
       "normal_state": "energized when upstream supply is on",
       "location": {
-        "x": 137,
-        "y": 51,
-        "zone": "top-left"
+        "x": 120.1,
+        "y": 90.4,
+        "zone": "top-left",
+        "source": "human",
+        "site": "main"
       },
       "part_number": "LEV2611",
       "manufacturer": null,
@@ -49,6 +51,20 @@
         "power in plug",
         "input plug",
         "LEV2611"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            120.1,
+            90.4
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "w"
+          }
+        }
       ]
     },
     {
@@ -65,9 +81,11 @@
       "power_domain": "115VAC",
       "normal_state": "energized when upstream supply is on",
       "location": {
-        "x": 137,
-        "y": 118,
-        "zone": "top-left"
+        "x": 120.1,
+        "y": 155.8,
+        "zone": "top-left",
+        "source": "human",
+        "site": "main"
       },
       "part_number": "LEV2613",
       "manufacturer": null,
@@ -75,6 +93,20 @@
         "power out plug",
         "output plug",
         "LEV2613"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            120.1,
+            155.8
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "s"
+          }
+        }
       ]
     },
     {
@@ -86,15 +118,31 @@
       "power_domain": "115VAC",
       "normal_state": "energized when upstream supply is on",
       "location": {
-        "x": 300,
-        "y": 68,
-        "zone": "top-left"
+        "x": 257.3,
+        "y": 54.3,
+        "zone": "top-left",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "terminal L1",
         "L1 terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            257.3,
+            54.3
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "w"
+          }
+        }
       ]
     },
     {
@@ -106,15 +154,31 @@
       "power_domain": "115VAC",
       "normal_state": "at neutral potential",
       "location": {
-        "x": 300,
-        "y": 108,
-        "zone": "top-left"
+        "x": 273.8,
+        "y": 87.2,
+        "zone": "top-left",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "terminal N",
         "neutral terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            273.8,
+            87.2
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "s"
+          }
+        }
       ]
     },
     {
@@ -126,15 +190,31 @@
       "power_domain": "0V_common",
       "normal_state": "bonded to earth",
       "location": {
-        "x": 310,
-        "y": 133,
-        "zone": "top-left"
+        "x": 290.6,
+        "y": 106.0,
+        "zone": "top-left",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "terminal GND",
         "plug ground terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            290.6,
+            106.0
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "s"
+          }
+        }
       ]
     },
     {
@@ -149,8 +229,8 @@
       "power_domain": "115VAC",
       "normal_state": "closed when the panel is switched on",
       "location": {
-        "x": 377.0,
-        "y": 48.2,
+        "x": 360.0,
+        "y": 96.3,
         "zone": "top-centre-left",
         "source": "human",
         "site": "main"
@@ -166,13 +246,13 @@
         {
           "id": "main",
           "point": [
-            377.0,
-            48.2
+            360.0,
+            96.3
           ],
           "terminals": [],
           "source": "human",
           "label": {
-            "dir": "n"
+            "dir": "s"
           }
         }
       ]
@@ -190,9 +270,11 @@
       "power_domain": "115VAC",
       "normal_state": "closed (ON)",
       "location": {
-        "x": 475,
-        "y": 52,
-        "zone": "top-centre"
+        "x": 472.3,
+        "y": 48.4,
+        "zone": "top-centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -200,6 +282,20 @@
         "8 amp breaker",
         "8AMP CIRCUIT BREAKER",
         "main breaker"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            472.3,
+            48.4
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "s"
+          }
+        }
       ]
     },
     {
@@ -215,9 +311,11 @@
       "power_domain": "24VDC",
       "normal_state": "energized whenever CB1 and DISC1 are closed",
       "location": {
-        "x": 560,
-        "y": 60,
-        "zone": "top-centre"
+        "x": 552.1,
+        "y": 42.9,
+        "zone": "top-centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -226,6 +324,17 @@
         "24V power supply",
         "PSU",
         "power supply"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            552.1,
+            42.9
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -237,8 +346,8 @@
       "power_domain": "0V_common",
       "normal_state": "bonded to earth",
       "location": {
-        "x": 489.4,
-        "y": 110.7,
+        "x": 499.1,
+        "y": 137.7,
         "zone": "top-centre",
         "source": "human",
         "site": "main"
@@ -253,13 +362,13 @@
         {
           "id": "main",
           "point": [
-            489.4,
-            110.7
+            499.1,
+            137.7
           ],
           "terminals": [],
           "source": "human",
           "label": {
-            "dir": "n"
+            "dir": "e"
           }
         }
       ]
@@ -273,15 +382,31 @@
       "power_domain": "0V_common",
       "normal_state": "bonded to earth",
       "location": {
-        "x": 420,
-        "y": 110,
-        "zone": "top-centre"
+        "x": 415.4,
+        "y": 116.5,
+        "zone": "top-centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "DOOR GND",
         "door earth"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            415.4,
+            116.5
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "n"
+          }
+        }
       ]
     },
     {
@@ -293,9 +418,11 @@
       "power_domain": "0V_common",
       "normal_state": "at earth potential",
       "location": {
-        "x": 310,
-        "y": 145,
-        "zone": "top"
+        "x": 317.7,
+        "y": 115.6,
+        "zone": "top",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -304,6 +431,20 @@
         "ground",
         "PE",
         "protective earth"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            317.7,
+            115.6
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "s"
+          }
+        }
       ]
     },
     {
@@ -340,7 +481,10 @@
             50.9
           ],
           "terminals": [],
-          "source": "human"
+          "source": "human",
+          "label": {
+            "dir": "s"
+          }
         }
       ]
     },
@@ -355,9 +499,11 @@
       "power_domain": "24VDC",
       "normal_state": "energized whenever CB2 is closed",
       "location": {
-        "x": 61,
-        "y": 430,
-        "zone": "left edge"
+        "x": 50.7,
+        "y": 700.8,
+        "zone": "left edge",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -365,6 +511,17 @@
         "24E-1 terminal",
         "main 24V terminal block",
         "24VDC distribution terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            50.7,
+            700.8
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -378,8 +535,8 @@
       "power_domain": "24VDC",
       "normal_state": "energized whenever CB2 is closed",
       "location": {
-        "x": 467.0,
-        "y": 176.8,
+        "x": 457.2,
+        "y": 270.7,
         "zone": "centre",
         "source": "human",
         "site": "main"
@@ -394,13 +551,13 @@
         {
           "id": "main",
           "point": [
-            467.0,
-            176.8
+            457.2,
+            270.7
           ],
           "terminals": [],
           "source": "human",
           "label": {
-            "dir": "n"
+            "dir": "s"
           }
         }
       ]
@@ -414,9 +571,11 @@
       "power_domain": "0V_common",
       "normal_state": "at 0V",
       "location": {
-        "x": 960,
-        "y": 450,
-        "zone": "right"
+        "x": 964.4,
+        "y": 554.8,
+        "zone": "right",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -425,6 +584,17 @@
         "TERMINAL'S",
         "common terminal strip",
         "DC common"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            964.4,
+            554.8
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -439,9 +609,11 @@
       "power_domain": "24VDC",
       "normal_state": "energized whenever CB2 is closed",
       "location": {
-        "x": 865,
-        "y": 40,
-        "zone": "top-right"
+        "x": 916.5,
+        "y": 42.5,
+        "zone": "top-right",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -449,6 +621,21 @@
         "SPEED CONTROLER",
         "speed controller",
         "speed pot"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            916.5,
+            42.5
+          ],
+          "terminals": [
+            "1",
+            "2",
+            "3"
+          ],
+          "source": "human"
+        }
       ]
     },
     {
@@ -460,15 +647,28 @@
       "power_domain": "control_signal",
       "normal_state": "carries the speed reference",
       "location": {
-        "x": 790,
-        "y": 117,
-        "zone": "top-right"
+        "x": 832.9,
+        "y": 122.1,
+        "zone": "top-right",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "SPD terminal",
         "speed terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            832.9,
+            122.1
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -483,9 +683,11 @@
       "power_domain": "24VDC",
       "normal_state": "open (reverse not selected) unless the operator switches it on",
       "location": {
-        "x": 568,
-        "y": 183,
-        "zone": "centre"
+        "x": 558.5,
+        "y": 180.5,
+        "zone": "centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -494,6 +696,20 @@
         "reverse breaker",
         "reverse switch",
         "direction switch"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            558.5,
+            180.5
+          ],
+          "terminals": [
+            "1",
+            "2"
+          ],
+          "source": "human"
+        }
       ]
     },
     {
@@ -505,8 +721,8 @@
       "power_domain": "control_signal",
       "normal_state": "de-energized unless the reverse breaker is closed",
       "location": {
-        "x": 643.8,
-        "y": 176.9,
+        "x": 654.8,
+        "y": 173.4,
         "zone": "centre",
         "source": "human",
         "site": "main"
@@ -521,13 +737,13 @@
         {
           "id": "main",
           "point": [
-            643.8,
-            176.9
+            654.8,
+            173.4
           ],
           "terminals": [],
           "source": "human",
           "label": {
-            "dir": "n"
+            "dir": "e"
           }
         }
       ]
@@ -544,9 +760,11 @@
       "power_domain": "control_signal",
       "normal_state": "open (not pressed) - red lamp lit",
       "location": {
-        "x": 180,
-        "y": 270,
-        "zone": "left"
+        "x": 80.9,
+        "y": 220.1,
+        "zone": "left",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -555,6 +773,17 @@
         "start/stop switch 1",
         "start stop button 1",
         "lighted push button 1"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            80.9,
+            220.1
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -569,9 +798,11 @@
       "power_domain": "control_signal",
       "normal_state": "open (not pressed) - red lamp lit",
       "location": {
-        "x": 180,
-        "y": 370,
-        "zone": "left"
+        "x": 81.0,
+        "y": 318.8,
+        "zone": "left",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -580,6 +811,17 @@
         "start/stop switch 2",
         "start stop button 2",
         "lighted push button 2"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            81.0,
+            318.8
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -591,15 +833,31 @@
       "power_domain": "control_signal",
       "normal_state": "unused / spare",
       "location": {
-        "x": 196,
-        "y": 282,
-        "zone": "left"
+        "x": 131.5,
+        "y": 255.3,
+        "zone": "left",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "PB1-SP terminal",
         "PB1 spare terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            131.5,
+            255.3
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "w"
+          }
+        }
       ]
     },
     {
@@ -611,15 +869,28 @@
       "power_domain": "control_signal",
       "normal_state": "unused / spare",
       "location": {
-        "x": 196,
-        "y": 382,
-        "zone": "left"
+        "x": 131.5,
+        "y": 353.8,
+        "zone": "left",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "PB2-SP terminal",
         "PB2 spare terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            131.5,
+            353.8
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -634,9 +905,11 @@
       "power_domain": "24VDC",
       "normal_state": "lit whenever CB2 is closed",
       "location": {
-        "x": 267,
-        "y": 414,
-        "zone": "left-centre"
+        "x": 267.4,
+        "y": 414.2,
+        "zone": "left-centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -644,6 +917,17 @@
         "CIRCUIT 1 LIGHT WITH CABLE",
         "circuit 1 light",
         "power on light"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            267.4,
+            414.2
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -658,9 +942,11 @@
       "power_domain": "24VDC",
       "normal_state": "de-energized (contact 11-14 open)",
       "location": {
-        "x": 861,
-        "y": 332,
-        "zone": "right-centre"
+        "x": 861.0,
+        "y": 331.6,
+        "zone": "right-centre",
+        "source": "human",
+        "site": "Coil"
       },
       "part_number": null,
       "manufacturer": null,
@@ -669,6 +955,32 @@
         "MODLINX PB1 START/STOP relay",
         "start stop relay 1",
         "relay CR-1"
+      ],
+      "sites": [
+        {
+          "id": "Coil",
+          "point": [
+            861.0,
+            331.6
+          ],
+          "terminals": [
+            "A1",
+            "A2"
+          ],
+          "source": "human"
+        },
+        {
+          "id": "NO",
+          "point": [
+            155.8,
+            553.2
+          ],
+          "terminals": [
+            "11",
+            "14"
+          ],
+          "source": "human"
+        }
       ]
     },
     {
@@ -683,9 +995,11 @@
       "power_domain": "24VDC",
       "normal_state": "de-energized (contact 11-14 open)",
       "location": {
-        "x": 861,
-        "y": 381,
-        "zone": "right-centre"
+        "x": 861.0,
+        "y": 381.3,
+        "zone": "right-centre",
+        "source": "human",
+        "site": "Coil"
       },
       "part_number": null,
       "manufacturer": null,
@@ -694,6 +1008,35 @@
         "MODLINX PB2 START/STOP relay",
         "start stop relay 2",
         "relay CR-2"
+      ],
+      "sites": [
+        {
+          "id": "Coil",
+          "point": [
+            861.0,
+            381.3
+          ],
+          "terminals": [
+            "A1",
+            "A2"
+          ],
+          "source": "human",
+          "label": {
+            "dir": "e"
+          }
+        },
+        {
+          "id": "NO",
+          "point": [
+            229.8,
+            553.1
+          ],
+          "terminals": [
+            "14",
+            "11"
+          ],
+          "source": "human"
+        }
       ]
     },
     {
@@ -712,7 +1055,7 @@
         "y": 463.8,
         "zone": "right-centre",
         "source": "human",
-        "site": "main"
+        "site": "Coil"
       },
       "part_number": null,
       "manufacturer": null,
@@ -724,12 +1067,30 @@
       ],
       "sites": [
         {
-          "id": "main",
+          "id": "Coil",
           "point": [
             860.6,
             463.8
           ],
-          "terminals": [],
+          "terminals": [
+            "A1",
+            "A2"
+          ],
+          "source": "human",
+          "label": {
+            "dir": "s"
+          }
+        },
+        {
+          "id": "NO",
+          "point": [
+            594.0,
+            208.0
+          ],
+          "terminals": [
+            "11",
+            "14"
+          ],
           "source": "human"
         }
       ]
@@ -771,7 +1132,10 @@
             "A1",
             "A2"
           ],
-          "source": "human"
+          "source": "human",
+          "label": {
+            "dir": "n"
+          }
         },
         {
           "id": "NC",
@@ -788,14 +1152,17 @@
         {
           "id": "NO",
           "point": [
-            586.3,
-            226.2
+            594.1,
+            241.5
           ],
           "terminals": [
             "21",
             "24"
           ],
-          "source": "human"
+          "source": "human",
+          "label": {
+            "dir": "s"
+          }
         }
       ]
     },
@@ -836,13 +1203,16 @@
             "A1",
             "A2"
           ],
-          "source": "human"
+          "source": "human",
+          "label": {
+            "dir": "n"
+          }
         },
         {
           "id": "NO",
           "point": [
-            564.4,
-            473.6
+            569.5,
+            473.5
           ],
           "terminals": [
             "11",
@@ -864,8 +1234,8 @@
       "power_domain": "24VDC",
       "normal_state": "open (bypass not selected) unless the operator switches it on",
       "location": {
-        "x": 385.7,
-        "y": 664.4,
+        "x": 385.4,
+        "y": 660.7,
         "zone": "bottom-centre",
         "source": "human",
         "site": "main"
@@ -881,11 +1251,14 @@
         {
           "id": "main",
           "point": [
-            385.7,
-            664.4
+            385.4,
+            660.7
           ],
           "terminals": [],
-          "source": "human"
+          "source": "human",
+          "label": {
+            "dir": "s"
+          }
         }
       ]
     },
@@ -898,15 +1271,28 @@
       "power_domain": "control_signal",
       "normal_state": "de-energized when the machine is stopped",
       "location": {
-        "x": 678,
-        "y": 216,
-        "zone": "centre"
+        "x": 688.2,
+        "y": 237.6,
+        "zone": "centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "RUN terminal",
         "run signal terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            688.2,
+            237.6
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -920,9 +1306,11 @@
       "power_domain": "control_signal",
       "normal_state": "carries the start/stop signal",
       "location": {
-        "x": 781,
-        "y": 500,
-        "zone": "centre-right"
+        "x": 790.8,
+        "y": 537.4,
+        "zone": "centre-right",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -930,6 +1318,17 @@
         "110 terminal",
         "terminal 110",
         "start stop signal terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            790.8,
+            537.4
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -943,15 +1342,31 @@
       "power_domain": "control_signal",
       "normal_state": "carries the start/stop permissive",
       "location": {
-        "x": 300,
-        "y": 600,
-        "zone": "bottom-left-centre"
+        "x": 289.1,
+        "y": 670.6,
+        "zone": "bottom-left-centre",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "120 terminal",
         "terminal 120"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            289.1,
+            670.6
+          ],
+          "terminals": [],
+          "source": "human",
+          "label": {
+            "dir": "w"
+          }
+        }
       ]
     },
     {
@@ -965,15 +1380,28 @@
       "power_domain": "control_signal",
       "normal_state": "carries the switch-relay coil return",
       "location": {
-        "x": 796,
-        "y": 580,
-        "zone": "bottom-centre-right"
+        "x": 828.4,
+        "y": 657.1,
+        "zone": "bottom-centre-right",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "130 terminal",
         "terminal 130"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            828.4,
+            657.1
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -988,9 +1416,11 @@
       "power_domain": "24VDC",
       "normal_state": "energized whenever CB2 is closed",
       "location": {
-        "x": 980,
-        "y": 150,
-        "zone": "top-right"
+        "x": 948.7,
+        "y": 110.7,
+        "zone": "top-right",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -999,6 +1429,17 @@
         "5 pin receptacle",
         "external device connector",
         "micro receptacle"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            948.7,
+            110.7
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -1013,9 +1454,11 @@
       "power_domain": "control_signal",
       "normal_state": "connected to the upstream machine",
       "location": {
-        "x": 620,
-        "y": 560,
-        "zone": "centre-bottom"
+        "x": 491.9,
+        "y": 627.6,
+        "zone": "centre-bottom",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
@@ -1024,6 +1467,17 @@
         "infeed interface",
         "infeed receptacle",
         "female 6-pin mini receptacle"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            491.9,
+            627.6
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -1038,8 +1492,8 @@
       "power_domain": "control_signal",
       "normal_state": "connected to the downstream machine",
       "location": {
-        "x": 596.9,
-        "y": 521.5,
+        "x": 596.7,
+        "y": 627.8,
         "zone": "centre-bottom",
         "source": "human",
         "site": "main"
@@ -1056,8 +1510,8 @@
         {
           "id": "main",
           "point": [
-            596.9,
-            521.5
+            596.7,
+            627.8
           ],
           "terminals": [],
           "source": "human"
@@ -1073,14 +1527,27 @@
       "power_domain": "control_signal",
       "normal_state": "carries an inspection signal",
       "location": {
-        "x": 480,
-        "y": 590,
-        "zone": "centre-bottom"
+        "x": 462.9,
+        "y": 601.9,
+        "zone": "centre-bottom",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "IINSP1 terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            462.9,
+            601.9
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -1092,14 +1559,27 @@
       "power_domain": "control_signal",
       "normal_state": "carries an inspection signal",
       "location": {
-        "x": 480,
-        "y": 610,
-        "zone": "centre-bottom"
+        "x": 463.0,
+        "y": 623.7,
+        "zone": "centre-bottom",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "IINSP2 terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            463.0,
+            623.7
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -1111,14 +1591,27 @@
       "power_domain": "control_signal",
       "normal_state": "carries an inspection signal",
       "location": {
-        "x": 700,
-        "y": 590,
-        "zone": "centre-bottom"
+        "x": 718.8,
+        "y": 601.9,
+        "zone": "centre-bottom",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "DINSP1 terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            718.8,
+            601.9
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -1130,14 +1623,27 @@
       "power_domain": "control_signal",
       "normal_state": "carries an inspection signal",
       "location": {
-        "x": 700,
-        "y": 610,
-        "zone": "centre-bottom"
+        "x": 718.8,
+        "y": 623.9,
+        "zone": "centre-bottom",
+        "source": "human",
+        "site": "main"
       },
       "part_number": null,
       "manufacturer": null,
       "aliases": [
         "DINSP2 terminal"
+      ],
+      "sites": [
+        {
+          "id": "main",
+          "point": [
+            718.8,
+            623.9
+          ],
+          "terminals": [],
+          "source": "human"
+        }
       ]
     },
     {
@@ -1265,55 +1771,100 @@
       "id": "PLG1:B",
       "parent_component": "PLG1",
       "function": "line",
-      "net": "L1"
+      "net": "L1",
+      "location": {
+        "x": 137.4,
+        "y": 50.6,
+        "source": "human"
+      }
     },
     {
       "id": "PLG1:W",
       "parent_component": "PLG1",
       "function": "neutral",
-      "net": "N"
+      "net": "N",
+      "location": {
+        "x": 137.4,
+        "y": 67.1,
+        "source": "human"
+      }
     },
     {
       "id": "PLG1:G",
       "parent_component": "PLG1",
       "function": "ground",
-      "net": "GND"
+      "net": "GND",
+      "location": {
+        "x": 137.5,
+        "y": 83.6,
+        "source": "human"
+      }
     },
     {
       "id": "PLG2:B",
       "parent_component": "PLG2",
       "function": "line",
-      "net": "L1"
+      "net": "L1",
+      "location": {
+        "x": 137.7,
+        "y": 116.8,
+        "source": "human"
+      }
     },
     {
       "id": "PLG2:W",
       "parent_component": "PLG2",
       "function": "neutral",
-      "net": "N"
+      "net": "N",
+      "location": {
+        "x": 137.4,
+        "y": 133.1,
+        "source": "human"
+      }
     },
     {
       "id": "PLG2:G",
       "parent_component": "PLG2",
       "function": "ground",
-      "net": "GND"
+      "net": "GND",
+      "location": {
+        "x": 137.7,
+        "y": 149.9,
+        "source": "human"
+      }
     },
     {
       "id": "TB-L1:1",
       "parent_component": "TB-L1",
       "function": "line",
-      "net": "L1"
+      "net": "L1",
+      "location": {
+        "x": 268.0,
+        "y": 50.5,
+        "source": "human"
+      }
     },
     {
       "id": "TB-N:1",
       "parent_component": "TB-N",
       "function": "neutral",
-      "net": "N"
+      "net": "N",
+      "location": {
+        "x": 284.7,
+        "y": 83.6,
+        "source": "human"
+      }
     },
     {
       "id": "TB-GND-A:1",
       "parent_component": "TB-GND-A",
       "function": "ground",
-      "net": "GND"
+      "net": "GND",
+      "location": {
+        "x": 301.2,
+        "y": 102.5,
+        "source": "human"
+      }
     },
     {
       "id": "DISC1:L1",
@@ -1385,79 +1936,144 @@
       "id": "CB1:1",
       "parent_component": "CB1",
       "function": "line",
-      "net": "L1-A"
+      "net": "L1-A",
+      "location": {
+        "x": 468.2,
+        "y": 50.6,
+        "source": "human"
+      }
     },
     {
       "id": "CB1:2",
       "parent_component": "CB1",
       "function": "output",
-      "net": "L1-A1"
+      "net": "L1-A1",
+      "location": {
+        "x": 476.4,
+        "y": 50.6,
+        "source": "human"
+      }
     },
     {
       "id": "PS1:L1",
       "parent_component": "PS1",
       "function": "line",
-      "net": "L1-A1"
+      "net": "L1-A1",
+      "location": {
+        "x": 557.6,
+        "y": 50.4,
+        "source": "human"
+      }
     },
     {
       "id": "PS1:N",
       "parent_component": "PS1",
       "function": "neutral",
-      "net": "N-1"
+      "net": "N-1",
+      "location": {
+        "x": 558.0,
+        "y": 83.1,
+        "source": "human"
+      }
     },
     {
       "id": "PS1:GND",
       "parent_component": "PS1",
       "function": "ground",
-      "net": "GND"
+      "net": "GND",
+      "location": {
+        "x": 557.6,
+        "y": 116.6,
+        "source": "human"
+      }
     },
     {
       "id": "PS1:+",
       "parent_component": "PS1",
       "function": "output",
-      "net": "+24V"
+      "net": "+24V",
+      "location": {
+        "x": 581.4,
+        "y": 50.6,
+        "source": "human"
+      }
     },
     {
       "id": "PS1:-1",
       "parent_component": "PS1",
       "function": "output",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 581.3,
+        "y": 83.7,
+        "source": "human"
+      }
     },
     {
       "id": "PS1:-2",
       "parent_component": "PS1",
       "function": "output",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 581.5,
+        "y": 116.7,
+        "source": "human"
+      }
     },
     {
       "id": "TB-GND-B:1",
       "parent_component": "TB-GND-B",
       "function": "ground",
-      "net": "GND"
+      "net": "GND",
+      "location": {
+        "x": 489.7,
+        "y": 116.8,
+        "source": "human"
+      }
     },
     {
       "id": "TB-GND-B:2",
       "parent_component": "TB-GND-B",
       "function": "ground",
-      "net": "GND"
+      "net": "GND",
+      "location": {
+        "x": 489.7,
+        "y": 131.0,
+        "source": "human"
+      }
     },
     {
       "id": "DOOR-GND:1",
       "parent_component": "DOOR-GND",
       "function": "ground",
-      "net": "GND"
+      "net": "GND",
+      "location": {
+        "x": 415.3,
+        "y": 116.6,
+        "source": "human"
+      }
     },
     {
       "id": "EARTH:1",
       "parent_component": "EARTH",
       "function": "ground",
-      "net": "GND"
+      "net": "GND",
+      "location": {
+        "x": 317.7,
+        "y": 115.6,
+        "source": "human"
+      }
     },
     {
       "id": "EARTH:2",
       "parent_component": "EARTH",
       "function": "ground",
-      "net": "GND"
+      "net": "GND",
+      "location": {
+        "x": 489.8,
+        "y": 143.7,
+        "source": "human"
+      }
     },
     {
       "id": "CB2:1",
@@ -1465,8 +2081,8 @@
       "function": "input",
       "net": "+24V",
       "location": {
-        "x": 647.2,
-        "y": 56.3,
+        "x": 649.1,
+        "y": 50.7,
         "source": "human"
       }
     },
@@ -1476,8 +2092,8 @@
       "function": "output",
       "net": "24E-1",
       "location": {
-        "x": 661.3,
-        "y": 56.3,
+        "x": 657.4,
+        "y": 50.6,
         "source": "human"
       }
     },
@@ -1485,277 +2101,507 @@
       "id": "TB-24E1-A:1",
       "parent_component": "TB-24E1-A",
       "function": "input",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 61.5,
+        "y": 166.4,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-A:2",
       "parent_component": "TB-24E1-A",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 61.3,
+        "y": 182.9,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-A:3",
       "parent_component": "TB-24E1-A",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 61.4,
+        "y": 199.6,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-A:4",
       "parent_component": "TB-24E1-A",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 61.5,
+        "y": 298.6,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-A:5",
       "parent_component": "TB-24E1-A",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 61.2,
+        "y": 414.4,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-A:6",
       "parent_component": "TB-24E1-A",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 61.3,
+        "y": 497.1,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-A:7",
       "parent_component": "TB-24E1-A",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 61.5,
+        "y": 679.0,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-A:8",
       "parent_component": "TB-24E1-A",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 61.3,
+        "y": 695.5,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-B:1",
       "parent_component": "TB-24E1-B",
       "function": "input",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 468.1,
+        "y": 183.1,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-B:2",
       "parent_component": "TB-24E1-B",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 468.4,
+        "y": 199.4,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-B:3",
       "parent_component": "TB-24E1-B",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 468.3,
+        "y": 216.1,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-B:4",
       "parent_component": "TB-24E1-B",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 468.2,
+        "y": 232.6,
+        "source": "human"
+      }
     },
     {
       "id": "TB-24E1-B:5",
       "parent_component": "TB-24E1-B",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 468.0,
+        "y": 265.7,
+        "source": "human"
+      }
     },
     {
       "id": "SPD1:1",
       "parent_component": "SPD1",
       "function": "input",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 867.2,
+        "y": 50.6,
+        "source": "human"
+      }
     },
     {
       "id": "SPD1:2",
       "parent_component": "SPD1",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 867.1,
+        "y": 67.3,
+        "source": "human"
+      }
     },
     {
       "id": "SPD1:3",
       "parent_component": "SPD1",
       "function": "output",
-      "net": "SPD"
+      "net": "SPD",
+      "location": {
+        "x": 867.1,
+        "y": 83.6,
+        "source": "human"
+      }
     },
     {
       "id": "TB-SPD:1",
       "parent_component": "TB-SPD",
       "function": "common",
-      "net": "SPD"
+      "net": "SPD",
+      "location": {
+        "x": 823.7,
+        "y": 116.7,
+        "source": "human"
+      }
     },
     {
       "id": "REVERSE-CB:1",
       "parent_component": "REVERSE-CB",
       "function": "input",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 554.5,
+        "y": 183.0,
+        "source": "human"
+      }
     },
     {
       "id": "REVERSE-CB:2",
       "parent_component": "REVERSE-CB",
       "function": "output",
-      "net": "DIR"
+      "net": "DIR",
+      "location": {
+        "x": 562.8,
+        "y": 182.9,
+        "source": "human"
+      }
     },
     {
       "id": "TB-DIR:1",
       "parent_component": "TB-DIR",
       "function": "common",
-      "net": "DIR"
+      "net": "DIR",
+      "location": {
+        "x": 645.6,
+        "y": 182.9,
+        "source": "human"
+      }
     },
     {
       "id": "PB1:1",
       "parent_component": "PB1",
       "function": "input",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 168.8,
+        "y": 232.7,
+        "source": "human"
+      }
     },
     {
       "id": "PB1:2",
       "parent_component": "PB1",
       "function": "output",
-      "net": "PB1-SP"
+      "net": "PB1-SP",
+      "location": {
+        "x": 169.8,
+        "y": 249.6,
+        "source": "human"
+      }
     },
     {
       "id": "PB1:3",
       "parent_component": "PB1",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 169.5,
+        "y": 265.5,
+        "source": "human"
+      }
     },
     {
       "id": "PB1:4",
       "parent_component": "PB1",
       "function": "output",
-      "net": "NET-PB1"
+      "net": "NET-PB1",
+      "location": {
+        "x": 169.8,
+        "y": 282.4,
+        "source": "human"
+      }
     },
     {
       "id": "PB2:1",
       "parent_component": "PB2",
       "function": "input",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 170.4,
+        "y": 331.8,
+        "source": "human"
+      }
     },
     {
       "id": "PB2:2",
       "parent_component": "PB2",
       "function": "output",
-      "net": "PB2-SP"
+      "net": "PB2-SP",
+      "location": {
+        "x": 170.8,
+        "y": 348.2,
+        "source": "human"
+      }
     },
     {
       "id": "PB2:3",
       "parent_component": "PB2",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 170.3,
+        "y": 364.8,
+        "source": "human"
+      }
     },
     {
       "id": "PB2:4",
       "parent_component": "PB2",
       "function": "output",
-      "net": "NET-PB2"
+      "net": "NET-PB2",
+      "location": {
+        "x": 170.1,
+        "y": 381.4,
+        "source": "human"
+      }
     },
     {
       "id": "TB-PB1SP:1",
       "parent_component": "TB-PB1SP",
       "function": "common",
-      "net": "PB1-SP"
+      "net": "PB1-SP",
+      "location": {
+        "x": 141.8,
+        "y": 249.0,
+        "source": "human"
+      }
     },
     {
       "id": "TB-PB2SP:1",
       "parent_component": "TB-PB2SP",
       "function": "common",
-      "net": "PB2-SP"
+      "net": "PB2-SP",
+      "location": {
+        "x": 141.8,
+        "y": 348.2,
+        "source": "human"
+      }
     },
     {
       "id": "LT1:BLACK",
       "parent_component": "LT1",
       "function": "input",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 258.8,
+        "y": 414.2,
+        "source": "human"
+      }
     },
     {
       "id": "LT1:BLUE",
       "parent_component": "LT1",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 276.1,
+        "y": 414.2,
+        "source": "human"
+      }
     },
     {
       "id": "LT1:BROWN",
       "parent_component": "LT1",
       "function": "input",
-      "net": null
+      "net": null,
+      "location": {
+        "x": 255.9,
+        "y": 430.8,
+        "source": "human"
+      }
     },
     {
       "id": "LT1:WHITE",
       "parent_component": "LT1",
       "function": "input",
-      "net": null
+      "net": null,
+      "location": {
+        "x": 256.2,
+        "y": 447.6,
+        "source": "human"
+      }
     },
     {
       "id": "CR1:A1",
       "parent_component": "CR1",
       "function": "coil",
-      "net": "NET-PB1"
+      "net": "NET-PB1",
+      "location": {
+        "x": 850.3,
+        "y": 331.7,
+        "source": "human"
+      }
     },
     {
       "id": "CR1:A2",
       "parent_component": "CR1",
       "function": "coil",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 870.2,
+        "y": 331.7,
+        "source": "human"
+      }
     },
     {
       "id": "CR1:11",
       "parent_component": "CR1",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 148.9,
+        "y": 563.2,
+        "source": "human"
+      }
     },
     {
       "id": "CR1:14",
       "parent_component": "CR1",
       "function": "NO_contact",
-      "net": "121"
+      "net": "121",
+      "location": {
+        "x": 163.5,
+        "y": 563.6,
+        "source": "human"
+      }
     },
     {
       "id": "CR2:A1",
       "parent_component": "CR2",
       "function": "coil",
-      "net": "NET-PB2"
+      "net": "NET-PB2",
+      "location": {
+        "x": 850.3,
+        "y": 381.4,
+        "source": "human"
+      }
     },
     {
       "id": "CR2:A2",
       "parent_component": "CR2",
       "function": "coil",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 870.0,
+        "y": 381.4,
+        "source": "human"
+      }
     },
     {
       "id": "CR2:11",
       "parent_component": "CR2",
       "function": "common",
-      "net": "121"
+      "net": "121",
+      "location": {
+        "x": 222.4,
+        "y": 563.4,
+        "source": "human"
+      }
     },
     {
       "id": "CR2:14",
       "parent_component": "CR2",
       "function": "NO_contact",
-      "net": "120"
+      "net": "120",
+      "location": {
+        "x": 236.1,
+        "y": 563.4,
+        "source": "human"
+      }
     },
     {
       "id": "CR-ON:A1",
       "parent_component": "CR-ON",
       "function": "coil",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 849.1,
+        "y": 464.2,
+        "source": "human"
+      }
     },
     {
       "id": "CR-ON:A2",
       "parent_component": "CR-ON",
       "function": "coil",
-      "net": "110"
+      "net": "110",
+      "location": {
+        "x": 870.3,
+        "y": 463.9,
+        "source": "human"
+      }
     },
     {
       "id": "CR-ON:11",
       "parent_component": "CR-ON",
       "function": "common",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 586.0,
+        "y": 215.8,
+        "source": "human"
+      }
     },
     {
       "id": "CR-ON:14",
       "parent_component": "CR-ON",
       "function": "NO_contact",
-      "net": "RUN"
+      "net": "RUN",
+      "location": {
+        "x": 601.5,
+        "y": 216.0,
+        "source": "human"
+      }
     },
     {
       "id": "CR-BP:A1",
@@ -1785,8 +2631,8 @@
       "function": "common",
       "net": "111",
       "location": {
-        "x": 707.2,
-        "y": 535.8,
+        "x": 707.0,
+        "y": 530.3,
         "source": "human"
       }
     },
@@ -1796,8 +2642,8 @@
       "function": "NC_contact",
       "net": "110",
       "location": {
-        "x": 722.4,
-        "y": 534.9,
+        "x": 721.8,
+        "y": 530.4,
         "source": "human"
       }
     },
@@ -1807,8 +2653,8 @@
       "function": "common",
       "net": "24E-1",
       "location": {
-        "x": 601.8,
-        "y": 236.6,
+        "x": 586.7,
+        "y": 232.6,
         "source": "human"
       }
     },
@@ -1818,8 +2664,8 @@
       "function": "NO_contact",
       "net": "RUN",
       "location": {
-        "x": 585.9,
-        "y": 237.1,
+        "x": 601.8,
+        "y": 232.5,
         "source": "human"
       }
     },
@@ -1829,8 +2675,8 @@
       "function": "coil",
       "net": "24E-1",
       "location": {
-        "x": 849.8,
-        "y": 708.7,
+        "x": 849.1,
+        "y": 703.7,
         "source": "human"
       }
     },
@@ -1840,8 +2686,8 @@
       "function": "coil",
       "net": "130",
       "location": {
-        "x": 871.1,
-        "y": 708.6,
+        "x": 870.1,
+        "y": 703.9,
         "source": "human"
       }
     },
@@ -1851,8 +2697,8 @@
       "function": "common",
       "net": "0V",
       "location": {
-        "x": 562.6,
-        "y": 488.7,
+        "x": 562.4,
+        "y": 483.5,
         "source": "human"
       }
     },
@@ -1862,8 +2708,8 @@
       "function": "NO_contact",
       "net": "110",
       "location": {
-        "x": 576.9,
-        "y": 488.4,
+        "x": 577.2,
+        "y": 483.5,
         "source": "human"
       }
     },
@@ -1871,61 +2717,111 @@
       "id": "BYPASS-CB:1",
       "parent_component": "BYPASS-CB",
       "function": "input",
-      "net": "120"
+      "net": "120",
+      "location": {
+        "x": 381.4,
+        "y": 663.8,
+        "source": "human"
+      }
     },
     {
       "id": "BYPASS-CB:2",
       "parent_component": "BYPASS-CB",
       "function": "output",
-      "net": "125"
+      "net": "125",
+      "location": {
+        "x": 389.8,
+        "y": 663.7,
+        "source": "human"
+      }
     },
     {
       "id": "TB-RUN:1",
       "parent_component": "TB-RUN",
       "function": "common",
-      "net": "RUN"
+      "net": "RUN",
+      "location": {
+        "x": 678.8,
+        "y": 216.0,
+        "source": "human"
+      }
     },
     {
       "id": "TB-110:1",
       "parent_component": "TB-110",
       "function": "common",
-      "net": "110"
+      "net": "110",
+      "location": {
+        "x": 781.4,
+        "y": 483.5,
+        "source": "human"
+      }
     },
     {
       "id": "TB-110:2",
       "parent_component": "TB-110",
       "function": "common",
-      "net": "110"
+      "net": "110",
+      "location": {
+        "x": 781.5,
+        "y": 499.6,
+        "source": "human"
+      }
     },
     {
       "id": "TB-110:3",
       "parent_component": "TB-110",
       "function": "common",
-      "net": "110"
+      "net": "110",
+      "location": {
+        "x": 781.5,
+        "y": 515.8,
+        "source": "human"
+      }
     },
     {
       "id": "TB-110:4",
       "parent_component": "TB-110",
       "function": "common",
-      "net": "110"
+      "net": "110",
+      "location": {
+        "x": 781.5,
+        "y": 530.3,
+        "source": "human"
+      }
     },
     {
       "id": "TB-120:1",
       "parent_component": "TB-120",
       "function": "common",
-      "net": "120"
+      "net": "120",
+      "location": {
+        "x": 300.1,
+        "y": 563.3,
+        "source": "human"
+      }
     },
     {
       "id": "TB-120:2",
       "parent_component": "TB-120",
       "function": "common",
-      "net": "120"
+      "net": "120",
+      "location": {
+        "x": 300.1,
+        "y": 639.6,
+        "source": "human"
+      }
     },
     {
       "id": "TB-120:3",
       "parent_component": "TB-120",
       "function": "common",
-      "net": "120"
+      "net": "120",
+      "location": {
+        "x": 300.1,
+        "y": 663.7,
+        "source": "human"
+      }
     },
     {
       "id": "TB-130:1",
@@ -1933,8 +2829,8 @@
       "function": "common",
       "net": "130",
       "location": {
-        "x": 818.7,
-        "y": 580.0,
+        "x": 818.6,
+        "y": 579.9,
         "source": "human"
       }
     },
@@ -1953,139 +2849,254 @@
       "id": "TB-0V:1",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.3,
+        "y": 265.5,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:2",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.4,
+        "y": 282.0,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:3",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.2,
+        "y": 298.6,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:4",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.5,
+        "y": 315.0,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:5",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.6,
+        "y": 331.6,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:6",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.4,
+        "y": 364.3,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:7",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.3,
+        "y": 381.3,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:8",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.3,
+        "y": 399.6,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:9",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.4,
+        "y": 415.9,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:10",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.5,
+        "y": 432.5,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:11",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.3,
+        "y": 449.1,
+        "source": "human"
+      }
     },
     {
       "id": "TB-0V:12",
       "parent_component": "TB-0V",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 954.4,
+        "y": 546.7,
+        "source": "human"
+      }
     },
     {
       "id": "RECEPT1:1",
       "parent_component": "RECEPT1",
       "function": "output",
-      "net": "SPD"
+      "net": "SPD",
+      "location": {
+        "x": 967.6,
+        "y": 116.8,
+        "source": "human"
+      }
     },
     {
       "id": "RECEPT1:2",
       "parent_component": "RECEPT1",
       "function": "output",
-      "net": "DIR"
+      "net": "DIR",
+      "location": {
+        "x": 967.3,
+        "y": 133.3,
+        "source": "human"
+      }
     },
     {
       "id": "RECEPT1:3",
       "parent_component": "RECEPT1",
       "function": "output",
-      "net": "RUN"
+      "net": "RUN",
+      "location": {
+        "x": 967.1,
+        "y": 149.8,
+        "source": "human"
+      }
     },
     {
       "id": "RECEPT1:4",
       "parent_component": "RECEPT1",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 967.1,
+        "y": 166.3,
+        "source": "human"
+      }
     },
     {
       "id": "RECEPT1:5",
       "parent_component": "RECEPT1",
       "function": "output",
-      "net": "24E-1"
+      "net": "24E-1",
+      "location": {
+        "x": 967.2,
+        "y": 182.9,
+        "source": "human"
+      }
     },
     {
       "id": "INFEED1:1",
       "parent_component": "INFEED1",
       "function": "input",
-      "net": "110"
+      "net": "110",
+      "location": {
+        "x": 562.6,
+        "y": 528.7,
+        "source": "human"
+      }
     },
     {
       "id": "INFEED1:2",
       "parent_component": "INFEED1",
       "function": "common",
-      "net": "0V"
+      "net": "0V",
+      "location": {
+        "x": 562.0,
+        "y": 546.7,
+        "source": "human"
+      }
     },
     {
       "id": "INFEED1:3",
       "parent_component": "INFEED1",
       "function": "input",
-      "net": "120"
+      "net": "120",
+      "location": {
+        "x": 563.6,
+        "y": 563.5,
+        "source": "human"
+      }
     },
     {
       "id": "INFEED1:4",
       "parent_component": "INFEED1",
       "function": "input",
-      "net": "130"
+      "net": "130",
+      "location": {
+        "x": 563.2,
+        "y": 580.1,
+        "source": "human"
+      }
     },
     {
       "id": "INFEED1:5",
       "parent_component": "INFEED1",
       "function": "input",
-      "net": "IINSP1"
+      "net": "IINSP1",
+      "location": {
+        "x": 562.7,
+        "y": 596.5,
+        "source": "human"
+      }
     },
     {
       "id": "INFEED1:6",
       "parent_component": "INFEED1",
       "function": "input",
-      "net": "IINSP2"
+      "net": "IINSP2",
+      "location": {
+        "x": 562.8,
+        "y": 618.3,
+        "source": "human"
+      }
     },
     {
       "id": "DISCHARGE1:1",
@@ -2093,8 +3104,8 @@
       "function": "output",
       "net": "111",
       "location": {
-        "x": 661.4,
-        "y": 530.8,
+        "x": 600.6,
+        "y": 530.4,
         "source": "human"
       }
     },
@@ -2104,7 +3115,7 @@
       "function": "common",
       "net": "0V",
       "location": {
-        "x": 660.6,
+        "x": 601.6,
         "y": 547.0,
         "source": "human"
       }
@@ -2115,7 +3126,7 @@
       "function": "output",
       "net": "120",
       "location": {
-        "x": 660.7,
+        "x": 602.7,
         "y": 563.6,
         "source": "human"
       }
@@ -2126,8 +3137,8 @@
       "function": "output",
       "net": "130",
       "location": {
-        "x": 662.0,
-        "y": 580.6,
+        "x": 601.6,
+        "y": 579.9,
         "source": "human"
       }
     },
@@ -2137,7 +3148,7 @@
       "function": "output",
       "net": "DINSP1",
       "location": {
-        "x": 662.8,
+        "x": 602.3,
         "y": 596.7,
         "source": "human"
       }
@@ -2148,8 +3159,8 @@
       "function": "output",
       "net": "DINSP2",
       "location": {
-        "x": 661.8,
-        "y": 618.3,
+        "x": 601.3,
+        "y": 618.7,
         "source": "human"
       }
     },
@@ -2157,25 +3168,45 @@
       "id": "TB-IINSP1:1",
       "parent_component": "TB-IINSP1",
       "function": "common",
-      "net": "IINSP1"
+      "net": "IINSP1",
+      "location": {
+        "x": 453.2,
+        "y": 596.4,
+        "source": "human"
+      }
     },
     {
       "id": "TB-IINSP2:1",
       "parent_component": "TB-IINSP2",
       "function": "common",
-      "net": "IINSP2"
+      "net": "IINSP2",
+      "location": {
+        "x": 453.2,
+        "y": 618.3,
+        "source": "human"
+      }
     },
     {
       "id": "TB-DINSP1:1",
       "parent_component": "TB-DINSP1",
       "function": "common",
-      "net": "DINSP1"
+      "net": "DINSP1",
+      "location": {
+        "x": 709.0,
+        "y": 596.5,
+        "source": "human"
+      }
     },
     {
       "id": "TB-DINSP2:1",
       "parent_component": "TB-DINSP2",
       "function": "common",
-      "net": "DINSP2"
+      "net": "DINSP2",
+      "location": {
+        "x": 709.0,
+        "y": 618.5,
+        "source": "human"
+      }
     }
   ],
   "nets": [
@@ -2374,12 +3405,7 @@
         "TB-110:3",
         "TB-110:4"
       ],
-      "description": "The start/stop signal net shared between machines. It ties together the CR-SW N.O. contact 14, the CR-ON coil return A2, the CR-BP N.C. contact 12, the infeed interface and the four points of terminal block 110. Pulling 110 down to 0V energizes the CR-ON coil and runs the machine.",
-      "label_location": {
-        "x": 926.3,
-        "y": 485.7,
-        "source": "human"
-      }
+      "description": "The start/stop signal net shared between machines. It ties together the CR-SW N.O. contact 14, the CR-ON coil return A2, the CR-BP N.C. contact 12, the infeed interface and the four points of terminal block 110. Pulling 110 down to 0V energizes the CR-ON coil and runs the machine."
     },
     {
       "id": "111",
@@ -2529,12 +3555,7 @@
       "to_terminal": "TB-L1:1",
       "cable": "CABLE-POWER-IN",
       "net": "L1",
-      "description": "",
-      "label_location": {
-        "x": 231.1,
-        "y": 50.5,
-        "source": "human"
-      }
+      "description": ""
     },
     {
       "id": "W002",
@@ -2544,12 +3565,7 @@
       "to_terminal": "TB-N:1",
       "cable": "CABLE-POWER-IN",
       "net": "N",
-      "description": "",
-      "label_location": {
-        "x": 231.4,
-        "y": 66.9,
-        "source": "human"
-      }
+      "description": ""
     },
     {
       "id": "W003",
@@ -2999,12 +4015,7 @@
       "to_terminal": "TB-110:3",
       "cable": null,
       "net": "110",
-      "description": "",
-      "label_location": {
-        "x": 925.3,
-        "y": 516.2,
-        "source": "human"
-      }
+      "description": ""
     },
     {
       "id": "W048",
