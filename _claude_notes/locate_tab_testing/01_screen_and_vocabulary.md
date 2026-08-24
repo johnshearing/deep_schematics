@@ -104,6 +104,11 @@ Hover the counts for that explanation on screen.
 
 **Save** forces the write now. Disabled when there is nothing to write.
 
+**And, since 2026-08-24, a line to the left of the badge saying what `Ctrl+Z` just did** —
+*"undid: moved `BYPASS-CB:1`"*, *"undid: renamed CR-BP's site main to Coil"*, *"redid: …"*. It is
+there because a document mutation reverted silently on a 275-row file is indistinguishable from a key
+that did nothing at all. It clears on the next change. T-470.
+
 **Zoom.** `100%` is one tile pixel per *device* pixel — the sharpest these rasters go, not an
 arbitrary percentage. `Fit` shows the whole sheet, which is about `11%` on a 1× display.
 
@@ -218,9 +223,30 @@ which is why it is opt-in: with it off the sheet stays exactly where you put it.
 ### The sheet
 
 Same viewer as the Drawing tab — the same tiles, the same one projection. Drag to pan, scroll to
-zoom, double-click to zoom in, `0` fits, arrows nudge. The cursor is a crosshair whenever a target
-is armed, and a hand whenever one is not — so the cursor is the readout for which mode you are in.
-`Esc` selects nothing and gives the hand back.
+zoom, double-click to zoom in, `0` fits, **bare arrows pan the sheet**. The cursor is a crosshair
+whenever a target is armed, and a hand whenever one is not — so the cursor is the readout for which
+mode you are in. `Esc` selects nothing and gives the hand back.
+
+**`Ctrl+Z` and `Shift`+arrows** (2026-08-24), which are the two halves of one answer to *"a marker
+moved and I cannot put it back"*:
+
+| Key | Does |
+|---|---|
+| `Ctrl+Z` / `Cmd+Z` | undoes the last change to the document — a point, a drag, a rename, a pin, a label side, an unplace. Fifty deep, in memory, cleared when the file loads. It says what it undid in the toolbar and arms the row it changed |
+| `Ctrl+Shift+Z` | redoes it. A new edit after an undo drops the redo |
+| `Shift`+arrow | moves the armed point **1.0 pt**, in the direction the arrow points, y down the page |
+| `Shift`+`Alt`+arrow | **0.1 pt** — the finest thing `locations.json` can record |
+
+Three things about them worth knowing before you need them. **The step is in points, not pixels**, so
+a nudge is the same correction at 11% as at 400% — against 16 pt conductor rows, one point is a
+sixteenth of a row wherever you are standing. **A whole run is one undo:** ten arrow presses, or one
+drag however many frames long, goes back in a single `Ctrl+Z`. And **only a point the file already
+holds will move** — a row reading `on its component` has a dot on screen and no point of its own, and
+nudging it would turn *"we guessed"* into *"a human confirmed"*, so the keys do nothing there.
+Placing is a click and stays a click. T-470–T-490.
+
+**Undo is not cross-session.** The stack dies with the page, deliberately; git is still the only
+recovery beyond it, which is why a run of placement should end in a commit.
 
 **`F2` leaves for the Drawing tab, and `F2` brings you back** (2026-08-19). Worth knowing mid-run,
 because the answer to *"is that dot really on the right conductor row?"* is on the other tab: your
@@ -268,3 +294,27 @@ so. Zoom back out to 50% or less and every flight works as it always did.
   *"The label side you chose" was a claim and not a fact until 2026-08-19:* a dot that is the only
   one its designator has — which is 269 of 275 — reached that tab without its side and came out
   east. **T-335** is the test that keeps it honest.
+
+---
+
+## The other screen's card: a roster *(added 2026-08-24)*
+
+Not this tab, but this tab's vocabulary, and the words have to be the same ones.
+
+Selecting a **net** or a **wire** on the Drawing tab now marks **the terminals it is made of** rather
+than their parent components, and the card lists them — one row per member, in the netlist's order,
+undeduped. Each row says how well **its own** point is known, in this tab's three words:
+
+    CR2:14        placed
+    TB-120:1      placed
+    DISCHARGE1:3  placed
+    CB1:2         nowhere
+
+`placed`, `estimate`, `on its component`, `nowhere` — the same four the list on the left uses, from
+one place in the code, so a reader who learned "on its component" here meets the same phrase there.
+Clicking a row flies to that pin. On a server with an editor, a row that is not `placed` also carries
+a small **place it** button, which arms that pin over here and switches tabs.
+
+**Why it matters to this tab.** It is the pay-off of the 131 terminals: a net highlight is only as
+good as its members' points, and the roster is where somebody notices that one of them has none.
+`09_tests_net_membership.md`, T-500–T-520.

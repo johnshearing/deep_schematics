@@ -68,6 +68,29 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 | T-450 | Regeneration, and the test that goes red until you do | | |
 | T-460 | Survives a restart; `by` and `at` are recorded | | |
 
+## T-47x–T-49x — undo, and nudging a marker — `05_tests_save_and_recover.md`
+
+*Added 2026-08-24 with Session 1 of the wires-and-nets plan. None of these has been walked.*
+
+| Test | What it checks | Result | Notes if not P |
+|---|---|:--:|---|
+| T-470 | `Ctrl+Z` puts back the exact coordinate, says so, and saves · `Ctrl+Shift+Z` redoes · 50 deep · gone after a reload | | |
+| T-480 | Undo covers **document mutations only** — not the zoom, not the filter · it arms the row it changed · a rename, a pin, a label side, an unplace, a label point all undo · the caret in a text box keeps its own `Ctrl+Z` | | |
+| T-490 | `Shift`+arrow = 1.0 pt · `Shift`+`Alt`+arrow = 0.1 pt · **the same step at 11% and at 400%** · a bare arrow still pans · `Shift`+`+` still zooms · ten nudges undo in one press · nothing armed or nothing placed does nothing | | |
+
+## T-5xx — what a net is made of — `09_tests_net_membership.md`
+
+*Added 2026-08-24. **Drawing tab, no password needed.** None walked. T-500 costs one question — see
+the note there.*
+
+| Test | What it checks | Result | Notes if not P |
+|---|---|:--:|---|
+| T-500 | Net `120` rings **seven terminals**, not five components · `CR2:14` on the NO contact and not on CR2's coil · the three `TB-120` pins are three dots | | |
+| T-505 | Every ringed dot is on screen after the flight | | |
+| T-510 | The card is a roster: every member, in order, undeduped, each with its own state · a wire says `ends` and lists `[from, to]` in that order · a long net scrolls rather than truncating | | |
+| T-515 | Clicking a roster row flies to that pin · a `nowhere` row is not clickable | | |
+| T-520 | **place it** arms that pin on the Locate tab · absent on a row that is `placed` · absent entirely with `SWUI_ALLOW_EDITS=false`, and the roster still works | | |
+
 ---
 
 ## Failure detail

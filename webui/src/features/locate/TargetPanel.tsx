@@ -48,7 +48,13 @@ interface Props {
    * rename has not moved anything, and a site that does not exist yet has nowhere to go.
    */
   onTarget: (target: Target, fly?: boolean) => void
-  onEdit: (change: (document: LocationsDocument) => LocationsDocument) => void
+  /** `note` is what the save badge will say if this edit is undone, in a person's words. Every
+   * call site passes one: *"undid: an edit"* is a message that tells you nothing at the moment
+   * you most need to be told something. */
+  onEdit: (
+    change: (document: LocationsDocument) => LocationsDocument,
+    note?: string,
+  ) => void
   onLabelDir: (target: Target, dir: Compass | null) => void
   onClear: (target: Target) => void
   /** Disarm: nothing selected, nothing red, the hand back on the sheet. The panel owns the
@@ -229,8 +235,11 @@ function ComponentPanel({
                         checked={mine}
                         aria-label={`Pin ${pin} at site ${site.id}`}
                         onChange={(event) =>
-                          onEdit((d) =>
-                            assignTerminal(d, entry.id, site.id, pin, event.target.checked),
+                          onEdit(
+                            (d) =>
+                              assignTerminal(d, entry.id, site.id, pin, event.target.checked),
+                            `${event.target.checked ? 'put' : 'took'} pin ${pin} ` +
+                              `${event.target.checked ? 'on' : 'off'} ${entry.id} site ${site.id}`,
                           )
                         }
                       />
@@ -332,7 +341,10 @@ function SiteName({
       return
     }
     setRefused(null)
-    onEdit((d) => renameSite(d, componentId, site.id, next))
+    onEdit(
+      (d) => renameSite(d, componentId, site.id, next),
+      `renamed ${componentId}'s site ${site.id} to ${next}`,
+    )
     // The target names its site by id, so a rename the target did not follow would leave the next
     // click on the sheet writing a *second* site under the old name.
     if (armed) onTarget({ id: componentId, site: next })

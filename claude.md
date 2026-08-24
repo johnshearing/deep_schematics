@@ -19,10 +19,10 @@ In the early stages of our work together, you have been recording the progress m
 You have also been noting down what needs to be done.  
 Please don't read that yet. I just want you to know the document is there if you need it and what it represents.  
   
-Please read "/home/js/schematics/_claude_notes/locate_tab_testing/locate_tab_instruction_and_test_manual".md.  
-This document represents the most recent work that has been accomplished and provides excellent background for the job ahead.  
+"/home/js/schematics/_claude_notes/locate_tab_testing/locate_tab_instruction_and_test_manual.md" represents the most recent work that has been accomplished and provides excellent background for the job ahead.  
 Please note: I have worked through the lessons in this document which are also tests.  
 Everything worked as expected. 
+Please don't read that yet. I just want you to know the document is there if you need it and what it represents.
 
 Please read "/home/js/schematics/_claude_notes/highlighting_wires_and_nets.md".  
 This is the plan for the tasks at hand.  

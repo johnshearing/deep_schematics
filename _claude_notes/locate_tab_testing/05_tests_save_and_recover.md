@@ -1,4 +1,4 @@
-# T-4xx — the password, saving, persistence, refusals, regeneration
+# T-4xx — the password, saving, persistence, refusals, regeneration, undo
 
 Index: `locate_tab_instruction_and_test_manual.md`.
 
@@ -249,3 +249,176 @@ next save).
 **Expected.** `"by": "js"` on everything you placed — from `SWUI_EDITOR_NAME` — and an ISO timestamp
 from your **browser's** clock, not the server's. A point with an owner is the whole argument for a
 human tier over a computed one.
+
+---
+
+## T-470 · `Ctrl+Z` — putting back the point you did not mean to move *(added 2026-08-24)*
+
+This is **`K8`**, and it is here because of a real accident: on 2026-08-24 `BYPASS-CB:1` moved from
+y 663.8 to y 663.7 — a tenth of a point, a 160th of a conductor row, invisible on screen — and the
+coordinate it replaced was gone from the running program. Git recovers the last **commit**; it has
+never recovered the last **action**.
+
+**Do.** Unlock, pick any terminal that is already `placed`, and note its coordinate from the target
+panel — it is printed there, *"Placed by hand at 385.4, 663.8"*. Now drag its dot a little way and
+let go.
+
+**Expected.** The panel shows the new coordinate and the badge goes `unsaved` → `saved`.
+
+**Do.** Press `Ctrl+Z` (`Cmd+Z` on a Mac).
+
+**Expected.** Three things at once:
+
+1. the coordinate in the panel is **exactly** the old one again, to the tenth of a point;
+2. the toolbar says **`undid: moved BYPASS-CB:1`** beside the save badge — an undo that happens
+   silently on a 275-row document is indistinguishable from a key that did nothing;
+3. the badge goes `unsaved` → `saved` again. **An undo is a mutation and is written to the file.**
+   An undo that did not persist would be a lie the moment you reloaded.
+
+**Do.** Press `Ctrl+Shift+Z`.
+
+**Expected.** The drag is back, and the toolbar says `redid: moved …`.
+
+**Do.** Undo once more, then place a *different* point. Now press `Ctrl+Shift+Z`.
+
+**Expected.** **Nothing happens.** A new edit after an undo is a new branch of history, and the
+redo you abandoned is gone. This is how every editor behaves and it is worth meeting once.
+
+**Do.** Press `Ctrl+Z` about sixty times.
+
+**Expected.** It walks back fifty steps and then stops doing anything. Fifty whole-document
+snapshots is the depth, chosen because the document is 38 KB and fifty of them is under 2 MB — next
+to the 2.2 MB of tiles on the same page, that is nothing, and it buys an undo that **cannot be
+subtly wrong**. An inverse-patch scheme would be smaller and a bug in it would lose work, which is
+the exact thing being fixed.
+
+**Do.** Reload the page, unlock, and press `Ctrl+Z`.
+
+**Expected.** **Nothing.** The stack is in memory and dies with the page — deliberately. Loading a
+file also clears it, because a stack over one document would undo this file's points into that
+file's coordinates. **Cross-session recovery is still git's job**, and this is why a run of
+placement should end in a commit:
+
+    git diff schematic_extraction/PS20115MLM4-2/extracted_docs/locations.json
+
+names the point and its old coordinate exactly. That is the whole recovery story beyond the page.
+
+**If `Ctrl+Z` does nothing at all.** Check the Locate tab is the tab on screen. There are now
+**three** `window` key listeners in the application — this tab's `Escape`, the Drawing tab's
+`Escape`, and this one — and the `activeTabId` guard is the only thing keeping them apart
+(`06_code_map.md` §H10).
+
+---
+
+## T-480 · What undo covers, and what it deliberately does not *(added 2026-08-24)*
+
+The rule is **document mutations only**. An undo that also walked back where you were looking would
+interleave with navigation, and then nobody can predict what the key will do.
+
+**Do.** Zoom to about 200%, pick the `Terminals` filter, arm a row, place a point. Press `Ctrl+Z`.
+
+**Expected.** The point is unplaced. The **zoom is unchanged**, the **filter is still `Terminals`**,
+and the sheet has not moved.
+
+**Do.** Note which row is armed, then arm a *different* row, and press `Ctrl+Z`.
+
+**Expected.** The armed row jumps to **the row whose value just changed** — and the list scrolls it
+into view. That is the one exception, and it is announcement rather than history: undo never
+restores whatever happened to be armed *before*, it points at what it changed. On a list of 275 rows
+you would otherwise have to go and find it.
+
+**Do.** Now undo each of these in turn and watch the toolbar's words:
+
+| Do this | Then `Ctrl+Z` should say |
+|---|---|
+| rename a site from `main` to `Coil` | `undid: renamed CR-BP's site main to Coil` |
+| tick pin `A1` onto a site | `undid: put pin A1 on CR-BP site Coil` |
+| pick a label side with the compass | `undid: label side of CR-BP (Coil)` |
+| press **Unplace** on a terminal | `undid: unplaced CR-BP:A1` |
+| remove a site with the bin icon | `undid: removed site Coil of CR-BP` |
+| place a wire's label point | `undid: placed W047's label point` |
+
+**Every one of them is undoable, and none of them needed its own code.** Every mutation in this
+editor already funnelled through one function, so the stack is a push inside it — which is why this
+was a small change rather than a large one.
+
+**Do.** Click into a site-name box, type a few characters, and press `Ctrl+Z` with the caret still
+in the box.
+
+**Expected.** The **typing** is undone by the browser. No dot moves anywhere and the toolbar says
+nothing. A `window` listener sees every keystroke in the application including the ones being typed
+into a box, and undoing a coordinate because somebody was renaming a site would be the worst version
+of this feature.
+
+---
+
+## T-490 · `Shift`+arrows — moving a marker a little, exactly *(added 2026-08-24)*
+
+The other half of the cure, and the reason **a minimum-drag threshold was considered and rejected**:
+on this drawing a twitch and a deliberate 0.1 pt correction are the same gesture, so no threshold can
+tell them apart. Undo covers the accident; this makes a small move something you can do **on
+purpose**, without a mouse.
+
+*(There already is a small threshold, and it is not the one that was rejected: a press must travel
+3 CSS pixels before it counts as a drag at all. What it cannot catch is a real drag that goes out and
+comes most of the way back — see `06_code_map.md` on `DRAG_SLOP`.)*
+
+**Do.** Arm a terminal that is already `placed` and note its coordinate in the panel. Press
+`Shift`+`→`.
+
+**Expected.** The coordinate's **x goes up by exactly 1.0**. The dot moves a hair; at fit zoom that
+is about half a screen pixel, so watch the **number in the panel**, not the sheet.
+
+**Do.** Press `Shift`+`Alt`+`→`.
+
+**Expected.** x goes up by exactly **0.1** — one tenth is the precision `locations.json` records, so
+this is the finest thing the file can say and there is deliberately nothing smaller.
+
+**Do.** `Shift`+`↑` and `Shift`+`↓`.
+
+**Expected.** Up **decreases** y. The page's origin is its top-left corner, and up the sheet is
+toward it.
+
+**Do. This is the test that matters.** Fit the sheet (about 11%), press `Shift`+`→` once and note
+the coordinate. Now zoom in to 200% or more and press `Shift`+`→` again.
+
+**Expected.** **The same 1.0 pt both times.** The step is in **points, not pixels**, so a nudge is
+the same correction at every magnification — against 16 pt conductor rows, one point is a sixteenth
+of a row wherever you are standing. A step measured in screen pixels would be twenty times coarser
+at fit zoom than at 200% with nothing on screen to tell you.
+
+**Do.** Press a **bare** `→`, with the row still armed.
+
+**Expected.** **The sheet pans** and the coordinate does not change. Bare arrows are the viewport's
+and stay the viewport's: the moment you are working on a dot is exactly the moment you also want to
+pan, and a key that silently means two things depending on hidden state is worse than a modifier.
+
+**Do.** Press `Shift`+`+` (that is, `Shift` and `=` on most keyboards).
+
+**Expected.** It still **zooms in**. The sheet ignores *modified arrows* only — a blanket
+"`Shift` is not mine" would have quietly broken zooming, because `+` needs `Shift` to type.
+
+**Do.** Press `Shift`+`→` ten times, then `Ctrl+Z` **once**.
+
+**Expected.** The dot goes back to where the run **started** — not one tenth of the way back. A run
+of nudges is one undo step, the way a text editor coalesces typing. The same is true of a drag: one
+gesture is one step, however many frames it took.
+
+**Do.** With **nothing** armed, press `Shift`+`→`.
+
+**Expected.** Nothing at all.
+
+**Do.** Arm a terminal that reads **`on its component`** — one nobody has placed, drawn hollow on its
+parent's dot — and press `Shift`+`→`.
+
+**Expected.** **Nothing, and this is deliberate.** There is a dot on screen, so it looks like
+something that should move. But that dot is the *component's* point, and nudging it would turn
+*"we guessed `CR-BP:12` is at the coil"* into *"a human confirmed `CR-BP:12` is 1 pt from the
+coil"* — a lie of exactly the kind this whole file exists to prevent. **Placing is a click and stays
+a click**; the keyboard only corrects what a person already put somewhere.
+
+**Do.** Check the file after a nudge.
+
+**Expected.** `source: human`, your `by`, a fresh `at`, and the coordinate rounded to one decimal.
+A nudge goes down the same write path a drag does, so it inherits all of that and there was nothing
+new to validate.

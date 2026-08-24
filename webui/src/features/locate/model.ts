@@ -219,6 +219,32 @@ export function editorPlaces(document: LocationsDocument, entry: Designator): Pl
     : [{ point: entry.point, placement: entry.placement ?? 'seed' }]
 }
 
+/**
+ * The point **this target's own record in the draft** holds, or null.
+ *
+ * Deliberately not `editorPlaces`, which falls back to the server's resolved answer — a site
+ * claiming the pin, or the parent component's point flagged `parent`. A nudge is a correction to
+ * something a person put somewhere, and nudging an estimate would silently turn *"we guessed
+ * `CR-BP:12` is at the coil"* into *"a human confirmed it is 1 pt from the coil"*, which is the
+ * one kind of lie this whole file exists to prevent. So the keyboard moves what the draft owns,
+ * and placing something that is not placed yet stays a click.
+ */
+export function draftPoint(
+  document: LocationsDocument,
+  target: Target,
+): [number, number] | null {
+  if (target.label) {
+    const stored = storedLabel(document, target.id)
+    return isPoint(stored?.label_point) ? stored.label_point : null
+  }
+  if (target.site === null) {
+    const own = document.terminals?.[target.id]
+    return isPoint(own?.point) ? own.point : null
+  }
+  const site = sitesOf(document, target.id).find((entry) => entry.id === target.site)
+  return isPoint(site?.point) ? site.point : null
+}
+
 /** The header line. Only components and terminals count towards it: counting the 97 nets and
  * wires as outstanding work would put a number on the screen that can never be finished. */
 export function coverage(entries: Designator[], document: LocationsDocument) {

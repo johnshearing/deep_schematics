@@ -18,24 +18,27 @@ import { CircleCheck, CircleDashed, CircleSlash, Link2, Tag } from 'lucide-react
 
 import type { Designator } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
+import { NOWHERE_LABEL, PLACEMENT_LABEL } from '@/lib/designators'
 import { cn } from '@/lib/utils'
 import type { RowState } from './model'
 
 /** Filled, hollow, hollow-and-quieter, computed, nowhere. Same vocabulary as the dots on the
- * sheet, so a row and its marker say the same thing. */
+ * sheet, so a row and its marker say the same thing — and the three placement words come from
+ * `lib/designators` rather than being spelled again here, because the Drawing tab's member
+ * roster shows the same three claims and the two must not drift into different English. */
 const STATE: Record<RowState, { label: string; tone: string; Icon: typeof CircleCheck }> = {
   confirmed: {
-    label: 'placed',
+    label: PLACEMENT_LABEL.confirmed,
     tone: 'text-[var(--color-success)]',
     Icon: CircleCheck,
   },
   seed: {
-    label: 'estimate',
+    label: PLACEMENT_LABEL.seed,
     tone: 'text-[var(--color-warning)]',
     Icon: CircleDashed,
   },
   parent: {
-    label: "on its component",
+    label: PLACEMENT_LABEL.parent,
     tone: 'text-[var(--color-warning)]',
     Icon: CircleDashed,
   },
@@ -52,7 +55,7 @@ const STATE: Record<RowState, { label: string; tone: string; Icon: typeof Circle
     Icon: Tag,
   },
   none: {
-    label: 'nowhere',
+    label: NOWHERE_LABEL,
     tone: 'text-muted-foreground',
     Icon: CircleSlash,
   },

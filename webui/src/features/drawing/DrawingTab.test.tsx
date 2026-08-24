@@ -18,6 +18,7 @@ import type { Designator, DesignatorIndex, DrawingSummary, TileManifest } from '
 import { buildLookup } from '@/lib/designators'
 import { useAppStore } from '@/stores/appStore'
 import { useChatStore } from '@/stores/chatStore'
+import { useLocateStore } from '@/stores/locateStore'
 import { enabledTabs } from '@/tabs'
 
 const TILES: TileManifest = {
@@ -64,10 +65,23 @@ const TERMINALS: Designator[] = [
   { id: 'CR-BP:A2', kind: 'terminal', label: 'coil terminal on CR-BP, net 0V', on_sheet: true,
     members: ['CR-BP'], point: [861, 679], rect: [861, 679, 861, 679], placement: 'parent' },
 ]
+/**
+ * A net, and **what it is made of** as distinct from which components it passes through.
+ *
+ * `members` is the parents; `terminals` is the membership. The gap between them is the fault
+ * Phase A fixes: `CR-BP:A1` has a point of its own 11 pt from `CR-BP`'s, `CR-BP:A2` has none and
+ * borrows its parent's, and `CB1:2` has nowhere at all — three different claims that one
+ * `placement` on the net could only lie about.
+ */
 const NET_110: Designator = {
   id: '110', kind: 'net', label: 'control 24VDC, 8 terminals', on_sheet: true,
   members: ['CR-BP', 'CB1', 'UPSTREAM-MACHINE'], point: [625.5, 398.5],
   rect: [390, 118, 861, 679],
+  terminals: [
+    { id: 'CR-BP:A1', point: [858, 668], placement: 'confirmed' },
+    { id: 'CR-BP:A2', point: [861, 679], placement: 'parent' },
+    { id: 'CB1:2', point: null, placement: null },
+  ],
 }
 const INDEX: DesignatorIndex = {
   drawing_number: 'PS20115MLM4-2',
@@ -125,9 +139,10 @@ beforeEach(() => {
 afterEach(() => {
   for (const name of descriptors) delete (HTMLElement.prototype as never)[name]
   useAppStore.setState({
-    activeTabId: 'ask', designators: null, byToken: new Map(), selection: null,
+    activeTabId: 'ask', designators: null, byToken: new Map(), selection: null, health: null,
   })
   useChatStore.setState({ composerText: '' })
+  useLocateStore.setState({ target: null })
 })
 
 function activate() {
@@ -361,6 +376,99 @@ describe('DrawingTab', () => {
     expect(screen.getByRole('button', { name: 'CR-BP' })).toBeTruthy()
     const offSheet = screen.getByRole('button', { name: 'UPSTREAM-MACHINE' }) as HTMLButtonElement
     expect(offSheet.disabled).toBe(true)
+  })
+
+  /**
+   * The reported fault, and it was two faults wearing one coat.
+   *
+   * *"Clicking `120` marks Bypass-CB, DISCHARGE1, INFEED1 and TB-120, but not CR2."* CR2 **was**
+   * in the highlight set and a dot **was** drawn — on CR2's coil, because the set was the parent
+   * components of the net's terminals, and the terminal actually on net 120 is `CR2:14`, its NO
+   * contact 630 pt away. The same disagreement, quieter, put `DISCHARGE1`'s ring on the component
+   * rather than on `DISCHARGE1:3`, and collapsed `TB-120:1/2/3` onto one dot so seven members
+   * showed as five.
+   */
+  it('rings the terminals a net is made of, each at its own point', async () => {
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('net', '110', 'drawing'))
+    await waitFor(() => expect(marker('CR-BP:A1')).toBeTruthy())
+
+    // Its own point, 11 pt from its parent's, and therefore its own dot: 12 + 858 × 0.634.
+    expect(marker('CR-BP:A1').style.left).toBe('556px')
+    expect(marker('CR-BP').style.left).toBe('558px')
+    // And the pin that has no point of its own is honest about whose point it is showing.
+    expect(marker('CR-BP:A2').getAttribute('title')).toContain("the component's point")
+  })
+
+  it('names every member in the card, with how well each one’s own point is known', async () => {
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('net', '110', 'drawing'))
+    await waitFor(() => expect(screen.getByText('3 terminals')).toBeTruthy())
+
+    // All three, in order, including the one with nowhere to go — a roster that quietly dropped
+    // it would under-report the net, which is the thing this replaced.
+    const rows = screen.getAllByRole('listitem')
+    expect(rows.map((r) => r.querySelector('button')?.textContent)).toEqual([
+      'CR-BP:A1', 'CR-BP:A2', 'CB1:2',
+    ])
+    // The same three words the Locate tab's list uses, from the one place they are spelled.
+    expect(rows[0].textContent).toContain('placed')
+    expect(rows[1].textContent).toContain('on its component')
+    expect(rows[2].textContent).toContain('nowhere')
+    expect((rows[2].querySelector('button') as HTMLButtonElement).disabled).toBe(true)
+
+    // The components are still there, demoted to what they are.
+    expect(screen.getByText('runs through')).toBeTruthy()
+  })
+
+  it('flies to a member terminal when its row is clicked', async () => {
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('net', '110', 'drawing'))
+    await waitFor(() => expect(screen.getByText('3 terminals')).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: 'CR-BP:A1' }))
+    // The same `select(kind, id)` a citation calls, with the member's own kind — so the two
+    // entry points cannot drift, and the flight happens because this did not come from the sheet.
+    expect(useAppStore.getState().selection).toMatchObject({
+      kind: 'terminal', id: 'CR-BP:A1', origin: 'text',
+    })
+  })
+
+  it('keeps a selected net’s pins on the sheet with the Terminals group switched off', async () => {
+    // H11 in its own words: hiding the thing an answer just pointed at is the one case the
+    // overlay has to stay visible for. The group starts off, which is why this is the default
+    // state rather than something the test has to arrange.
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('net', '110', 'drawing'))
+    await waitFor(() => expect(marker('CR-BP:A1')).toBeTruthy())
+
+    // Nothing else's pins are drawn — only what the selection is made of.
+    expect(group('Terminals').getAttribute('aria-pressed')).toBe('false')
+    act(() => useAppStore.getState().clearSelection())
+    expect(screen.queryByRole('button', { name: /^CR-BP:A1 —/ })).toBeNull()
+  })
+
+  it('offers *place it* only where the server has an editor, and arms that pin', async () => {
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('net', '110', 'drawing'))
+    await waitFor(() => expect(screen.getByText('3 terminals')).toBeTruthy())
+
+    // A reader's copy: `SWUI_ALLOW_EDITS` false, so there is no editor to send anybody to and
+    // the roster says what it knows without offering to fix it.
+    expect(screen.queryByRole('button', { name: 'Place CR-BP:A2' })).toBeNull()
+
+    act(() => useAppStore.setState({ health: { editing: { enabled: true } } as never }))
+    // Only on the two that are not confirmed: there is nothing to go and do about `CR-BP:A1`.
+    expect(screen.queryByRole('button', { name: 'Place CR-BP:A1' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Place CR-BP:A2' }))
+
+    expect(useLocateStore.getState().target).toEqual({ id: 'CR-BP:A2', site: null })
+    expect(useAppStore.getState().activeTabId).toBe('locate')
   })
 
   it('hands a clicked component back to the composer as a question', () => {

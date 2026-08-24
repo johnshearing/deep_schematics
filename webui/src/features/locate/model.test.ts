@@ -15,6 +15,7 @@ import {
   assignTerminal,
   canRenameSite,
   draftPlacement,
+  draftPoint,
   editorPlaces,
   emptyDocument,
   nextSiteId,
@@ -264,5 +265,32 @@ describe('the advance', () => {
     doc = place(doc, { id: 'CR-BP:A1', site: null }, [870, 668], STAMP)
     doc = place(doc, { id: 'CR-BP:11', site: null }, [714, 520], STAMP)
     expect(nextUnplaced(LIST, doc, null)).toBeNull()
+  })
+})
+
+describe('draftPoint', () => {
+  it('answers only for a point the draft itself holds', () => {
+    // The rule the keyboard nudge rests on. `editorPlaces` would happily hand back `CR-BP`'s
+    // own point for its unplaced pin `A1`, flagged `parent` — and nudging that would turn "we
+    // guessed A1 is at the coil" into "a human confirmed A1 is 1 pt from the coil", which is a
+    // lie of exactly the kind this file exists to prevent. So a nudge moves what a person put
+    // somewhere, and placing something for the first time stays a click.
+    const doc = place(fresh(), { id: 'CR-BP', site: 'coil' }, [861, 679], STAMP)
+
+    expect(draftPoint(doc, { id: 'CR-BP', site: 'coil' })).toEqual([861, 679])
+    // The site exists but this is not it.
+    expect(draftPoint(doc, { id: 'CR-BP', site: 'no' })).toBeNull()
+    // Resolvable on screen — it is drawn on the coil — and still not the draft's own point.
+    expect(editorPlaces(doc, A1)).toHaveLength(1)
+    expect(draftPoint(doc, { id: 'CR-BP:A1', site: null })).toBeNull()
+  })
+
+  it('answers for a terminal and for a wire label, and rounds as the file does', () => {
+    let doc = place(fresh(), { id: 'CR-BP:A1', site: null }, [860.55, 668.44], STAMP)
+    expect(draftPoint(doc, { id: 'CR-BP:A1', site: null })).toEqual([860.6, 668.4])
+
+    doc = place(doc, { id: 'W047', site: null, label: true }, [500.1, 400.2], STAMP, 'wire')
+    expect(draftPoint(doc, { id: 'W047', site: null, label: true })).toEqual([500.1, 400.2])
+    expect(draftPoint(doc, { id: 'W048', site: null, label: true })).toBeNull()
   })
 })

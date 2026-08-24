@@ -37,7 +37,8 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **106 server, 127 web, ruff clean, tsc clean** — except that
+Expected right now: **111 server, 155 web, ruff clean, tsc clean** *(2026-08-24, after Session 1 of
+the wires-and-nets plan; it was 106 and 127 before)* — except that
 `test_the_committed_artifact_is_exactly_what_the_generator_writes` is red whenever `locations.json`
 has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a failure; re-run the
 generator (§5) and it goes green.
@@ -66,7 +67,8 @@ Read the index (this file) plus **only** what the symptom calls for.
 | `02_tests_place_and_drag.md` | **T-100–T-1xx.** Picking a row, click-to-place, the advance, dragging a dot, the pan-versus-place rule, the flight ceiling (T-115), and (T-190) the Drawing tab's three layer switches. | Anything about a point landing in the wrong spot, or not landing — or about the sheet moving, or refusing to. |
 | `03_tests_sites_and_pins.md` | **T-200–T-2xx.** Components drawn more than once, adding/renaming/removing sites, assigning pins to sites. | Anything about `CR-BP`, `CR-SW`, multiple dots, or pins. |
 | `04_tests_labels.md` | **T-300–T-3xx.** Wire and net label points, the eight label sides, and (T-335) whether the side you chose survives to the Drawing tab. | Anything about a label, or about wires and nets. |
-| `05_tests_save_and_recover.md` | **T-400–T-4xx.** Autosave, the Save button, restart, refusals, the `problems` strip, regenerating `circuit_logic.json`. | Anything about work not persisting, or a red strip. |
+| `05_tests_save_and_recover.md` | **T-400–T-4xx.** Autosave, the Save button, restart, refusals, the `problems` strip, regenerating `circuit_logic.json`, and **(T-470–T-490) `Ctrl+Z` and the `Shift`+arrow nudge**. | Anything about work not persisting, or a red strip, or a marker you did not mean to move. |
+| `09_tests_net_membership.md` | **T-500–T-520.** What a net is made of, and where its highlight goes: rings on **terminals** rather than on their parent components, the member roster on the selection card, *place it*. **Drawing tab, no password.** | Anything about a net or wire highlight marking the wrong place, or about the card. |
 | `06_code_map.md` | Every behaviour → the file and function that owns it. The data flow end to end. The known hazards, with reasoning. | Always, when troubleshooting. Never needed to *run* a test. |
 | `07_drawing_facts.md` | The concrete ids and coordinates on `PS20115MLM4-2` the tests refer to — relay pin lists, the three `CR-BP` sites, `W048`, net `110`. | When a test names an id and you need to know what it is. |
 | `08_results_log.md` | Every test id in a table, blank, for the user to mark up. | **A troubleshooting session should read this first** — it says what is actually broken. |
@@ -187,6 +189,51 @@ this tab's neighbours and the third is this tab's own:
                       useTileViewport.ts, hazards H10 and H11 are new, and T-115,
                       T-190, T-335, T-360 and T-425 are new tests nobody has walked.
 
+### 5b. Session 1 of the wires-and-nets plan, 2026-08-24
+
+Two changes, both of which make what already existed correct rather than adding a screen. The plan
+is `_claude_notes/highlighting_wires_and_nets.md`; this was **Phases 0 and A**, and §13 there says
+what the remaining five sessions are.
+
+14. **`Ctrl+Z`, and `Shift`+arrows to nudge an armed point.** **`K8` is fixed.** A drag, a rename, a
+    pin, a label side, an unplace — every mutation in the editor is undoable, fifty steps deep, in
+    memory, cleared on load; `Ctrl+Shift+Z` redoes. The toolbar says what was undone in words
+    (*"undid: moved `BYPASS-CB:1`"*) and the list arms and scrolls to the row it changed, because a
+    silent undo on a 275-row document is invisible. `Shift`+arrow moves the armed point **1.0 pt**
+    and `Shift`+`Alt`+arrow **0.1 pt** — in *points*, so the step is the same at 11% and at 400% —
+    and **bare arrows still pan the sheet**. A run of nudges, or one drag however many frames long,
+    is **one** undo step. Only a point the draft already owns will move: nudging a terminal drawn on
+    its parent's dot does nothing, deliberately, because it would turn an estimate into a
+    confirmation. **T-470–T-490** are the new tests, none walked. Two ideas were **rejected** and
+    are recorded in the plan §9 so they do not creep back: a minimum-drag threshold, and a `rev`
+    counter on the file.
+
+15. **A net or a wire is highlighted as the terminals it is made of.** The reported fault —
+    *"clicking `120` marks Bypass-CB, DISCHARGE1, INFEED1 and TB-120, but not CR2"* — was a ring on
+    CR2's **coil** when the net's member is `CR2:14`, its NO contact 630 pt away, plus
+    `TB-120:1/2/3` collapsing onto one component dot. `/api/designators` now publishes `terminals`
+    on every wire and net: the membership itself, **in order and undeduped**, each member with its
+    own point and its own `placement`. The selection card becomes a **roster** of those members with
+    their state in the list's own words, each a click away from being flown to, and — only where the
+    server has an editor — a **place it** link that arms that pin on the Locate tab. **This is a
+    server change and needs a restart.** It costs **20 KB** on a 90 KB payload (22%), said out loud
+    in `09_tests_net_membership.md`. **T-500–T-520** are the new tests, none walked.
+
+    One thing worth knowing before Session 3: **selecting a net from the reader's side still needs a
+    citation from an answer.** Nothing on the sheet raises a net, so T-500 costs one question. The
+    Drawing tab's list, Session 3, is what removes that.
+
+    tests             111 server, 155 web, ruff and tsc clean. New: a first
+                      `webui/src/stores/locateStore.test.ts` (12), the keyboard in
+                      LocateTab.test.tsx (9), the roster in DrawingTab.test.tsx (5),
+                      `draftPoint` in model.test.ts (2), and five server tests across
+                      test_api.py and test_locations.py. What moved: the three
+                      placement words (`placed`, `estimate`, `on its component`) now
+                      live once in `webui/src/lib/designators.ts` as
+                      `PLACEMENT_LABEL`, imported by both the Locate list and the
+                      Drawing roster; `useTileViewport`'s key handler declines a
+                      *modified* arrow so a nudge cannot pan the sheet under the dot.
+
 ### 5a. What is in the files, 2026-08-24
 
 **The counts below replaced a stale block that still described 6 components and 18 terminals.**
@@ -274,7 +321,13 @@ The first column is what the user says. Use this to pick one leaf document, not 
 | The side is right here and wrong on the Drawing tab | `04_tests_labels.md` **T-335** | `drawing.py` `_entry` — `places` must be published whenever a place carries `label_dir`, even a single one; `label_dir` lives nowhere else in the payload |
 | The sheet will not fly to the row I picked | `02_tests_place_and_drag.md` **T-115** — check the zoom first | above 50% that is deliberate: `FLY_CEILING_PERCENT` in `LocateTab.tsx`. Below it, `flyTo`/`framing` (T-110) |
 | Work disappeared | `05_tests_save_and_recover.md` T-440 | **`06_code_map.md` §H1** — read this before anything else |
-| I nudged a dot by accident and want it back | §7 **K8** | there is no undo yet. `git diff` on `locations.json` names the point and its old coordinate exactly; that is the whole recovery story today |
+| I nudged a dot by accident and want it back | `05_tests_save_and_recover.md` **T-470** | **`Ctrl+Z`** since 2026-08-24 — fifty steps, in memory. Reloaded since? Then it is git: `git diff` on `locations.json` names the point and its old coordinate exactly |
+| `Ctrl+Z` does nothing | `05_tests_save_and_recover.md` **T-470** | is the Locate tab the tab on screen? There are three `window` key listeners now and the `activeTabId` guard separates them — `06_code_map.md` §H10. With the caret in a text box it is the *box's* undo, by design |
+| `Shift`+arrow does not move the dot | `05_tests_save_and_recover.md` **T-490** | only a point the **draft owns** moves. A row reading `on its component` has a dot on screen and no point of its own, and nudging it would turn an estimate into a confirmation — `model.ts` `draftPoint` |
+| A `Shift`+arrow pans the sheet as well as nudging | `05_tests_save_and_recover.md` **T-490** | `useTileViewport.ts` `onKeyDown` — it must decline a *modified* arrow. Narrowed to the arrows on purpose: `+` needs `Shift` to type |
+| A net's highlight marks the wrong place, or fewer dots than it has members | `09_tests_net_membership.md` **T-500** | it must ring the **terminals**, not their parent components. `drawing.py` `_entry`/`_member` publish `terminals`; `DrawingTab.tsx` `relatedIds` must include them |
+| The selection card lists components where I expected pins | `09_tests_net_membership.md` **T-510** | `SelectionCard.tsx` `MemberRow` — the roster reads `entry.terminals`, and a server older than 2026-08-24 does not send it |
+| No **place it** button on a roster row | `09_tests_net_membership.md` **T-520** | either the row is already `placed`, or `health.editing.enabled` is false — which is correct on a reader's copy |
 | `"wires": {}` and `"nets": {}` are empty — is that a fault? | §5a | **No.** Four label points were there and were deleted on purpose. Do not restore them, and do not read the empty sections as unfinished work |
 | Red strip across the top | `05_tests_save_and_recover.md` T-430 | `locations.py` `parse`, `resolve_geometry` |
 | Drawing tab still shows the old dot | `05_tests_save_and_recover.md` T-420 | `appStore.refreshDesignators` |
@@ -305,7 +358,8 @@ if one bites harder than described. Full reasoning is in `06_code_map.md`.
 | **K5** | You cannot place a point *under* an existing dot by clicking it | The dot swallows the click and retargets instead. Zoom in, or drag the dot. | design question |
 | **K6** | `circuit_logic.json` goes stale after every save | Deliberate — the banner says so and `test_the_committed_artifact_is_exactly_what_the_generator_writes` goes red until you re-run the generator. | not a bug |
 | **K7** | Six rows in *To do* can never sensibly be finished | The two off-page machines and four referenced drawings say `nowhere` and have no position on this sheet, so "to do" cannot reach 0. Exactly the complaint that made wire labels a separate count — and I missed it here. | small — exclude `nowhere` from the queue, or count them apart |
-| **K8** | **A marker moved by accident cannot be put back.** | A drag writes the new point into the draft, autosave persists it, and the coordinate it replaced is gone from the running program. There is no `Ctrl+Z`. Reported by the user 2026-08-24 after `BYPASS-CB:1` moved a tenth of a point (§5a). Today the only undo is git, which recovers the last **commit**, not the last **action**. | small — `Ctrl+Z` over the draft, plus `Shift`+arrows to nudge an armed point precisely so a small move never needs a small drag. Designed in `_claude_notes/highlighting_wires_and_nets.md` §9, Phase 0. **A minimum-drag threshold was considered and rejected by the user**: small moves are legitimate and must stay possible |
+| ~~**K8**~~ | ~~A marker moved by accident cannot be put back~~ | **Fixed 2026-08-24.** `Ctrl+Z` over the draft, fifty whole-document snapshots deep, announcing what it undid and arming the row it changed; `Ctrl+Shift+Z` redoes. Plus `Shift`+arrows to nudge an armed point by 1.0 pt and `Shift`+`Alt`+arrows by 0.1 pt, so a small move never needs a small drag. **A minimum-drag threshold stays rejected** — small moves are legitimate. **The stack is in memory and dies with the page:** cross-session recovery is still git, which is why a run of placement should end in a commit. T-470–T-490 test it. | done — `stores/locateStore.ts` `edit`/`undo`/`redo`, `LocateTab.tsx` `nudge` and the key effect, `model.ts` `draftPoint` |
+| **K9** | **A net cannot be selected from the sheet.** | Nothing a reader can click raises a net or a wire: the dots are components, terminals and label points, so the only way to a net's highlight is a citation in an answer — which costs a question. Found while writing T-500 on 2026-08-24. | **already planned** — the Drawing tab's list of all 275 designators is Phase C, `highlighting_wires_and_nets.md` §13 Session 3. Noted so nobody reports it as a bug in the meantime |
 
 ---
 
@@ -336,9 +390,14 @@ Nine files in _claude_notes/locate_tab_testing/, with the one you named as the i
 | `07_drawing_facts.md` | The real ids and coordinates, so nobody reads geometry.json (150k tokens) | 1.7k |
 | `08_results_log.md` | All 28 tests as a blank table for you to mark up | 0.9k |
 
-*(**32** now — T-425 was added with the `F2` work, T-190 and T-360 with the Drawing tab's layer
-switches, and T-115 and T-335 with changes 11–13, all on 2026-08-19. §5 above is the current count;
-this section is kept as written.)*
+*(**Ten** files now. `09_tests_net_membership.md` was added 2026-08-24 with Session 1 of the
+wires-and-nets plan, and that plan adds five more — `10` through `14` — one per remaining session.
+§3 above is the current map; this table is kept as written.)*
+
+*(**38** now — T-425 was added with the `F2` work, T-190 and T-360 with the Drawing tab's layer
+switches, and T-115 and T-335 with changes 11–13, all on 2026-08-19; **T-470–T-490 and T-500–T-520
+came with Session 1 of the wires-and-nets plan on 2026-08-24**. §5 above is the current count; this
+section is kept as written.)*
 
 28 numbered tests. Each one doubles as a lesson — what to click, what should happen, and why it matters — so working through them in order teaches the whole screen. Each also says where to look if it fails, so a report of "T-142 failed, the dot landed half an inch left" points straight at paint.ts cssToPoint.
 

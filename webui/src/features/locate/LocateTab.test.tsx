@@ -174,7 +174,11 @@ beforeEach(() => {
   useLocateStore.setState({
     document: null, report: null, unlocked: false, loading: false, error: null,
     target: null, advance: false, saveState: 'clean', saveError: null, stale: null,
+    undoStack: [], redoStack: [], undoNote: null,
   })
+  // Module state `setState` cannot reach: a coalescing run left open by one test would merge
+  // into the next one's first edit and hide a missing undo step.
+  useLocateStore.getState().endRun()
   stubServer()
 })
 
@@ -183,6 +187,9 @@ afterEach(() => {
     delete (HTMLElement.prototype as never)[name]
   }
   vi.unstubAllGlobals()
+  // Insurance: fake timers left installed by a test that timed out would hang every test after
+  // it, because `findBy*` polls on a timer and would never fire again.
+  vi.useRealTimers()
 })
 
 /** Get past the gate the way a person does. */
@@ -659,6 +666,192 @@ describe('LocateTab', () => {
   // other row flew the sheet out from under the gesture. It is fixed — a drag asks for no
   // flight — but jsdom's pointer events carry no coordinates, so a drag written here reports
   // `NaN` for where it was dropped and would be pinning nothing. Same reason as T-140.
+
+  /**
+   * The keyboard, which is the cure for the accident that started all this: a dot moved a tenth
+   * of a point by a drag that ended near where it began, and the coordinate it replaced was gone.
+   *
+   * Two halves, and they have to be tested together. Undo covers the accident. The nudge makes a
+   * small move something you can do **on purpose**, exactly, without a mouse — which is why a
+   * minimum-drag threshold was rejected rather than added: on this sheet a 0.1 pt correction and
+   * a twitch are the same gesture, and refusing an intention is worse than allowing an accident
+   * you can take back.
+   */
+  it('nudges the armed point a whole point, and a tenth of one with Alt', async () => {
+    await open()
+    fireEvent.click(row('CR-BP:A1'))
+    clickSheet(400, 300)
+    const point = () => useLocateStore.getState().document!.terminals['CR-BP:A1'].point
+
+    expect(point()).toEqual([612, 396])
+    fireEvent.keyDown(window, { key: 'ArrowRight', shiftKey: true })
+    expect(point()).toEqual([613, 396])
+    fireEvent.keyDown(window, { key: 'ArrowUp', shiftKey: true })
+    expect(point()).toEqual([613, 395])
+    // A tenth is exactly the precision `locations.json` records, so this is the finest thing the
+    // file can say — and the rounding must not turn it into 395.09999999999997 either.
+    fireEvent.keyDown(window, { key: 'ArrowDown', shiftKey: true, altKey: true })
+    expect(point()).toEqual([613, 395.1])
+    fireEvent.keyDown(window, { key: 'ArrowLeft', shiftKey: true, altKey: true })
+    expect(point()).toEqual([612.9, 395.1])
+  })
+
+  it('nudges by the same number of points at any zoom', async () => {
+    // The reason the step is in points and not pixels. A correction that is 1 pt at fit zoom and
+    // a quarter of that at 400% would be a control you cannot form a habit with.
+    await open()
+    fireEvent.click(row('CR-BP:A1'))
+    clickSheet(400, 300)
+    const point = () => useLocateStore.getState().document!.terminals['CR-BP:A1'].point
+
+    expect(percent()).toBe(11)
+    fireEvent.keyDown(window, { key: 'ArrowRight', shiftKey: true })
+    expect(point()).toEqual([613, 396])
+
+    // Eight times the magnification — a step measured in CSS pixels would be an eighth of the
+    // correction here, and there is nothing on screen that would tell you.
+    for (let n = 0; n < 6; n += 1) fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+    expect(percent()).toBeGreaterThan(80)
+    fireEvent.keyDown(window, { key: 'ArrowRight', shiftKey: true })
+    expect(point()).toEqual([614, 396])
+  })
+
+  it('does not pan the sheet while nudging, and still zooms with Shift and +', async () => {
+    // The other half of the modifier decision, and it lives in `useTileViewport`: the sheet's own
+    // key handler declines a *modified* arrow, or a nudge would move the dot 1 pt while the sheet
+    // slid 60 px underneath it and the correction would be invisible. The guard is narrowed to
+    // the arrows on purpose — `+` needs Shift on most keyboards, and a blanket `shiftKey` guard
+    // there would quietly stop zooming in.
+    await open()
+    fireEvent.click(row('CR-BP:A1'))
+    clickSheet(400, 300)
+    const at = () => parseFloat(dot(/^CR-BP:A1 — coil terminal/).style.left)
+    const before = at()
+
+    fireEvent.keyDown(sheet(), { key: 'ArrowRight', shiftKey: true })
+    // 1 pt at the fit scale of 0.634 px/pt, rounded to a device pixel. A pan would be 60.
+    expect(Math.abs(at() - before)).toBeLessThan(5)
+
+    const zoom = percent()
+    fireEvent.keyDown(sheet(), { key: '+', shiftKey: true })
+    expect(percent()).toBeGreaterThan(zoom)
+  })
+
+  it('leaves a bare arrow panning the sheet, and moves no point with it', async () => {
+    // Deliberately *not* "bare arrows nudge whatever is armed". The moment you are working on a
+    // dot is exactly the moment you also want to pan, and a key that silently means two things
+    // depending on hidden state is worse than a modifier.
+    await open()
+    fireEvent.click(row('CR-BP:A1'))
+    clickSheet(400, 300)
+    const before = dot(/^CR-BP:A1 — coil terminal/).style.left
+
+    fireEvent.keyDown(sheet(), { key: 'ArrowRight' })
+    expect(useLocateStore.getState().document!.terminals['CR-BP:A1'].point).toEqual([612, 396])
+    // The sheet moved, so the dot is drawn somewhere else while sitting at the same coordinate.
+    expect(dot(/^CR-BP:A1 — coil terminal/).style.left).not.toBe(before)
+  })
+
+  it('will not nudge something into existence', async () => {
+    await open()
+    // Nothing armed at all.
+    fireEvent.keyDown(window, { key: 'ArrowRight', shiftKey: true })
+    expect(useLocateStore.getState().document!.terminals).toEqual({})
+
+    // Armed, and drawn on its parent component — resolvable on screen, and still not a point
+    // anybody placed. Nudging it would turn the indexing pass's estimate into a human's
+    // confirmation of a coordinate 1 pt from it. Placing is a click and stays a click.
+    fireEvent.click(row('CR-BP:A1'))
+    expect(dot(/^CR-BP:A1 — coil terminal/)).toBeTruthy()
+    fireEvent.keyDown(window, { key: 'ArrowRight', shiftKey: true })
+    expect(useLocateStore.getState().document!.terminals).toEqual({})
+  })
+
+  it('takes a run of ten nudges back in one Ctrl+Z, and saves the result', async () => {
+    await open()
+    fireEvent.click(row('CR-BP:A1'))
+    clickSheet(400, 300)
+    const point = () => useLocateStore.getState().document!.terminals['CR-BP:A1'].point
+
+    for (let n = 0; n < 10; n += 1) {
+      fireEvent.keyDown(window, { key: 'ArrowDown', shiftKey: true, altKey: true })
+    }
+    expect(point()).toEqual([612, 397])
+    // A nudge is a mutation and schedules a write like any other.
+    expect(useLocateStore.getState().saveState).toBe('pending')
+    await act(async () => {
+      await useLocateStore.getState().save()
+    })
+    expect(
+      (saved.at(-1) as { terminals: Record<string, { point: number[] }> }).terminals['CR-BP:A1']
+        .point,
+    ).toEqual([612, 397])
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true })
+    // The start of the run, not the ninth press. Ten undos to walk back one gesture is the
+    // thing that makes an undo stack useless.
+    expect(point()).toEqual([612, 396])
+    expect(screen.getByText('undid: nudged CR-BP:A1')).toBeTruthy()
+
+    // Forced rather than waited for — the debounce is tested elsewhere; what matters here is
+    // that an undo goes down the same write path, because an undo that does not persist is a
+    // lie the moment the page reloads.
+    await act(async () => {
+      await useLocateStore.getState().save()
+    })
+    const last = saved.at(-1) as { terminals: Record<string, { point: number[] }> }
+    expect(last.terminals['CR-BP:A1'].point).toEqual([612, 396])
+  })
+
+  it('gives Ctrl+Z to the site-name box when the caret is in it', async () => {
+    // A `window` listener sees every keystroke in the application, including the ones being
+    // typed into a box. Undoing a *dot* because somebody pressed Ctrl+Z while renaming a site
+    // is the worst version of this feature.
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'All' }))
+    fireEvent.click(row('CR-BP'))
+    clickSheet(400, 300)
+    const box = screen.getByLabelText('Name of site main')
+
+    fireEvent.keyDown(box, { key: 'z', ctrlKey: true })
+    expect(useLocateStore.getState().document!.components['CR-BP'].sites).toHaveLength(1)
+    expect(useLocateStore.getState().undoNote).toBeNull()
+  })
+
+  it('leaves the zoom and the list filter exactly where they were', async () => {
+    // Undo covers document mutations and nothing else. An undo that also walked back the view
+    // or the filter would interleave with them, and then nobody can predict what the key does.
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Terminals' }))
+    fireEvent.click(row('CR-BP:A1'))
+    clickSheet(400, 300)
+    const zoom = percent()
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true })
+    expect(useLocateStore.getState().document!.terminals).toEqual({})
+    expect(percent()).toBe(zoom)
+    expect(screen.getByRole('button', { name: 'Terminals' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    )
+    // Redo puts it back, and says so.
+    fireEvent.keyDown(window, { key: 'Z', ctrlKey: true, shiftKey: true })
+    expect(useLocateStore.getState().document!.terminals['CR-BP:A1'].point).toEqual([612, 396])
+    expect(screen.getByText('redid: placed CR-BP:A1')).toBeTruthy()
+  })
+
+  it('ignores the keys while the Drawing tab has the screen', async () => {
+    // Hazard H10: both tabs are `keepMounted`, so the `activeTabId` guard is the only thing
+    // stopping a keystroke meant for the reader's side from mutating an authored file. This is
+    // now the third `window` key listener in the application.
+    await open()
+    fireEvent.click(row('CR-BP:A1'))
+    clickSheet(400, 300)
+    act(() => useAppStore.setState({ activeTabId: 'drawing' }))
+
+    fireEvent.keyDown(window, { key: 'ArrowRight', shiftKey: true })
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true })
+    expect(useLocateStore.getState().document!.terminals['CR-BP:A1'].point).toEqual([612, 396])
+  })
 
   it('shows every coordinate the server refused', async () => {
     stubServer({

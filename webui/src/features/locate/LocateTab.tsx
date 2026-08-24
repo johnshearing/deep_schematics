@@ -56,6 +56,7 @@ import { useLocateStore } from '@/stores/locateStore'
 import { LOCATE_TAB_ID } from '@/tabIds'
 import {
   coverage,
+  draftPoint,
   editorPlaces,
   LABELLABLE,
   nextSiteId,
@@ -103,6 +104,32 @@ const FILTERS: { id: Filter; label: string; title: string }[] = [
  */
 const FLY_CEILING_PERCENT = Math.round(FOCUS_ZOOM * 100)
 
+/**
+ * Which way each arrow moves the armed point, in PDF points — y down, as the page is.
+ *
+ * **`Shift` is required and bare arrows still pan the sheet** (`useTileViewport`'s `onKeyDown`
+ * declines the modified ones so the two cannot both fire). A key that silently means two things
+ * depending on whether something is armed would be worse than a modifier: the moment you are
+ * working on a dot is exactly the moment you also want to pan.
+ */
+const NUDGE: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+}
+
+/**
+ * The step, **in points rather than pixels**, so a nudge is the same correction at 11% as at
+ * 400%.
+ *
+ * A whole point against 16 pt conductor rows is a comfortable correction — a sixteenth of a row.
+ * A tenth is exactly the precision `locations.json` records, so `Shift`+`Alt` is the finest thing
+ * the file can say and there is no point offering anything smaller.
+ */
+const NUDGE_PT = 1
+const FINE_NUDGE_PT = 0.1
+
 export function LocateTab() {
   const drawing = useAppStore((s) => s.drawing)
   const health = useAppStore((s) => s.health)
@@ -120,13 +147,17 @@ export function LocateTab() {
     saveState,
     saveError,
     stale,
+    undoNote,
     load,
     setTarget,
     setAdvance,
     edit,
+    endRun,
     place,
     setLabelDir,
     clear,
+    undo,
+    redo,
     save,
   } = useLocateStore()
 
@@ -337,6 +368,81 @@ export function LocateTab() {
     [health?.editing?.by],
   )
 
+  /**
+   * Move the armed point a little, exactly — the cure for the accidental small drag.
+   *
+   * The answer to *"a dot moved a tenth of a point and I cannot put it back"* is two things, and
+   * this is the second: `Ctrl+Z` covers the accident, and this makes a small move something you
+   * can do **on purpose** without a mouse. A minimum-drag threshold was the obvious third idea
+   * and was rejected, because on this sheet it cannot tell a twitch from a deliberate 0.1 pt
+   * correction — both are real, and refusing an intention is worse than allowing an accident you
+   * can undo.
+   *
+   * It goes through the same `placeInto` a drag does, so it inherits the rounding, the `human`
+   * source, the `by`/`at` stamp, the autosave and the undo entry with nothing new to validate.
+   * The anchor is `draftPoint`, not `editorPlaces`: only a point the draft already owns moves —
+   * see that function for why nudging an estimate would be a lie rather than a correction.
+   *
+   * The whole run is one undo step. Ten presses and one `Ctrl+Z` puts the dot back where it
+   * started, not one tenth of the way back.
+   */
+  const nudge = useCallback(
+    (by: [number, number]) => {
+      if (!document || !target || !targetEntry) return
+      const from = draftPoint(document, target)
+      if (!from) return
+      const to: [number, number] = [from[0] + by[0], from[1] + by[1]]
+      edit(
+        (d) => placeInto(d, target, to, stamp(), targetEntry.kind),
+        `nudged ${target.site ? `${target.id} (${target.site})` : target.id}`,
+        `nudge:${target.id}:${target.site ?? ''}:${target.label ? 'label' : 'point'}`,
+      )
+    },
+    [document, target, targetEntry, edit, stamp],
+  )
+
+  /**
+   * The keyboard: `Ctrl+Z`, `Ctrl+Shift+Z`, and `Shift`(+`Alt`)+arrows.
+   *
+   * **This is the third `window` key listener in the application** — beside this tab's `Escape`
+   * and the Drawing tab's — and hazard `H10` applies to it in full: both tabs are `keepMounted`,
+   * so the `activeTabId` guard at the top is the only thing stopping a keystroke meant for the
+   * reader's side from mutating an authored file. Written down here before the listener existed
+   * rather than after it bit.
+   *
+   * `isTextField` first, always: a `Ctrl+Z` with the caret in the site-name box must undo
+   * *typing*, and must never un-place a dot on the other side of the screen.
+   *
+   * Held in a ref for the same reason `panTo` is — the handler closes over the draft and the
+   * armed target, both of which change constantly, and re-binding a `window` listener on every
+   * keystroke of a placement run is a cost with no benefit.
+   */
+  const keys = useRef({ nudge, undo, redo })
+  keys.current = { nudge, undo, redo }
+  useEffect(() => {
+    if (activeTabId !== LOCATE_TAB_ID) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || isTextField(event.target)) return
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) keys.current.redo()
+        else keys.current.undo()
+        return
+      }
+
+      // Bare arrows are the viewport's, and stay the viewport's.
+      if (!event.shiftKey || event.ctrlKey || event.metaKey) return
+      const direction = NUDGE[event.key]
+      if (!direction) return
+      event.preventDefault()
+      const step = event.altKey ? FINE_NUDGE_PT : NUDGE_PT
+      keys.current.nudge([direction[0] * step, direction[1] * step])
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [activeTabId])
+
   /** Place, then move on. The advance is what makes a run of placements a run rather than 131
    * separate decisions about what to do next. */
   const put = useCallback(
@@ -412,7 +518,12 @@ export function LocateTab() {
         )}
 
         <div className="ml-auto flex items-center gap-1">
-          <SaveStatus state={saveState} error={saveError} onSave={() => void save()} />
+          <SaveStatus
+            state={saveState}
+            error={saveError}
+            note={undoNote}
+            onSave={() => void save()}
+          />
           <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={viewer.zoomOut}>
             <Minus />
           </Button>
@@ -597,8 +708,17 @@ export function LocateTab() {
                     ? { id: entry.id, site: dragPlace.site ?? nextSiteId(document, entry.id) }
                     : { id: entry.id, site: null }
                 setTarget(to)
-                edit((d) => placeInto(d, to, point, stamp(), entry.kind))
+                /* One undo step per gesture, not per frame. This fires on every pointer move, so
+                   without the coalescing key a single drag across the sheet would push fifty
+                   snapshots and push the thing you actually wanted back off the end of the
+                   stack. `onDragEnd` closes the run when the pointer lets go. */
+                edit(
+                  (d) => placeInto(d, to, point, stamp(), entry.kind),
+                  `moved ${to.label ? `${to.id}'s label point` : to.site ? `${to.id} (${to.site})` : to.id}`,
+                  `drag:${to.id}:${to.site ?? ''}:${to.label ? 'label' : 'point'}`,
+                )
               }}
+              onDragEnd={endRun}
             />
           )}
         </div>
@@ -606,9 +726,12 @@ export function LocateTab() {
 
       <p className="border-t px-4 py-1 text-[11px] text-muted-foreground">
         Pick a row, then click the sheet to place it · drag any dot to correct it ·{' '}
-        <kbd className="rounded border px-1 py-px font-mono text-[10px] text-foreground">Esc</kbd>{' '}
-        selects nothing and gives the hand back · past {FLY_CEILING_PERCENT}% zoom, picking a row
-        leaves the sheet exactly where it is · filled dots
+        <Key>Shift</Key>+arrows nudge the armed point by {NUDGE_PT} pt and{' '}
+        <Key>Shift</Key>+<Key>Alt</Key>+arrows by {FINE_NUDGE_PT} pt, at any zoom — bare arrows
+        still pan · <Key>Ctrl</Key>+<Key>Z</Key> undoes the last change and{' '}
+        <Key>Ctrl</Key>+<Key>Shift</Key>+<Key>Z</Key> puts it back ·{' '}
+        <Key>Esc</Key> selects nothing and gives the hand back · past {FLY_CEILING_PERCENT}% zoom,
+        picking a row leaves the sheet exactly where it is · filled dots
         were placed by hand, hollow ones are the indexing pass&apos;s estimate. Saved to{' '}
         <span className="font-mono">locations.json</span>, which is authored and belongs in git
         beside <span className="font-mono">author_circuit_logic.py</span>.
@@ -630,6 +753,14 @@ export function LocateTab() {
 }
 
 const EMPTY_SET: Set<string> = new Set()
+
+function Key({ children }: { children: string }) {
+  return (
+    <kbd className="rounded border px-1 py-px font-mono text-[10px] text-foreground">
+      {children}
+    </kbd>
+  )
+}
 
 /** `numeric` so that a pin `3` comes before a pin `21` rather than after it: these ids end in
  * numbers a person reads as numbers, and `W9` after `W047` is the kind of small wrongness that
@@ -693,10 +824,14 @@ function framing(
 function SaveStatus({
   state,
   error,
+  note,
   onSave,
 }: {
   state: string
   error: string | null
+  /** What the last undo or redo did. A document mutation reverted silently on a 275-row file is
+   * indistinguishable from a key that did nothing, so the badge says it in words. */
+  note: string | null
   onSave: () => void
 }) {
   const text =
@@ -711,6 +846,11 @@ function SaveStatus({
             : ''
   return (
     <span className="flex items-center gap-1.5">
+      {note && (
+        <span className="max-w-64 truncate text-[11px] text-foreground" title={note}>
+          {note}
+        </span>
+      )}
       {error && (
         <span className="max-w-64 truncate text-[11px] text-[var(--color-danger)]" title={error}>
           {error}

@@ -231,6 +231,56 @@ def test_a_net_and_a_wire_get_a_rectangle_spanning_what_they_touch(client) -> No
     assert wire["label"] == "BLUE 18AWG wire, CR1:A1 → CB1:2"
 
 
+def test_a_net_names_every_member_terminal_in_order_with_its_own_placement(client) -> None:
+    """The fault this prevents: a net highlight that marks *components*.
+
+    `members` is the parent components of a net's terminals, and marking those put the ring in
+    the wrong place — on the real sheet net 120's `CR2` is a coil 630 pt from `CR2:14`, the
+    contact actually on the net, and `TB-120:1/2/3` collapse into one component so seven members
+    showed as five dots. So the entry has to publish the membership itself, and each member has
+    to carry **its own** placement: a net of two placed pins and one nobody has touched is three
+    different claims and one field could only lie about two of them.
+    """
+    net = designators(client)["110"]
+    assert [m["id"] for m in net["terminals"]] == ["CR1:A1", "CB1:2", "TB-110:1"]
+    # Nothing is placed in this fixture, so all three are their parents' points, said in words.
+    assert [m["placement"] for m in net["terminals"]] == ["parent", "parent", "parent"]
+    assert net["terminals"][0]["point"] == [100.0, 200.0]
+    # And the coarser list is still there, still the parents. Both, because the card demotes the
+    # components to `runs through` rather than dropping them.
+    assert net["members"] == ["CR1", "CB1", "TB-110"]
+
+
+def test_a_wire_names_its_two_ends_in_from_to_order(client) -> None:
+    """Order is the content here: a two-ended compass on the Locate tab heads its controls with
+    these ids, and swapping them would label both ends of every wire wrongly with nothing on
+    screen to show it."""
+    wire = designators(client)["W047"]
+    assert [m["id"] for m in wire["terminals"]] == ["CR1:A1", "CB1:2"]
+
+
+def test_a_component_and_a_terminal_are_not_made_of_anything(client) -> None:
+    """The field says what a thing *consists of*. A component does not consist of terminals in
+    this sense — its pins are its own rows — so publishing an empty list there would invite a
+    reader to draw a roster with nothing in it."""
+    index = designators(client)
+    assert "terminals" not in index["CR1"]
+    assert "terminals" not in index["CR1:A1"]
+
+
+def test_every_member_a_net_rings_is_inside_the_rectangle_it_frames(client) -> None:
+    """Asserted rather than assumed, because the two are computed from the same list *today* and
+    a later change to either could quietly put a ringed dot off screen after the flight."""
+    for identifier in ("110", "W047"):
+        entry = designators(client)[identifier]
+        x0, y0, x1, y1 = entry["rect"]
+        for member in entry["terminals"]:
+            if member["point"] is None:
+                continue
+            x, y = member["point"]
+            assert x0 <= x <= x1 and y0 <= y <= y1, f"{member['id']} is outside {identifier}"
+
+
 def test_ids_the_extraction_invented_are_marked_as_ours(client) -> None:
     """`prompts.py` makes the model put these in parentheses after a description, because the
     reader is holding the sheet and cannot find them on it. The UI has to say the same thing,

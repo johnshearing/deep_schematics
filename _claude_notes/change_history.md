@@ -15,7 +15,23 @@ a dated entry like the rest and the section goes.
 
 ---
 
-## NEXT UP — Job E, then Job F
+## NEXT UP — Session 2 of the wires-and-nets plan
+
+**Superseded as of 2026-08-24.** The work in progress is
+**`_claude_notes/highlighting_wires_and_nets.md`** — a six-session plan whose §0 says what to read
+and whose §13 is the schedule. **Session 1 (Phases 0 + A) landed 2026-08-24**; see the dated entry
+below for what it built and the two things a person must do afterwards. **The next session is
+Session 2, Phase B**, and it should begin by reading `08_results_log.md` for how the user got on with
+T-470–T-520.
+
+Job E below is done — the placement run finished on 2026-08-20 and all 131 terminals are placed. Job
+F is still the runner-up and still worth doing as its own piece of work. **The rest of this section
+is kept as it was written on 2026-08-17**, because the state block and the three facts about
+restarting are still exactly right and cost a session each to learn.
+
+---
+
+### Job E, then Job F *(as written 2026-08-17)*
 
 **This section is the plan, not the record. It is written to be the only thing a new session
 needs to read before starting. Everything below it is history.**
@@ -116,6 +132,186 @@ a specific question needs them.
 
 Semicolons, not `&&`, so one failure does not hide the state of the other three. Run
 `npm run build` **and restart the server** at the end; see the state block above for why both.
+
+---
+
+## 2026-08-24 — Session 1 of the wires-and-nets plan: the editor stops punishing mistakes, and a net tells the truth
+
+**Phases 0 and A of `_claude_notes/highlighting_wires_and_nets.md`.** That document is a six-session
+plan and §13 is the schedule; this is the first sitting and it stops here on purpose — the user walks
+the lessons between sessions, and Session 2 assumes they have. Nothing is half-built: the file format
+has not moved.
+
+The two changes belong together because neither adds a screen. Both make something that already
+existed **correct**.
+
+### 1. `Ctrl+Z`, and `Shift`+arrows to nudge a marker precisely — `K8` fixed
+
+**Why.** On 2026-08-24 `BYPASS-CB:1` moved from y 663.8 to 663.7 during a placement run — a tenth of
+a point, a 160th of a conductor row, invisible on screen — and the coordinate it replaced was gone
+from the running program. A drag writes into the draft, autosave persists it, and git recovers the
+last *commit*, never the last *action*. The user asked for undo by name.
+
+**What landed.** An undo stack over the draft in `webui/src/stores/locateStore.ts`: `Ctrl+Z`,
+`Ctrl+Shift+Z`, fifty steps, in memory, cleared on load. Plus `Shift`+arrow to move the armed point
+1.0 pt and `Shift`+`Alt`+arrow 0.1 pt.
+
+**The fact that made it small, and it is worth keeping.** Every mutation in this editor already
+funnelled through one function — `edit(change)` — and `set({ document: … })` appeared in exactly one
+other place. So the stack is a **push inside `edit`**, and every existing mutation became undoable at
+once with no per-action work and nothing to forget: a point, a drag, a rename, a pin assignment, a
+label side, an unplace, a wire's label point. The three writers that are *not* user actions (`load`,
+`save`'s reconciliation, `reset`) **clear** the stack instead — a stack that survived a load would
+undo this document's points into the coordinates of the file open before it. That distinction is the
+one thing to get right and it is now hazard **H13**.
+
+**Six decisions in it that are not obvious:**
+
+- **Whole-document snapshots, not inverse patches.** 38 KB × 50 is under 2 MB, next to 2.2 MB of
+  tiles already on the page. A patch scheme would be smaller and could be *subtly* wrong, and the
+  bug it would produce is losing a coordinate — the exact thing being fixed. Correctness beats
+  cleverness in the one place where the failure mode is data loss.
+- **It announces itself.** A document mutation reverted silently on a 275-row file is
+  indistinguishable from a key that did nothing, so the toolbar says *"undid: moved `BYPASS-CB:1`"*
+  and the list arms and scrolls to the row it changed. Every call site passes a note in a person's
+  words; *"undid: an edit"* would tell you nothing at the moment you most need telling.
+- **It arms the row it changed, and never restores the row that was armed before.** The plan's own
+  test table said *"undo does not change the armed target"* while its design body said *"the list
+  arms that row"*. Resolved in favour of the body, with the reason written down: arming the affected
+  row is **announcement**, not history. Undo that walked back navigation as well as content would
+  interleave with panning and become unpredictable, which is the thing the plan was actually
+  guarding. In the common case they coincide anyway, because a drag arms the row it drags. **The
+  automated test was written the honest way rather than the way the plan phrased it** —
+  `arms the row whose value changed, rather than restoring what was armed before` — and T-480 walks
+  it in those words.
+- **A run is one step.** A drag calls `edit` on every pointer move and a nudge on every keypress, so
+  both pass a coalescing key: ten arrow presses, or one drag however many frames long, goes back in a
+  single `Ctrl+Z`. Without it one gesture would fill a fifty-deep stack with itself and shove the
+  thing you wanted off the end. `endRun()` closes a drag when the pointer lets go.
+- **The step is in points, not pixels.** So a nudge is the same correction at 11% as at 400% — one
+  point against 16 pt rows is a sixteenth of a row wherever you are standing. A pixel step would be
+  twenty times coarser at fit zoom with nothing on screen to say so.
+- **Only a point the draft already owns will move**, via a new pure `model.ts` `draftPoint` —
+  deliberately not `editorPlaces`, which falls back to the server's resolved answer. A terminal drawn
+  on its parent's dot has a dot on screen and no point of its own; nudging it would turn *"we guessed
+  `CR-BP:12` is at the coil"* into *"a human confirmed it is 1 pt from the coil"*, which is a
+  `derived` tier by the back door. **Placing is a click and stays a click.** This became invariant 8
+  in the code map.
+
+**Bare arrows still pan, on both tabs.** `useTileViewport`'s key handler now declines a *modified*
+arrow — otherwise a nudge would move the dot 1 pt while the sheet slid 60 px underneath it and the
+correction would be invisible. The guard is narrowed to `event.key.startsWith('Arrow')` on purpose:
+`+` needs `Shift` to type, and a blanket `shiftKey` guard would have quietly stopped zooming in.
+
+**Two ideas rejected, and the reasons are recorded in the plan §9 so they do not creep back.** A
+minimum-drag threshold — rejected by the user, because on this drawing a twitch and a deliberate
+0.1 pt correction are the same gesture and no threshold can tell them apart; refusing an intention is
+worse than allowing an accident you can undo. And a `rev` counter on the file (the `K2` fix) —
+deferred, because it has never been observed to bite in a single-tab workflow.
+
+### 2. A net or a wire is highlighted as the terminals it is made of
+
+**The report.** *"Clicking `120` marks Bypass-CB, DISCHARGE1, INFEED1 and TB-120, but not CR2."*
+
+**It was real, and it was two faults wearing one coat.** CR2 *was* in the highlight set and a dot
+*was* drawn — on CR2's **coil**, at (861.0, 381.3). The terminal actually on net 120 is `CR2:14`, its
+NO contact, at (236.1, 563.4): most of a sheet away, which reads exactly like a missing mark. The
+cause is that a net's highlight was `entry.members`, and `members` is the **parent components** of
+its terminals. The same disagreement, quieter, put `DISCHARGE1`'s ring on the component rather than
+on `DISCHARGE1:3` — and `TB-120:1/2/3` share a parent, so **seven members were being shown as at most
+five dots**.
+
+**What landed.** `/api/designators` publishes `terminals` on every wire and net: the membership
+itself, **in order and undeduped**, each member with its own point and its own `placement`.
+`[from, to]` for a wire, `member_terminals` for a net. Measured against the real drawing: 127 members
+over 26 nets, 142 ends over 71 wires, every one `confirmed` — because all 131 terminals are placed,
+which is what makes this worth doing at all.
+
+**Three distinctions the payload now keeps apart, and hazard H12 exists so they stay apart:**
+
+- **`terminals` is undeduped; `places` is deduplicated.** Two members on one coordinate is one dot
+  *and* two members, and both are facts. A roster that showed five rows for seven members because
+  three share a block would under-report the net.
+- **A wire's order is content, not presentation.** Session 2's two-ended compass heads its controls
+  with those ids; swapping them would mislabel both ends of all 71 wires with nothing visible to show
+  it.
+- **Each member carries its own `placement`.** A net of two placed pins and one nobody has touched is
+  three claims, and one field on the net could only lie about two of them.
+
+**On the client:** `DrawingTab`'s `relatedIds` now includes the member terminal ids, which does two
+jobs with one set — the rings land on terminals, and (because a switched-off group only contributes
+what is in `relatedIds`, which is H11) **a selected net's pins draw even with `Terminals` off.** The
+parent components stay marked, because a relay drawn in two places is genuinely part of the net in
+both.
+
+**The selection card becomes a roster.** One row per member, in order, each saying how well its own
+point is known and each a click away from being flown to — through the same `select(kind, id)` a
+citation calls, so the two entry points cannot drift. It scrolls rather than truncating. The
+component chips stay, demoted to `runs through`. And a row that is not `placed` carries a **place it**
+link that arms that pin on the Locate tab — the roster is where somebody *notices* a pin has no point
+of its own, and making them then find that row in a 275-entry list on another tab is exactly the
+searching this project exists to remove. It is offered only when `health.editing.enabled`, so a
+reader's copy is unaffected.
+
+**The three placement words now live in one place.** `placed`, `estimate`, `on its component` and
+`nowhere` moved into `webui/src/lib/designators.ts` as `PLACEMENT_LABEL`, imported by both the Locate
+tab's list and the Drawing tab's roster. A reader who learns *"on its component"* in the editor has to
+meet the same phrase on the reader's side, and two copies of four words is two copies too many.
+
+**One deliberate coupling.** `DrawingTab` imports `useLocateStore` — the only place outside the
+Locate feature that touches it, and the store's header now records the exception. It sets the armed
+target and nothing else.
+
+**What it cost, said out loud:** `/api/designators` grew from **90.0 KB to 110.1 KB** — 269 small
+objects, about 20 KB, 22%. Fetched once per page load and again after each save, against 2.2 MB of
+tiles. Recorded because *"it is only a few fields"* is how a payload doubles over six sessions.
+
+### One new known issue, found while writing the lesson
+
+**`K9`: a net cannot be selected from the sheet.** Nothing a reader can click raises a net or a wire —
+the dots are components, terminals and label points — so the only route to a net's highlight is a
+citation in an answer, which costs a question. T-500 says so and offers the choice of walking it after
+Session 3, whose Drawing-tab list removes the need. Noted so nobody reports it as a bug in the
+meantime.
+
+### Tests and documents
+
+**111 server (was 106), 155 web (was 127), `ruff` and `tsc` clean.** The artifact test was cleared by
+re-running the generator first, as the plan instructs, so that inherited red could not be confused
+with our own.
+
+| Where | Added |
+|---|---|
+| `webui/src/stores/locateStore.test.ts` | **New, 12 tests.** The code map had said in as many words that an undo stack would need this file. It reads the *draft document* rather than the screen, because the document is the deliverable |
+| `webui/src/features/locate/LocateTab.test.tsx` | 9 — both step sizes at two zooms, the bare arrow still panning, `Shift`+`+` still zooming, ten nudges in one undo, the text-field guard, the zoom and filter left alone, the `activeTabId` guard |
+| `webui/src/features/drawing/DrawingTab.test.tsx` | 5 — rings on terminals at their own points, the roster's rows and words, a row flying, pins surviving `Terminals` off, *place it* present only with an editor |
+| `webui/src/features/locate/model.test.ts` | 2 — `draftPoint` answers only for what the draft owns |
+| `server/tests/test_api.py` | 4 — a net's members in order with their own placements, a wire's `[from, to]`, no `terminals` on a component or a terminal, every ringed member inside the rectangle |
+| `server/tests/test_locations.py` | 1 — two coincident members are **one dot and two members**, which is the undedup rule stated as a test |
+
+Documents, all in `_claude_notes/locate_tab_testing/`:
+
+- **`05_tests_save_and_recover.md`** extended with **T-470–T-490** — undo, what it covers and
+  deliberately does not, and the nudge walked at two zooms;
+- **`09_tests_net_membership.md`**, new, **T-500–T-520** — the fault in the words it was reported in,
+  then the rings, the frame, the roster, the flight and *place it*;
+- **the index**: §3 gains the new document, §5b is the two changes, §6 gains seven symptom rows, §7
+  strikes **`K8`** and adds **`K9`**, and the test counts are refreshed;
+- **`06_code_map.md`**: twelve new symbols, hazards **H12** and **H13**, invariant **8**, and the
+  *"there is no test file for the store"* note struck because there is one now;
+- **`01_screen_and_vocabulary.md`**: the undo line in the toolbar, a key table for the sheet, and a
+  section on the other screen's roster — because the words have to be the same words;
+- **`08_results_log.md`**: blank rows for T-470–T-520.
+
+### Two things a person must do, not a session
+
+**Restart the server** — `drawing.py` changed and `python -m app` has no reloader. The bundle was
+rebuilt (`npm run build`), so a restart picks up both halves; a rebuilt bundle against an
+unrestarted server is the dangerous combination.
+
+**`circuit_logic.json` is modified in the working tree** — the plan's "start from green" step
+re-ran `author_circuit_logic.py`, which is the correct way to clear `K6`. It is a generated file and
+belongs in the same commit.
 
 ---
 

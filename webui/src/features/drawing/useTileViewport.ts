@@ -422,6 +422,18 @@ export function useTileViewport({ width, height, dpi }: Options) {
 
   const onKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      /**
+       * **`Shift`+arrow is not the viewport's.** It nudges the armed point in the Locate editor,
+       * by a whole point or a tenth of one, and if the sheet panned as well the dot would move
+       * under a moving sheet and the correction would be invisible. Bare arrows still pan, on
+       * both tabs, and that is the deliberate half of the choice: the moment you are working on
+       * a dot is exactly the moment you also want to pan, so the modifier carries the new meaning
+       * rather than the plain key acquiring a second one.
+       *
+       * Narrowed to the arrows on purpose — `+` needs `Shift` on most keyboards, and a blanket
+       * `shiftKey` guard here would quietly break zooming in.
+       */
+      if (event.shiftKey && event.key.startsWith('Arrow')) return
       const keys: Record<string, () => void> = {
         '+': () => zoomBy(BUTTON_STEP),
         '=': () => zoomBy(BUTTON_STEP),

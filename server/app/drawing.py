@@ -133,7 +133,9 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
     - a **wire** is its two terminals and a **net** is every terminal on it, so `rect` frames the
       run rather than the components it happens to pass through. Neither is ever *placed*: their
       geometry is their endpoints', which is why placing 131 terminals gives 71 wires their
-      positions for free.
+      positions for free. Both also publish `terminals` — the membership itself, in order and
+      undeduped, each member with its own point and provenance. `members` is those terminals'
+      parent components and is **not** a substitute for it; see `_entry`.
 
     `point` is the centre of `rect`; `rect` is what the viewer frames; `places` is every distinct
     place the id is drawn — each with its own point, site name and `placement` — and is present
@@ -212,6 +214,7 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
                 on_sheet=not nid.startswith(INVENTED_NET_PREFIX),
                 with_placement=False,
                 label_at=geometry.label(nid),
+                terminal_ids=pins,
             )
         )
 
@@ -230,6 +233,7 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
                 on_sheet=not WIRE_IDS_ARE_OURS,
                 with_placement=False,
                 label_at=geometry.label(wid),
+                terminal_ids=ends,
             )
         )
 
@@ -253,6 +257,7 @@ def _entry(
     aliases: list[str] | None = None,
     with_placement: bool = True,
     label_at: Spot | None = None,
+    terminal_ids: list[Any] | None = None,
 ) -> dict[str, Any]:
     """One row of the index.
 
@@ -260,6 +265,17 @@ def _entry(
     they have a location, because the overlay rings the ones it can place and the popover still
     names the rest. `placed` is the geometry, already resolved, in the order the caller wants it
     shown: the first one is the primary, which is what `placement` describes.
+
+    `terminal_ids`, for wires and nets, is **what the thing is actually made of** — and it is a
+    different list from `members`, which is those terminals' *parent components*. Ringing the
+    parents is what produced the fault this field exists to fix: net 120's members include `CR2`,
+    whose coil is in the right-hand column and whose NO contact `CR2:14` — the terminal actually
+    on the net — is 630 pt away on the far left. A ring on "CR2" therefore marked a place the net
+    does not touch, while the seven member terminals showed up as at most five component dots
+    because `TB-120:1/2/3` collapse onto one parent. So the entry publishes the membership
+    itself, **in order and undeduped**: `[from, to]` for a wire, `member_terminals` for a net.
+    `places` stays deduplicated — two dots on one point is still one dot — which is exactly why
+    the two lists cannot be the same list.
 
     `label_at` is for wires and nets only, and is **not** geometry: `rect` still frames the run
     from its endpoints. It is where the name is printed on the sheet, so a citation of `W048` can
@@ -317,6 +333,12 @@ def _entry(
         entry["places"] = places
     if with_placement:
         entry["placement"] = found[0].placement if found else None
+    if terminal_ids is not None:
+        entry["terminals"] = [
+            _member(tid, spot)
+            for tid, spot in zip(terminal_ids, placed, strict=True)
+            if isinstance(tid, str)
+        ]
     if label_at is not None:
         entry["label_point"] = [label_at.point[0], label_at.point[1]]
         if label_at.label_dir:
@@ -324,6 +346,24 @@ def _entry(
     if aliases:
         entry["aliases"] = aliases
     return entry
+
+
+def _member(terminal_id: str, spot: Spot | None) -> dict[str, Any]:
+    """One terminal a wire or net is made of, carrying **its own** provenance.
+
+    Its own, not the entry's: a net whose members are two confirmed pins and one nobody has
+    placed is three different claims, and a single `placement` on the net could only be a lie
+    about two of them. `point` is null where the resolver found nothing at all — legitimate, and
+    the roster says `nowhere` rather than drawing a dot somewhere plausible.
+    """
+    member: dict[str, Any] = {
+        "id": terminal_id,
+        "point": [spot.point[0], spot.point[1]] if spot else None,
+        "placement": spot.placement if spot else None,
+    }
+    if spot is not None and spot.site:
+        member["site"] = spot.site
+    return member
 
 
 def _invented_terminal(owner: Any) -> bool:

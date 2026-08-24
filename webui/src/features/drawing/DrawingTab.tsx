@@ -42,7 +42,8 @@ import { isTextField } from '@/lib/keys'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
 import { useChatStore } from '@/stores/chatStore'
-import { ASK_TAB_ID, DRAWING_TAB_ID } from '@/tabIds'
+import { useLocateStore } from '@/stores/locateStore'
+import { ASK_TAB_ID, DRAWING_TAB_ID, LOCATE_TAB_ID } from '@/tabIds'
 import { MarkerLayer } from './MarkerLayer'
 import { SelectionCard } from './SelectionCard'
 import { TileSheet } from './TileSheet'
@@ -140,6 +141,9 @@ export function DrawingTab() {
   const select = useAppStore((s) => s.select)
   const clearSelection = useAppStore((s) => s.clearSelection)
   const setActiveTab = useAppStore((s) => s.setActiveTab)
+  /** Subscribed rather than read once: `/api/health` lands after the first paint, and a tab that
+   * decided there was no editor before the answer arrived would never offer *place it*. */
+  const editingEnabled = useAppStore((s) => s.health?.editing?.enabled ?? false)
   const setComposerText = useChatStore((s) => s.setComposerText)
   const tiles = drawing?.tiles ?? null
 
@@ -186,7 +190,27 @@ export function DrawingTab() {
   )
 
   const entry = selection ? (byToken.get(normalise(selection.id)) ?? null) : null
-  const relatedIds = useMemo(() => new Set(entry?.members ?? []), [entry])
+  /**
+   * Everything the selection marks, and for a net or a wire **its member terminals are in here.**
+   *
+   * They have to be, and for two separate reasons that happen to want the same set. `MarkerLayer`
+   * rings what is in here, so the seven pins of net 120 get their own dots instead of the net
+   * being summarised by the five components those pins happen to hang off — `CR2:14` on CR2's NO
+   * contact rather than a ring on the coil 630 pt away. And `markers` below lets a *switched-off*
+   * group contribute anything in this set, so the pins of a selected net draw even with the
+   * `Terminals` switch off, which is the one case the overlay must stay visible for (H11).
+   *
+   * The parent components stay too: a relay drawn in two places is genuinely part of the net in
+   * both, and the card demotes them to `runs through` rather than dropping them.
+   */
+  const relatedIds = useMemo(
+    () =>
+      new Set([
+        ...(entry?.members ?? []),
+        ...(entry?.terminals ?? []).map((member) => member.id),
+      ]),
+    [entry],
+  )
   /** A marker for the selection itself — at its own point, under its own name, and only where
    * there is a real place to put one. See `atLabelPoint` for the wire and net case. */
   const selectedMarker = useMemo<Designator | null>(() => {
@@ -286,6 +310,24 @@ export function DrawingTab() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [activeTabId, clearSelection])
+
+  /**
+   * *place it* on a member of the roster: arm that pin in the editor and go there.
+   *
+   * The one place in the application outside the Locate feature that touches `locateStore`, and
+   * it is deliberate rather than convenient. The roster is where a reader *notices* that a pin
+   * has no point of its own — that is the whole value of publishing each member's own placement —
+   * and making them find the row again in a 275-entry list on another tab is the searching this
+   * project exists to remove. Only the armed target is set; nothing is written, and a server with
+   * no editor never offers the link at all, so a reader's copy is unaffected.
+   */
+  const placeTerminal = useCallback(
+    (terminalId: string) => {
+      useLocateStore.getState().setTarget({ id: terminalId, site: null })
+      setActiveTab(LOCATE_TAB_ID)
+    },
+    [setActiveTab],
+  )
 
   const ask = useCallback(() => {
     if (!entry) return
@@ -451,6 +493,8 @@ export function DrawingTab() {
             entry={entry}
             canSelect={(id) => located.has(id)}
             onSelectMember={(id) => select('component', id)}
+            onSelectTerminal={(id) => select('terminal', id)}
+            onPlaceTerminal={editingEnabled ? placeTerminal : undefined}
             onAsk={ask}
             onClose={clearSelection}
           />

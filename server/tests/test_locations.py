@@ -419,3 +419,36 @@ def test_the_parse_is_cached_per_drawing_and_can_be_invalidated(drawing_dir: Pat
     assert load_locations(drawing_dir).counts()["sites"] == 3  # still the cached parse
     load_locations.cache_clear()
     assert load_locations(drawing_dir).counts()["sites"] == 0
+
+
+def test_a_nets_membership_is_not_deduplicated_even_where_its_dots_are(drawing_dir: Path) -> None:
+    """Two members on one point is **one dot and two members**, and the payload has to say both.
+
+    `places` is deduplicated because drawing two dots on one coordinate is drawing one dot. The
+    membership is not, because it is the answer to a different question — on the real sheet
+    `TB-120:1`, `:2` and `:3` are three of net 120's seven terminals, and a roster that showed
+    five rows because three of them share a block would be under-reporting the net.
+    """
+    write_locations(
+        drawing_dir,
+        {
+            **LOCATIONS,
+            "components": {},
+            "terminals": {
+                "CR1:A1": {"point": [400, 400], "source": "human"},
+                "CB1:2": {"point": [400, 400], "source": "human"},
+            },
+        },
+    )
+    net = index(drawing_dir)["110"]
+
+    assert [m["id"] for m in net["terminals"]] == ["CR1:A1", "CB1:2", "TB-110:1"]
+    assert [m["point"] for m in net["terminals"]] == [
+        [400.0, 400.0],
+        [400.0, 400.0],
+        [200.0, 250.0],
+    ]
+    # Two coincident members, one dot: the coordinate appears once in `places`.
+    assert [p["point"] for p in net["places"]] == [[400.0, 400.0], [200.0, 250.0]]
+    # And each member still says how well its *own* point is known.
+    assert [m["placement"] for m in net["terminals"]] == ["confirmed", "confirmed", "parent"]

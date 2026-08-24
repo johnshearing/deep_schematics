@@ -62,6 +62,7 @@ Two things to hold on to:
 | Writing: atomic, whole-file, four refusals | `server/app/locations.py` | `save_locations`, `LocationsRefused` |
 | The empty document a fresh drawing gets | `server/app/locations.py` | `skeleton` |
 | Publishing `point`/`rect`/`places`/`placement`/`label_point` | `server/app/drawing.py` | `designator_index`, `_entry` |
+| **What a wire or a net is made of** — its member terminals, in order, **undeduped**, each with its own point and `placement` | `server/app/drawing.py` | `_entry`'s `terminal_ids` parameter and `_member`. `[from, to]` for a wire, `member_terminals` for a net. **Not** `members`, which is those terminals' *parent components* — see hazard H12 |
 | **Whether `places` is published at all** — and it must be whenever a place carries a `label_dir`, single dot or not, because that field exists nowhere else in the payload | `server/app/drawing.py` | `_entry`, the `len(places) > 1 or any("label_dir" …)` test. This was the 2026-08-19 label-side fault (T-335): 269 of 275 entries are single, and eliding their `places` elided the side a human chose |
 | Which ids the extraction invented (`our id`) | `server/app/drawing.py` | `WIRE_IDS_ARE_OURS`, `INVENTED_TERMINAL_PREFIX`, `INVENTED_TERMINAL_PARENTS`, `INVENTED_NET_PREFIX` |
 | The gate — routes registered or not | `server/app/main.py` | `if settings.allow_edits:` inside `create_app` |
@@ -93,6 +94,15 @@ the artifact one is red exactly while `locations.json` is ahead of `circuit_logi
 | A wire or net turned into something drawable — **its label point, never its route** | `webui/src/features/drawing/DrawingTab.tsx` | `atLabelPoint` (shared by the layer and by `selectedMarker`, so a label dot cannot exist in one path and not the other) |
 | What kind a click on the sheet raises | `webui/src/features/drawing/DrawingTab.tsx` | `onMarker` — `marker.kind`, **not** the `'component'` it was hard-coded to before 2026-08-19 |
 | Which components the selection card may offer as links | `webui/src/features/drawing/DrawingTab.tsx` | `located` — built from the components group whether or not it is switched on; see hazard H11 |
+| **Everything the selection marks**, which for a net or a wire includes its member terminals — and so is what draws them through a switched-off `Terminals` group | `webui/src/features/drawing/DrawingTab.tsx` | `relatedIds` — `entry.members` **plus** `entry.terminals[].id`. Drop the second half and a net's highlight goes back to marking parent components |
+| The member roster on the selection card, and its state words | `webui/src/features/drawing/SelectionCard.tsx` | `MemberRow`; the words come from `lib/designators.ts` `PLACEMENT_LABEL` / `placementLabel` |
+| **The three placement words, in one place** — `placed`, `estimate`, `on its component`, and `nowhere` for no placement at all | `webui/src/lib/designators.ts` | `PLACEMENT_LABEL`, `NOWHERE_LABEL`, `placementLabel`. Imported by `WorkList.tsx`'s `STATE` and by the roster, so the editor's list and the reader's card cannot drift into different English |
+| *place it* on a roster row — the one place outside the Locate feature that touches `locateStore` | `webui/src/features/drawing/DrawingTab.tsx` | `placeTerminal`, offered only when `health.editing.enabled`. Sets the target; writes nothing |
+| **Undo and redo over the draft** | `webui/src/stores/locateStore.ts` | `undoStack`, `redoStack`, `undoNote`, `undo`, `redo`, `UNDO_DEPTH` = 50, `Snapshot`, and the `coalescing` module variable with `endRun` |
+| Which mutations are undoable | `webui/src/stores/locateStore.ts` | **all of them**, because `edit` is the only writer. `note` is what the badge will say; `coalesce` makes a run of frames or keypresses one step |
+| **The keyboard** — `Ctrl+Z`, `Ctrl+Shift+Z`, `Shift`(+`Alt`)+arrows | `webui/src/features/locate/LocateTab.tsx` | `NUDGE`, `NUDGE_PT` = 1, `FINE_NUDGE_PT` = 0.1, `nudge`, and the third `window` key effect. See hazard **H10** — it applies to this listener too |
+| **What a nudge is allowed to move** | `webui/src/features/locate/model.ts` | `draftPoint` — the point the draft's own record holds, **not** `editorPlaces`. Nudging a resolved estimate would turn it into a confirmation |
+| Why a `Shift`+arrow does not also pan | `webui/src/features/drawing/useTileViewport.ts` | `onKeyDown`'s first line: a *modified* arrow is declined. Narrowed to `event.key.startsWith('Arrow')` on purpose — `+` needs `Shift` to type, and a blanket guard would stop zooming in |
 | **Where the sheet goes, and who asks** | `webui/src/features/locate/LocateTab.tsx` | `flyTo`, `framing`, `at`, `sheetRect` — and see hazard H3 |
 | **When the sheet goes nowhere however hard it is asked** | `webui/src/features/locate/LocateTab.tsx` | `FLY_CEILING_PERCENT` (= `FOCUS_ZOOM` × 100, imported, never restated) and the `percent` ref in the flight effect. Above it no flight moves anything: T-115 |
 | Which groups the Drawing tab has switched on, visibly | `webui/src/features/drawing/DrawingTab.tsx` | the `LAYERS.map` in the toolbar — `variant={shown[id] ? 'default' : 'ghost'}`, filled meaning on, as on this tab's filters |
@@ -130,6 +140,7 @@ wrong, it is wrong here.
 | Site naming | `nextSiteId` (`main`, `site-2`, …), `renameSite` (refuses empty/colliding), `canRenameSite` (the same rule, asked before typing is committed) |
 | Removing things | `clear`, `removeSite` — both drop the parent record when it empties |
 | Rounding and provenance stamping | `signed` (private) — one decimal place, `source: human`, `by`, `at` |
+| What may be nudged from the keyboard? | `draftPoint` — a point this target's own record already holds, and nothing resolved |
 
 **Client tests** ▲ — all nine files and their counts, since the four listed before were only this
 feature's. **127 tests.**
@@ -146,9 +157,12 @@ feature's. **127 tests.**
 | `components/UnlockButton.test.tsx` | 4 | |
 | `App.test.tsx` | 8 | the tabs, and the `F2` effect |
 
-**There is no test file for `stores/locateStore.ts`.** The store is covered only indirectly, through
-`LocateTab.test.tsx`. Anything that changes the store's own behaviour — an undo stack, for instance —
-needs a new `stores/locateStore.test.ts`.
+~~**There is no test file for `stores/locateStore.ts`.**~~ **There is one now** — written 2026-08-24
+with the undo stack, which is exactly the case that sentence anticipated: 12 tests in
+`stores/locateStore.test.ts`, reading the draft document rather than the screen, because the document
+is the deliverable. Current counts: **155 web tests over 10 files**, adding those 12, nine keyboard
+tests in `LocateTab.test.tsx` (32), five roster tests in `DrawingTab.test.tsx` (31) and two
+`draftPoint` tests in `model.test.ts` (22).
 
 ---
 
@@ -292,6 +306,51 @@ component list and must not be answered by a switch:
 If a report says *"the chips went dead"* or *"my citation stopped landing on anything"* and the
 person had been pressing toolbar buttons, this is it.
 
+### H12 — `members` is the parents, not the membership *(added 2026-08-24)*
+
+This is the fault Phase A fixed, written down as a hazard because the wrong field is the *plausible*
+one and reads correctly at a glance.
+
+A wire's or a net's **`members`** are the **parent components** of its terminals. Its **`terminals`**
+are what it is actually made of. Marking `members` is what produced *"clicking `120` marks
+Bypass-CB, DISCHARGE1, INFEED1 and TB-120, but not CR2"*: CR2 **was** marked, on its coil, because
+the net's member is `CR2:14` — CR2's NO contact, 630 pt away on the far left of the sheet. And
+`TB-120:1`, `:2` and `:3` share a parent, so **seven members were shown as at most five dots**.
+
+Three consequences to keep straight:
+
+- **`terminals` is undeduped and ordered; `places` is deduplicated.** They answer different
+  questions. Two members on one coordinate is one dot and two members, and both facts are published.
+  A wire's order is `[from, to]` and that order is content — Session 2's two-ended compass heads its
+  controls with those ids.
+- **Each member carries its own `placement`.** A net of two placed pins and one nobody has touched
+  is three claims, and one `placement` on the net could only lie about two of them.
+- **`relatedIds` in `DrawingTab.tsx` must include them**, or two things break at once: the rings go
+  back onto parent components, and — because a switched-off group only contributes what is in
+  `relatedIds` (H11) — a selected net's pins vanish the moment `Terminals` is off.
+
+### H13 — Undo lives inside `edit`, and three other writers must clear it *(added 2026-08-24)*
+
+`set({ document: … })` appears in **four** places in `locateStore.ts`. One of them, `edit`, is the
+user's mutation and pushes a snapshot. The other three — `load`, `save`'s reconciliation, and
+`reset` — are not user actions and must **clear** the stack rather than push to it. A stack that
+survived a `load` would undo this document's points into the coordinates of the file that was open
+before it.
+
+Two more details that are easy to get wrong and hard to notice:
+
+- **`coalescing` is module state**, beside `saveTimer`, and `setState` in a test cannot reach it. A
+  run left open leaks into the next thing that edits. Both test suites call `endRun()` in
+  `beforeEach` for that reason.
+- **A drag calls `edit` on every pointer move**, and a nudge on every keypress. Without a coalescing
+  key one gesture pushes dozens of snapshots and shoves the thing you actually wanted off the end of
+  a 50-deep stack. If a report says *"undo only moved it back a bit"*, that key is the first thing to
+  read.
+
+Whole-document snapshots rather than inverse patches, on purpose: 38 KB × 50 is under 2 MB next to
+2.2 MB of tiles already on the page, and a patch scheme that is subtly wrong loses work — which is
+the thing being fixed. `_claude_notes/highlighting_wires_and_nets.md` §12 records the fork.
+
 ---
 
 ## 5. Invariants — if one of these is violated, that is the bug
@@ -316,3 +375,8 @@ person had been pressing toolbar buttons, this is it.
    `author_circuit_logic.py`.
 7. **A terminal nobody placed has no location in the generated artifact** — not its parent's.
    The substitution happens at read time and is labelled `parent`.
+8. **Nothing writes a coordinate a person did not choose.** *(added 2026-08-24 with the keyboard.)*
+   A click places, a drag moves, a nudge corrects — and the nudge only ever moves a point the draft
+   **already owns** (`draftPoint`), never a resolved seed or a parent fallback. Turning an estimate
+   into a `source: human` point one arrow-press away from it would be a `derived` tier by the back
+   door, which is invariant 3 in different clothes.

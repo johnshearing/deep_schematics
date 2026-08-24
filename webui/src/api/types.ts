@@ -116,6 +116,26 @@ export interface Place {
   label_dir?: Compass
 }
 
+/**
+ * One terminal a wire or a net is **made of** — the members, not their parents.
+ *
+ * The distinction is the whole point of the field. A net's `members` are the parent *components*
+ * of its terminals, and marking those was the fault: net 120's members include `CR2`, whose coil
+ * sits in the right-hand column while `CR2:14` — the contact actually on the net — is 630 pt away
+ * on the far left, and `TB-120:1/2/3` collapse into one component so seven members showed as five
+ * dots. Each member carries its **own** `placement`, because a net of two confirmed pins and one
+ * nobody has placed is three different claims.
+ */
+export interface EntryTerminal {
+  id: string
+  /** Null where the resolver found nothing at all: the roster says `nowhere` rather than
+   * drawing a dot somewhere plausible. */
+  point: [number, number] | null
+  placement: Placement | null
+  /** The site the point came from, when it came from one. */
+  site?: string
+}
+
 /** One citable identifier, and where on the sheet it is. */
 export interface Designator {
   id: string
@@ -125,8 +145,16 @@ export interface Designator {
   /** False when the extraction invented the id (`W047`, `TB-0V:7`, `RECEPT1:3`). The reader is
    * holding the sheet and will not find it there, so the UI has to say so. */
   on_sheet: boolean
-  /** The components it is drawn through, whether or not they have a location. */
+  /**
+   * The components it is drawn through, whether or not they have a location.
+   *
+   * On a net or a wire these are the **parents** of its terminals, which is a coarser fact than
+   * it looks — read `terminals` for what the thing is actually made of.
+   */
   members: string[]
+  /** For a wire, `[from, to]`; for a net, every member terminal, in order and undeduped. Absent
+   * on components and terminals, which are not made of anything. */
+  terminals?: EntryTerminal[]
   /** Centre of `rect`, in PDF points. Null for the handful of ids with no location anywhere —
    * still citable, just not clickable. */
   point: [number, number] | null

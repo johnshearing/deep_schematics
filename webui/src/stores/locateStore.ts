@@ -15,6 +15,15 @@
  * thing that is remembered right up until the moment it is not. So a change schedules a write,
  * the status line says where the write got to, and the button is there for anyone who wants to
  * force it. The server's write is atomic, so a save landing mid-run costs nothing.
+ *
+ * **And because every mutation funnels through `edit`, undo is a push inside it.** That is the
+ * one fact that makes `Ctrl+Z` small: `set({ document: … })` appears in exactly three other
+ * places (`load`, `save`'s reconciliation, `reset`), none of them a user action, and all three
+ * *clear* the stack rather than pushing to it. Nothing has to remember to be undoable.
+ *
+ * One deliberate exception to "nothing else should have to know this store exists": the Drawing
+ * tab's member roster arms a pin here through `setTarget`. It writes nothing and is offered only
+ * where the server has an editor at all.
  */
 
 import { create } from 'zustand'
@@ -29,7 +38,27 @@ import { useAppStore } from '@/stores/appStore'
  * keyboard for a moment is safe. */
 const SAVE_DEBOUNCE_MS = 900
 
+/**
+ * How many mutations back `Ctrl+Z` reaches.
+ *
+ * **Whole-document snapshots, not inverse patches**, and the trade is made on purpose. The
+ * document is 38 KB, so fifty of them is under 2 MB — nothing, next to the 2.2 MB of tiles the
+ * same page already holds. A patch scheme would be smaller and could be *subtly* wrong, and the
+ * bug it would produce is losing a coordinate, which is the exact thing undo exists to prevent.
+ * Correctness beats cleverness in the one place where the failure mode is data loss.
+ */
+const UNDO_DEPTH = 50
+
 export type SaveState = 'clean' | 'pending' | 'saving' | 'saved' | 'error'
+
+/** One step back. The note is plain words for the badge — *"moved `BYPASS-CB:1`"* — because a
+ * silent undo on a 275-row document is invisible, and `target` is the row it was about, so the
+ * list can put it back under the eye. */
+interface Snapshot {
+  document: LocationsDocument
+  note: string
+  target: Target | null
+}
 
 interface LocateState {
   /** Null until the editor has been unlocked and the file loaded. */
@@ -60,22 +89,58 @@ interface LocateState {
    * is re-run, and the editor says so rather than running Python from a web request. */
   stale: string | null
 
+  /**
+   * Where `Ctrl+Z` and `Ctrl+Shift+Z` can go, newest last.
+   *
+   * **Document mutations only.** Not the pan, not the zoom, not the filter, and not the history
+   * of what was armed — an undo that also walks back navigation is worse than no undo, because
+   * the two interleave and you can no longer predict what the key will do. (Undo *does* arm the
+   * row whose value it changed, which is announcement rather than history: see `undo`.)
+   *
+   * **In memory, and cleared on load.** Cross-session recovery is git's job and always was; this
+   * is the last action, which git has never had.
+   */
+  undoStack: Snapshot[]
+  redoStack: Snapshot[]
+  /** What the last `Ctrl+Z` or `Ctrl+Shift+Z` did, for the save badge to say out loud. Cleared
+   * by the next mutation. */
+  undoNote: string | null
+
   unlock: (password: string) => Promise<boolean>
   load: (drawingNumber: string | null, pageSize: [number, number] | null) => Promise<void>
   setTarget: (target: Target | null) => void
   setAdvance: (advance: boolean) => void
-  /** Apply a mutation from `model.ts`. The one write path, so scheduling the save and marking
-   * the draft dirty cannot be forgotten at a call site. */
-  edit: (change: (document: LocationsDocument) => LocationsDocument) => void
+  /**
+   * Apply a mutation from `model.ts`. The one write path, so scheduling the save, marking the
+   * draft dirty and pushing an undo step cannot be forgotten at a call site.
+   *
+   * `note` is what the badge will say if this is undone, in the words a person would use.
+   * `coalesce` marks a *run*: consecutive edits sharing a key take one stack entry between them,
+   * the way a text editor coalesces typing. A drag fires this on every pointer move and a nudge
+   * on every keypress, so without it one gesture would fill the stack and ten arrow presses
+   * would need ten undos to put a dot back where it started.
+   */
+  edit: (
+    change: (document: LocationsDocument) => LocationsDocument,
+    note?: string,
+    coalesce?: string,
+  ) => void
+  /** End the current coalescing run, so the next edit starts a fresh undo step. Called when a
+   * drag lets go. */
+  endRun: () => void
   /** `kind` only picks which section of the file a wire-or-net label lands in. */
   place: (point: [number, number], stamp: Stamp, kind?: string) => void
   setLabelDir: (target: Target, dir: Compass | null) => void
   clear: (target: Target) => void
+  undo: () => void
+  redo: () => void
   save: () => Promise<void>
   reset: () => void
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
+/** The key of the run of edits currently being coalesced, or null between runs. */
+let coalescing: string | null = null
 
 export const useLocateStore = create<LocateState>()((set, get) => ({
   document: null,
@@ -88,6 +153,9 @@ export const useLocateStore = create<LocateState>()((set, get) => ({
   saveState: 'clean',
   saveError: null,
   stale: null,
+  undoStack: [],
+  redoStack: [],
+  undoNote: null,
 
   unlock: async (password) => {
     set({ loading: true, error: null })
@@ -107,6 +175,7 @@ export const useLocateStore = create<LocateState>()((set, get) => ({
     set({ loading: true, error: null })
     try {
       const body = await getLocations()
+      coalescing = null
       set({
         // An extraction nobody has placed anything on gets an empty document rather than a
         // failure: a fresh drawing and a half-placed one differ in content, not in kind.
@@ -114,6 +183,12 @@ export const useLocateStore = create<LocateState>()((set, get) => ({
         report: body.report,
         unlocked: true,
         saveState: 'clean',
+        // A stack over a document that has just been replaced would undo *this* file's points
+        // into *that* file's coordinates. One of the three places `document` is set for a
+        // reason that is not a user action, and all three clear rather than push.
+        undoStack: [],
+        redoStack: [],
+        undoNote: null,
       })
     } catch (error) {
       // A 401 here is the ordinary "not unlocked yet" state, not a failure worth shouting
@@ -127,22 +202,101 @@ export const useLocateStore = create<LocateState>()((set, get) => ({
   setTarget: (target) => set({ target }),
   setAdvance: (advance) => set({ advance }),
 
-  edit: (change) => {
-    const current = get().document
+  edit: (change, note = 'an edit', coalesce) => {
+    const { document: current, target, undoStack } = get()
     if (!current) return
-    set({ document: change(current), saveState: 'pending', saveError: null })
-    clearTimeout(saveTimer)
-    saveTimer = setTimeout(() => void get().save(), SAVE_DEBOUNCE_MS)
+    // A run in progress keeps its first entry: ten nudges then one `Ctrl+Z` must put the dot
+    // back where the run started, not one tenth of the way back.
+    const running = coalesce !== undefined && coalesce === coalescing
+    coalescing = coalesce ?? null
+    set({
+      document: change(current),
+      undoStack: running
+        ? undoStack
+        : [...undoStack, { document: current, note, target }].slice(-UNDO_DEPTH),
+      // A new edit after an undo is a new branch of history; the redone future is gone.
+      redoStack: [],
+      undoNote: null,
+      saveState: 'pending',
+      saveError: null,
+    })
+    scheduleSave(get)
+  },
+
+  endRun: () => {
+    coalescing = null
   },
 
   place: (point, stamp, kind = 'wire') => {
     const target = get().target
     if (!target) return
-    get().edit((document) => model.place(document, target, point, stamp, kind))
+    get().edit(
+      (document) => model.place(document, target, point, stamp, kind),
+      `placed ${describe(target)}`,
+    )
   },
 
-  setLabelDir: (target, dir) => get().edit((d) => model.setLabelDir(d, target, dir)),
-  clear: (target) => get().edit((d) => model.clear(d, target)),
+  setLabelDir: (target, dir) =>
+    get().edit((d) => model.setLabelDir(d, target, dir), `label side of ${describe(target)}`),
+  clear: (target) =>
+    get().edit(
+      (d) => model.clear(d, target),
+      target.label
+        ? `removed ${target.id}'s label point`
+        : target.site
+          ? `removed site ${target.site} of ${target.id}`
+          : `unplaced ${target.id}`,
+    ),
+
+  /**
+   * One step back, and **it says so.**
+   *
+   * Two things beyond restoring the document, both because a 275-row file gives a silent undo
+   * nothing to show for itself: the badge names what was undone, and the row it was about is
+   * armed — which scrolls it into view through the effect the list already has. That is
+   * *announcement*, not navigation history: undo never restores whatever happened to be armed
+   * before, it points at the value that just changed.
+   *
+   * And it autosaves, like any other mutation. An undo that does not persist is a lie after a
+   * reload.
+   */
+  undo: () => {
+    const { document: current, undoStack, redoStack } = get()
+    if (!current || !undoStack.length) return
+    const step = undoStack[undoStack.length - 1]
+    coalescing = null
+    set({
+      document: step.document,
+      target: step.target,
+      undoStack: undoStack.slice(0, -1),
+      redoStack: [...redoStack, { document: current, note: step.note, target: step.target }].slice(
+        -UNDO_DEPTH,
+      ),
+      undoNote: `undid: ${step.note}`,
+      saveState: 'pending',
+      saveError: null,
+    })
+    scheduleSave(get)
+  },
+
+  redo: () => {
+    const { document: current, undoStack, redoStack } = get()
+    if (!current || !redoStack.length) return
+    const step = redoStack[redoStack.length - 1]
+    coalescing = null
+    set({
+      document: step.document,
+      target: step.target,
+      undoStack: [...undoStack, { document: current, note: step.note, target: step.target }].slice(
+        -UNDO_DEPTH,
+      ),
+      redoStack: redoStack.slice(0, -1),
+      undoNote: `redid: ${step.note}`,
+      saveState: 'pending',
+      saveError: null,
+    })
+    scheduleSave(get)
+  },
 
   save: async () => {
     clearTimeout(saveTimer)
@@ -170,6 +324,7 @@ export const useLocateStore = create<LocateState>()((set, get) => ({
 
   reset: () => {
     clearTimeout(saveTimer)
+    coalescing = null
     set({
       document: null,
       report: null,
@@ -180,9 +335,24 @@ export const useLocateStore = create<LocateState>()((set, get) => ({
       saveState: 'clean',
       saveError: null,
       stale: null,
+      undoStack: [],
+      redoStack: [],
+      undoNote: null,
     })
   },
 }))
+
+function scheduleSave(get: () => LocateState) {
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => void get().save(), SAVE_DEBOUNCE_MS)
+}
+
+/** The armed thing, in the words the badge will use. A component names its site because a relay
+ * drawn three times has three of them and *"moved CR-BP"* would not say which. */
+function describe(target: Target): string {
+  if (target.label) return `${target.id}'s label point`
+  return target.site ? `${target.id} (${target.site})` : target.id
+}
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error)

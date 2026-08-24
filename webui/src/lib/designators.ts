@@ -11,7 +11,28 @@
  * awkward place to assert against.
  */
 
-import type { Designator, DesignatorIndex, Place } from '@/api/types'
+import type { Designator, DesignatorIndex, Place, Placement } from '@/api/types'
+
+/**
+ * How well a point is known, in the words the screen uses — and **one copy of those words.**
+ *
+ * The Locate tab's row states and the Drawing tab's member roster describe the same three
+ * claims, and a reader who learned "on its component" from the editor must meet the same phrase
+ * on the reader's side. `null` is not in the map because it is not a placement: nothing is
+ * known, and that reads `nowhere`.
+ */
+export const PLACEMENT_LABEL: Record<Placement, string> = {
+  confirmed: 'placed',
+  seed: 'estimate',
+  parent: 'on its component',
+}
+
+/** What a member of a net or a wire says about itself, including the no-point case. */
+export const NOWHERE_LABEL = 'nowhere'
+
+export function placementLabel(placement: Placement | null | undefined): string {
+  return placement ? PLACEMENT_LABEL[placement] : NOWHERE_LABEL
+}
 
 /**
  * Everywhere this identifier is drawn, as one list whether the server sent one place or five.
