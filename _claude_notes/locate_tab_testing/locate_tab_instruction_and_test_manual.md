@@ -103,7 +103,11 @@ whole.
 
 ---
 
-## 5. State of the system, 2026-08-19
+## 5. State of the system, 2026-08-19 — with the file counts refreshed 2026-08-24 in §5a
+
+**Read §5a for what is actually in the files.** This section is the history of the screen and is
+kept as it was written; its numbers for `locations.json` went stale the moment a real placement run
+happened, and §5a is where they now live.
 
 **Ten changes to the screen since the tests above were first walked**, none of them touching
 what gets written into `locations.json`:
@@ -173,20 +177,8 @@ this tab's neighbours and the third is this tab's own:
     at a magnification you chose in order to work on one dot you can already see. At 50% and below
     nothing changed. **T-115** is the new test; the ceiling is one constant read from `FOCUS_ZOOM`.
 
-    locations.json    a real run's worth of work, all by "js":
-                      6 components over 9 sites — CR-BP Coil/NC/NO, CR-SW Coil/NO,
-                      DISCHARGE1, CR-ON, BYPASS-CB, CB2
-                      18 terminals with their own points · 3 wire labels · 1 net label
-    circuit_logic.json  **behind locations.json right now**, so
-                      test_the_committed_artifact_is_exactly_what_the_generator_writes
-                      is the one red server test. That is K6/H9 working, not a
-                      failure — a save happened after the last regeneration. Fix it
-                      with one command, and it is a human's command by design:
-                      cd schematic_extraction/PS20115MLM4-2/extracted_docs
-                      && python author_circuit_logic.py
-                      Do not hand-edit it — it is generated.
-    tests             106 server (105 green + the stale one above), 127 web, ruff and
-                      tsc clean. Eight of the web tests are the Drawing-tab work of
+    tests             106 server (105 green + the stale artifact one), 127 web, ruff
+                      and tsc clean. Eight of the web tests are the Drawing-tab work of
                       the same day (F2, Escape, the component question, and a v1.2
                       prompt), five more are the layer switches of change 10, and
                       three are changes 11–13; change_history.md 2026-08-19 has all of
@@ -194,10 +186,64 @@ this tab's neighbours and the third is this tab's own:
                       webui/src/lib/keys.ts, FOCUS_ZOOM is exported from
                       useTileViewport.ts, hazards H10 and H11 are new, and T-115,
                       T-190, T-335, T-360 and T-425 are new tests nobody has walked.
+
+### 5a. What is in the files, 2026-08-24
+
+**The counts below replaced a stale block that still described 6 components and 18 terminals.**
+A full placement run happened on 2026-08-20 and the manual did not hear about it. Re-measured
+against the files, not remembered:
+
+    locations.json    schema 1. The placement run is **finished for points**:
+                      41 component ids over 47 drawn sites, every one source: human
+                      131 terminals — **all of them** — each with its own point,
+                        every one source: human
+                      52 of those 131 carry a chosen label side; the other 79 sit
+                        at the default
+                      multi-site components: CR-BP, CR-SW, CR-ON, CR1, CR2
+                      **"wires": {} and "nets": {} — no label points at all**
+                      Consequence worth stating out loud, because the whole
+                      wires-and-nets plan turns on it: every one of the 71 wires now
+                      has two human-confirmed ends, and all 127 net member terminals
+                      resolve to human-confirmed points.
+    circuit_logic.json  26 nets · 71 wires · 131 terminals · 47 components.
+                      Regenerated at commit 1ae36ce, and **behind locations.json in
+                      the working tree right now** by one point, so
+                      test_the_committed_artifact_is_exactly_what_the_generator_writes
+                      is the one red server test. That is K6/H9 working, not a
+                      failure — a save happened after the last regeneration. Fix it
+                      with one command, and it is a human's command by design:
+                      cd schematic_extraction/PS20115MLM4-2/extracted_docs
+                      && python author_circuit_logic.py
+                      Do not hand-edit it — it is generated.
     server            not running; start it as in §1
-    git               locations.json is tracked now, and modified against its last
-                      commit — it is authored content and the one thing here git
+    git               locations.json is tracked, and modified against its last commit
+                      by exactly one point: BYPASS-CB:1 y 663.8 → 663.7, an accidental
+                      0.1 pt drag on 2026-08-24. A tenth of a point against 16 pt
+                      conductor rows is 1/160th of a row, and 663.7 is exactly the y
+                      of C0080, the BLUE 18AWG run that lands there — so the
+                      replacement is if anything a hair better than the original.
+                      Recorded here because it is the accident that produced K8.
+                      locations.json is authored content and the one thing here git
                       cannot regenerate, so commit it when a run of placement ends.
+
+**The four label points that used to be here were deleted on purpose.** `W001` (231.1, 50.5),
+`W002` (231.4, 66.9), `W047` (925.3, 516.2) and net `110` (926.3, 485.7) were placed 2026-08-18,
+are present at commit `8f1ae5d`, and are absent from `1ae36ce` onwards. **The user removed them
+deliberately and does not want them restored** (confirmed 2026-08-24). They are recorded here only
+so that a future session finding the gap in the file's history does not go hunting for a bug, and so
+the coordinates are not lost if they are ever wanted:
+`git show 8f1ae5d:schematic_extraction/PS20115MLM4-2/extracted_docs/locations.json`.
+
+**And they may not be coming back in this form at all.** The wires-and-nets plan replaces the single
+`label_point` per wire — *where the name is printed on the run* — with a label at each end, anchored
+to a terminal point that already exists. Whether the old `label_point` is still worth having after
+that is **an open question the user has deliberately left open**, to be answered by using the new
+thing rather than by guessing now. So do not treat an empty `"wires": {}` as work waiting to be
+done; treat it as a decision not yet needed.
+
+**This is not `K2`.** No save has been shown to lose anything. Git is still the only cross-session
+undo the system has, which is why a run of placement should end in a commit — but that is prudence,
+not a known fault.
 
 **The editor is the only supported way to change `locations.json`.** Hand-editing it is not
 forbidden — it is a text file, and being readable by a person is the point — but the editor holds
@@ -228,6 +274,8 @@ The first column is what the user says. Use this to pick one leaf document, not 
 | The side is right here and wrong on the Drawing tab | `04_tests_labels.md` **T-335** | `drawing.py` `_entry` — `places` must be published whenever a place carries `label_dir`, even a single one; `label_dir` lives nowhere else in the payload |
 | The sheet will not fly to the row I picked | `02_tests_place_and_drag.md` **T-115** — check the zoom first | above 50% that is deliberate: `FLY_CEILING_PERCENT` in `LocateTab.tsx`. Below it, `flyTo`/`framing` (T-110) |
 | Work disappeared | `05_tests_save_and_recover.md` T-440 | **`06_code_map.md` §H1** — read this before anything else |
+| I nudged a dot by accident and want it back | §7 **K8** | there is no undo yet. `git diff` on `locations.json` names the point and its old coordinate exactly; that is the whole recovery story today |
+| `"wires": {}` and `"nets": {}` are empty — is that a fault? | §5a | **No.** Four label points were there and were deleted on purpose. Do not restore them, and do not read the empty sections as unfinished work |
 | Red strip across the top | `05_tests_save_and_recover.md` T-430 | `locations.py` `parse`, `resolve_geometry` |
 | Drawing tab still shows the old dot | `05_tests_save_and_recover.md` T-420 | `appStore.refreshDesignators` |
 | The Drawing tab will not show me terminals, or wire and net labels | `02_tests_place_and_drag.md` **T-190**, `04_tests_labels.md` **T-360** | its own three switches in the toolbar, `DrawingTab.tsx` `LAYERS` and `shown` — a group with nothing to draw has no button at all |
@@ -251,12 +299,13 @@ if one bites harder than described. Full reasoning is in `06_code_map.md`.
 | # | What | Effect | Fix is |
 |---|---|---|---|
 | ~~**K1**~~ | ~~Picking the same row twice does not re-fly the sheet~~ | **Fixed 2026-08-19.** A flight is now something a call site *asks for* rather than something an effect infers from the row's id having changed, so asking twice flies twice — picking the row again, or pressing the `placing` button of the site you are on, brings you back after panning away. T-110 and T-215 test it. | done — `LocateTab.tsx` `flyTo`, `framing` |
-| **K2** | Two tabs, or a hand edit, silently lose work | The draft is a whole document loaded once. The last save wins and discards everything it never saw. | medium — a version on the file, refused on mismatch |
+| **K2** | Two tabs, or a hand edit, silently lose work | The draft is a whole document loaded once. The last save wins and discards everything it never saw. **Still theoretical** — it has not been observed. A gap in the file's history on 2026-08-24 looked like it had bitten and turned out to be a deliberate deletion (§5a), so the only evidence for it remains the shape of the code. | medium — a counter in the file, checked on save. **Deferred by the user 2026-08-24**: they work in one tab and hand-edits are their own, so the cure is currently bigger than the disease |
 | ~~**K3**~~ | ~~The site-name box appears frozen if you empty it~~ | **Fixed 2026-08-18.** The box holds its own text and writes the document once, on `Enter` or blur, so a whole word goes in without the caret leaving; a refused name stays on screen with its reason. T-220 tests it. | done — `TargetPanel.tsx` `SiteName`, `model.ts` `canRenameSite` |
 | **K4** | The eight-way label control does nothing until the point exists | Place first, then choose the side. | small — create-on-set |
 | **K5** | You cannot place a point *under* an existing dot by clicking it | The dot swallows the click and retargets instead. Zoom in, or drag the dot. | design question |
 | **K6** | `circuit_logic.json` goes stale after every save | Deliberate — the banner says so and `test_the_committed_artifact_is_exactly_what_the_generator_writes` goes red until you re-run the generator. | not a bug |
 | **K7** | Six rows in *To do* can never sensibly be finished | The two off-page machines and four referenced drawings say `nowhere` and have no position on this sheet, so "to do" cannot reach 0. Exactly the complaint that made wire labels a separate count — and I missed it here. | small — exclude `nowhere` from the queue, or count them apart |
+| **K8** | **A marker moved by accident cannot be put back.** | A drag writes the new point into the draft, autosave persists it, and the coordinate it replaced is gone from the running program. There is no `Ctrl+Z`. Reported by the user 2026-08-24 after `BYPASS-CB:1` moved a tenth of a point (§5a). Today the only undo is git, which recovers the last **commit**, not the last **action**. | small — `Ctrl+Z` over the draft, plus `Shift`+arrows to nudge an armed point precisely so a small move never needs a small drag. Designed in `_claude_notes/highlighting_wires_and_nets.md` §9, Phase 0. **A minimum-drag threshold was considered and rejected by the user**: small moves are legitimate and must stay possible |
 
 ---
 
@@ -295,7 +344,8 @@ this section is kept as written.)*
 
 A troubleshooting session next time reads the index + your results log + one test file + the code map — about 8.5k tokens instead of the whole feature.
 
-Seven known issues I found while writing it
+Seven known issues I found while writing it *(eight now — `K8` was added 2026-08-24. §7 above is the
+current list; this section is kept as written.)*
 
 Writing the manual made me read my own code as a user would, and that surfaced things tests don't catch. They're in index §7 so you don't waste a report on them:
 

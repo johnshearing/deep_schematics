@@ -8,6 +8,12 @@ Index: `locate_tab_instruction_and_test_manual.md`.
 Symbol names below were verified against the tree on 2026-08-19. Line numbers are deliberately
 absent — they rot; names do not.
 
+**Re-verified 2026-08-24, symbol by symbol: every name in every table below is still real and still
+in the file it is attributed to.** `model.test.ts` is still exactly the 20 tests §3 claims, and
+`showLabels={viewer.percent >= 30}` (H7) is verbatim in both tabs. Four corrections, all of them
+additions rather than repairs: the two test-file lists were partial, `DRAG_SLOP` deserves its value
+spelled out, and `fold_in_labels` lives in the generator rather than the server. Marked ▲ below.
+
 ---
 
 ## 1. The data flow, end to end
@@ -65,9 +71,12 @@ Two things to hold on to:
 | Drawing number / page size guards | `server/app/main.py` | `_drawing_identity` |
 | Settings | `server/app/config.py` | `allow_edits`, `editor_password`, `editor_name`, `editor_password_required` |
 
-**Server tests:** `server/tests/test_locations.py` (format, precedence, refusals, labels),
-`server/tests/test_editor.py` (the gate, the write path, the cache-clear),
-`server/tests/test_extraction_generator.py` (the generated artifact).
+**Server tests** ▲ — all seven files, since the three listed before were only the editor's:
+`test_locations.py` (format, precedence, refusals, labels), `test_editor.py` (the gate, the write
+path, the cache-clear), `test_extraction_generator.py` (the generated artifact), **`test_api.py`**
+(the designator index and every other route — this is where an `_entry` change is tested),
+`test_config.py`, `test_invocation.py`, `test_runner.py` (the model child). **106 tests**, of which
+the artifact one is red exactly while `locations.json` is ahead of `circuit_logic.json`.
 
 ---
 
@@ -78,6 +87,7 @@ Two things to hold on to:
 | **The one projection**, both directions | `webui/src/features/drawing/paint.ts` | `pointToCss`, `cssToPoint` |
 | Pan, zoom, fly-to | `webui/src/features/drawing/useTileViewport.ts` | `panTo`, `focusScale`, `centreOn` |
 | Dots: one per place, filled vs hollow, label side, drag | `webui/src/features/drawing/MarkerLayer.tsx` | `Marker`, `LABEL_SIDE`, `PLACEMENT_NOTE`, `onDragPoint`, `DRAG_SLOP` |
+| ▲ **How far a press must travel before it is a drag** | `webui/src/features/drawing/MarkerLayer.tsx` | **`DRAG_SLOP = 3`** CSS pixels of *pointer* travel, in `onPointerMove`: `if (!dragged.current && Math.hypot(dx, dy) < DRAG_SLOP) return`. Its own comment is the design: *"Small enough that a deliberate nudge works, large enough that a shaky click still selects."* **A minimum-drag threshold therefore already exists** — anyone asked to add one should read this first. Note what it does *not* prevent: once the press has travelled past 3 px the handler fires on every subsequent move with the delta from the press origin, so a press that goes out and comes most of the way back commits the small residual it ended on. That is not a twitch getting through; it is a real drag ending near where it started, and the cure for it is undo, not a bigger number |
 | **Which dot was clicked** — `onSelect` carries the `place`, not just the entry | `webui/src/features/drawing/MarkerLayer.tsx` | `onSelect(entry, place)` |
 | **Which groups the Drawing tab draws** — the same three this tab filters by, as independent switches | `webui/src/features/drawing/DrawingTab.tsx` | `Layer`, `LAYERS`, the `layers` memo, `shown`, the `markers` memo |
 | A wire or net turned into something drawable — **its label point, never its route** | `webui/src/features/drawing/DrawingTab.tsx` | `atLabelPoint` (shared by the layer and by `selectedMarker`, so a label dot cannot exist in one path and not the other) |
@@ -121,10 +131,24 @@ wrong, it is wrong here.
 | Removing things | `clear`, `removeSite` — both drop the parent record when it empties |
 | Rounding and provenance stamping | `signed` (private) — one decimal place, `source: human`, `by`, `at` |
 
-**Client tests:** `webui/src/features/locate/model.test.ts` (the rules),
-`webui/src/features/locate/LocateTab.test.tsx` (the screen against a stubbed server),
-`webui/src/features/drawing/paint.test.ts` (the projection, both directions),
-`webui/src/features/drawing/DrawingTab.test.tsx` (markers, provenance styling, wire labels).
+**Client tests** ▲ — all nine files and their counts, since the four listed before were only this
+feature's. **127 tests.**
+
+| File | Tests | |
+|---|---|---|
+| `features/locate/model.test.ts` | 20 | the rules — pure, no React |
+| `features/locate/LocateTab.test.tsx` | 23 | the screen against a stubbed server |
+| `features/drawing/DrawingTab.test.tsx` | 26 | markers, provenance styling, wire labels |
+| `features/drawing/paint.test.ts` | 14 | the projection, both directions |
+| `features/drawing/useTileViewport.test.ts` | 6 | pan, zoom, `focusScale`, `centreOn` |
+| `lib/designators.test.ts` | 13 | `placesOf` and the id helpers |
+| `components/Markdown.test.tsx` | 13 | |
+| `components/UnlockButton.test.tsx` | 4 | |
+| `App.test.tsx` | 8 | the tabs, and the `F2` effect |
+
+**There is no test file for `stores/locateStore.ts`.** The store is covered only indirectly, through
+`LocateTab.test.tsx`. Anything that changes the store's own behaviour — an undo stack, for instance —
+needs a new `stores/locateStore.test.ts`.
 
 ---
 
@@ -143,7 +167,16 @@ life of the page.
 *Why it is like this:* whole-file means no patch protocol to get wrong, and the file stays something
 a person can open. *The fix:* a monotonic `version` (or the file's mtime) in the document; the server
 refuses a `PUT` whose version is not the current one, with a message telling the editor to reload.
-Small, and it turns silent data loss into a visible refusal. **This is the first thing I would fix.**
+Small, and it turns silent data loss into a visible refusal. ~~**This is the first thing I would
+fix.**~~ **Deferred by the user, 2026-08-24**, and the sentence is struck rather than deleted because
+the reasoning behind it was sound and may become right again. Two things changed: a gap in the file's
+history that looked like this hazard having fired turned out to be a deliberate deletion, so **H1 has
+still never been observed**; and the user works in a single tab, where it cannot fire. What went in
+instead is `Ctrl+Z` — undo addresses the loss a person actually suffered (their own last action)
+rather than the loss the code makes possible. The day a second editor or a hand-edit habit appears,
+this becomes the first thing to fix again. Written up in
+`_claude_notes/highlighting_wires_and_nets.md` §9, Phase 0, including why a `rev` counter does **not**
+make the system multi-user.
 
 ### H2 — `load_locations` is cached
 
@@ -264,7 +297,9 @@ person had been pressing toolbar buttons, this is it.
 ## 5. Invariants — if one of these is violated, that is the bug
 
 1. **There is no way to author a wire's route.** Not in the file, not in the editor, not in the API.
-   A wire carries `label_point` and nothing else. Owner: `LABELLABLE`, `_labels`, `fold_in_labels`.
+   A wire carries `label_point` and nothing else. Owner: `LABELLABLE` (`model.ts`), `_labels`
+   (`server/app/locations.py`), and ▲ `fold_in_labels` — which is **not** in the server: it is in
+   `schematic_extraction/PS20115MLM4-2/extracted_docs/author_circuit_logic.py`, the generator.
    **Nor is one ever drawn.** No dot appears at a wire's or a net's `point` — that is the centre of a
    bounding box, which is usually blank paper — on either tab. `atLabelPoint` in `DrawingTab.tsx`
    returns `null` until somebody has said where the *name* is printed, and the wire/net layer and the
