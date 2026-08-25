@@ -23,6 +23,7 @@ import type {
   StoredEndLabel,
   StoredSite,
 } from '@/api/types'
+import type { RowState } from '@/lib/designators'
 
 /**
  * The schema this editor writes, and it is stamped onto the draft as it loads.
@@ -45,8 +46,12 @@ export const SCHEMA = 2
  * that any more — a route is either lifted from the PDF's own conductor strokes or traced by a
  * person, and "computed from the terminals" is the one thing it may never be. See §3 of
  * `_claude_notes/highlighting_wires_and_nets.md`.
+ *
+ * **Declared in `lib/designators.ts` since 2026-08-25** and re-exported here, because the Drawing
+ * tab's list shows the same six states without ever seeing a draft. The words for them are in
+ * `components/DesignatorList.tsx`, once.
  */
-export type RowState = Placement | 'computed' | 'labelled' | 'none'
+export type { RowState }
 
 /** Which designator the next click on the sheet places. */
 export interface Target {

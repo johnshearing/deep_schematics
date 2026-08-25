@@ -172,8 +172,8 @@ halves of that sentence looked correct in isolation: the editor wrote the file p
 held `"label": {"dir": "w"}`, and the viewer honoured every `label_dir` it was given.
 
 **Extended 2026-08-24: the same round trip for an *end* label.** Arm a wire on the Locate tab, set
-one end's side with its compass, and check that end on the Drawing tab with `Wire & net labels`
-switched on. It is the same class of fault in a different field — `label_dir` on a **member** of a
+one end's side with its compass, and check that end on the Drawing tab with `Wires` **and** `Labels`
+switched on (one switch, `Wire & net labels`, until 2026-08-25 — T-605). It is the same class of fault in a different field — `label_dir` on a **member** of a
 wire or net this time, published by `_member` in `drawing.py` — and it has the same one-line failure
 mode: a side that is not in the payload is a side the reader cannot see. The difference is what the
 default means. A terminal's own label defaults to east *because there is nothing better to say*; an
@@ -234,7 +234,8 @@ T-350 checks one label, reached the way a reader reaches it — through an answe
 **set**, which is the question a person placing them actually has: *which names have I done?*
 
 **Do.** Place label points for two or three wires and a net. Switch to the **Drawing** tab and press
-**`Wire & net labels`** in the toolbar (see T-190 for the three groups).
+**`Wires`** and **`Nets`** in the toolbar. *(One button, `Wire & net labels`, until 2026-08-25; see
+T-190 for the five groups and `11_tests_drawing_list.md` T-605 for what each does now.)*
 
 **Expected.** Every label point you have placed gets a dot, all at once, **on the printed text** —
 and nothing else does. The ones you have not placed are simply absent. Press the button again and
@@ -251,9 +252,11 @@ its `runs through` chips live for the endpoints. Not as a component.
 
 **Do.** Before you have placed any, look at the toolbar.
 
-**Expected.** There is **no `Wire & net labels` button at all** — two buttons, not three. A switch
-that changes nothing when pressed reads as broken; no switch reads as *nobody has placed one yet*,
-which is the truth, and the Locate tab is where you fix it.
+**Expected.** `Wires` and `Nets` are offered anyway — **because of their end labels**, which are
+text hanging off pins and count as something to draw even with no printed name placed anywhere. A
+group with *nothing at all* still gets **no button**: a switch that changes nothing when pressed
+reads as broken, where an absent switch reads as *there is none of this on the sheet*. (Before the
+end labels landed on 2026-08-24 this drawing had no such button at all, and the note here said so.)
 
 **If the count looks wrong.** The tooltip on the button says `n of m` — how many have a label point
 against how many wires and nets exist. That is the same pair the Locate toolbar reports as

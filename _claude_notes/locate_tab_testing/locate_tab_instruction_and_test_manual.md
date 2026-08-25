@@ -37,8 +37,9 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **117 server, 185 web, ruff clean, tsc clean** *(2026-08-24, after Session 2 of
-the wires-and-nets plan; it was 111 and 155 after Session 1, and 106 and 127 before that)* — except
+Expected right now: **117 server, 192 web, ruff clean, tsc clean** *(2026-08-25, after Session 3 of
+the wires-and-nets plan — a pure client session, so the server count did not move; it was 117 and 185
+after Session 2, 111 and 155 after Session 1, and 106 and 127 before that)* — except
 that
 `test_the_committed_artifact_is_exactly_what_the_generator_writes` is red whenever `locations.json`
 has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a failure; re-run the
@@ -65,12 +66,13 @@ Read the index (this file) plus **only** what the symptom calls for.
 | File | What is in it | Pull it in when |
 |---|---|---|
 | `01_screen_and_vocabulary.md` | The screen, region by region; every button, badge and dot style; the words *site*, *pin*, *seed*, *parent*, *label*. | Always, on a first read. Any report about something *looking* wrong. |
-| `02_tests_place_and_drag.md` | **T-100–T-1xx.** Picking a row, click-to-place, the advance, dragging a dot, the pan-versus-place rule, the flight ceiling (T-115), and (T-190) the Drawing tab's three layer switches. | Anything about a point landing in the wrong spot, or not landing — or about the sheet moving, or refusing to. |
+| `02_tests_place_and_drag.md` | **T-100–T-1xx.** Picking a row, click-to-place, the advance, dragging a dot, the pan-versus-place rule, the flight ceiling (T-115), and (T-190) the Drawing tab's five layer switches. | Anything about a point landing in the wrong spot, or not landing — or about the sheet moving, or refusing to. |
 | `03_tests_sites_and_pins.md` | **T-200–T-2xx.** Components drawn more than once, adding/renaming/removing sites, assigning pins to sites. | Anything about `CR-BP`, `CR-SW`, multiple dots, or pins. |
 | `04_tests_labels.md` | **T-300–T-3xx.** Wire and net label points, the eight label sides, and (T-335) whether the side you chose survives to the Drawing tab. | Anything about a label, or about wires and nets. |
 | `05_tests_save_and_recover.md` | **T-400–T-4xx.** Autosave, the Save button, restart, refusals, the `problems` strip, regenerating `circuit_logic.json`, **(T-426) the Ask tab keeping the reader's place across `F2`**, and **(T-470–T-490) `Ctrl+Z` and the `Shift`+arrow nudge**. | Anything about work not persisting, or a red strip, or a marker you did not mean to move, or a tab that came back in the wrong place. |
 | `09_tests_net_membership.md` | **T-500–T-530.** What a net is made of, and where its highlight goes: rings on **terminals and only terminals**, the member roster on the selection card, the way **back** to it, *place it*. **Drawing tab, no password.** | Anything about a net or wire highlight marking the wrong place — or too much. |
 | `10_tests_end_labels.md` | **T-550–T-590.** A label at both ends of every wire and at every net terminal, on by default and costing nothing: the two-ended compass, the per-member net list, `hidden`, **Reset to default deleting rather than writing**, three labels on one pin, and the `Wires`/`Nets` filter split. **Both tabs.** | Anything about a wire's or net's name on the sheet, or about `locations.json` growing lines nobody asked for. |
+| `11_tests_drawing_list.md` | **T-600–T-650.** The Drawing tab's list of all 275 designators: the order, the four filter buttons, the search box, the collapse · **the list filters the list and the switches filter the sheet, and neither touches the other** · five switches · a net selected without spending a question (`K9`) · **and all of it with `SWUI_ALLOW_EDITS=false`**, which is the acceptance criterion. **Drawing tab, no password.** | Anything about finding a designator, about the list and the sheet disagreeing, or about a row doing something to the drawing you did not ask for. |
 | `06_code_map.md` | Every behaviour → the file and function that owns it. The data flow end to end. The known hazards, with reasoning. | Always, when troubleshooting. Never needed to *run* a test. |
 | `07_drawing_facts.md` | The concrete ids and coordinates on `PS20115MLM4-2` the tests refer to — relay pin lists, the three `CR-BP` sites, `W048`, net `110`. | When a test names an id and you need to know what it is. |
 | `08_results_log.md` | Every test id in a table, blank, for the user to mark up. | **A troubleshooting session should read this first** — it says what is actually broken. |
@@ -291,6 +293,45 @@ actual problem: it is in the footer strip and in T-490, and it was still missed.
                       `EndLabel` and `Locations.end_labels` are new; a member of a
                       wire or net may now carry `label_dir` and `hidden`.
 
+### 5d. Session 3 of the wires-and-nets plan, 2026-08-25
+
+**Phase C, and it is a pure client session** — no server change, no schema change, nothing written to
+`locations.json`. The plan is `_claude_notes/highlighting_wires_and_nets.md`; §13 there says Session 4
+is the label-corrections review screen.
+
+21. **The Drawing tab has a list of all 275 designators down its left, and `K9` is fixed.** Read-only:
+    a row click **selects**, through the same `select(kind, id)` a citation in an answer calls, so the
+    sheet flies and the card names it. Four filter buttons (`Components` `Terminals` `Wires` `Nets`,
+    **any combination, none of them meaning all**), a search box over the id *and* the one-line
+    description, and a chevron that collapses the whole thing to a rail. **The buttons over the list
+    filter the list; the switches over the sheet filter the sheet; neither touches the other** — that
+    sentence is the design and T-620 is the test. It works with **`SWUI_ALLOW_EDITS=false`**, which is
+    the acceptance criterion and T-650: the row state comes from `/api/designators`
+    (`readerRowState`) and never from the editor's draft. **T-600–T-650** in the new
+    `11_tests_drawing_list.md`, none walked.
+
+22. **`Wire & net labels` on this tab became `Wires`, `Nets` and `Labels` — five switches.** The same
+    split the Locate tab made a day earlier, plus one for the *text*: an end label needs its own
+    kind's switch **and** `Labels`, because it is a label of a wire. The selection is still exempt
+    from all of them (H11). **T-605**, and **T-190** now describes five.
+
+23. **One list, two screens.** `features/locate/WorkList.tsx` moved to
+    `components/DesignatorList.tsx` **unchanged** and both tabs import it — the row, the state words,
+    the `our id` badge and the `scrollIntoView` are decided once. A new hazard **H16** records the
+    other consequence of the session: two rows of buttons now carry the same four words, so each row
+    is a labelled group (`Layers on the sheet`, `Filter the list`) and nothing may merge them.
+
+    Whether the list is **open** is persisted (`appStore.drawingListOpen`); the filters and the search
+    text are deliberately not.
+
+    tests             117 server (unmoved — nothing server-side changed), 192 web,
+                      ruff and tsc clean. Seven new in DrawingTab.test.tsx (42),
+                      and every by-name button query in that file is now scoped to
+                      one of the two labelled groups. What moved: WorkList.tsx →
+                      components/DesignatorList.tsx; RowState now lives in
+                      lib/designators.ts beside the new readerRowState and is
+                      re-exported by features/locate/model.ts.
+
 ### 5a. What is in the files, 2026-08-24
 
 **The counts below replaced a stale block that still described 6 components and 18 terminals.**
@@ -403,14 +444,19 @@ The first column is what the user says. Use this to pick one leaf document, not 
 | `"wires": {}` and `"nets": {}` are empty — is that a fault? | §5a | **No.** Four label points were there and were deleted on purpose. Do not restore them, and do not read the empty sections as unfinished work |
 | Red strip across the top | `05_tests_save_and_recover.md` T-430 | `locations.py` `parse`, `resolve_geometry` |
 | Drawing tab still shows the old dot | `05_tests_save_and_recover.md` T-420 | `appStore.refreshDesignators` |
-| The Drawing tab will not show me terminals, or wire and net labels | `02_tests_place_and_drag.md` **T-190**, `04_tests_labels.md` **T-360** | its own three switches in the toolbar, `DrawingTab.tsx` `LAYERS` and `shown` — a group with nothing to draw has no button at all |
-| I cannot tell which of the Drawing tab's three switches are on | `02_tests_place_and_drag.md` **T-190** | filled means on since 2026-08-19 — the `variant` on the `LAYERS.map` buttons in `DrawingTab.tsx` |
+| The Drawing tab will not show me terminals, or wire and net labels | `02_tests_place_and_drag.md` **T-190**, `11_tests_drawing_list.md` **T-605** | its own **five** switches in the toolbar, `DrawingTab.tsx` `LAYERS` and `shown` — a group with nothing to draw has no button at all. An end label needs **two** of them: `Labels` and its own kind |
+| I cannot tell which of the Drawing tab's switches are on | `02_tests_place_and_drag.md` **T-190** | filled means on since 2026-08-19 — the `variant` on the `LAYERS.map` buttons in `DrawingTab.tsx` |
+| I cannot find a designator on the Drawing tab, or a net cannot be selected from the sheet | `11_tests_drawing_list.md` **T-600**, **T-610** | that was `K9` and it is fixed: the list down the left, `DrawingList.tsx`. Is it collapsed to a rail? |
+| I pressed a button over the list and the drawing changed — or a switch and the list changed | `11_tests_drawing_list.md` **T-620**, then `06_code_map.md` **§H16** | the two rows are separate state: `kinds` (the list) and `shown` (the sheet) in `DrawingTab.tsx`. They share four words and nothing else |
+| The list on the Drawing tab shows nothing | `11_tests_drawing_list.md` **T-625** | is there text in the search box? The empty note says which of the two it is. `filterEntries` in `DrawingList.tsx` |
+| The list is gone from the Drawing tab | `11_tests_drawing_list.md` **T-630** | collapsed, and it is **remembered across a reload** — press the **›** on the rail. `appStore.drawingListOpen` |
+| The Drawing tab's list has no state words, or the wrong ones, with editing off | `11_tests_drawing_list.md` **T-650** | `readerRowState` in `lib/designators.ts` — the reader's list must never read the editor's draft |
 | The Drawing tab is a fog of dots after I pressed Terminals | **expected** — `02_tests_place_and_drag.md` T-190 | most pins have no point of their own and are drawn hollow on their component's dot. That is the honest picture, and it is why the group starts off |
 | A dot on the Drawing tab named a component when I clicked a pin | `02_tests_place_and_drag.md` T-190 | `DrawingTab.tsx` `onMarker` — it must pass `marker.kind`, not `'component'` |
 | The `runs through` chips on the Drawing tab went dead | `06_code_map.md` **§H11** | `located` is built from the components group regardless of its switch; if it reads the visible markers instead, turning Components off kills every link |
 | The counts in the toolbar look wrong | `01_screen_and_vocabulary.md` §Toolbar | `model.ts` `coverage` |
 | The rows are in a strange order, or the advance jumps somewhere unexpected | `01_screen_and_vocabulary.md` §The list | the `entries` memo and `BY_ID` in `LocateTab.tsx` — the list and `nextUnplaced` share one order |
-| The green row is highlighted somewhere I have to scroll to find | `02_tests_place_and_drag.md` T-180 | `WorkList.tsx` `armedRow` — the `scrollIntoView` effect |
+| The green row is highlighted somewhere I have to scroll to find | `02_tests_place_and_drag.md` T-180 | `components/DesignatorList.tsx` `armedRow` — the `scrollIntoView` effect, shared by both tabs' lists since 2026-08-25 |
 | The sheet flies to the wrong one of a component's dots, or does not fly at all | `03_tests_sites_and_pins.md` T-215 | `LocateTab.tsx` `framing` and `flyTo` — **every** flight is asked for by a call site |
 | The site-name box loses focus, snaps back, or saves per keystroke | `03_tests_sites_and_pins.md` T-220 | `TargetPanel.tsx` `SiteName`; `06_code_map.md` §H4 |
 
@@ -430,9 +476,9 @@ if one bites harder than described. Full reasoning is in `06_code_map.md`.
 | **K5** | You cannot place a point *under* an existing dot by clicking it | The dot swallows the click and retargets instead. Zoom in, or drag the dot. | design question |
 | **K6** | `circuit_logic.json` goes stale after every save | Deliberate — the banner says so and `test_the_committed_artifact_is_exactly_what_the_generator_writes` goes red until you re-run the generator. | not a bug |
 | **K10** | An invented net id is printed on the sheet as its end label | `NET-PB1` and `NET-PB2` are prefixed names for nets the sheet prints as `PB1` and `PB2` (`INVENTED_NET_PREFIX`), so their end labels say a word that is not on the paper. Two nets of 26. Found while writing T-550 on 2026-08-24. | small — publish the printed form beside the id and label with that. Deliberately not done in Session 2: it is the same question Phase F asks about every misread label, and answering it twice in two places is how the two answers drift |
-| **K7** | Six rows in *To do* can never sensibly be finished | The two off-page machines and four referenced drawings say `nowhere` and have no position on this sheet, so "to do" cannot reach 0. Exactly the complaint that made wire labels a separate count — and I missed it here. | small — exclude `nowhere` from the queue, or count them apart |
+| **K7** | Six rows in *To do* can never sensibly be finished | The two off-page machines and four referenced drawings say `nowhere` and have no position on this sheet, so "to do" cannot reach 0. Exactly the complaint that made wire labels a separate count — and I missed it here. **Unchanged on the Locate tab**, and worth knowing that on the Drawing tab's new list those same six rows are not a chore at all: there, `nowhere` is information — *this identifier is real and it is not on this sheet* (T-640). | small — exclude `nowhere` from the queue, or count them apart |
 | ~~**K8**~~ | ~~A marker moved by accident cannot be put back~~ | **Fixed 2026-08-24.** `Ctrl+Z` over the draft, fifty whole-document snapshots deep, announcing what it undid and arming the row it changed; `Ctrl+Shift+Z` redoes. Plus `Shift`+arrows to nudge an armed point by 1.0 pt and `Shift`+`Alt`+arrows by 0.1 pt, so a small move never needs a small drag. **A minimum-drag threshold stays rejected** — small moves are legitimate. **The stack is in memory and dies with the page:** cross-session recovery is still git, which is why a run of placement should end in a commit. T-470–T-490 test it. | done — `stores/locateStore.ts` `edit`/`undo`/`redo`, `LocateTab.tsx` `nudge` and the key effect, `model.ts` `draftPoint` |
-| **K9** | **A net cannot be selected from the sheet.** | Nothing a reader can click raises a net or a wire: the dots are components, terminals and label points, so the only way to a net's highlight is a citation in an answer — which costs a question. Found while writing T-500 on 2026-08-24. | **already planned** — the Drawing tab's list of all 275 designators is Phase C, `highlighting_wires_and_nets.md` §13 Session 3. Noted so nobody reports it as a bug in the meantime |
+| ~~**K9**~~ | ~~A net cannot be selected from the sheet~~ | **Fixed 2026-08-25.** The Drawing tab has a list of all 275 designators down its left: type or scroll, click the row, and the net is selected and framed with its seven pins ringed — the same selection a citation raises, without the question. T-610 walks it against T-500, which is the same test at the price of one model answer. | done — `features/drawing/DrawingList.tsx`, `components/DesignatorList.tsx`, `DrawingTab.tsx` `onRow` |
 
 ---
 
@@ -481,14 +527,16 @@ Nine files in _claude_notes/locate_tab_testing/, with the one you named as the i
 | `07_drawing_facts.md` | The real ids and coordinates, so nobody reads geometry.json (150k tokens) | 1.7k |
 | `08_results_log.md` | All 28 tests as a blank table for you to mark up | 0.9k |
 
-*(**Ten** files now. `09_tests_net_membership.md` was added 2026-08-24 with Session 1 of the
-wires-and-nets plan, and that plan adds five more — `10` through `14` — one per remaining session.
-§3 above is the current map; this table is kept as written.)*
+*(**Twelve** files now. `09_tests_net_membership.md` came with Session 1 on 2026-08-24,
+`10_tests_end_labels.md` with Session 2 the same day, and `11_tests_drawing_list.md` with Session 3 on
+2026-08-25; the plan adds three more — `12` through `14` — one per remaining session. §3 above is the
+current map; this table is kept as written.)*
 
 *(**38** now — T-425 was added with the `F2` work, T-190 and T-360 with the Drawing tab's layer
 switches, and T-115 and T-335 with changes 11–13, all on 2026-08-19; **T-470–T-490 and T-500–T-520
-came with Session 1 of the wires-and-nets plan on 2026-08-24**. §5 above is the current count; this
-section is kept as written.)*
+came with Session 1 of the wires-and-nets plan on 2026-08-24, and T-550–T-590 with Session 2 the same
+day, and T-600–T-650 with Session 3 on 2026-08-25**. §5 above is the current count; this section is
+kept as written.)*
 
 28 numbered tests. Each one doubles as a lesson — what to click, what should happen, and why it matters — so working through them in order teaches the whole screen. Each also says where to look if it fails, so a report of "T-142 failed, the dot landed half an inch left" points straight at paint.ts cssToPoint.
 

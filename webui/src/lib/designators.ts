@@ -35,6 +35,38 @@ export function placementLabel(placement: Placement | null | undefined): string 
 }
 
 /**
+ * What a row in either tab's list is showing.
+ *
+ * `computed` is a net or a wire whose ends are known from its terminals and whose **printed name
+ * has not been placed**. `labelled` is the same thing once somebody has said where that name is
+ * written. Neither is ever `parent` or `seed`: nothing estimates a label.
+ *
+ * **It lives here, in a leaf module, because two lists now read it.** The editor's list computes
+ * it from the draft (`model.ts` `rowState`, which is draft-aware and re-exports this type) and the
+ * Drawing tab's list computes it from the index alone (`readerRowState` below). The words on the
+ * row come from one table either way — `components/DesignatorList.tsx` — so a reader who learns
+ * *on its component* in the editor meets the same phrase as a reader with no password at all.
+ */
+export type RowState = Placement | 'computed' | 'labelled' | 'none'
+
+/**
+ * The row state a **reader** sees, from the published index and nothing else.
+ *
+ * Deliberately not `model.ts`'s `rowState`: that one is handed the editor's draft, which is the
+ * unsaved half of the truth and does not exist on a server started without `SWUI_ALLOW_EDITS`.
+ * The Drawing tab's list must work for somebody who has no editor password at all, so it reads
+ * only what `/api/designators` publishes — which after a save is the same answer, because the
+ * store re-reads the index (`refreshDesignators`).
+ */
+export function readerRowState(entry: Designator): RowState {
+  if (entry.kind === 'wire' || entry.kind === 'net') {
+    if (entry.label_point) return 'labelled'
+    return entry.point ? 'computed' : 'none'
+  }
+  return entry.placement ?? 'none'
+}
+
+/**
  * Everywhere this identifier is drawn, as one list whether the server sent one place or five.
  *
  * The payload omits `places` for the 269 of 275 entries that have a single point, because

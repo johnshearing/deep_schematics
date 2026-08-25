@@ -95,13 +95,18 @@ of `circuit_logic.json`.
 | Dots: one per place, filled vs hollow, label side, drag | `webui/src/features/drawing/MarkerLayer.tsx` | `Marker`, `LABEL_SIDE`, `PLACEMENT_NOTE`, `onDragPoint`, `DRAG_SLOP` |
 | ▲ **How far a press must travel before it is a drag** | `webui/src/features/drawing/MarkerLayer.tsx` | **`DRAG_SLOP = 3`** CSS pixels of *pointer* travel, in `onPointerMove`: `if (!dragged.current && Math.hypot(dx, dy) < DRAG_SLOP) return`. Its own comment is the design: *"Small enough that a deliberate nudge works, large enough that a shaky click still selects."* **A minimum-drag threshold therefore already exists** — anyone asked to add one should read this first. Note what it does *not* prevent: once the press has travelled past 3 px the handler fires on every subsequent move with the delta from the press origin, so a press that goes out and comes most of the way back commits the small residual it ended on. That is not a twitch getting through; it is a real drag ending near where it started, and the cure for it is undo, not a bigger number |
 | **Which dot was clicked** — `onSelect` carries the `place`, not just the entry | `webui/src/features/drawing/MarkerLayer.tsx` | `onSelect(entry, place)` |
-| **Which groups the Drawing tab draws** — the same three this tab filters by, as independent switches | `webui/src/features/drawing/DrawingTab.tsx` | `Layer`, `LAYERS`, the `layers` memo, `shown`, the `markers` memo |
+| **Which groups the Drawing tab draws** — **five** independent switches since 2026-08-25 | `webui/src/features/drawing/DrawingTab.tsx` | `Layer`, `LAYERS`, the `layers` memo, `shown`, the `markers` memo. `wires` and `nets` split out of `labels`, and `labels` is now the **text**: it has no markers of its own and gates the end labels |
+| **The list down the left of the sheet** | `webui/src/features/drawing/DrawingList.tsx` | `DrawingList`, `filterEntries`, `ListKind`, `LIST_FILTERS`. `filterEntries` is pure: an empty `kinds` means every kind, and the text matches the id **and** the one-line label, case-folded. Nothing here is an allowlist — it is not model output being matched (contrast `lib/designators.ts` `resolve`) |
+| **The rows themselves, for both tabs** | `webui/src/components/DesignatorList.tsx` | `DesignatorList`, `STATE`, `STATE_LABEL`, `armedRow`. This was `features/locate/WorkList.tsx` until 2026-08-25 and moved **unchanged**; the Locate tab imports it from here now and `WorkList.tsx` is gone |
+| **The row state a reader sees** — from the index, never from a draft | `webui/src/lib/designators.ts` | `readerRowState`, and `RowState` itself, which `features/locate/model.ts` re-exports. This is what lets the Drawing tab's list work with `SWUI_ALLOW_EDITS=false` |
+| Which kinds the list is filtered to, what has been typed, and whether it is open at all | `DrawingTab.tsx` (`kinds`, `text`, `toggleKind`, `rows`, `visibleRows`) · `stores/appStore.ts` (`drawingListOpen`, `setDrawingListOpen`) | The split is deliberate: **open/closed is persisted**, the filters are not. See hazard H16 |
+| What a click on a row raises | `webui/src/features/drawing/DrawingTab.tsx` | `onRow` — `select(row.kind, row.id)` with the default `'text'` origin, so the sheet flies. The same function a citation calls, and the row's **own** kind (the `onMarker` lesson again) |
 | A wire or net turned into something drawable — **its label point, never its route** | `webui/src/features/drawing/DrawingTab.tsx` | `atLabelPoint` (shared by the layer and by `selectedMarker`, so a label dot cannot exist in one path and not the other) |
 | What kind a click on the sheet raises | `webui/src/features/drawing/DrawingTab.tsx` | `onMarker` — `marker.kind`, **not** the `'component'` it was hard-coded to before 2026-08-19 |
 | Which components the selection card may offer as links | `webui/src/features/drawing/DrawingTab.tsx` | `located` — built from the components group whether or not it is switched on; see hazard H11 |
 | **Everything the selection marks**, which for a net or a wire is its member terminals **and nothing else** | `webui/src/features/drawing/DrawingTab.tsx` | `relatedIds` — `entry.terminals[].id` where there are any, `entry.members` otherwise. Changed 2026-08-24: it was the union of both, and ringing the parent components put more than half the marks on places the net does not touch. A component or a terminal still uses `members`, which for a terminal is the one relay it hangs off |
 | **Where every wire and net end label goes** | `webui/src/features/drawing/endLabels.ts` | `planEndLabels`, `defaultSide`, `CLOCKWISE`, `DEFAULT_SIDE`, `PlannedLabel`, `Overrides`. Pure, 13 unit tests. Planned over the **whole** index, never over the visible subset — see invariant 9 |
-| Which end labels are drawn, and the selection's exemption from the switch | `webui/src/features/drawing/DrawingTab.tsx` | `endLabels` (the plan), `drawnEndLabels` (the subset), `drawable` — the last is why the labels group has a button at all now: its *markers* are still zero on this drawing |
+| Which end labels are drawn, and the selection's exemption from the switches | `webui/src/features/drawing/DrawingTab.tsx` | `endLabels` (the plan), `drawnEndLabels` (the subset), `drawable`. Since 2026-08-25 a label needs **two** switches — `Labels` and its own kind — and the selection's own labels need **neither**. `drawable` counts a kind's end labels towards whether that kind gets a button at all, which is why `Wires` and `Nets` are offered on a drawing where no printed name has been placed |
 | The text itself, and its side | `webui/src/features/drawing/MarkerLayer.tsx` | `EndLabel` — a `pointer-events-none` span at a dot-sized anchor, through the same `LABEL_SIDE` table as a marker's own id. `data-end-label="<owner>@<terminal>"` is how a test finds one |
 | The compass per end, and what *Reset* does | `webui/src/features/locate/TargetPanel.tsx` | `LabelPanel`, `EndLabelRow`, `LabelSide`'s `note`. The row is found by `data-end` |
 | **Recording or deleting one end-label decision** | `webui/src/features/locate/model.ts` | `setEndLabel`, `endLabelsOf`. Normalises to nothing and **deletes** — see invariant 10 |
@@ -116,14 +121,14 @@ of `circuit_logic.json`.
 | **Where the sheet goes, and who asks** | `webui/src/features/locate/LocateTab.tsx` | `flyTo`, `framing`, `at`, `sheetRect` — and see hazard H3 |
 | **When the sheet goes nowhere however hard it is asked** | `webui/src/features/locate/LocateTab.tsx` | `FLY_CEILING_PERCENT` (= `FOCUS_ZOOM` × 100, imported, never restated) and the `percent` ref in the flight effect. Above it no flight moves anything: T-115 |
 | Which groups the Drawing tab has switched on, visibly | `webui/src/features/drawing/DrawingTab.tsx` | the `LAYERS.map` in the toolbar — `variant={shown[id] ? 'default' : 'ghost'}`, filled meaning on, as on this tab's filters |
-| Scrolling the armed row into view | `webui/src/features/locate/WorkList.tsx` | `armedRow` |
+| Scrolling the armed — or selected — row into view | `webui/src/components/DesignatorList.tsx` | `armedRow`. Both tabs get it: on the Drawing tab it is what puts the list on the row a citation just selected |
 | **Every rule the editor applies** | `webui/src/features/locate/model.ts` | see below |
 | The screen, click-to-place, the advance, the overlay | `webui/src/features/locate/LocateTab.tsx` | `LocateTab`, `put`, `aim`, `editable`, `PasswordGate`, `SaveStatus` |
 | Leaving placing mode — `Esc`, and the ✕ on the panel | `webui/src/features/locate/LocateTab.tsx` | the `Escape` effect (a `window` listener guarded on `activeTabId`); `TargetPanel.tsx` `Header`. **`isTextField` moved out on 2026-08-19** — it is `webui/src/lib/keys.ts` now, shared with the Drawing tab's Escape. See hazard H10 |
 | Which tab is on screen, and the key that changes it | `webui/src/App.tsx` | the `F2` effect (`hasDrawingTab`, bare key only) — `F2` crosses to the Drawing tab from here and back; `tabIds.ts` holds the ids |
 | **Where the reader was in the transcript**, across an `F2` round trip | `webui/src/features/ask/AskTab.tsx` | `view` — module state, not a store field: it changes on every scroll event and this component subscribes to the whole of `useChatStore`, so a store write would re-render every message sixty times a second while somebody scrolls. Restored in a `useLayoutEffect`, cleared by *New conversation* |
 | **The way back to the card that sent you here** | `webui/src/stores/appStore.ts` | `Selection.from`, set by `select(kind, id, origin, from)` — only from a roster row or a `runs through` chip. `SelectionCard.tsx` `back`/`onBack`; `DrawingTab.tsx` `onBack`. One step, deliberately not a stack |
-| Rows and their state words | `webui/src/features/locate/WorkList.tsx` | `STATE` |
+| Rows and their state words | `webui/src/components/DesignatorList.tsx` | `STATE` |
 | **The order of every list on the left**, and so the order the advance walks | `webui/src/features/locate/LocateTab.tsx` | the `entries` memo, `BY_ID` (an `Intl.Collator`, `numeric`) |
 | Sites, pins, the compass, the wire/net panel | `webui/src/features/locate/TargetPanel.tsx` | `ComponentPanel`, `TerminalPanel`, `LabelPanel`, `LabelSide` |
 | The site-name box: local text, one write, visible refusal | `webui/src/features/locate/TargetPanel.tsx` | `SiteName` — and see hazard H4 |
@@ -169,6 +174,12 @@ feature's. **127 tests.**
 | `components/Markdown.test.tsx` | 13 | |
 | `components/UnlockButton.test.tsx` | 4 | |
 | `App.test.tsx` | 8 | the tabs, and the `F2` effect |
+
+**After Session 3, 2026-08-25: 192 web tests over 13 files** — seven new in `DrawingTab.test.tsx`
+(42), all of them about the list and the seam between it and the sheet, plus the existing switch tests
+re-pointed at five switches and every by-name query scoped to one of the two labelled groups (H16). No
+new file: the moved `DesignatorList` is exercised by both tabs' suites, which is the point of moving
+it rather than copying it.
 
 **After Session 2, 2026-08-24: 185 web tests over 13 files.** New: `features/ask/AskTab.test.tsx`
 (3 — the remembered scroll position, which no browser will tell you about), and
@@ -310,8 +321,9 @@ effect:
 
 ### H11 — "Which dots do I want" is not "which components exist" *(added 2026-08-19)*
 
-The Drawing tab's three layer switches decide what gets **drawn**. Two other things read the same
-component list and must not be answered by a switch:
+The Drawing tab's layer switches — **five of them since 2026-08-25, which is five chances to get
+this wrong instead of three** — decide what gets **drawn**. Two other things read the same component
+list and must not be answered by a switch:
 
 - **`located`**, which decides whether a `runs through` chip on the selection card is a live link or a
   dead one. It is built from the components group **whether or not that group is switched on**. Wire
@@ -402,6 +414,27 @@ entries in a memo.
 
 The same reasoning is why the reservations include **every** marker's own id label whether or not
 that group is switched on.
+
+### H16 — Two rows of buttons with the same words, doing different things *(added 2026-08-25)*
+
+The Drawing tab now carries `Components`, `Terminals`, `Wires` and `Nets` **twice**: once in the
+toolbar, where they decide what the *sheet* draws, and once over the list, where they decide what the
+*list* shows. That is the design and it is what the screen is for — but it has two consequences worth
+writing down before somebody tidies them into one control.
+
+- **They must stay separate in the code.** `shown` (a `Record<Layer, boolean>` in `DrawingTab`) and
+  `kinds` (a `Set<ListKind>`) are different shapes over different vocabularies on purpose: `Layer`
+  has a `labels` member and `ListKind` does not, because a label is not a row. Anything that "unifies"
+  them has to answer what pressing `Labels` should do to the list, and the answer is nothing.
+- **They must stay distinguishable to anything that finds a button by its name** — a screen reader, a
+  test. Each row is a labelled `role="group"`: **`Layers on the sheet`** and **`Filter the list`**.
+  `DrawingTab.test.tsx`'s `group()` and `listFilter()` helpers scope through those labels, and
+  dropping either label turns a dozen tests into *"found multiple elements"* — which is the honest
+  failure, and better than a test that silently presses the wrong one.
+
+The other half of the split is what is **persisted**: `appStore.drawingListOpen` is (it is a decision
+about how much sheet you want to see), and the filters and the search text are not (a list that came
+back tomorrow showing only wires reads as a broken index rather than as yesterday's filter).
 
 ---
 

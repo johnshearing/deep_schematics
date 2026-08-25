@@ -1,16 +1,30 @@
 /**
  * Every indexed designator, and whether anybody has said where it is.
  *
- * The list is the editor. 275 entries on this drawing — 47 components, 131 terminals, 26 nets,
- * 71 wires — and the only honest way to get from a vision pass's estimates to a drawing you can
- * trust is to walk them. So the row is deliberately plain and dense: an id you can scan for, a
- * state you can see without reading, and nothing that needs a decision to skip past.
+ * **One list, two screens.** It was `features/locate/WorkList.tsx` until 2026-08-25 and it moved
+ * here unchanged, because the Drawing tab now shows the same 275 rows to a reader. Both tabs hand
+ * it the same four props — `{entries, stateOf, targetId, onPick}` — and the reason to move it
+ * rather than write a second one is the row itself: the state words, the `our id` badge, the
+ * truncation and the `scrollIntoView` below are all decisions somebody made once, and two copies
+ * of them would drift in exactly the way the two tabs' *vocabularies* must not.
  *
- * **Nets and wires are shown and are not work.** A wire's geometry is its two endpoint terminals
- * and a net's is its members, so they are computed and never placed — placing the 131 terminals
- * gives all 71 wires their positions for free. They are in the list anyway, marked `computed`,
- * because being able to see the consequence of the terminals you just placed is most of what
- * tells you whether you placed them right.
+ * What each tab supplies is the part that genuinely differs: the editor computes `stateOf` from
+ * its unsaved draft and arms a row for the next click on the sheet, and the reader computes it
+ * from the published index (`readerRowState`) and *selects*. So nothing about editing is in here,
+ * and the list works with `SWUI_ALLOW_EDITS=false` — which is the acceptance criterion for the
+ * Drawing tab's list, not a nicety.
+ *
+ * On the editor's side the list *is* the editor. 275 entries on this drawing — 47 components, 131
+ * terminals, 26 nets, 71 wires — and the only honest way to get from a vision pass's estimates to
+ * a drawing you can trust is to walk them. So the row is deliberately plain and dense: an id you
+ * can scan for, a state you can see without reading, and nothing that needs a decision to skip
+ * past.
+ *
+ * **Nets and wires are shown and are not work.** Placing the 131 terminals gives all 71 wires
+ * their two known ends for free; what a wire may still be missing is where its *printed name* is
+ * written, which is optional. They are in the list anyway, because being able to see the
+ * consequence of the terminals you just placed is most of what tells you whether you placed them
+ * right — and, on the Drawing tab, because a net you cannot click is a net you cannot look at.
  */
 
 import { useEffect, useRef } from 'react'
@@ -18,9 +32,8 @@ import { CircleCheck, CircleDashed, CircleSlash, Link2, Tag } from 'lucide-react
 
 import type { Designator } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
-import { NOWHERE_LABEL, PLACEMENT_LABEL } from '@/lib/designators'
+import { NOWHERE_LABEL, PLACEMENT_LABEL, type RowState } from '@/lib/designators'
 import { cn } from '@/lib/utils'
-import type { RowState } from './model'
 
 /** Filled, hollow, hollow-and-quieter, computed, nowhere. Same vocabulary as the dots on the
  * sheet, so a row and its marker say the same thing — and the three placement words come from
@@ -78,19 +91,23 @@ export const STATE_LABEL: Record<RowState, string> = {
 interface Props {
   entries: Designator[]
   stateOf: (entry: Designator) => RowState
+  /** The row to shade and scroll to: the editor's armed target, or the reader's selection. */
   targetId: string | null
   onPick: (entry: Designator) => void
+  /** What the list says when the filter or the search box matches nothing. Two tabs, two truths:
+   * the editor filters by kind, the reader also has a text box. */
+  emptyNote?: string
 }
 
-export function WorkList({ entries, stateOf, targetId, onPick }: Props) {
+export function DesignatorList({ entries, stateOf, targetId, onPick, emptyNote }: Props) {
   /**
    * **Bring the armed row to where it can be seen.**
    *
    * The list is 275 rows and the armed one is marked only by its shading, so a target that
    * arrives from anywhere other than a click in the list — a dot on the sheet, the advance, a
-   * site button on the panel — was being highlighted somewhere off screen. The user then had to
-   * scroll the list hunting for the row the editor had already chosen for them, which is exactly
-   * the searching this screen exists to remove.
+   * site button on the panel, a citation in an answer — was being highlighted somewhere off
+   * screen. The user then had to scroll the list hunting for the row the editor had already
+   * chosen for them, which is exactly the searching this screen exists to remove.
    *
    * `block: 'nearest'` so a row that is already visible does not move: picking rows in the list
    * must not make the list jump under the pointer, and re-picking the row you are looking at
@@ -109,7 +126,7 @@ export function WorkList({ entries, stateOf, targetId, onPick }: Props) {
   if (!entries.length) {
     return (
       <p className="px-3 py-6 text-center text-xs text-muted-foreground">
-        Nothing matches this filter.
+        {emptyNote ?? 'Nothing matches this filter.'}
       </p>
     )
   }

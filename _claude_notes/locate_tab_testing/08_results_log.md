@@ -114,6 +114,24 @@ what did **not** get written matters as much as what did.*
 | T-585 | A net's compass per member, scrolling · labels face away from the net's centre · one label per dot, not per member | | |
 | T-590 | A wire with no colour or gauge has no end labels and says why | | |
 
+## T-60x–T-65x — the Drawing tab's list — `11_tests_drawing_list.md`
+
+*Added 2026-08-25 with Session 3 (Phase C). **Drawing tab, no password.** None walked. Nothing in this
+range writes anything: `git diff` on `schematic_extraction/` should be empty after all of them.*
+
+| Test | What it checks | Result | Notes if not P |
+|---|---|:--:|---|
+| T-600 | The list is there: 275 rows, the Locate tab's order, a component with its pins, the same state words and the `our id` badge | | |
+| T-605 | **Five** switches over the sheet — `Wires`, `Nets` and `Labels` where there was one button · an end label needs its kind **and** `Labels` | | |
+| T-610 | Net `120` selected from the list: seven pins ringed, the roster, no question spent — **`K9`** | | |
+| T-615 | A wire row frames the run · **no dot on blank paper** · both ends say `BLUE 18AWG` with its switches off · `W012` has no end labels and that is right | | |
+| T-620 | **The list filters the list, the switches filter the sheet, and neither touches the other** · filters are additive · none on means all · the `runs through` chips stay live | | |
+| T-625 | `relay` finds five · `120` finds sixteen · `cr-bp:` finds thirteen · `zzz` says so | | |
+| T-630 | Collapse to a rail and back · survives `F2` **and a reload** · the filter and the text deliberately do not | | |
+| T-635 | A dot, a citation and a roster row each move the list to their row and shade it | | |
+| T-640 | The six `nowhere` rows are listed, selectable, and have no dot and no flight · no editing control anywhere on a row | | |
+| T-650 | **`SWUI_ALLOW_EDITS=false`: no Locate tab, and the whole list works exactly as before** — the acceptance criterion | | |
+
 ---
 
 ## Failure detail

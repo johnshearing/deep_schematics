@@ -279,8 +279,10 @@ invisible while you are placing and obvious later.
 **Do.** Place a point on some visually unmistakable feature — a terminal dot printed on the sheet,
 or a corner of a box. Note the coordinate from the panel. Now switch to the **Drawing** tab —
 **`F2`** does it in one keystroke from anywhere, and `F2` again brings you back — and click any
-answer citation, or switch on the group the designator belongs to (`Components`, `Terminals` or
-`Wire & net labels` — see T-190) and find its dot.
+answer citation, or switch on the group the designator belongs to (`Components`, `Terminals`,
+`Wires`, `Nets` or `Labels` — see T-190) and find its dot. **Since 2026-08-25 there is a shorter
+way: type the id into the list down the left of the sheet and click the row** — see
+`11_tests_drawing_list.md` T-600.
 
 **Expected.** The Drawing tab's dot sits on the **same printed feature**, at any zoom, on any
 display. Both tabs go through `paint.ts` — there is exactly one projection in this application.
@@ -316,34 +318,39 @@ the entries (the filter re-lays-out the list under an unchanged target).
 
 ---
 
-## T-190 · The Drawing tab shows the same three groups (2026-08-19, not yet walked)
+## T-190 · The Drawing tab's layer switches (2026-08-19; **five of them since 2026-08-25**)
 
 **New, and asked for from this manual.** The Locate tab has filtered its list by *Components*,
 *Terminals* and *Wire & net labels* since it was written. The Drawing tab drew components and
 nothing else, so a placement run had no way to check a **pin** from the reader's side — which is the
-side that matters, and which T-170 asks you to check for components only. It now has all three.
+side that matters, and which T-170 asks you to check for components only. It now has all of them.
 
 **The one difference from this tab, and it is deliberate.** Over here the filter picks which rows you
 are *working through*, so exactly one at a time is right. Over there you are reading, and the useful
-questions are comparisons — *is that pin on the same conductor row as its relay* — so all three are
+questions are comparisons — *is that pin on the same conductor row as its relay* — so they are
 **independent switches** and any combination is allowed, including none.
 
-**Do.** Switch to the **Drawing** tab (`F2`). Find the three buttons in the toolbar, left of the
+**Do.** Switch to the **Drawing** tab (`F2`). Find the buttons in the toolbar, left of the
 zoom controls.
 
-**Expected.** `Components` is **on**, `Terminals` and `Wire & net labels` are **off** — the view this
-tab has always had, so nothing appears unasked. A group with nothing to draw has **no button at
-all**.
+**Expected.** **Five of them — `Components` `Terminals` `Wires` `Nets` `Labels`** — with
+`Components` **on** and the rest **off**: the view this tab has always had, so nothing appears
+unasked. A group with nothing to draw has **no button at all**.
 
-**Changed 2026-08-24:** the third button is now there on this drawing, where before there were only
-two. Nobody has placed a printed-name position, so that group has no *markers* — but it now also
-carries the **265 end labels**, one at each wire end and net terminal, and those are text rather than
-dots. "Nothing to draw" means both halves are empty. Press it and expect a great deal of text at once
-above 30% zoom; that is `10_tests_end_labels.md` T-550, and it is why the group still starts off.
+**Changed 2026-08-25:** `Wire & net labels` became three buttons. `Wires` and `Nets` are the two
+kinds, which are different questions asked at different moments, and `Labels` is the **text**: an end
+label needs its own kind's switch *and* `Labels`, because it is a label *of a wire*. The full walk is
+`11_tests_drawing_list.md` T-605.
+
+**Changed 2026-08-24:** a wire/net group is offered on this drawing at all, where before there was no
+third button. Nobody has placed a printed-name position, so those groups have no *markers* — but they
+carry the **265 end labels**, one at each wire end and net terminal, and those are text rather than
+dots. "Nothing to draw" means both halves are empty. Press them and expect a great deal of text at
+once above 30% zoom; that is `10_tests_end_labels.md` T-550, and it is why they still start off.
 
 **Expected, added 2026-08-19 on request.** A group that is **on** is a **filled** button — the same
 way this tab's filter buttons show which filter is in effect — and one that is off is plain. Press
-each in turn and read only the buttons: at any moment you can say which of the three are in effect
+each in turn and read only the buttons: at any moment you can say which of the five are in effect
 without looking at the sheet, which matters here precisely because any combination is legal. It was
 `aria-pressed` plus a slightly brighter word before, which a screen reader could tell you and a
 person could not.
@@ -368,5 +375,11 @@ components were the only things with dots. The card looks the entry up by **id**
 would have drawn a perfectly correct-looking card while putting a lie in the store — and every
 consumer of a selection switches on `kind`. Nothing on screen would have told you.
 
+**Do, since 2026-08-25.** Look one row down, at the four buttons over the **list** on the left.
+
+**Expected.** They say `Components` `Terminals` `Wires` `Nets` too, and they do something else
+entirely: **they filter the list and never the sheet.** T-620 is the test for that, and it is the one
+to walk if these five switches ever seem to be doing something to the rows.
+
 **If not.** `DrawingTab.tsx` — `LAYERS` and the `layers` memo for what is drawn, `shown` for the
-switches, `onMarker` for the kind. Five tests in `DrawingTab.test.tsx` cover it.
+switches, `onMarker` for the kind. Tests in `DrawingTab.test.tsx` cover it.

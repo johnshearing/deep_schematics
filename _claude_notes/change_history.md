@@ -15,18 +15,22 @@ a dated entry like the rest and the section goes.
 
 ---
 
-## NEXT UP — Session 3 of the wires-and-nets plan
+## NEXT UP — Session 4 of the wires-and-nets plan
 
-**Superseded as of 2026-08-24.** The work in progress is
+**Superseded as of 2026-08-25.** The work in progress is
 **`_claude_notes/highlighting_wires_and_nets.md`** — a six-session plan whose §0 says what to read
-and whose §13 is the schedule. **Sessions 1 (Phases 0 + A) and 2 (Phase B) both landed 2026-08-24**;
-see the two dated entries below. **The next session is Session 3, Phase C** — the Drawing tab's list
-of all 275 designators, pure client, no server and no file format — and it should begin by reading
-`08_results_log.md` for how the user got on with T-426, T-470–T-530 and T-550–T-590.
+and whose §13 is the schedule. **Sessions 1 (Phases 0 + A) and 2 (Phase B) landed 2026-08-24 and
+Session 3 (Phase C) on 2026-08-25**; see the three dated entries below. **The next session is Session
+4, Phase F** — the label-corrections review screen — and it should begin by reading
+`08_results_log.md` for how the user got on with T-426, T-470–T-530, T-550–T-590 and T-600–T-650.
 
-Two things Session 3 inherits and must not undo: the list must work with `SWUI_ALLOW_EDITS=false`
-(that is the acceptance criterion, not a nicety), and `LAYERS` becoming five switches is five chances
-to get `H11` wrong instead of three.
+What Session 4 inherits, and it is a bigger step than Session 3 was: **a second authored file**
+(`label_corrections.json`), **two new routes** behind `settings.allow_edits`, and **a new tab**. Two
+things to carry into it. `geometry.json` must never reach the browser whole — the GET publishes a
+subset behind an `lru_cache`, and that is a new hazard for the code map, not a detail. And
+`author_circuit_logic.py` must **not** read the corrections file: the netlist is already right, and
+the plan asks for a test that says so by name, so that a later session does not wire it in and quietly
+move the index.
 
 Job E below is done — the placement run finished on 2026-08-20 and all 131 terminals are placed. Job
 F is still the runner-up and still worth doing as its own piece of work. **The rest of this section
@@ -136,6 +140,137 @@ a specific question needs them.
 
 Semicolons, not `&&`, so one failure does not hide the state of the other three. Run
 `npm run build` **and restart the server** at the end; see the state block above for why both.
+
+---
+
+## 2026-08-25 — Session 3 of the wires-and-nets plan: a list, and five switches where there were three
+
+**Phase C of `_claude_notes/highlighting_wires_and_nets.md`.** A **pure client** session, as the plan
+promised: no server change, no schema change, `locations.json` untouched and `circuit_logic.json` not
+even stale. The whole of it is one component moved, one written, and two switches split out of one.
+
+**The headline is a known issue struck out: `K9` — *a net cannot be selected from the sheet* — is
+fixed.** Until today the dots a reader could click were components, terminals and printed names. A net
+is none of those, so the only route to net `120`'s highlight was a citation in an answer, which costs
+a question, a wait, and a model that happens to mention the thing you want. It is now a row you click.
+
+### 1. The list, and what it is *not*
+
+**All 275 designators down the left of the sheet, read-only.** The order is the Locate tab's, from the
+same collator, because a person who has learned that `CR-BP`'s six pins sit under `CR-BP` should find
+them in the same place on both screens. A row click goes through **the same `select(kind, id)` a
+citation calls** — with the row's own `kind`, which is the `onMarker` lesson of 2026-08-19 applied
+before it could be repeated — so the sheet flies, the card names it, and there is exactly one way into
+a selection however you arrived at it.
+
+**What it deliberately has none of:** a compass, a site button, a *place* link, a text field, a draft.
+`stateOf` is `readerRowState` in `lib/designators.ts` — computed from what `/api/designators`
+publishes and **never** from the editor's document, which is what makes the acceptance criterion
+possible: **it works with `SWUI_ALLOW_EDITS=false`, and T-650 is the test that says so.** The
+reader's side of this application is the part that will be shared with somebody holding the drawing
+and no password, and a list that needed the editor would have quietly made that impossible.
+
+**One list, two screens.** `features/locate/WorkList.tsx` became `components/DesignatorList.tsx`,
+moved unchanged, and both tabs import it. Not for the lines saved — for the row: the state words, the
+`our id` badge, the truncation and the `scrollIntoView` are all decisions somebody made once, and two
+copies of them drift in exactly the way the two tabs' *vocabularies* must not. `RowState` moved down
+to `lib/designators.ts` with it, beside `PLACEMENT_LABEL`, and `features/locate/model.ts` re-exports
+the type so nothing else had to change.
+
+### 2. The sentence the whole screen rests on
+
+> **The switches above the sheet change what the drawing shows. The buttons over the list change what
+> the list shows. The box narrows the list further. Neither set touches the other.**
+
+Worth stating that plainly, in the code header and in the manual and here, because the two rows of
+buttons carry **the same four words** and sit a few pixels apart, which is the strongest possible
+invitation to assume they are one control twice. `shown` and `kinds` are separate state of deliberately
+different shapes — `Layer` has a `labels` member and `ListKind` does not, because a label is not a row
+and a fifth filter would imply the index holds 265 more entries than it does. **T-620** is the test,
+and **H16** is the hazard so nobody tidies them into one.
+
+The other half of H16 is smaller and bit immediately: two buttons named `Components` in one document
+means anything that finds a button *by its name* — a screen reader, or a dozen existing tests — can no
+longer tell which one it is holding. So each row is a labelled `role="group"`: `Layers on the sheet`
+and `Filter the list`. The test helpers scope through those labels, and that is why fifteen tests went
+red on the first run of this session and none of them was a real regression.
+
+**The filters are independent and additive, and none of them on means everything** — which is how you
+get back, and why there is no *All* button to explain. That diverges from the Locate tab, where the
+filters *are* exclusive, and the reason is what a filter is for on each screen: over there it picks
+the queue you are working through, here it narrows a thing you are looking up. The search box matches
+the id **and** the one-line description, case-folded, plain substring: `relay` finds the five relays
+by their descriptions, `120` finds sixteen rows, and `zzz` says *nothing here matches “zzz”* rather
+than going blank.
+
+**Whether the list is open is persisted; the filters are not.** Open-or-closed is a decision about how
+much of a 1224 pt sheet you want to see, and re-closing a panel every morning is a screen that is not
+listening — so it is in `appStore` and in the persisted partition. A *filter* coming back tomorrow
+would read as a broken index rather than as yesterday's filter. Collapsed, it is a **rail** with the
+count on it rather than nothing at all, because the count is the reason to reopen it.
+
+### 3. `Wire & net labels` became `Wires`, `Nets` and `Labels`
+
+Three questions where there was one, and the same split the Locate tab made a day earlier for the same
+reason. What is new is the third: **`Labels` is the text.** An end label now needs **two** switches —
+its own kind and `Labels` — because it is a label *of a wire*, and one switch would make `Labels` mean
+*all 265 of them*, which on this drawing is 265 strings over 131 pins. A reader who wants the dots
+without the words now has that, and *which conductor is `BLUE 18AWG`* and *what is on net 120* are
+asked at different moments.
+
+**The selection stays exempt from all five** (`H11`), and that exemption is now what makes clicking a
+wire row worth doing: the run is framed and both ends say `BLUE 18AWG` with `Wires` and `Labels` both
+off, because you asked for that one thing by name. And `drawable` counts a kind's **end labels**
+towards whether it gets a button at all — otherwise `Wires` and `Nets` would have no switch on a
+drawing where nobody has placed a printed name, which is 71 wires' worth of labels hidden behind a
+button that does not exist.
+
+`H11` itself is restated rather than changed: `located` is still built from the components group
+regardless of its switch, so the `runs through` chips survive `Components` being off. **Five switches
+is five chances to get that wrong instead of three**, which is what the plan warned about, and it is
+asserted in the same test it always was.
+
+### 4. What it cost
+
+**Nothing measurable.** `/api/designators` is untouched — not a byte, since no Python changed — and
+the 275 rows are built in the browser from the index that was already on the page. One number for the
+record, because the last two sessions both reported this payload: `curl … | wc -c` is **103,902
+bytes** today, against the 111.6 KB Session 2 wrote down. The two were measured differently and
+neither is wrong about *this* session, which did not touch the endpoint; `11_tests_drawing_list.md`
+says to take the `wc -c` figure as the baseline from here on. No new endpoint, no new
+field, no new file. Recorded in the same place as Session 1's 20 KB and Session 2's 1.5 KB, because a
+session that costs nothing is worth noting next to two that did.
+
+### Tests and documents
+
+**117 server (unmoved — nothing server-side changed), 192 web (was 185), `ruff` and `tsc` clean.** The
+artifact test was green before this session started and still is: re-running the generator produced no
+diff, which is the honest way to start from green.
+
+| Where | Added |
+|---|---|
+| `webui/src/features/drawing/DrawingTab.test.tsx` | **7** — the list with no editor at all · a row and a dot raising the same selection under their own kinds · **the list filtering the list and the sheet filtering the sheet, neither touching the other** · finding a row by id and by description, and the empty note · an end label needing both switches while the selection needs neither · the collapse remembered across a remount · the selected row shaded wherever the reader was. Plus every by-name button query in the file re-scoped to one of the two labelled groups, and the switch tests re-pointed at five |
+
+Documents: **`11_tests_drawing_list.md`** is new (**T-600–T-650**, eleven lessons, T-650 being the
+`SWUI_ALLOW_EDITS=false` walk that is the acceptance criterion). The index gains **§5d**, a document
+row, seven symptom rows, **`K9` struck through**, a note on `K7` (on a *reader's* list those six
+`nowhere` rows are information, not a chore) and the refreshed counts; `01_screen_and_vocabulary.md`
+gains a section comparing the two lists side by side and the five switches;
+`02_tests_place_and_drag.md`'s **T-190** now describes five switches and points at T-620;
+`04_tests_labels.md` **T-335** and **T-360** and `10_tests_end_labels.md` **T-550**, **T-555** and
+**T-580** name the switches they now need; `06_code_map.md` gains six symbol rows, hazard **H16**,
+and `H11` restated for five switches; `08_results_log.md` gains rows for T-600–T-650.
+
+### Two things a person must do, not a session
+
+**Nothing to restart on the server's account** — no Python changed — but the bundle *was* rebuilt
+(`npm run build`), and `server/app/static/` is gitignored, so **the running server is still serving
+the old bundle until it is restarted**. That is the one operational fact of this session, and it is
+the cheap half of the usual pair.
+
+**Walk T-650 last and leave the server as you found it.** It asks you to restart with
+`SWUI_ALLOW_EDITS=false`; without the flag back on, the next session has no Locate tab and no way to
+tell that from a bug — which is exactly how a session was lost on 2026-08-17.
 
 ---
 

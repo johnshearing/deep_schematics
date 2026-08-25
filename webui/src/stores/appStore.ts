@@ -74,6 +74,19 @@ interface AppState {
    * *enabled* tabs anyway, so this is one place doing the job instead of two, and no cycle.
    */
   activeTabId: string
+  /**
+   * Whether the Drawing tab's list of designators is open.
+   *
+   * **In the store, and persisted, on purpose.** The Drawing tab is `keepMounted`, so component
+   * state would already survive an `F2` round trip — but not a reload, and this is a decision
+   * about how much of a 1224 pt sheet somebody wants to see. Reopening a panel you closed, every
+   * morning, is exactly the kind of small cost that makes a screen feel like it is not listening.
+   *
+   * The *filters* over that list are deliberately **not** here: they are a narrowing of a search,
+   * they change many times a sitting, and coming back tomorrow to a list that silently shows only
+   * wires would read as a broken index rather than as yesterday's filter.
+   */
+  drawingListOpen: boolean
   loaded: boolean
   /** Never persisted: a shared demo secret has no business outliving the tab. */
   unlocked: boolean
@@ -81,6 +94,7 @@ interface AppState {
 
   setModel: (model: string) => void
   setActiveTab: (id: string) => void
+  setDrawingListOpen: (open: boolean) => void
   /** Point at something. Callers that also need the drawing on screen switch tabs themselves:
    * this store must not import the tab registry (see `activeTabId`).
    *
@@ -114,12 +128,14 @@ export const useAppStore = create<AppState>()(
       selection: null,
       model: 'sonnet',
       activeTabId: '',
+      drawingListOpen: true,
       loaded: false,
       unlocked: false,
       unlockError: null,
 
       setModel: (model) => set({ model }),
       setActiveTab: (activeTabId) => set({ activeTabId }),
+      setDrawingListOpen: (drawingListOpen) => set({ drawingListOpen }),
 
       select: (kind, id, origin = 'text', from) =>
         set((state) => ({
@@ -181,7 +197,11 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'schematic-webui',
-      partialize: (state) => ({ model: state.model, activeTabId: state.activeTabId }),
+      partialize: (state) => ({
+        model: state.model,
+        activeTabId: state.activeTabId,
+        drawingListOpen: state.drawingListOpen,
+      }),
     },
   ),
 )

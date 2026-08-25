@@ -37,7 +37,9 @@ points, and stepped clockwise if something is already written there.
 ## T-550 · The labels appear, and the file stays empty
 
 **Do.** On the **Drawing** tab, zoom past **30%** (labels of every kind are hidden below it — that is
-`H7`, and it is the first thing to check in any report here). Press the **Wire & net labels** switch.
+`H7`, and it is the first thing to check in any report here). Press the **Wires**, **Nets** and
+**Labels** switches. *(One switch, `Wire & net labels`, until 2026-08-25: an end label now needs the
+text switched on and its own kind switched on — T-605.)*
 
 **Expected.** Text everywhere: `BLUE 18AWG`, `RED 16AWG`, net numbers like `110` and `120`, each
 beside a pin rather than floating in the middle of a run. It is a lot at once, which is why the
@@ -79,7 +81,7 @@ the eastern pin is east of it, the western one west. Neither sits on top of the 
 one I care about*. A label lying along its own conductor hides exactly the thing you are trying to
 see, and on a sheet whose rows are 16 pt apart it can look as though it belongs to the run above.
 
-**Do.** Press **Wire & net labels** off and on again. Press **Terminals** on and off. Select a net,
+**Do.** Press **Labels** off and on again. Press **Terminals** on and off. Select a net,
 then clear it with `Esc`.
 
 **Expected.** **No label moves.** Not once. Every side is computed from the points and the authored
@@ -218,7 +220,7 @@ other tab, and that already exists.
 
 **Do.** Find a pin that carries all three: its **own id**, a **wire's** spec and a **net's** number.
 `TB-120:1` is one — it is on net 120 and is an end of `W052`. On the Drawing tab, switch on
-`Terminals` and `Wire & net labels`, select net `120`, and zoom in on it.
+`Terminals`, `Wires`, `Nets` and `Labels`, select net `120`, and zoom in on it.
 
 **Expected.** Three separate texts around one dot, on **three different sides**, none on top of
 another. The order they take is fixed and not negotiable per pin:

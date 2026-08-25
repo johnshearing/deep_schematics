@@ -285,15 +285,19 @@ the two tabs hold their pan and zoom separately. T-425 is that test. The key is 
 application-wide in `App.tsx`, not by this tab, so it also works while the caret is in a site-name
 box — where it does nothing to the text.
 
-**And the Drawing tab now shows the same three groups this filter does** (2026-08-19, later the same
-day). `Components`, `Terminals` and `Wire & net labels`, in its own toolbar, in those words. Until
-then it drew components only, so `F2` could check a component from the reader's side but never a
-**pin** — and the pins are the 131 placements. One difference, and it is deliberate: over there they
-are **independent switches**, not one exclusive choice, because a reader's question is a comparison
+**And the Drawing tab shows the same groups this filter does** (2026-08-19, later the same day).
+`Components`, `Terminals` and `Wire & net labels`, in its own toolbar, in those words. Until then it
+drew components only, so `F2` could check a component from the reader's side but never a **pin** — and
+the pins are the 131 placements. One difference, and it is deliberate: over there they are
+**independent switches**, not one exclusive choice, because a reader's question is a comparison
 (*is that pin on the same row as its relay?*) and both halves have to be visible at once. T-190 and
 T-360 are those tests. Since 2026-08-19 (third change of the day) those switches are **filled when
-they are on**, the same way this tab's filter buttons are: with three of them and every combination
-legal, "which filters are in effect" has to be readable on all three at once.
+they are on**, the same way this tab's filter buttons are: with every combination legal, "which
+filters are in effect" has to be readable on all of them at once.
+
+**Five of them since 2026-08-25**, when `Wire & net labels` became **`Wires`**, **`Nets`** and
+**`Labels`** — the same split this tab made a day earlier, plus a switch for the *text*. An end label
+now needs its own kind's switch **and** `Labels`, because it is a label of a wire. **T-605.**
 
 **Past 50% zoom, picking a row leaves the sheet exactly where it is** (2026-08-19). Below that
 nothing has changed — the sheet flies and lands at 50%, which is T-110. But 50% is also where a
@@ -323,12 +327,41 @@ so. Zoom back out to 50% or less and every flight works as it always did.
 - Dots are **draggable here and nowhere else**. The Drawing tab passes no drag handler, so a stray
   drag there pans the sheet and cannot edit the file.
 - The **Drawing tab draws the same dots, by the same rules** — one per place, filled versus hollow,
-  the label side you chose — but which ones it draws is its own three switches rather than this
+  the label side you chose — but which ones it draws is its own five switches rather than this
   filter. Same `MarkerLayer`, same one projection; only the question "which of these do I want to
   see" is answered separately, because the two screens are being read for different reasons.
   *"The label side you chose" was a claim and not a fact until 2026-08-19:* a dot that is the only
   one its designator has — which is 269 of 275 — reached that tab without its side and came out
   east. **T-335** is the test that keeps it honest.
+
+---
+
+## The other screen's list *(added 2026-08-25)*
+
+Not this tab either, and the closest thing to it in the application — so the words are deliberately
+this tab's words.
+
+The Drawing tab now has **a list of all 275 designators down its left**, in **this list's order**,
+from the same collator: `+24V`, `0V`, `24E-1`, `110`, … `W071`, with a component and its pins
+together. Every row shows the same id, the same one-line description, the same `our id` badge and the
+**same state words** — `placed`, `estimate`, `on its component`, `nowhere`, `ends known, no path`,
+`label placed`. It is literally the same component (`components/DesignatorList.tsx`), which is what
+makes that promise keepable.
+
+What is different is everything about *editing*:
+
+| | This tab's list | The Drawing tab's list |
+|---|---|---|
+| A row click | **arms** the row — the next click on the sheet writes | **selects** it — the sheet flies to it and the card names it |
+| The state | the unsaved **draft** first, the server's answer second | the published index, always. No draft exists there |
+| Filters | `To do` `Components` `Terminals` `Wires` `Nets` `All`, **one at a time** | `Components` `Terminals` `Wires` `Nets`, **any combination**, none of them meaning all |
+| A search box | none — the filters plus the advance are the way through 275 rows | **yes**, matching the id and the description |
+| A password | required | **none**. It works with `SWUI_ALLOW_EDITS=false`, which is the point |
+
+**The one sentence to remember about that screen**, because two rows of similar buttons sit a few
+pixels apart on it: *the switches over the sheet change what the drawing shows; the buttons over the
+list change what the list shows; neither touches the other.* **T-600–T-650**, and `K9` — *a net
+cannot be selected from the sheet* — is what it fixed.
 
 ---
 

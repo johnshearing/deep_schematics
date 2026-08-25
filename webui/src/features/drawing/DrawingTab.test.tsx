@@ -10,7 +10,7 @@
  * a recording context — jsdom has no 2D context to assert through.
  */
 
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { DrawingTab, DRAWING_TAB_ID } from './DrawingTab'
@@ -109,9 +109,48 @@ function withLabels() {
   useAppStore.setState({ designators: index, byToken: buildLookup(index) })
 }
 
-/** A layer switch in the toolbar, by the word on it. */
+/**
+ * A layer switch in the toolbar, by the word on it — and **scoped to the toolbar**, because since
+ * 2026-08-25 the list on the left has its own `Components`, `Terminals`, `Wires` and `Nets`
+ * buttons. Two rows of identically worded buttons that do entirely different things is the point
+ * of the screen, so each row is a labelled group and every query has to say which one it means.
+ */
 function group(name: string): HTMLButtonElement {
-  return screen.getByRole('button', { name }) as HTMLButtonElement
+  return within(screen.getByRole('group', { name: 'Layers on the sheet' })).getByRole('button', {
+    name,
+  }) as HTMLButtonElement
+}
+
+/** A filter button over the list, by the word on it. Same words, other row. */
+function listFilter(name: string): HTMLButtonElement {
+  return within(screen.getByRole('group', { name: 'Filter the list' })).getByRole('button', {
+    name,
+  }) as HTMLButtonElement
+}
+
+/**
+ * The sheet and everything floated over it — the selection card included.
+ *
+ * A row in the list shows the same one-line description the card headlines with, so
+ * `getByText('Run bypass relay.')` now finds two. Which one a test means is a real question and
+ * this is the answer: everything about the drawing is inside the `application` region, and
+ * everything about the list is outside it.
+ */
+function sheet() {
+  return within(screen.getByRole('application'))
+}
+
+/** A button on the selection card — a `runs through` chip, a roster row. */
+function chip(name: string): HTMLButtonElement {
+  return sheet().getByRole('button', { name }) as HTMLButtonElement
+}
+
+/** The rows of the list on the left, by their ids — the inner `span` of the two a row holds,
+ * because the outer one carries the description as well. */
+function rows(): string[] {
+  return within(screen.getByRole('listbox', { name: 'Indexed designators' }))
+    .getAllByRole('option')
+    .map((row) => row.querySelector('span > span')?.textContent ?? '')
 }
 
 /** jsdom reports every element as 0×0, and a container with no size has nothing to fit to. */
@@ -140,6 +179,9 @@ afterEach(() => {
   for (const name of descriptors) delete (HTMLElement.prototype as never)[name]
   useAppStore.setState({
     activeTabId: 'ask', designators: null, byToken: new Map(), selection: null, health: null,
+    // The collapse is persisted, so a test that closes the list would close it for every test
+    // after it — and for whoever runs the suite twice in one browser.
+    drawingListOpen: true,
   })
   useChatStore.setState({ composerText: '' })
   useLocateStore.setState({ target: null })
@@ -329,7 +371,7 @@ describe('DrawingTab', () => {
     const view = render(<DrawingTab />)
     activate()
     act(() => useAppStore.getState().select('wire', 'W048', 'drawing'))
-    await waitFor(() => expect(screen.getByText(/BLUE 18AWG/)).toBeTruthy())
+    await waitFor(() => expect(sheet().getByText(/BLUE 18AWG/)).toBeTruthy())
     expect(screen.queryByRole('button', { name: /^W048 —/ })).toBeNull()
     view.unmount()
 
@@ -362,7 +404,7 @@ describe('DrawingTab', () => {
     fireEvent.click(marker('CR-BP'))
 
     expect(useAppStore.getState().selection).toMatchObject({ id: 'CR-BP', origin: 'drawing' })
-    expect(screen.getByText('Run bypass relay.', { exact: false })).toBeTruthy()
+    expect(sheet().getByText('Run bypass relay.', { exact: false })).toBeTruthy()
     // You do not move the sheet under someone who has just put a finger on it.
     expect(screen.getByText('11%').textContent).toBe(before)
   })
@@ -414,31 +456,31 @@ describe('DrawingTab', () => {
     render(<DrawingTab />)
     activate()
     act(() => useAppStore.getState().select('net', '110', 'drawing'))
-    await waitFor(() => expect(screen.getByText('3 terminals')).toBeTruthy())
+    await waitFor(() => expect(sheet().getByText('3 terminals')).toBeTruthy())
 
     // All three, in order, including the one with nowhere to go — a roster that quietly dropped
     // it would under-report the net, which is the thing this replaced.
-    const rows = screen.getAllByRole('listitem')
-    expect(rows.map((r) => r.querySelector('button')?.textContent)).toEqual([
+    const members = sheet().getAllByRole('listitem')
+    expect(members.map((r) => r.querySelector('button')?.textContent)).toEqual([
       'CR-BP:A1', 'CR-BP:A2', 'CB1:2',
     ])
     // The same three words the Locate tab's list uses, from the one place they are spelled.
-    expect(rows[0].textContent).toContain('placed')
-    expect(rows[1].textContent).toContain('on its component')
-    expect(rows[2].textContent).toContain('nowhere')
-    expect((rows[2].querySelector('button') as HTMLButtonElement).disabled).toBe(true)
+    expect(members[0].textContent).toContain('placed')
+    expect(members[1].textContent).toContain('on its component')
+    expect(members[2].textContent).toContain('nowhere')
+    expect((members[2].querySelector('button') as HTMLButtonElement).disabled).toBe(true)
 
     // The components are still there, demoted to what they are.
-    expect(screen.getByText('runs through')).toBeTruthy()
+    expect(sheet().getByText('runs through')).toBeTruthy()
   })
 
   it('flies to a member terminal when its row is clicked', async () => {
     render(<DrawingTab />)
     activate()
     act(() => useAppStore.getState().select('net', '110', 'drawing'))
-    await waitFor(() => expect(screen.getByText('3 terminals')).toBeTruthy())
+    await waitFor(() => expect(sheet().getByText('3 terminals')).toBeTruthy())
 
-    fireEvent.click(screen.getByRole('button', { name: 'CR-BP:A1' }))
+    fireEvent.click(chip('CR-BP:A1'))
     // The same `select(kind, id)` a citation calls, with the member's own kind — so the two
     // entry points cannot drift, and the flight happens because this did not come from the sheet.
     expect(useAppStore.getState().selection).toMatchObject({
@@ -487,7 +529,7 @@ describe('DrawingTab', () => {
     expect(screen.queryByRole('button', { name: /^CR-BP —/ })).toBeNull()
     // The pins are what the net is made of, and they are still there.
     expect(marker('CR-BP:A1')).toBeTruthy()
-    expect(screen.getByText('runs through')).toBeTruthy()
+    expect(sheet().getByText('runs through')).toBeTruthy()
   })
 
   /**
@@ -500,11 +542,11 @@ describe('DrawingTab', () => {
     render(<DrawingTab />)
     activate()
     act(() => useAppStore.getState().select('net', '110', 'drawing'))
-    await waitFor(() => expect(screen.getByText('3 terminals')).toBeTruthy())
+    await waitFor(() => expect(sheet().getByText('3 terminals')).toBeTruthy())
     // Nothing sent the reader to the net, so its own card offers no way back.
     expect(screen.queryByRole('button', { name: /back to/i })).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'CR-BP:A1' }))
+    fireEvent.click(chip('CR-BP:A1'))
     expect(useAppStore.getState().selection).toMatchObject({
       kind: 'terminal', id: 'CR-BP:A1', from: { kind: 'net', id: '110' },
     })
@@ -513,14 +555,14 @@ describe('DrawingTab', () => {
     // The roster is back, and so is the net's framing — you left it by flying to one pin.
     expect(useAppStore.getState().selection).toMatchObject({ kind: 'net', id: '110' })
     expect(useAppStore.getState().selection?.from).toBeUndefined()
-    expect(screen.getByText('3 terminals')).toBeTruthy()
+    expect(sheet().getByText('3 terminals')).toBeTruthy()
   })
 
   it('offers *place it* only where the server has an editor, and arms that pin', async () => {
     render(<DrawingTab />)
     activate()
     act(() => useAppStore.getState().select('net', '110', 'drawing'))
-    await waitFor(() => expect(screen.getByText('3 terminals')).toBeTruthy())
+    await waitFor(() => expect(sheet().getByText('3 terminals')).toBeTruthy())
 
     // A reader's copy: `SWUI_ALLOW_EDITS` false, so there is no editor to send anybody to and
     // the roster says what it knows without offering to fix it.
@@ -553,12 +595,12 @@ describe('DrawingTab', () => {
     render(<DrawingTab />)
     activate()
     fireEvent.click(marker('CR-BP'))
-    expect(screen.getByText('Run bypass relay.', { exact: false })).toBeTruthy()
+    expect(sheet().getByText('Run bypass relay.', { exact: false })).toBeTruthy()
 
     fireEvent.keyDown(window, { key: 'Escape' })
 
     expect(useAppStore.getState().selection).toBeNull()
-    expect(screen.queryByText('Run bypass relay.', { exact: false })).toBeNull()
+    expect(sheet().queryByText('Run bypass relay.', { exact: false })).toBeNull()
   })
 
   it('leaves Escape alone when this tab is not the one on screen', () => {
@@ -596,7 +638,7 @@ describe('DrawingTab', () => {
     render(<DrawingTab />)
     activate()
     fireEvent.click(marker('CR-BP'))
-    fireEvent.click(screen.getByRole('button', { name: /components/i }))
+    fireEvent.click(group('Components'))
 
     // Hiding the thing an answer just pointed at would be the one case the toggle must not
     // cover — the reader turned the other 46 off, not this one.
@@ -604,17 +646,19 @@ describe('DrawingTab', () => {
     expect(screen.queryByRole('button', { name: /^CB1 —/ })).toBeNull()
   })
 
-  it('offers the Locate tab’s three groups, with only components on to begin with', () => {
-    // The Locate tab has filtered its list by Components / Terminals / Wire & net labels since it
-    // was written; this tab drew components and nothing else. Same three groups, same words — but
-    // the default view stays what it was, because 131 terminals appearing unasked is a fog.
+  it('offers five groups over the sheet, with only components on to begin with', () => {
+    // Three groups until 2026-08-25, when `Wire & net labels` became `Wires`, `Nets` and
+    // `Labels` — a wire and a net are different questions, and the text is a third. The default
+    // view stays exactly what it was, because 131 terminals appearing unasked is a fog and 265
+    // labels is a worse one.
     withLabels()
     render(<DrawingTab />)
     activate()
 
     expect(group('Components').getAttribute('aria-pressed')).toBe('true')
-    expect(group('Terminals').getAttribute('aria-pressed')).toBe('false')
-    expect(group('Wire & net labels').getAttribute('aria-pressed')).toBe('false')
+    for (const off of ['Terminals', 'Wires', 'Nets', 'Labels']) {
+      expect(group(off).getAttribute('aria-pressed')).toBe('false')
+    }
 
     expect(marker('CB1')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /^CR-BP:A1 —/ })).toBeNull()
@@ -632,7 +676,7 @@ describe('DrawingTab', () => {
 
     expect(group('Components').className).toContain('bg-primary')
     expect(group('Terminals').className).not.toContain('bg-primary')
-    expect(group('Wire & net labels').className).not.toContain('bg-primary')
+    expect(group('Wires').className).not.toContain('bg-primary')
 
     fireEvent.click(group('Terminals'))
     expect(group('Terminals').className).toContain('bg-primary')
@@ -710,14 +754,14 @@ describe('DrawingTab', () => {
       kind: 'terminal', id: 'CR-BP:A1', origin: 'drawing',
     })
 
-    fireEvent.click(group('Wire & net labels'))
+    fireEvent.click(group('Wires'))
     fireEvent.click(marker('W048'))
     expect(useAppStore.getState().selection).toMatchObject({
       kind: 'wire', id: 'W048', origin: 'drawing',
     })
   })
 
-  it('draws a wire or net label on its printed name, and offers no switch with nothing to draw', () => {
+  it('draws a wire’s printed name on its own switch, and offers no switch with nothing to draw', () => {
     // An empty group gets no button: a pressed switch that changes nothing on the sheet reads as
     // broken rather than as "there is nothing here". Nothing to draw means both halves empty —
     // no printed name placed *and* no end label with a pin to hang off, which is a net whose
@@ -729,13 +773,19 @@ describe('DrawingTab', () => {
     useAppStore.setState({ designators: bare, byToken: buildLookup(bare) })
     const view = render(<DrawingTab />)
     activate()
-    expect(screen.queryByRole('button', { name: 'Wire & net labels' })).toBeNull()
+    for (const absent of ['Wires', 'Nets', 'Labels']) {
+      expect(
+        within(screen.getByRole('group', { name: 'Layers on the sheet' })).queryByRole('button', {
+          name: absent,
+        }),
+      ).toBeNull()
+    }
     view.unmount()
 
     withLabels()
     render(<DrawingTab />)
     activate()
-    fireEvent.click(group('Wire & net labels'))
+    fireEvent.click(group('Wires'))
 
     // 12 + 742 × 0.634 = 482 px — the label, not the 625 pt midpoint of the run. That midpoint is
     // blank paper, and a dot there would claim to be the wire.
@@ -754,8 +804,8 @@ describe('DrawingTab', () => {
     activate()
     // Above the 30% floor, or every label on the sheet is a grey fog and all of them are hidden.
     zoomTo30()
-    act(() => useAppStore.getState().select('net', '110', 'drawing'))
-    fireEvent.click(group('Wire & net labels'))
+    fireEvent.click(group('Nets'))
+    fireEvent.click(group('Labels'))
 
     // A net says its own id, which is mostly printed beside the conductor. Two of its three
     // members have a point; the third has nowhere to sit and is skipped rather than invented.
@@ -786,14 +836,182 @@ describe('DrawingTab', () => {
     activate()
     // From the sheet, so nothing flies and the fit scale still holds.
     act(() => useAppStore.getState().select('net', '110', 'drawing'))
-    await waitFor(() => expect(screen.getByText('control 24VDC', { exact: false })).toBeTruthy())
+    await waitFor(() => expect(sheet().getByText('control 24VDC', { exact: false })).toBeTruthy())
 
     fireEvent.click(group('Components'))
 
     // "What does net 110 run through" is not the same question as "what do I want dots for". The
     // switch hides the dots; the chips still offer every member the sheet knows a place for.
-    expect(group('CR-BP').disabled).toBe(false)
-    expect(group('UPSTREAM-MACHINE').disabled).toBe(true)
+    expect(chip('CR-BP').disabled).toBe(false)
+    expect(chip('UPSTREAM-MACHINE').disabled).toBe(true)
+  })
+
+  /**
+   * ### The list down the left — Phase C, 2026-08-25
+   *
+   * It exists because of a hole with a name: **`K9`, a net could not be selected from the sheet.**
+   * The dots are components, terminals and printed names, so the only route to net `120`'s
+   * highlight was a citation in an answer — which costs a question and a wait. These tests are
+   * mostly about the *seam* between the list and the sheet, because that is the part a reader can
+   * be wrong about: two rows of identically worded buttons a few pixels apart, doing two different
+   * jobs.
+   */
+  it('lists every designator for a reader with no editor at all', () => {
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+
+    // `health` is null here, which is what a server started without `SWUI_ALLOW_EDITS` looks like
+    // to this tab: no Locate tab, no draft, no password. The list must not care.
+    expect(useAppStore.getState().health).toBeNull()
+    expect(rows()).toEqual([
+      '110', 'CB1', 'CR-BP', 'CR-BP:A1', 'CR-BP:A2', 'UPSTREAM-MACHINE', 'W048',
+    ])
+
+    // The state words come from the index, not from a draft: a net whose name nobody has placed
+    // reads `ends known, no path`, and the wire whose name somebody has reads `label placed`.
+    const list = within(screen.getByRole('listbox', { name: 'Indexed designators' }))
+    expect(list.getByRole('option', { name: /^110/ }).textContent).toContain('ends known, no path')
+    expect(list.getByRole('option', { name: /^W048/ }).textContent).toContain('label placed')
+    // And the one nobody can place anywhere on this sheet says so rather than being hidden.
+    expect(list.getByRole('option', { name: /^UPSTREAM-MACHINE/ }).textContent).toContain('nowhere')
+  })
+
+  it('raises the same selection from a row as from a dot, each under its own kind', () => {
+    // The row goes through the same `select(kind, id)` a citation calls, and with the entry's own
+    // kind — the mistake this pins is the one `onMarker` actually made in 2026-08-19, when every
+    // click raised `'component'` and the card's by-id lookup papered over it.
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+
+    fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: /^110/ }))
+    // `origin: 'text'` and not `'drawing'`: naming something is a request to be taken to it,
+    // where putting a finger on the sheet is not.
+    expect(useAppStore.getState().selection).toMatchObject({
+      kind: 'net', id: '110', origin: 'text',
+    })
+
+    fireEvent.click(marker('CR-BP'))
+    expect(useAppStore.getState().selection).toMatchObject({
+      kind: 'component', id: 'CR-BP', origin: 'drawing',
+    })
+  })
+
+  it('filters the list without touching the sheet, and the sheet without touching the list', () => {
+    // **The whole design of this screen in one test.** The buttons over the list change what the
+    // list shows; the switches over the sheet change what the drawing shows; neither touches the
+    // other. They look alike and sit a few pixels apart, which is the strongest possible
+    // invitation to assume they are one control twice.
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+
+    fireEvent.click(listFilter('Nets'))
+    expect(rows()).toEqual(['110'])
+    // The sheet is exactly as it was: the components are still drawn and still switched on.
+    expect(marker('CR-BP')).toBeTruthy()
+    expect(group('Components').getAttribute('aria-pressed')).toBe('true')
+    // And the list's own filter has not been mistaken for the sheet's switch of the same name.
+    expect(group('Nets').getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(group('Terminals'))
+    expect(marker('CR-BP:A1')).toBeTruthy()
+    expect(rows()).toEqual(['110'])
+
+    // Independent, and none of them on is everything — which is how you get back, without an
+    // *All* button to explain.
+    fireEvent.click(listFilter('Components'))
+    expect(rows()).toEqual(['110', 'CB1', 'CR-BP', 'UPSTREAM-MACHINE'])
+    fireEvent.click(listFilter('Nets'))
+    fireEvent.click(listFilter('Components'))
+    expect(rows()).toHaveLength(7)
+  })
+
+  it('finds a row by its id or by its description, and says when nothing matches', () => {
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+    const box = screen.getByRole('searchbox', { name: 'Search the list' })
+
+    // By id, including the pin separator — this is the search a reader does most. `W048` comes
+    // with them because its *description* names `CR-BP:A2`, and that is the search working: the
+    // wire on that pin is very often the thing somebody typing a pin id is looking for.
+    fireEvent.change(box, { target: { value: 'cr-bp:' } })
+    expect(rows()).toEqual(['CR-BP:A1', 'CR-BP:A2', 'W048'])
+
+    // By the one-line description, which is the half a reader who does not know the id needs.
+    fireEvent.change(box, { target: { value: 'bypass' } })
+    expect(rows()).toEqual(['CR-BP'])
+
+    fireEvent.change(box, { target: { value: 'zzz' } })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(screen.getByText(/Nothing here matches/)).toBeTruthy()
+  })
+
+  it('needs both switches for an end label, and neither for the selection’s own', () => {
+    // An end label is a label *of a wire*: the text (`Labels`) and the thing it names (`Wires` or
+    // `Nets`). One switch would make `Labels` mean "all 265 of them", which on this drawing is
+    // 265 strings over 131 pins.
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+    zoomTo30()
+
+    fireEvent.click(group('Labels'))
+    expect(document.querySelectorAll('[data-end-label]')).toHaveLength(0)
+    fireEvent.click(group('Nets'))
+    expect(document.querySelectorAll('[data-end-label]')).toHaveLength(2)
+
+    // Both off, and the one thing that was asked for by name still says what it is (H11).
+    fireEvent.click(group('Labels'))
+    fireEvent.click(group('Nets'))
+    expect(document.querySelectorAll('[data-end-label]')).toHaveLength(0)
+    act(() => useAppStore.getState().select('net', '110', 'drawing'))
+    expect(document.querySelectorAll('[data-end-label]')).toHaveLength(2)
+  })
+
+  it('collapses to a rail that says how much is behind it, and remembers', () => {
+    withLabels()
+    const view = render(<DrawingTab />)
+    activate()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide the list' }))
+    expect(screen.queryByRole('listbox')).toBeNull()
+    // A rail rather than nothing, and the count is the reason to reopen it.
+    expect(screen.getByRole('button', { name: 'Show the list' })).toBeTruthy()
+    expect(screen.getByText('7')).toBeTruthy()
+
+    // In the store and persisted, because this is a decision about how much of the sheet you
+    // want to see — and reopening a panel you closed, every morning, is a screen not listening.
+    expect(useAppStore.getState().drawingListOpen).toBe(false)
+    view.unmount()
+    render(<DrawingTab />)
+    activate()
+    expect(screen.queryByRole('listbox')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show the list' }))
+    expect(rows()).toHaveLength(7)
+  })
+
+  it('shades the row a citation selected, wherever the reader was in the list', async () => {
+    // The list is 275 rows and a citation can land anywhere in it. `DesignatorList` scrolls the
+    // selected row into view — jsdom has no layout, so what is asserted is the state that drives
+    // it: the row knows it is the selected one.
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('wire', 'W048'))
+
+    const row = await waitFor(() =>
+      within(screen.getByRole('listbox')).getByRole('option', { name: /^W048/ }),
+    )
+    expect(row.getAttribute('aria-selected')).toBe('true')
+    expect(
+      within(screen.getByRole('listbox'))
+        .getByRole('option', { name: /^110/ })
+        .getAttribute('aria-selected'),
+    ).toBe('false')
   })
 
   it('offers no tab at all when the sheet has never been rendered to tiles', () => {

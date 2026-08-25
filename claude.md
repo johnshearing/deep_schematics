@@ -31,33 +31,13 @@ In section 9. "The phases" you will see the following:
 
 0 + A ·│· B ·│· C ·│· F ·│· D + G ·│· E    session 1   2    3    4     5      6"  
 
-You have already executed session 1 which included plans 0 + A.  
+You have already executed sessions 1 and 2 which included plans 0, A, and B.  
+I have worked through the lessons/tests in /home/js/schematics/_claude_notes/locate_tab_testing/08_results_log.md
+Everything functioned as expected.
 
-Regarding the work that was just accomplished from plans 0 + A, I noticed the following opportunities for improvement:  
-1. When placing markers with the arrow keys the moves should be much shorter.  
-   My hope is to use the arrow keys to move the markers more precisely than I can do with my hands and a mouse.  
+Please proceed to session 3 and accomplish the tasks layed out in Plan C.
 
-2. Return to "Ask" tab jumps to the bottom of the "Ask" page. 
-   If I am on the "Ask" tab and I have asked about a net or perhaps asked about a wire or component then I will see a hyperlink in the response that will bring me to that item on the "Drawing" tab.  
-   Then when pressing F2 to return to the "Ask" tab, the user is brought to the bottom of the "Ask" tab.  
-   It would be better if the "Ask" tab were returned to the position from which the user was viewing last.  
-   The reason for this is that the user is probably following the hypelink given in by the model as the user reads the response. So the user needs to come back to the same position on the "Ask" tab as the user flips back and forth between the "Drawing" and the "Ask" tab.  
-
-3. Return to the roster card.  
-   With regard to sections T-510 "The card is a roster" and T-515 "A roster row flies to its pin" in "/home/js/schematics/_claude_notes/locate_tab_testing/09_tests_net_membership.md":  
-   After flying to a pin, it would be good if there were a way to return to the roster directly.
-   Perhaps a back button on the information card of the pin in the lower left corner of the screen that would bring the user back to the roster card. Perhaps you have another idea.  
-
-4. If I am on the "Ask" tab and I have asked about a net then I will see a hyperlink in the response that will bring me to that net on the "Drawing" tab.  
-   All the terminals of all the wires for the net are marked to make the net visible to the user.  
-   This is very good.  
-   My problem is that the components are also marked and this adds clutter and confusion to the drawing.   
-   Plesae show only terminals when displaying a net.
-
-Please make all these improvements.
-Then please proceed to session 2 and accomplish the tasks layed out in Plan B.
-
-Then I will test all these before we proceed to Session 3, Plan C
+Then I will test all these before we proceed to Session 4, Plan D
 
 
 

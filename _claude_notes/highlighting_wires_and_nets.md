@@ -3,12 +3,14 @@
 **Version 2 — 2026-08-23.** Reworked after the review in `claude.md`. Version 1 (2026-08-19) was a
 report to argue with; this is the plan to execute.
 
-> **Progress. Sessions 1 and 2 both landed on 2026-08-24** — Phases **0**, **A** and **B**. `Ctrl+Z`
-> and the keyboard nudge, a net highlighted as the terminals it is made of, and an end label at every
-> wire end and net terminal with `locations.json` at **schema 2**. **The next session is 3, Phase C**:
-> the Drawing tab's list. `change_history.md` has the two dated entries; `08_results_log.md` says what
-> the user has walked. Everything below is as written on 2026-08-23 except the per-session notes in
-> §13 and the three amendments recorded there.
+> **Progress. Sessions 1 and 2 landed on 2026-08-24 and Session 3 on 2026-08-25** — Phases **0**,
+> **A**, **B** and **C**. `Ctrl+Z` and the keyboard nudge, a net highlighted as the terminals it is
+> made of, an end label at every wire end and net terminal with `locations.json` at **schema 2**, and
+> the Drawing tab's list of all 275 designators with five layer switches over the sheet. **The next
+> session is 4, Phase F**: the label-corrections review screen — the first new tab, the second
+> authored file, and two routes behind `allow_edits`. `change_history.md` has the three dated entries;
+> `08_results_log.md` says what the user has walked. Everything below is as written on 2026-08-23
+> except the per-session notes in §13 and the amendments recorded there.
 
 **Status of the gate.** Version 1 said *"nothing in this plan proceeds until you accept the §7
 amendment"*. **You accepted it as written on 2026-08-23**, so §3 below is now the rule and every
@@ -1060,6 +1062,27 @@ that touches the file.
 ### Session 3 — the Drawing tab gets its list
 **Phase C.** Pure client, no file format, no server. The easiest session to verify and the one that
 changes your day-to-day most.
+
+> **Landed 2026-08-25**, and it cost nothing measurable: no server change, `/api/designators`
+> untouched, `locations.json` untouched, `circuit_logic.json` not even stale. **`K9` is struck** — a
+> net is now a row you click. Four things went differently from the plan and are worth knowing:
+>
+> - **the list's four filters are independent and additive, and none of them on means everything.**
+>   §8 said four buttons and did not say which idiom; exclusive filters with no *All* would have left
+>   no way back to 275 rows, and the row of five switches directly above them is already additive.
+>   Teaching two idioms for two rows of identical-looking buttons was the thing to avoid.
+> - **`WorkList.tsx` is gone rather than reduced to a wrapper.** §12's fork said "promote it, both
+>   tabs import it"; there was nothing editor-flavoured left in it once it moved, so the Locate tab
+>   imports `components/DesignatorList.tsx` directly. `RowState` went with it, down into
+>   `lib/designators.ts` beside the new `readerRowState`, which is the function that keeps the
+>   reader's list off the editor's draft.
+> - **`Labels` gates the text and the owner's switch gates its kind — two switches for one mark.**
+>   §7 says an end label is governed by `Labels` *and* by the wire/net switch, and that is what
+>   landed; it is worth restating because "press Labels" is the instruction a reader will expect.
+> - **a new hazard, `H16`.** Two rows of buttons now carry the same four words, so each row is a
+>   labelled `role="group"` (`Layers on the sheet`, `Filter the list`). Without those labels anything
+>   that finds a button by name — a screen reader, fifteen existing tests — cannot tell which row it
+>   is holding.
 
 | | |
 |---|---|

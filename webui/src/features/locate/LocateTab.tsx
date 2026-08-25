@@ -38,6 +38,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Crosshair, Lock, Map, Maximize2, Minus, Plus, Save } from 'lucide-react'
 
 import type { Designator, LocationsDocument, Place } from '@/api/types'
+import { DesignatorList } from '@/components/DesignatorList'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { planEndLabels } from '@/features/drawing/endLabels'
@@ -70,7 +71,6 @@ import {
   type Target,
 } from './model'
 import { TargetPanel } from './TargetPanel'
-import { WorkList } from './WorkList'
 
 export { LOCATE_TAB_ID }
 
@@ -208,7 +208,7 @@ export function LocateTab() {
    * a person looking for one row among 275: `CR-BP` and its six pins sat a hundred rows apart. By
    * id they arrive together, because a terminal's id *is* its component's id plus its pin.
    *
-   * Sorted here, once, rather than in `WorkList`, so that the list and `nextUnplaced` cannot
+   * Sorted here, once, rather than in the list component, so that it and `nextUnplaced` cannot
    * disagree: "the next one" has to mean the next one **down the list you are reading**, or the
    * advance looks like it is jumping at random.
    */
@@ -643,7 +643,7 @@ export function LocateTab() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <WorkList
+            <DesignatorList
               entries={visible}
               stateOf={stateOf}
               targetId={target?.id ?? null}
