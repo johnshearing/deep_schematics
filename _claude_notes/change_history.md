@@ -15,14 +15,18 @@ a dated entry like the rest and the section goes.
 
 ---
 
-## NEXT UP — Session 2 of the wires-and-nets plan
+## NEXT UP — Session 3 of the wires-and-nets plan
 
 **Superseded as of 2026-08-24.** The work in progress is
 **`_claude_notes/highlighting_wires_and_nets.md`** — a six-session plan whose §0 says what to read
-and whose §13 is the schedule. **Session 1 (Phases 0 + A) landed 2026-08-24**; see the dated entry
-below for what it built and the two things a person must do afterwards. **The next session is
-Session 2, Phase B**, and it should begin by reading `08_results_log.md` for how the user got on with
-T-470–T-520.
+and whose §13 is the schedule. **Sessions 1 (Phases 0 + A) and 2 (Phase B) both landed 2026-08-24**;
+see the two dated entries below. **The next session is Session 3, Phase C** — the Drawing tab's list
+of all 275 designators, pure client, no server and no file format — and it should begin by reading
+`08_results_log.md` for how the user got on with T-426, T-470–T-530 and T-550–T-590.
+
+Two things Session 3 inherits and must not undo: the list must work with `SWUI_ALLOW_EDITS=false`
+(that is the acceptance criterion, not a nicety), and `LAYERS` becoming five switches is five chances
+to get `H11` wrong instead of three.
 
 Job E below is done — the placement run finished on 2026-08-20 and all 131 terminals are placed. Job
 F is still the runner-up and still worth doing as its own piece of work. **The rest of this section
@@ -132,6 +136,211 @@ a specific question needs them.
 
 Semicolons, not `&&`, so one failure does not hide the state of the other three. Run
 `npm run build` **and restart the server** at the end; see the state block above for why both.
+
+---
+
+## 2026-08-24 — Session 2 of the wires-and-nets plan: 265 labels appear, and none of them was work
+
+**Phase B of `_claude_notes/highlighting_wires_and_nets.md`, plus three corrections the user asked for
+after walking Session 1.** Same day as Session 1, and it stops here on purpose: Session 3 is the
+Drawing tab's list and it assumes the reader has met the end labels.
+
+**The headline is a number: `locations.json` did not change.** 265 wire and net end labels are now on
+the sheet — one at each end of all 69 wires that have a colour and gauge, one at every one of the 127
+net member terminals — and the authored file has not gained a line. That is the pay-off of the
+placement run of 2026-08-20, and it is worth stating as the design principle it is: **because all 131
+terminals have confirmed points, an end label needs no coordinate — only a side relative to a point
+that already exists.**
+
+### 1. Three corrections first, because they were the user's own report
+
+**The arrow-key request was withdrawn, and that is worth recording.** They asked for a shorter nudge
+step, then found `Shift`+`Alt`+arrow — 0.1 pt, the finest thing the file records — and withdrew it.
+No code changed. The real finding is a discoverability one: that step is in the footer strip *and* in
+T-490, and it was still missed.
+
+**A net marks its terminals and nothing else.** *"The components are also marked and this adds clutter
+and confusion to the drawing."* Phase A had deliberately kept the parent components in the highlight
+set, reasoning that a relay drawn in two places is genuinely part of the net in both. True — and it
+confused **saying** something with **marking** it. Net 120's seven pins brought five components with
+them, each ringed and each with its label forced on below the zoom floor, so more than half the marks
+on screen were on places the net does not touch. The card still names all five under `runs through`.
+One consequence worth knowing: those component dots are now ordinary members of the `Components`
+layer, so switching that off finally takes them away — before, `H11` kept anything the selection
+marked on screen regardless. `relatedIds` in `DrawingTab.tsx`; **T-530**, and T-500's fourth
+expectation is amended in place with the reason.
+
+**A way back to the roster.** After flying to a pin there was no route back to the net but a citation
+(which costs a question) or hunting it down. `Selection` gains an optional `from`, set only when the
+selection was raised **from another card** — a roster row or a `runs through` chip — and the new
+card shows `← back to 120`. It re-selects the net *with the flight*, deliberately: you left the roster
+by flying somewhere, so the way back is the view you left. **One step and not a stack**, because a
+back button that sometimes goes two places is worse than one that always goes one. **T-525.**
+
+**The Ask tab comes back to the line you were reading.** It is the one tab that is **not**
+`keepMounted` — a transcript is cheap to rebuild where a pan, a zoom and an unsaved draft are not — so
+every `F2` unmounted it and every return built a fresh one, which started pinned to the bottom and
+fired its follow effect. That is the whole point of the `F2` seam undone: the loop it exists for is
+*read a line, click the identifier in it, check the sheet, come back to the same line.* The offset is
+**module state beside the component**, not a store field, and that is not laziness — it changes on
+every scroll event and `AskTab` subscribes to the whole of `useChatStore`, so a store write would
+re-render every message sixty times a second while somebody scrolls. Restored in a `useLayoutEffect`
+so there is no visible jump, and *pinned* is remembered beside it because *"I was at the end"* and
+*"I was 3000 px down, which was the end at the time"* are different intentions when an answer is
+still streaming. Cleared by **New conversation**. **T-426.**
+
+### 2. Phase B: schema 2, and a rule instead of a queue
+
+**The rule, in one pure module.** `webui/src/features/drawing/endLabels.ts`: a label sits on the side
+of its pin facing **away** from the wire's other end, or away from the centroid of the rest of the
+net, snapped to one of eight, stepped **clockwise** past anything already written there. 13 unit
+tests. Three decisions in it are load-bearing:
+
+- **The plan is made over the whole index, never over the visible subset.** It looks wasteful and is
+  not optional: the plan decides who gets a contested side, so planning only the visible labels would
+  make an unrelated wire's label slide around its pin every time somebody pressed `Terminals`. A
+  label that wanders when you press something unrelated is a label a reader stops believing is
+  attached to anything. Hazard **H15**, invariant **9**, and the test is *"is the same plan however
+  the index is ordered"*.
+- **Away from, not towards** — and never using the entry's own `point`, which is a bounding-box centre
+  and usually blank paper. An end whose partner has no point falls back to east rather than leaning on
+  that field, so nothing in the application reads it as a place.
+- **One label per dot per owner.** Three members of a net on one coordinate is one `120`, not three
+  fanned around it saying the same word. The roster still lists three, because the membership *is*
+  three — `terminals` is undeduped (H12) and the two answer different questions.
+
+**What an end label says, and why it is a new field.** A wire shows its **spec** — `BLUE 18AWG` — not
+`W052`, because `WIRE_IDS_ARE_OURS` and a label reading `W052` would name something the reader cannot
+find on the paper in front of them. So `drawing.py` publishes `spec` (`_wire_spec`), separately from
+`label` which is a sentence for a human. Two of 71 wires have neither colour nor gauge and get **no
+end labels at all**, which the panel says in words: a label the reader cannot verify is worse than no
+label, because it looks like a fact about the drawing.
+
+**Schema 1 → 2, and the migration is the version number.** `labels` is added to the `wires` and
+`nets` sections, keyed by terminal id, holding `dir` and `hidden`. Nothing in `components` or
+`terminals` changed, so a schema-1 file has no key to convert: `READABLE = (1, 2)` on both the read
+and the write path, and `locateStore.load` stamps `SCHEMA` onto the draft so the file is upgraded by
+being written. **Both directions of that matter.** Refusing a 1 on the write path would turn a
+browser holding a bundle from before the bump into a tab whose every save is silently rejected —
+total data loss on the machine least likely to suspect a version number — so
+`test_a_stale_client_writing_the_older_schema_is_still_written` pins it.
+
+**The one refusal with no symptom on screen, and it is new: `H14`.** A `labels` key naming a terminal
+the wire does not touch draws nothing, breaks nothing, and is indistinguishable from a compass control
+that does not work. So `resolve_geometry` builds a `touches` map from the netlist and refuses it **by
+name** — *"puts a label on 'TB-110:1' for W047, which W047 does not touch"* — dropping that one
+override and leaving the wire's other end alone. The shape check stays in `parse` (which knows nothing
+about the drawing) and the membership check in `resolve_geometry` (which is handed the netlist), and
+that split is the thing to preserve.
+
+**Invariant 10, which is the one to get right: a default is never written into the file as though a
+human chose it.** *Reset to default* **deletes** the override; un-hiding deletes it; `hidden: false`
+is stripped on the way in *and* refused on the way back out, from both ends deliberately. The
+tempting implementation writes the computed side back in and looks identical on screen — and makes
+the file stop distinguishing *nobody has looked at this* from *a person decided this*, which is the
+only thing `locations.json` is for. It is invariant 3 in a third set of clothes, and T-570 is the one
+assertion in the new lesson worth reporting loudly.
+
+**Two smaller things the file had to learn.** `label_point` is now optional in a record — a wire whose
+ends face chosen ways and whose printed name nobody has placed is a complete thing to say, and
+demanding a point would report it as broken. But a record with **neither** is still reported naming
+`label_point`, because on a schema-1 file that is the only key it could have meant. And *Remove the
+label point* now takes the point and **leaves the end-label decisions**: they answer a different
+question, and taking them as a side effect would silently undo work nobody asked about.
+
+### 3. What the two screens gained
+
+**The Locate tab.** `Wire & net labels` became **`Wires`** and **`Nets`**: a wire has two ends and a
+pair of compasses, a net has up to nine members and a scrolling list, and finding one among the other
+96 rows was the cost of the merge. The panel heads each compass with the **terminal id**, because
+*"this end"* is not an answer when a wire's two ends are 600 pt apart — and because `[from, to]` order
+is content, not presentation. Each row also has an eye (hide this one) and, only when there is
+something to remove, a **↺**.
+
+**The panel is handed the *planned* labels rather than recomputing the rule**, which is worth calling
+out as the alternative not taken: a compass whose highlighted square disagreed with the label on the
+screen beside it would be worse than no compass, and two copies of "which side does this face" drift
+by construction. So the side it shows includes the clockwise step a collision forced, and the word
+beside it — `computed` or `by hand` — is the distinction the whole file exists for, put in front of
+somebody at the moment they are about to change it.
+
+**`K4` is narrowed rather than fixed.** The eight-way control used to do nothing until a point
+existed; an end label's anchor exists in all 265 cases, so those compasses are live the moment the row
+is armed. `K4` now stands only for the old `label_point` and for a site with no point yet.
+
+**The counts lost a number on purpose.** `0 of 97 wire and net labels` is gone — that was a progress
+bar over something optional, which is exactly the complaint `K7` records about *To do*. It reads
+`71 wires · 26 nets · 0 end labels moved by hand`, and the last number counts **decisions**, not gaps.
+`coverage()` in `model.ts` no longer looks at label points at all.
+
+**The `computed` row state is re-worded to `ends known, no path`.** *"Route from its terminals"* is the
+one thing a route may never be, per the §3 amendment the user accepted on 2026-08-23. Nothing about the
+state changed — only a phrase that was teaching the wrong rule — and the index's **§8 is now replaced
+with the amendment in full**, which Session 6 had been holding as its last chore.
+
+**The Drawing tab.** End labels ride on the existing `Wire & net labels` switch (five switches are
+Session 3's job) and **the selection is exempt from it**, the same `H11` shape as the markers: select
+net `120` with the group off and its seven ends say `120`, and nothing else does. They obey the 30%
+label floor, because 265 strings at fit zoom is a fog. The switch appears at all now because
+"nothing to draw" had been measured in *markers*, and this group's markers are still zero on this
+drawing — `drawable` counts both halves.
+
+**Where the text lives, and it is the one deliberate exception to a rule in `MarkerLayer`'s header.**
+The rule is *interactive in the DOM, decorative in the canvas*; an end label is decorative and is in
+the DOM anyway, because it needs the same `LABEL_SIDE` table, the same white ground and the same font
+as the ids beside every dot, and painting text into the canvas would be a second implementation of all
+three. It is `pointer-events-none` to the last span, which is what keeps it decorative: nothing is
+placed there, nothing can be clicked there, and it cannot re-create `H6` — the dot that eats the click
+meant for the paper underneath it.
+
+### What it cost, measured
+
+`/api/designators` went from **110.1 KB to 111.6 KB** — 1.5 KB, which is the 69 `spec` strings. **The
+265 end labels cost nothing in the payload**: they are computed in the browser from points that were
+already there. Recorded in the same place as last session's 20 KB, because that is how a payload's
+history stays legible.
+
+### Tests and documents
+
+**117 server (was 111), 185 web (was 155), `ruff` and `tsc` clean.** The artifact test was cleared by
+re-running the generator first, as the plan instructs.
+
+| Where | Added |
+|---|---|
+| `webui/src/features/drawing/endLabels.test.ts` | **New, 13.** The whole rule as arithmetic: away from the run, y-down, the clockwise step, three labels on one pin getting three sides, the same plan under a reversed index, an authored side honoured, a hidden end skipped, the draft overriding the file, one label per dot, an end with nowhere to sit |
+| `webui/src/features/ask/AskTab.test.tsx` | **New, 3.** The remembered offset, the still-following case, and *New conversation* forgetting it. jsdom has no layout, so `scrollTop`/`scrollHeight`/`clientHeight` are stubbed per element and what is asserted is what the component *writes* |
+| `server/tests/test_locations.py` | 6 — an end label stored per terminal and only where decided; one on a terminal the wire does not touch refused **by name**; a bad `dir` and a `hidden: false` each costing that end only; a printed name and end labels together in one record; schema 1 still read whole; schema 3 refused |
+| `server/tests/test_editor.py` | 1 — a stale client writing schema 1 is still written |
+| `webui/src/features/locate/LocateTab.test.tsx` | 4 — one compass per end headed with the pin, *Reset* deleting and undoing, hide taking a label off the sheet, the side in force including a collision's step, and `Wires`/`Nets` filtering separately |
+| `webui/src/features/drawing/DrawingTab.test.tsx` | 4 — the components no longer marked, the way back to the roster, both ends and every net terminal labelled without anything being placed, the selection's labels surviving its own switch |
+| `webui/src/features/locate/model.test.ts` | 5 — only exceptions stored, *Reset* deleting rather than writing, the printed name and the end labels kept apart in one record, a net's landing in `nets`, and no label counted as work |
+
+Documents: **`10_tests_end_labels.md`** is new (**T-550–T-590**, nine lessons, half of them `git diff`
+assertions — what did *not* get written matters as much as what did). `09_tests_net_membership.md`
+gains **T-525** and **T-530** and has T-500's fourth expectation amended in place;
+`05_tests_save_and_recover.md` gains **T-426**; `04_tests_labels.md` has **T-300** amended and
+**T-335** extended to end labels; `02_tests_place_and_drag.md`'s **T-190** explains why the third
+switch is there now; `01_screen_and_vocabulary.md` gains the *end label* vocabulary, the split
+filters and the new counts; `06_code_map.md` gains twelve symbols, hazards **H14** and **H15**,
+invariants **9** and **10**, and invariant 1 restated with the amendment; the index gains **§5c**, a
+new document row, nine symptom rows, **`K4` narrowed**, a new **`K9`**-neighbour **`K10`**, and **§8
+replaced with §3's amendment in full**; `08_results_log.md` gains rows for T-426, T-525, T-530 and
+T-550–T-590.
+
+One new known issue, found while writing T-550: **`K10` — an invented net id is printed on the sheet
+as its end label.** `NET-PB1` and `NET-PB2` are prefixed names for nets the sheet prints as `PB1` and
+`PB2`, so two of 26 nets label themselves with a word that is not on the paper. Deliberately not fixed
+here: it is the same question Phase F asks about every misread label, and answering it twice in two
+places is how the two answers drift apart.
+
+### Two things a person must do, not a session
+
+**Restart the server** — `locations.py` and `drawing.py` both changed, and `python -m app` has no
+reloader. The bundle was rebuilt (`npm run build`), so a restart picks up both halves.
+
+**Commit, and read the schema line when you do.** `locations.json` is unchanged on disk right now, and
+it stays schema 1 until the editor next saves — at which point that one line becomes `2` and the diff
+will show it alone. That is the migration, and it is worth seeing happen once.
 
 ---
 

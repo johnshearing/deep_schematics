@@ -40,6 +40,7 @@ import { AlertTriangle, Crosshair, Lock, Map, Maximize2, Minus, Plus, Save } fro
 import type { Designator, LocationsDocument, Place } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { planEndLabels } from '@/features/drawing/endLabels'
 import { MarkerLayer } from '@/features/drawing/MarkerLayer'
 import { cssToPoint } from '@/features/drawing/paint'
 import { TileSheet } from '@/features/drawing/TileSheet'
@@ -58,6 +59,7 @@ import {
   coverage,
   draftPoint,
   editorPlaces,
+  endLabelsOf,
   LABELLABLE,
   nextSiteId,
   nextUnplaced,
@@ -72,18 +74,34 @@ import { WorkList } from './WorkList'
 
 export { LOCATE_TAB_ID }
 
-type Filter = 'todo' | 'components' | 'terminals' | 'computed' | 'all'
+/**
+ * **`Wires` and `Nets` are two filters, not one.**
+ *
+ * They were `Wire & net labels`, one button over 97 rows, which was right while the only thing
+ * either of them could carry was a printed name. It is not right now that each end of a wire and
+ * each terminal of a net has a label of its own: a wire has exactly two ends and its panel is a
+ * pair of compasses, while a net has up to nine members and its panel is a list — different work,
+ * done in different sittings, and finding one among the other 96 rows was the cost of the merge.
+ */
+type Filter = 'todo' | 'components' | 'terminals' | 'wires' | 'nets' | 'all'
 
 const FILTERS: { id: Filter; label: string; title: string }[] = [
   { id: 'todo', label: 'To do', title: 'Components and terminals nobody has placed yet' },
   { id: 'components', label: 'Components', title: 'All components' },
   { id: 'terminals', label: 'Terminals', title: 'All terminals' },
   {
-    id: 'computed',
-    label: 'Wire & net labels',
+    id: 'wires',
+    label: 'Wires',
     title:
-      'Their routes are computed from their terminals and are never placed. What you can place ' +
-      'is where each name is written on the sheet.',
+      'Both ends of every wire already carry a label, on the side that keeps it clear of its own ' +
+      'run. Here you can move one, hide it, or say where the wire’s printed name sits.',
+  },
+  {
+    id: 'nets',
+    label: 'Nets',
+    title:
+      'The same, per member terminal: every net already labels each of its pins, and this is ' +
+      'where you overrule one.',
   },
   { id: 'all', label: 'All', title: 'Everything in the index' },
 ]
@@ -213,8 +231,10 @@ export function LocateTab() {
         return entries.filter((e) => e.kind === 'component')
       case 'terminals':
         return entries.filter((e) => e.kind === 'terminal')
-      case 'computed':
-        return entries.filter((e) => !PLACEABLE.has(e.kind))
+      case 'wires':
+        return entries.filter((e) => e.kind === 'wire')
+      case 'nets':
+        return entries.filter((e) => e.kind === 'net')
       default:
         return entries
     }
@@ -239,14 +259,48 @@ export function LocateTab() {
    * see `editorPlaces`. Only the placeable kinds get one: a net's centroid is not a place. */
   const overlay = useMemo(() => {
     if (!document) return []
-    return visible
+    const rows = [...visible]
+    /**
+     * An armed wire or net brings **its member terminals' dots with it**, whichever filter is on.
+     *
+     * Without them the `Wires` filter is a sheet with two pieces of floating text on it: the end
+     * labels sit at the pins, and nobody has placed a `label_point`, so there is nothing else in
+     * the list with a dot. A label with no dot beside it is a label you cannot check the side of,
+     * which is the one thing this panel is for.
+     */
+    if (targetEntry && LABELLABLE.has(targetEntry.kind)) {
+      const shown = new Set(rows.map((row) => row.id))
+      for (const member of targetEntry.terminals ?? []) {
+        const pin = entries.find((entry) => entry.id === member.id)
+        if (pin && !shown.has(pin.id)) {
+          shown.add(pin.id)
+          rows.push(pin)
+        }
+      }
+    }
+    return rows
       .filter((entry) => PLACEABLE.has(entry.kind) || LABELLABLE.has(entry.kind))
       .map((entry) => {
         const places = editorPlaces(document, entry)
         return { ...entry, places, point: places[0]?.point ?? null }
       })
       .filter((entry) => entry.point)
-  }, [visible, document])
+  }, [visible, document, targetEntry, entries])
+
+  /**
+   * The armed wire's or net's end labels, planned against the **draft** so a compass click lands
+   * before the save does.
+   *
+   * Only the armed one's, and only when one is armed: this screen is where a person works on a
+   * single row, and drawing all 269 while they choose a side for one of them would bury it. The
+   * plan is still made over the whole index, because which of two labels on one dot gets the side
+   * it wants must not depend on what happens to be armed — see `endLabels.ts`.
+   */
+  const endLabels = useMemo(() => {
+    if (!document || !targetEntry || !LABELLABLE.has(targetEntry.kind)) return []
+    return planEndLabels(entries, (owner, terminal) => endLabelsOf(document, owner)[terminal])
+      .filter((label) => label.owner === targetEntry.id)
+  }, [document, entries, targetEntry])
 
   const marked = useMemo(() => {
     if (!document || !targetEntry) return null
@@ -505,10 +559,16 @@ export function LocateTab() {
         {done && (
           <span
             className="text-muted-foreground tabular-nums"
-            title="Components and terminals need a point. Wire and net labels are optional — their routes are already known from their terminals — so they are counted separately and never as work outstanding."
+            title={
+              'Components and terminals need a point, and that is the only work here. Every wire ' +
+              'end and every net terminal already has a label — the side is computed from points ' +
+              'you have already placed — so the last number is how many of those you have moved ' +
+              'or hidden by hand, not how many are missing. There is nothing to finish.'
+            }
           >
             {`${done.confirmed} of ${done.placeable} placed · ${done.remaining} to do · `}
-            {`${done.labelled} of ${done.labellable} wire and net labels`}
+            {`${done.wires} wires · ${done.nets} nets · `}
+            {`${done.authored} end label${done.authored === 1 ? '' : 's'} moved by hand`}
           </span>
         )}
         {armed && loaded < total && (
@@ -609,6 +669,7 @@ export function LocateTab() {
                 document={document}
                 target={target}
                 pinsOf={pinsOf}
+                endLabels={endLabels}
                 /* `fly` is set by the site buttons and by nothing else. Retargeting also happens
                    after a rename and when a new site is started, and neither is a request to be
                    taken anywhere — one has not moved and the other has nowhere to go yet. */
@@ -684,6 +745,7 @@ export function LocateTab() {
               selected={marked}
               relatedIds={EMPTY_SET}
               showLabels={viewer.percent >= 30}
+              endLabels={endLabels}
               /* The dot that was clicked, not the row's first one. Somebody clicking `CR-BP`'s
                  NO contact is almost always about to move *that* dot, and arming the coil and
                  flying to it instead left them to drag the sheet back to where they had been

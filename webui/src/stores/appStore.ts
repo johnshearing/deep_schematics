@@ -32,6 +32,17 @@ export interface Selection {
    * deterministic tables that come next will raise `'text'` too.
    */
   origin: 'text' | 'drawing'
+  /**
+   * The thing whose card sent the reader here, so there is a way back to it.
+   *
+   * A net's card is a roster of its member terminals and every row of it flies to a pin. Once
+   * there, the roster is gone — the card now describes the pin — and getting back to it meant
+   * asking another question or hunting the net down in an answer. One field records the step, and
+   * the card offers it as a link; it is deliberately **one** step and not a stack, because a
+   * history of clicks is a different feature and a back button that sometimes goes two places is
+   * worse than one that always goes one.
+   */
+  from?: { kind: DesignatorKind; id: string }
   /** Bumped on every selection, including a repeat of the current one. Clicking the same
    * citation twice has to re-pan — the reader has usually scrolled away in between, and a
    * no-op looks like a broken link. */
@@ -71,8 +82,16 @@ interface AppState {
   setModel: (model: string) => void
   setActiveTab: (id: string) => void
   /** Point at something. Callers that also need the drawing on screen switch tabs themselves:
-   * this store must not import the tab registry (see `activeTabId`). */
-  select: (kind: DesignatorKind, id: string, origin?: Selection['origin']) => void
+   * this store must not import the tab registry (see `activeTabId`).
+   *
+   * `from` is for a selection raised *from another selection's card* — a roster row, a
+   * `runs through` chip — and is what puts a way back on the new card. */
+  select: (
+    kind: DesignatorKind,
+    id: string,
+    origin?: Selection['origin'],
+    from?: Selection['from'],
+  ) => void
   clearSelection: () => void
   loadAll: () => Promise<void>
   refreshHealth: () => Promise<void>
@@ -102,9 +121,9 @@ export const useAppStore = create<AppState>()(
       setModel: (model) => set({ model }),
       setActiveTab: (activeTabId) => set({ activeTabId }),
 
-      select: (kind, id, origin = 'text') =>
+      select: (kind, id, origin = 'text', from) =>
         set((state) => ({
-          selection: { kind, id, origin, nonce: (state.selection?.nonce ?? 0) + 1 },
+          selection: { kind, id, origin, from, nonce: (state.selection?.nonce ?? 0) + 1 },
         })),
       clearSelection: () => set({ selection: null }),
 

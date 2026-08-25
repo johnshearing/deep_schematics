@@ -18,11 +18,13 @@ import {
   draftPoint,
   editorPlaces,
   emptyDocument,
+  endLabelsOf,
   nextSiteId,
   nextUnplaced,
   place,
   renameSite,
   rowState,
+  setEndLabel,
   setLabelDir,
   siteClaiming,
 } from './model'
@@ -162,24 +164,35 @@ describe('what a row shows', () => {
     expect(rowState(doc, A1)).toBe('parent')
   })
 
-  it('calls a wire computed until its label is placed, and never unplaced', () => {
-    // A wire's *route* is its two endpoint terminals, so there is nothing about its position for
-    // a person to place. Its label is a different matter, and is optional — counting the 97 of
-    // them as outstanding work would put a number on the screen that can never be finished, so
-    // they are reported on their own line and never inside `remaining`.
+  it('calls a wire computed until its printed name is placed, and never unplaced', () => {
+    // A wire's ends are its two endpoint terminals, so there is nothing about its position for a
+    // person to place. Its printed name is a different matter, and is optional.
     expect(rowState(fresh(), WIRE)).toBe('computed')
+
+    const doc = place(fresh(), { id: 'W047', site: null, label: true }, [742, 511], STAMP, 'wire')
+    expect(rowState(doc, WIRE)).toBe('labelled')
+    expect(coverage([CR_BP, A1, WIRE], doc).remaining).toBe(2)
+  })
+
+  it('counts no label as outstanding, because none of them is work', () => {
+    // The header used to read "0 of 97 wire and net labels", which is a progress bar over
+    // something optional — the shape of K7, the filter that can never reach zero. Every wire end
+    // and net terminal has a label already, at a side computed from points somebody placed; the
+    // only authored number is how many of those a person overruled.
     expect(coverage([CR_BP, A1, WIRE], fresh())).toEqual({
       placeable: 2,
       confirmed: 0,
       remaining: 2,
-      labellable: 1,
-      labelled: 0,
+      wires: 1,
+      nets: 0,
+      authored: 0,
     })
 
-    const doc = place(fresh(), { id: 'W047', site: null, label: true }, [742, 511], STAMP, 'wire')
-    expect(rowState(doc, WIRE)).toBe('labelled')
-    const after = coverage([CR_BP, A1, WIRE], doc)
-    expect([after.labelled, after.remaining]).toEqual([1, 2])
+    const doc = setEndLabel(fresh(), 'W047', 'wire', 'CR-BP:A1', { dir: 'ne' })
+    expect(coverage([CR_BP, A1, WIRE], doc).authored).toBe(1)
+    // …and a placed printed name is still not counted anywhere.
+    const named = place(doc, { id: 'W047', site: null, label: true }, [742, 511], STAMP, 'wire')
+    expect(coverage([CR_BP, A1, WIRE], named).authored).toBe(1)
   })
 
   it('counts a pin as placed once the site holding it is placed', () => {
@@ -233,6 +246,48 @@ describe('wire and net labels', () => {
     doc = clear(doc, target)
     expect(doc.wires).toEqual({})
     expect(rowState(doc, WIRE)).toBe('computed')
+  })
+
+  describe('end labels', () => {
+    it('stores only the exceptions, keyed by the terminal they hang off', () => {
+      const doc = setEndLabel(fresh(), 'W047', 'wire', 'CR-BP:A1', { dir: 'ne' })
+      expect(doc.wires).toEqual({ W047: { labels: { 'CR-BP:A1': { dir: 'ne' } } } })
+      // The wire's *other* end is not in the file, and that is not a gap: it is at the side the
+      // rule computes, which is the state of nearly all 269 of them.
+      expect(Object.keys(endLabelsOf(doc, 'W047'))).toEqual(['CR-BP:A1'])
+    })
+
+    it('deletes the override rather than writing the default back in', () => {
+      // The rule this whole file rests on: a default written in as though a human chose it makes
+      // the file stop telling you what anybody actually decided.
+      let doc = setEndLabel(fresh(), 'W047', 'wire', 'CR-BP:A1', { dir: 'ne' })
+      doc = setEndLabel(doc, 'W047', 'wire', 'CR-BP:A1', null)
+      expect(doc.wires).toEqual({})
+
+      // And `hidden: false` is the same mistake wearing a different hat, so it is stripped.
+      doc = setEndLabel(fresh(), 'W047', 'wire', 'CR-BP:A1', { hidden: false })
+      expect(doc.wires).toEqual({})
+    })
+
+    it('keeps the printed name and the end labels apart in the same record', () => {
+      let doc = place(fresh(), { id: 'W047', site: null, label: true }, [742, 511], STAMP, 'wire')
+      doc = setEndLabel(doc, 'W047', 'wire', 'CR-BP:A1', { hidden: true })
+      expect(doc.wires!.W047).toMatchObject({
+        label_point: [742, 511],
+        labels: { 'CR-BP:A1': { hidden: true } },
+      })
+
+      // *Remove the label point* takes the point and leaves the decisions: they answer a
+      // different question, and taking them away as a side effect would silently undo work.
+      doc = clear(doc, { id: 'W047', site: null, label: true })
+      expect(doc.wires).toEqual({ W047: { labels: { 'CR-BP:A1': { hidden: true } } } })
+    })
+
+    it('puts a net’s in `nets`, because a person reads this file', () => {
+      const doc = setEndLabel(fresh(), '110', 'net', 'CR-BP:A1', { dir: 's' })
+      expect(doc.nets).toEqual({ 110: { labels: { 'CR-BP:A1': { dir: 's' } } } })
+      expect(doc.wires).toEqual({})
+    })
   })
 
   it('leaves a wire out of the coverage a run has to finish', () => {

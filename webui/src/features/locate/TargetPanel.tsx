@@ -14,18 +14,27 @@
  */
 
 import { useRef, useState } from 'react'
-import { Crosshair, Plus, Trash2, X } from 'lucide-react'
+import { Crosshair, Eye, EyeOff, Plus, RotateCcw, Trash2, X } from 'lucide-react'
 
-import type { Compass, Designator, LocationsDocument, StoredSite } from '@/api/types'
+import type {
+  Compass,
+  Designator,
+  EntryTerminal,
+  LocationsDocument,
+  StoredSite,
+} from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import type { PlannedLabel } from '@/features/drawing/endLabels'
 import { cn } from '@/lib/utils'
 import {
   assignTerminal,
   canRenameSite,
+  endLabelsOf,
   LABELLABLE,
   nextSiteId,
   renameSite,
+  setEndLabel,
   siteClaiming,
   sitesOf,
   splitTerminal,
@@ -43,6 +52,15 @@ interface Props {
   /** Every pin the netlist gives this component, so a site's membership is a checklist rather
    * than something to type. */
   pinsOf: (componentId: string) => string[]
+  /**
+   * The armed wire's or net's end labels **as the sheet is drawing them**, planned by
+   * `endLabels.ts` — including the clockwise step a collision forced.
+   *
+   * Passed in rather than recomputed here, and that is the point: a compass whose highlighted
+   * square disagreed with the label on the screen beside it would be worse than no compass, and
+   * two copies of "which side does this face" would eventually disagree by construction.
+   */
+  endLabels?: PlannedLabel[]
   /**
    * Arm something else. `fly` asks the sheet to come too, and only the site buttons set it: a
    * rename has not moved anything, and a site that does not exist yet has nowhere to go.
@@ -68,6 +86,7 @@ export function TargetPanel({
   document,
   target,
   pinsOf,
+  endLabels,
   onTarget,
   onEdit,
   onLabelDir,
@@ -75,7 +94,11 @@ export function TargetPanel({
   onClose,
 }: Props) {
   if (LABELLABLE.has(entry.kind)) {
-    return <LabelPanel {...{ entry, document, target, onLabelDir, onClear, onClose }} />
+    return (
+      <LabelPanel
+        {...{ entry, document, target, endLabels, onEdit, onLabelDir, onClear, onClose }}
+      />
+    )
   }
   return entry.kind === 'component' ? (
     <ComponentPanel
@@ -87,56 +110,187 @@ export function TargetPanel({
 }
 
 /**
- * A wire or a net: where its **name** is written, and nothing else.
+ * A wire or a net: **a label at each of its ends**, and where its printed name sits.
  *
- * There is no route to place here, and the panel says so rather than leaving a gap someone tries
- * to fill. A wire's path is its two endpoint terminals; a line drawn between them because no
- * conductor joined them would be an invented route, and the netlist's authority rests on never
- * having invented one. Placing the 131 terminals is what gives all 71 wires their paths.
+ * Two different things, and the panel keeps them apart because the file does. The end labels are
+ * one per wire end and one per net terminal, they exist already, and their sides are computed from
+ * points somebody has already placed — so everything here **overrules a default** rather than
+ * filling a gap, and *Reset to default* deletes the override rather than writing the computed side
+ * back in. `label_point` is the other thing: where `BLUE 18AWG` is actually printed mid-run, which
+ * is optional and is not work.
+ *
+ * There is still no route to place here, and the panel still says so. A wire's path is either
+ * lifted from the PDF's own conductor strokes or traced by a person along the printed conductor;
+ * a line drawn between two terminals because no conductor joined them would be an invented route,
+ * and the netlist's authority rests on never having invented one.
  */
 function LabelPanel({
   entry,
   document,
   target,
+  endLabels,
+  onEdit,
   onLabelDir,
   onClear,
   onClose,
-}: Pick<Props, 'entry' | 'document' | 'target' | 'onLabelDir' | 'onClear' | 'onClose'>) {
+}: Pick<
+  Props,
+  'entry' | 'document' | 'target' | 'endLabels' | 'onEdit' | 'onLabelDir' | 'onClear' | 'onClose'
+>) {
   const stored = storedLabel(document, entry.id)
   const point = stored?.label_point ?? entry.label_point ?? null
+  const members = entry.terminals ?? []
+  const overrides = endLabelsOf(document, entry.id)
+  const text = entry.kind === 'wire' ? entry.spec : entry.id
 
   return (
     <div className="space-y-2">
-      <Header entry={entry} note={point ? 'label placed' : 'label not placed'} onClose={onClose} />
-      <p className="text-[11px] text-muted-foreground">
-        {point ? (
-          <>
-            Its name is written at{' '}
-            <span className="font-mono tabular-nums">
-              {point[0]}, {point[1]}
-            </span>
-            . Click the sheet to move it, or drag the dot.
-          </>
-        ) : (
-          <>
-            Click the sheet where <span className="font-mono">{entry.id}</span> is written, so a
-            citation of it lands on the text instead of the middle of the run.
-          </>
-        )}
-      </p>
-      <p className="text-[11px] text-muted-foreground">
-        Its <span className="text-foreground">route</span> is not placed here and never will be:
-        that is its two endpoint terminals, and drawing a line between them where no conductor
-        runs would be inventing one.
-      </p>
-      <LabelSide dir={stored?.label?.dir ?? null} onPick={(dir) => onLabelDir(target, dir)} />
-      {stored && (
-        <Button variant="ghost" size="sm" className="h-7" onClick={() => onClear(target)}>
-          <Trash2 />
-          Remove the label point
-        </Button>
+      <Header
+        entry={entry}
+        note={entry.kind === 'wire' ? `${members.length} ends` : `${members.length} terminals`}
+        onClose={onClose}
+      />
+
+      {text ? (
+        <>
+          <p className="text-[11px] text-muted-foreground">
+            Each end already carries <span className="font-mono text-foreground">{text}</span>, on
+            the side that keeps it clear of{' '}
+            {entry.kind === 'wire' ? 'its own run' : 'the rest of the net'}. Overrule one only
+            where the sheet is crowded.
+          </p>
+          {/* Scrollable rather than truncated: net 130 has the most members on this drawing, and
+              a list that quietly stopped at six would be a list you could not trust to be the
+              membership. Undeduped, and in the netlist's own order, because a wire's `[from, to]`
+              is content — swapping them would mislabel both ends of it. */}
+          <ul className="max-h-56 space-y-1.5 overflow-y-auto">
+            {members.map((member, index) => (
+              <EndLabelRow
+                key={`${member.id}@${index}`}
+                member={member}
+                drawn={endLabels?.find((label) => label.terminal === member.id) ?? null}
+                override={overrides[member.id]}
+                onSet={(next) =>
+                  onEdit(
+                    (d) => setEndLabel(d, entry.id, entry.kind, member.id, next),
+                    next === null
+                      ? `reset ${entry.id}'s label at ${member.id} to the default`
+                      : next.hidden
+                        ? `hid ${entry.id}'s label at ${member.id}`
+                        : `put ${entry.id}'s label at ${member.id} to the ${next.dir}`,
+                  )
+                }
+              />
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">
+          This wire has no colour or gauge in the netlist, so there is nothing printed to label its
+          ends with — and its <span className="font-mono">{entry.id}</span> is an id we invented,
+          which is not on the sheet for anybody to check.
+        </p>
       )}
+
+      <div className="border-t pt-1.5">
+        <p className="text-[11px] text-muted-foreground">
+          {point ? (
+            <>
+              Its printed name is at{' '}
+              <span className="font-mono tabular-nums">
+                {point[0]}, {point[1]}
+              </span>
+              . Click the sheet to move it, or drag the dot.
+            </>
+          ) : (
+            <>
+              Optional: click the sheet where{' '}
+              <span className="font-mono">{text ?? entry.id}</span> is printed on the run, and a
+              citation will land on the words instead of the middle of a rectangle. Nothing counts
+              this as missing.
+            </>
+          )}
+        </p>
+        <LabelSide dir={stored?.label?.dir ?? null} onPick={(dir) => onLabelDir(target, dir)} />
+        {stored?.label_point && (
+          <Button variant="ghost" size="sm" className="h-7" onClick={() => onClear(target)}>
+            <Trash2 />
+            Remove the label point
+          </Button>
+        )}
+      </div>
     </div>
+  )
+}
+
+/**
+ * One end of a wire, or one terminal of a net: which way its label faces, and whether it is drawn.
+ *
+ * Headed with the terminal's id, because *"this end"* is not an answer on a sheet where a wire's
+ * two ends can be 600 pt apart. The compass shows the side in force — authored or computed — so
+ * there is never a control whose highlighted square disagrees with the sheet, and **Reset** appears
+ * only when there is an override to remove.
+ */
+function EndLabelRow({
+  member,
+  drawn,
+  override,
+  onSet,
+}: {
+  member: EntryTerminal
+  /** What the sheet is drawing for this end, or null where it is drawing nothing — hidden, or a
+   * pin with no point to hang it off. */
+  drawn: PlannedLabel | null
+  override: { dir?: Compass; hidden?: boolean } | undefined
+  onSet: (next: { dir?: Compass; hidden?: boolean } | null) => void
+}) {
+  const hidden = Boolean(override?.hidden)
+
+  return (
+    <li className="rounded-md border px-2 py-1.5" data-end={member.id}>
+      <div className="flex items-center gap-1.5">
+        <span className="min-w-0 flex-1 truncate font-mono text-[11px]">{member.id}</span>
+        {!member.point && (
+          <Badge tone="warning" title="Nowhere to hang a label: place this pin first.">
+            no point
+          </Badge>
+        )}
+        <button
+          type="button"
+          aria-label={hidden ? `Show the label at ${member.id}` : `Hide the label at ${member.id}`}
+          title={
+            hidden
+              ? 'Hidden. Nothing is drawn at this end.'
+              : 'Hide this one label, for an end where the sheet is already crowded.'
+          }
+          onClick={() => onSet(hidden ? null : { hidden: true })}
+          className="rounded border p-0.5 text-muted-foreground hover:bg-accent"
+        >
+          {hidden ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+        </button>
+        {override && (
+          <button
+            type="button"
+            aria-label={`Reset the label at ${member.id} to the default`}
+            /* Deletes the override rather than writing the computed side. Storing a default as
+               though a human chose it is how a file stops being able to tell you what anybody
+               actually decided. */
+            title="Back to the computed side, and out of the file"
+            onClick={() => onSet(null)}
+            className="rounded border p-0.5 text-muted-foreground hover:bg-accent"
+          >
+            <RotateCcw className="size-3" />
+          </button>
+        )}
+      </div>
+      {!hidden && drawn && (
+        <LabelSide
+          dir={drawn.dir}
+          onPick={(dir) => onSet(dir ? { dir } : null)}
+          note={drawn.authored ? 'by hand' : 'computed'}
+        />
+      )}
+    </li>
   )
 }
 
@@ -472,18 +626,29 @@ function Header({
   )
 }
 
-/** Which side of the dot the id is written on. Eight sides and an explicit "auto", because the
- * emptiest side is a property of the drawing and the default is only usually right. */
+/**
+ * Which side of the dot the text is written on. Eight sides and an explicit "auto", because the
+ * emptiest side is a property of the drawing and the default is only usually right.
+ *
+ * `note` says where the side in force came from — `computed` or `by hand` — which is the whole
+ * distinction this file exists to keep, made visible at the moment somebody is about to change it.
+ * On an end label the centre square is *Reset to default*: it deletes the override rather than
+ * writing the computed side, which is why `dir` can be highlighted while the note reads
+ * `computed`.
+ */
 function LabelSide({
   dir,
+  note,
   onPick,
 }: {
   dir: Compass | null
+  note?: string
   onPick: (dir: Compass | null) => void
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="mt-1 flex items-center gap-2">
       <span className="text-[11px] text-muted-foreground">label</span>
+      {note && <span className="text-[10px] text-muted-foreground">{note}</span>}
       <div className="grid grid-cols-3 gap-px">
         {COMPASS.map((side, index) => (
           <button

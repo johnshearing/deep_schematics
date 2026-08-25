@@ -153,6 +153,14 @@ function marker(id: string): HTMLButtonElement {
   return screen.getByRole('button', { name: new RegExp(`^${id} —`) }) as HTMLButtonElement
 }
 
+/** Past the 30% floor below which all label text is hidden — the sheet starts fitted at 11%, and
+ * four presses of the zoom button (×1.4 each) is 42%. */
+function zoomTo30() {
+  for (let step = 0; step < 4; step += 1) {
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+  }
+}
+
 describe('DrawingTab', () => {
   it('downloads nothing until the tab has been opened once', () => {
     const { container } = render(<DrawingTab />)
@@ -359,7 +367,7 @@ describe('DrawingTab', () => {
     expect(screen.getByText('11%').textContent).toBe(before)
   })
 
-  it('flies to a citation raised by an answer, and rings what the net runs through', async () => {
+  it('flies to a citation raised by an answer, and names what the net runs through', async () => {
     render(<DrawingTab />)
     activate()
     expect(screen.getByText('11%')).toBeTruthy()
@@ -371,8 +379,9 @@ describe('DrawingTab', () => {
     // The flight is a real rAF animation of about 420 ms, so this waits for the landing
     // rather than the first frame. The timeout is generous because jsdom's rAF is a timer.
     await waitFor(() => expect(screen.getByText('13%')).toBeTruthy(), { timeout: 4000 })
-    // Both located members are ringed, and the card names the third even though it has no
-    // marker — "runs through" is the answer to "what is on net 110".
+    // The card names all three components the net passes through, including the one with no
+    // location — "runs through" is part of the answer to "what is on net 110" even though only
+    // the member terminals are marked on the sheet.
     expect(screen.getByRole('button', { name: 'CR-BP' })).toBeTruthy()
     const offSheet = screen.getByRole('button', { name: 'UPSTREAM-MACHINE' }) as HTMLButtonElement
     expect(offSheet.disabled).toBe(true)
@@ -450,6 +459,61 @@ describe('DrawingTab', () => {
     expect(group('Terminals').getAttribute('aria-pressed')).toBe('false')
     act(() => useAppStore.getState().clearSelection())
     expect(screen.queryByRole('button', { name: /^CR-BP:A1 —/ })).toBeNull()
+  })
+
+  /**
+   * The second report about the same highlight, and the opposite half of it.
+   *
+   * Phase A moved the rings onto the member terminals and **left the parent components ringed as
+   * well**, on the reasoning that a relay drawn in two places is genuinely part of the net in
+   * both. The user's answer: *"the components are also marked and this adds clutter and confusion
+   * to the drawing. Please show only terminals when displaying a net."* Net 120's seven pins bring
+   * five components with them, so more than half the marks were on places the net does not touch —
+   * and each of them had its label forced on below the zoom floor as well.
+   *
+   * The components are still *named* on the card as `runs through`. Saying it and marking it are
+   * different claims, and only one of them competes with the answer.
+   */
+  it('does not mark the components a net merely runs through', async () => {
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('net', '110', 'drawing'))
+    await waitFor(() => expect(marker('CR-BP:A1')).toBeTruthy())
+
+    // The relay is on screen because the Components group is on, not because the net marked it —
+    // so switching that group off takes it away, where before it stayed ringed.
+    expect(marker('CR-BP')).toBeTruthy()
+    fireEvent.click(group('Components'))
+    expect(screen.queryByRole('button', { name: /^CR-BP —/ })).toBeNull()
+    // The pins are what the net is made of, and they are still there.
+    expect(marker('CR-BP:A1')).toBeTruthy()
+    expect(screen.getByText('runs through')).toBeTruthy()
+  })
+
+  /**
+   * *"After flying to a pin, it would be good if there were a way to return to the roster
+   * directly."* Without it the only routes back to a net are a citation in an answer — which costs
+   * a question — or hunting it down in the list, and the reader is in the middle of walking seven
+   * members one at a time.
+   */
+  it('offers the way back to the roster after flying to one of its pins', async () => {
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('net', '110', 'drawing'))
+    await waitFor(() => expect(screen.getByText('3 terminals')).toBeTruthy())
+    // Nothing sent the reader to the net, so its own card offers no way back.
+    expect(screen.queryByRole('button', { name: /back to/i })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'CR-BP:A1' }))
+    expect(useAppStore.getState().selection).toMatchObject({
+      kind: 'terminal', id: 'CR-BP:A1', from: { kind: 'net', id: '110' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /back to 110/i }))
+    // The roster is back, and so is the net's framing — you left it by flying to one pin.
+    expect(useAppStore.getState().selection).toMatchObject({ kind: 'net', id: '110' })
+    expect(useAppStore.getState().selection?.from).toBeUndefined()
+    expect(screen.getByText('3 terminals')).toBeTruthy()
   })
 
   it('offers *place it* only where the server has an editor, and arms that pin', async () => {
@@ -653,10 +717,16 @@ describe('DrawingTab', () => {
     })
   })
 
-  it('draws a wire or net label on its printed name, and offers no switch until one exists', () => {
-    // Net 110 in the base index has no label point, so the group is empty. An empty group gets no
-    // button: a pressed switch that changes nothing on the sheet reads as broken rather than as
-    // "nobody has placed one yet".
+  it('draws a wire or net label on its printed name, and offers no switch with nothing to draw', () => {
+    // An empty group gets no button: a pressed switch that changes nothing on the sheet reads as
+    // broken rather than as "there is nothing here". Nothing to draw means both halves empty —
+    // no printed name placed *and* no end label with a pin to hang off, which is a net whose
+    // members are nowhere.
+    const bare = {
+      ...INDEX,
+      entries: [...COMPONENTS, ...TERMINALS, { ...NET_110, terminals: [], label_point: undefined }],
+    }
+    useAppStore.setState({ designators: bare, byToken: buildLookup(bare) })
     const view = render(<DrawingTab />)
     activate()
     expect(screen.queryByRole('button', { name: 'Wire & net labels' })).toBeNull()
@@ -670,6 +740,45 @@ describe('DrawingTab', () => {
     // 12 + 742 × 0.634 = 482 px — the label, not the 625 pt midpoint of the run. That midpoint is
     // blank paper, and a dot there would claim to be the wire.
     expect(marker('W048').style.left).toBe('482px')
+  })
+
+  /**
+   * Session 2's payoff, and the whole reason it was cheap: **269 labels appear and none of them
+   * was work.** Every one is anchored to a terminal point somebody already placed, on a side
+   * computed from the wire's other end or the net's centroid — so the file records nothing, and
+   * there is no queue.
+   */
+  it('labels both ends of a wire and every terminal of a net, without being asked to place one', () => {
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+    // Above the 30% floor, or every label on the sheet is a grey fog and all of them are hidden.
+    zoomTo30()
+    act(() => useAppStore.getState().select('net', '110', 'drawing'))
+    fireEvent.click(group('Wire & net labels'))
+
+    // A net says its own id, which is mostly printed beside the conductor. Two of its three
+    // members have a point; the third has nowhere to sit and is skipped rather than invented.
+    const labels = document.querySelectorAll('[data-end-label]')
+    expect([...labels].map((el) => el.getAttribute('data-end-label'))).toEqual([
+      '110@CR-BP:A1', '110@CR-BP:A2',
+    ])
+    expect(labels[0].textContent).toBe('110')
+  })
+
+  it('keeps a selected net’s labels on the sheet with the labels group off', () => {
+    // The same exemption the markers get (H11): hiding the thing an answer just pointed at is the
+    // one case the overlay must stay visible for.
+    withLabels()
+    render(<DrawingTab />)
+    activate()
+    zoomTo30()
+    expect(document.querySelectorAll('[data-end-label]')).toHaveLength(0)
+
+    act(() => useAppStore.getState().select('net', '110', 'drawing'))
+    expect(document.querySelectorAll('[data-end-label]')).toHaveLength(2)
+    // And nothing else's: `W048`'s ends are not drawn because `W048` is not what was asked for.
+    expect(document.querySelector('[data-end-label^="W048"]')).toBeNull()
   })
 
   it('keeps the selection card’s links live when the components are switched off', async () => {

@@ -134,6 +134,19 @@ export interface EntryTerminal {
   placement: Placement | null
   /** The site the point came from, when it came from one. */
   site?: string
+  /**
+   * Which side of this end's dot its **end label** sits on, where a person chose one.
+   *
+   * Absent is not missing data. Every wire end and every net terminal has an end label, and its
+   * side is computed by `features/drawing/endLabels.ts` from points that already exist — away
+   * from the wire's other end, away from the net's centroid. The file stores only the exceptions,
+   * so absent means *the computed default*, which is the state of nearly all 269 of them.
+   */
+  label_dir?: Compass
+  /** True where a person hid this one end label. Never written as `false`: an override that says
+   * nothing is refused by the server, because it would stop the file distinguishing a decision
+   * from a default. */
+  hidden?: boolean
 }
 
 /** One citable identifier, and where on the sheet it is. */
@@ -188,6 +201,16 @@ export interface Designator {
   label_point?: [number, number]
   /** Which side of `label_point` to write the id on. Absent means east. */
   label_dir?: Compass
+  /**
+   * A wire's colour and gauge as printed — `BLUE 18AWG`. Wires only, and absent for the two on
+   * this drawing that have neither.
+   *
+   * This is what an **end label** says, and the reason is `on_sheet`: every `W###` is an id the
+   * extraction invented, so a label reading `W052` would name something the reader cannot find
+   * anywhere on the paper in front of them. The spec is the thing that *is* written beside the
+   * conductor, and it is what a technician checks with their eyes.
+   */
+  spec?: string
   /** Other names for the same thing, components only. */
   aliases?: string[]
 }
@@ -204,6 +227,10 @@ export interface LocationsReport {
   /** Wire and net label positions. Counted apart from the rest because they are optional. */
   labels: number
   confirmed_labels: number
+  /** How many end labels a person has **moved or hidden** — not how many there are, which is one
+   * per wire end and per net terminal whether anybody has touched it or not. Absent on a server
+   * older than schema 2. */
+  end_labels?: number
   problems: string[]
 }
 
@@ -256,15 +283,33 @@ export interface StoredSite extends StoredPoint {
   terminals: string[]
 }
 
-/** All a wire or a net may carry: where its name is written. The key is `label_point` rather
- * than `point` so nobody is tempted to read it as the wire's location. */
+/**
+ * All a wire or a net may carry, and it is two different things.
+ *
+ * `label_point` is where its **name is written on the run** — the key is not `point` so nobody is
+ * tempted to read it as the wire's location. `labels` is the side of each **end**'s label, keyed by
+ * terminal id, and holds only the sides a person chose or hid: everything absent is at the side the
+ * viewer computes, which is why 269 end labels cost nothing to keep. Both are optional and neither
+ * implies the other — a record with only `labels` is a complete thing to say.
+ */
 export interface StoredLabel {
-  label_point: [number, number]
-  source: 'human' | 'seed'
+  label_point?: [number, number]
+  /** Only meaningful beside a `label_point`, which is the only thing in this record a person
+   * *places*. */
+  source?: 'human' | 'seed'
   label?: { dir?: Compass }
+  /** Terminal id → what a person decided about that end. */
+  labels?: Record<string, StoredEndLabel>
   by?: string
   at?: string
   [key: string]: unknown
+}
+
+/** One end label a person took a decision about. At least one of the two is present: an entry
+ * with neither is refused by the server, so **Reset to default deletes rather than writes**. */
+export interface StoredEndLabel {
+  dir?: Compass
+  hidden?: boolean
 }
 
 export interface LocationsResponse {

@@ -15,7 +15,7 @@
  * are are different permissions.
  */
 
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LocateTab } from './LocateTab'
@@ -67,8 +67,20 @@ const ENTRIES: Designator[] = [
     members: ['CR-BP'], point: [861, 679], rect: [861, 679, 861, 679], placement: 'parent' },
   { id: 'CR-BP:11', kind: 'terminal', label: 'common terminal on CR-BP', on_sheet: true,
     members: ['CR-BP'], point: [861, 679], rect: [861, 679, 861, 679], placement: 'parent' },
-  { id: 'W047', kind: 'wire', label: 'BLUE 18AWG wire', on_sheet: false,
-    members: ['CR-BP'], point: [861, 679], rect: [861, 679, 861, 679] },
+  /**
+   * A wire with **two ends and something printed on it**, which is what an end label needs.
+   *
+   * `spec` is what the label says: `W047` is an id the extraction invented and is printed nowhere,
+   * so a label reading it would name something the reader cannot find. The two member points are
+   * deliberately different — an end label faces *away from the wire's other end*, and two members
+   * on one coordinate would be one dot and so one label.
+   */
+  { id: 'W047', kind: 'wire', label: 'BLUE 18AWG wire', on_sheet: false, spec: 'BLUE 18AWG',
+    members: ['CR-BP'], point: [780, 679], rect: [700, 679, 861, 679],
+    terminals: [
+      { id: 'CR-BP:A1', point: [861, 679], placement: 'parent' },
+      { id: 'CR-BP:11', point: [700, 679], placement: 'parent' },
+    ] },
 ]
 const INDEX: DesignatorIndex = {
   drawing_number: 'PS20115MLM4-2',
@@ -217,6 +229,26 @@ function ids(): string[] {
     .map((option) => option.querySelector('.font-mono')?.textContent ?? '')
 }
 
+/**
+ * One row of the wire or net panel — the compass for one end.
+ *
+ * By `data-end` rather than by role, because the *list* rows are `listitem`s too: a `getAllByRole`
+ * here would hand back the W047 row from the left-hand list first and quietly assert against the
+ * wrong element.
+ */
+function endRow(terminal: string): HTMLElement {
+  const row = document.querySelector(`[data-end="${terminal}"]`)
+  if (!row) throw new Error(`no end-label row for ${terminal}`)
+  return row as HTMLElement
+}
+
+/** The ends the panel is offering, in order. A wire's `[from, to]` order is content. */
+function endRows(): string[] {
+  return [...document.querySelectorAll('[data-end]')].map(
+    (row) => row.getAttribute('data-end') ?? '',
+  )
+}
+
 function advance() {
   return screen.getByLabelText(/move to the next unplaced/i) as HTMLInputElement
 }
@@ -305,23 +337,28 @@ describe('LocateTab', () => {
     expect(row('CR-BP')).toBeTruthy()
     expect(screen.queryByRole('option', { name: /^W047/ })).toBeNull()
     expect(screen.getByText(/0 of 3 placed/)).toBeTruthy()
-    // Reported on its own, and never inside the "to do" number.
-    expect(screen.getByText(/0 of 1 wire and net labels/)).toBeTruthy()
+    // The wires are counted as things in the index, not as labels waiting to be placed. There is
+    // no "0 of 71" here on purpose: every wire end already has a label, so a progress number over
+    // them would be `K7` — a count that can never be finished — on four times the scale.
+    expect(screen.getByText(/1 wires · 0 nets · 0 end labels moved by hand/)).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Wire & net labels' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    // Not "route from its terminals" any more: a route is lifted from the sheet's own conductor
+    // strokes or traced by a person, and computing one from the two ends is the one thing it may
+    // never be.
     expect(screen.getByRole('option', { name: /^W047/ }).textContent).toContain(
-      'route from its terminals',
+      'ends known, no path',
     )
   })
 
   it('places where a wire’s name is written, and refuses to place the wire itself', async () => {
     await open()
-    fireEvent.click(screen.getByRole('button', { name: 'Wire & net labels' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
     fireEvent.click(row('W047'))
 
     // The panel has to say this out loud, because a list row called "W047" invites someone to
     // try to place the run — and a line drawn where no conductor goes is an invented route.
-    expect(screen.getByText(/never will be/)).toBeTruthy()
+    expect(screen.getByText(/Nothing counts this as missing/)).toBeTruthy()
 
     clickSheet(400, 300)
 
@@ -334,7 +371,133 @@ describe('LocateTab', () => {
     expect(document.terminals).toEqual({})
     // And placing a label does not throw you into an unrelated run of terminals.
     expect(useLocateStore.getState().target).toEqual({ id: 'W047', site: null, label: true })
-    expect(screen.getByText(/1 of 1 wire and net labels/)).toBeTruthy()
+    // Nor does it move any count: the printed name is a nicety on work that is already complete.
+    expect(screen.getByText(/0 end labels moved by hand/)).toBeTruthy()
+  })
+
+  /**
+   * Session 2's own screen: **a compass per end**, and a file that records only what was changed.
+   *
+   * The controls are headed with the endpoint terminal ids because *"this end"* is not an answer on
+   * a sheet where a wire's two ends can be 600 pt apart — and because a wire's `[from, to]` order
+   * is content: swapping them would mislabel both ends of all 71 wires with nothing visible to
+   * show it.
+   */
+  it('gives a wire one compass per end, headed with the pin each one hangs off', async () => {
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+
+    expect(endRows()).toEqual(['CR-BP:A1', 'CR-BP:11'])
+    // Nothing has been placed, and both compasses are already live: the anchor is a terminal
+    // point that exists, which is why `K4` — the control that does nothing until a point is
+    // placed — does not apply to a wire or a net any more.
+    expect(useLocateStore.getState().document!.wires).toBeUndefined()
+    expect(within(endRow('CR-BP:A1')).getByText('computed')).toBeTruthy()
+
+    fireEvent.click(within(endRow('CR-BP:A1')).getByRole('button', { name: 'Label to the n' }))
+    // Only the end that was changed, and only the side: no default written in beside it, and
+    // nothing at all for the other end.
+    expect(useLocateStore.getState().document!.wires).toEqual({
+      W047: { labels: { 'CR-BP:A1': { dir: 'n' } } },
+    })
+    expect(within(endRow('CR-BP:A1')).getByText('by hand')).toBeTruthy()
+
+    fireEvent.click(
+      within(endRow('CR-BP:11')).getByRole('button', { name: 'Label to the sw' }),
+    )
+    expect(useLocateStore.getState().document!.wires).toEqual({
+      W047: { labels: { 'CR-BP:A1': { dir: 'n' }, 'CR-BP:11': { dir: 'sw' } } },
+    })
+  })
+
+  it('resets an end label by deleting it, not by writing the default in', async () => {
+    // The rule the whole file rests on. A default stored as though a human chose it makes
+    // `locations.json` stop distinguishing *nobody has looked at this* from *a person decided
+    // this* — and that distinction is the only reason this editor exists rather than a guesser.
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+
+    const end = () => endRow('CR-BP:A1')
+    // Nothing to reset until there is an override, so no button offering to.
+    expect(
+      within(end()).queryByRole('button', { name: /reset the label/i }),
+    ).toBeNull()
+
+    fireEvent.click(within(end()).getByRole('button', { name: 'Label to the n' }))
+    fireEvent.click(within(end()).getByRole('button', { name: /reset the label/i }))
+
+    // The record went with it: an empty shell in the file is a record that says nothing.
+    expect(useLocateStore.getState().document!.wires).toEqual({})
+    expect(useLocateStore.getState().undoNote).toBeNull()
+    // And it is undoable like every other mutation, in a person's words.
+    act(() => useLocateStore.getState().undo())
+    expect(useLocateStore.getState().undoNote).toContain('reset')
+    expect(useLocateStore.getState().document!.wires).toEqual({
+      W047: { labels: { 'CR-BP:A1': { dir: 'n' } } },
+    })
+  })
+
+  it('hides one end’s label, and takes it off the sheet', async () => {
+    landsAtOnce()
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    // A wire with no label point is framed on its run, which for this one is 20% — and all label
+    // text is hidden below 30%, so this zooms in the way a person would before checking a side.
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+    expect(percent()).toBeGreaterThan(30)
+
+    // Both ends are labelled with what is printed on the wire, at points somebody already placed
+    // — and neither of them is in the file.
+    const drawn = () =>
+      [...sheet().querySelectorAll('[data-end-label]')].map((el) =>
+        el.getAttribute('data-end-label'),
+      )
+    expect(drawn()).toEqual(['W047@CR-BP:A1', 'W047@CR-BP:11'])
+
+    fireEvent.click(
+      within(endRow('CR-BP:A1')).getByRole('button', { name: /hide the label/i }),
+    )
+    expect(useLocateStore.getState().document!.wires).toEqual({
+      W047: { labels: { 'CR-BP:A1': { hidden: true } } },
+    })
+    expect(drawn()).toEqual(['W047@CR-BP:11'])
+  })
+
+  it('shows the side in force, including one a collision moved', async () => {
+    // The compass must never disagree with the sheet: it is handed the *planned* labels rather
+    // than recomputing the rule, so a side that stepped clockwise past the pin's own id label
+    // shows as the side that stepped.
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+
+    // `CR-BP:A1` sits at 861,679 with the run heading west, so its label wants east — where
+    // `CR-BP`'s own id and the pin's own id are already written, so it takes the next one
+    // clockwise.
+    const pressed = within(endRow('CR-BP:A1'))
+      .getAllByRole('button')
+      .filter((button) => button.getAttribute('aria-pressed') === 'true')
+    expect(pressed.map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Label to the se',
+    ])
+  })
+
+  it('separates Wires from Nets, because they are different work', async () => {
+    await open()
+    // One button per kind since 2026-08-24: a wire has two ends and a pair of compasses, a net
+    // has up to nine members and a list, and finding one among the other 96 rows was the cost of
+    // the merge.
+    expect(screen.queryByRole('button', { name: 'Wire & net labels' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    expect(ids()).toEqual(['W047'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nets' }))
+    expect(screen.getByText(/nothing matches this filter/i)).toBeTruthy()
   })
 
   it('lists everything in alphabetical order, and that is the order the advance walks', async () => {
@@ -529,10 +692,13 @@ describe('LocateTab', () => {
 
     expect(saved).toHaveLength(1)
     // Whole-file: the editor holds the document it loaded and sends it back, so there is no
-    // patch protocol to get wrong. Everything the loader gave it survives the round trip.
+    // patch protocol to get wrong. Everything the loader gave it survives the round trip —
+    // **except the schema, which is stamped to the version this editor writes.** That one line is
+    // the whole 1 → 2 migration: schema 2 only added a key, so a schema-1 file has nothing to
+    // convert, and the upgrade happens the next time anything is saved.
     expect(saved[0]).toMatchObject({
       drawing_number: 'PS20115MLM4-2',
-      schema: 1,
+      schema: 2,
       page_size_pt: [1224, 792],
       terminals: {},
     })

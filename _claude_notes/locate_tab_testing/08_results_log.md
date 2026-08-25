@@ -63,6 +63,7 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 | T-410 | Autosave, coalescing, the Save button | | |
 | T-420 | The Drawing tab is not one save behind | | |
 | T-425 | `F2` to the drawing and back mid-run loses nothing | | |
+| T-426 | The **Ask** tab comes back to the line you were reading, not the bottom | | |
 | T-430 | Refusals appear in the red strip, per field | | |
 | T-440 | **The stale-draft hazard — confirm or refute** | | |
 | T-450 | Regeneration, and the test that goes red until you do | | |
@@ -90,6 +91,28 @@ the note there.*
 | T-510 | The card is a roster: every member, in order, undeduped, each with its own state · a wire says `ends` and lists `[from, to]` in that order · a long net scrolls rather than truncating | | |
 | T-515 | Clicking a roster row flies to that pin · a `nowhere` row is not clickable | | |
 | T-520 | **place it** arms that pin on the Locate tab · absent on a row that is `placed` · absent entirely with `SWUI_ALLOW_EDITS=false`, and the roster still works | | |
+| T-525 | **← back to `120`** returns to the roster and re-frames the net · no back link on a card nothing sent you to | | |
+| T-530 | A net marks **terminals only** · switching `Components` off takes the component dots away · a selected *terminal* still rings its parent | | |
+
+*T-500 point 4 was **amended** the same day: the parent components are no longer marked. T-525 and
+T-530 are the change.*
+
+## T-55x–T-59x — a label at every end — `10_tests_end_labels.md`
+
+*Added 2026-08-24 with Session 2 (Phase B). None walked. Half of these are `git diff` assertions:
+what did **not** get written matters as much as what did.*
+
+| Test | What it checks | Result | Notes if not P |
+|---|---|:--:|---|
+| T-550 | 265 labels appear on the sheet and `locations.json` does not change · a wire shows its spec, never `W###` | | |
+| T-555 | Each label faces away from its own run · nothing moves when switches are pressed or the page is reloaded | | |
+| T-560 | `Wires` and `Nets` are separate filters · the counts have no "0 of 97" in them · the row reads `ends known, no path` | | |
+| T-565 | One compass per end, headed with the pin id, live before anything is placed (`K4` narrowed) · one `labels` key written · `schema` is now 2 | | |
+| T-570 | **Reset deletes the override** rather than writing the computed side · `Ctrl+Z` brings it back and says so | | |
+| T-575 | The eye hides one end's label · pressing it off deletes the override too | | |
+| T-580 | Three labels on one pin get three sides, in the fixed order · moving the pin's own label moves the others out of the way | | |
+| T-585 | A net's compass per member, scrolling · labels face away from the net's centre · one label per dot, not per member | | |
+| T-590 | A wire with no colour or gauge has no end labels and says why | | |
 
 ---
 

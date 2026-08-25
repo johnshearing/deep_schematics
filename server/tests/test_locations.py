@@ -179,7 +179,9 @@ def test_nets_and_wires_are_never_placed_only_computed(drawing_dir: Path) -> Non
     assert "placement" in entries["CR1"] and "placement" in entries["CR1:A1"]
 
 
-def test_a_wire_gets_a_label_position_and_never_a_route(drawing_dir: Path) -> None:
+def test_a_wire_gets_a_label_position_and_never_a_route_derived_from_its_endpoints(
+    drawing_dir: Path,
+) -> None:
     """The one thing a wire or a net may carry, and the one thing it may not.
 
     `rect` still frames the run from its endpoint terminals, because that is what a wire's path
@@ -212,6 +214,134 @@ def test_a_wire_gets_a_label_position_and_never_a_route(drawing_dir: Path) -> No
     body = report(drawing_dir)
     assert (body["labels"], body["confirmed_labels"]) == (2, 2)
     assert body["problems"] == []
+
+
+def test_an_end_label_is_stored_per_terminal_and_only_where_somebody_decided(
+    drawing_dir: Path,
+) -> None:
+    """Schema 2's whole point: **only the exceptions are in the file.**
+
+    Every wire end and every net terminal has an end label — the viewer computes the side from
+    points that already exist, away from the wire's other end — so the file records a side or a
+    `hidden` and nothing else. A member with neither key is not missing data; it is a member at the
+    default, which is the state of nearly all of them and the reason 269 labels are not 269 rows of
+    work waiting to be done.
+    """
+    write_locations(
+        drawing_dir,
+        {
+            **LOCATIONS,
+            "wires": {
+                "W047": {
+                    "labels": {"CR1:A1": {"dir": "ne"}, "CB1:2": {"hidden": True}},
+                }
+            },
+            "nets": {"110": {"labels": {"TB-110:1": {"dir": "s"}}}},
+        },
+    )
+    entries = index(drawing_dir)
+    ends = {member["id"]: member for member in entries["W047"]["terminals"]}
+
+    assert ends["CR1:A1"]["label_dir"] == "ne"
+    assert "hidden" not in ends["CR1:A1"]
+    assert ends["CB1:2"]["hidden"] is True
+    assert "label_dir" not in ends["CB1:2"]
+    net = {member["id"]: member for member in entries["110"]["terminals"]}
+    assert net["TB-110:1"]["label_dir"] == "s"
+    # The two nobody decided anything about say nothing at all, rather than carrying the side the
+    # rule would have chosen — the file must keep "nobody looked" apart from "a person decided".
+    assert "label_dir" not in net["CR1:A1"] and "hidden" not in net["CR1:A1"]
+
+    body = report(drawing_dir)
+    # A record with end labels and no `label_point` is a complete thing to say, so this is not a
+    # problem — and it is counted as an override rather than as a label.
+    assert body["problems"] == []
+    assert (body["labels"], body["end_labels"]) == (0, 3)
+
+
+def test_an_end_label_on_a_terminal_the_wire_does_not_touch_is_refused_by_name(
+    drawing_dir: Path,
+) -> None:
+    """The one mistake in this file with **no symptom on screen.**
+
+    A side stored against a pin the wire does not touch is never drawn, because there is no end
+    there to draw it at. Kept silently it looks exactly like a compass control that does not work;
+    so it is named, and the entry is dropped rather than kept as a fact about nowhere. The wire's
+    other end is untouched, because the unit of refusal here is one end label.
+    """
+    write_locations(
+        drawing_dir,
+        {
+            **LOCATIONS,
+            "wires": {
+                "W047": {"labels": {"CR1:A1": {"dir": "n"}, "TB-110:1": {"dir": "s"}}}
+            },
+        },
+    )
+    problems = report(drawing_dir)["problems"]
+    assert any("TB-110:1" in p and "W047 does not touch" in p for p in problems)
+
+    ends = {member["id"]: member for member in index(drawing_dir)["W047"]["terminals"]}
+    assert ends["CR1:A1"]["label_dir"] == "n"
+    # The count says what is *in the file*, and both are — the same convention as a `label_point`
+    # for a wire the netlist does not have. The problem list is what says one of them is orphaned,
+    # and nothing is drawn from it.
+    assert report(drawing_dir)["end_labels"] == 2
+
+
+def test_a_bad_end_label_costs_that_end_and_nothing_else(drawing_dir: Path) -> None:
+    """Per field, like every other refusal here — and `hidden: false` is refused as *nothing said*
+    on purpose, because that is the shape a *Reset to default* that wrote instead of deleting would
+    leave behind, and it would make the file stop distinguishing a decision from a default."""
+    write_locations(
+        drawing_dir,
+        {
+            **LOCATIONS,
+            "wires": {
+                "W047": {
+                    "labels": {
+                        "CR1:A1": {"dir": "sideways"},
+                        "CB1:2": {"hidden": False},
+                    }
+                }
+            },
+        },
+    )
+    problems = report(drawing_dir)["problems"]
+    assert any("dir 'sideways'" in p for p in problems)
+    assert any("says nothing" in p for p in problems)
+    assert report(drawing_dir)["end_labels"] == 0
+    # And the rest of the file is untouched, which is the whole property.
+    assert index(drawing_dir)["CR1:A1"]["point"] == [110.0, 210.0]
+
+
+def test_a_wire_gets_both_a_printed_name_and_a_side_for_each_of_its_ends(
+    drawing_dir: Path,
+) -> None:
+    """`label_point` and `labels` answer different questions and both may be set: the printed
+    `BLUE 18AWG` sits mid-run, and the end labels sit at the two pins."""
+    write_locations(
+        drawing_dir,
+        {
+            **LOCATIONS,
+            "wires": {
+                "W047": {
+                    "label_point": [250.5, 140.25],
+                    "source": "human",
+                    "labels": {"CB1:2": {"dir": "w"}},
+                }
+            },
+        },
+    )
+    entry = index(drawing_dir)["W047"]
+    assert entry["label_point"] == [250.5, 140.25]
+    assert {m["id"]: m.get("label_dir") for m in entry["terminals"]} == {
+        "CR1:A1": None, "CB1:2": "w",
+    }
+    # The spec is published in its own field, because the id is ours and is printed nowhere: an
+    # end label reading `W047` would name something the reader cannot find on the sheet.
+    assert entry["spec"] == "BLUE 18AWG"
+    assert report(drawing_dir)["problems"] == []
 
 
 def test_a_label_for_something_that_is_not_a_wire_or_net_is_reported(drawing_dir: Path) -> None:
@@ -266,9 +396,22 @@ def test_an_unreadable_file_reports_itself_instead_of_disappearing(drawing_dir: 
 
 
 def test_an_unknown_schema_is_refused_rather_than_guessed(drawing_dir: Path) -> None:
-    write_locations(drawing_dir, {**LOCATIONS, "schema": 2})
-    assert "declares schema 2" in report(drawing_dir)["problems"][0]
+    write_locations(drawing_dir, {**LOCATIONS, "schema": 3})
+    assert "declares schema 3" in report(drawing_dir)["problems"][0]
     assert index(drawing_dir)["CR1:A1"]["placement"] == "parent"
+
+
+def test_the_schema_before_this_one_is_still_read_whole(drawing_dir: Path) -> None:
+    """The migration, and there is nothing to it by design.
+
+    Schema 2 only *added* the `labels` key to the wire and net sections, so a schema-1 file has no
+    key that needs converting — every point in it means exactly what it always did. The upgrade is
+    therefore the version number and nothing else, and it happens when the editor next writes.
+    Refusing a 1 would have made a version bump into a day of lost placements.
+    """
+    write_locations(drawing_dir, {**LOCATIONS, "schema": 1})
+    assert report(drawing_dir)["problems"] == []
+    assert index(drawing_dir)["CR1:A1"]["point"] == [110.0, 210.0]
 
 
 def test_ids_the_netlist_does_not_have_are_reported_not_fatal(drawing_dir: Path) -> None:
@@ -395,6 +538,9 @@ def test_counts_say_how_much_of_the_drawing_a_human_has_confirmed(drawing_dir: P
         # wire with no label point is finished work with a nicety missing.
         "labels": 0,
         "confirmed_labels": 0,
+        # And this is not "how many end labels there are" — every wire end and net terminal has
+        # one. It is how many a person has moved or hidden, which is the only authored part.
+        "end_labels": 0,
         "problems": [],
     }
 

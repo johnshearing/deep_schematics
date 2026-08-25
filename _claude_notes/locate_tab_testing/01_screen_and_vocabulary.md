@@ -25,10 +25,27 @@ what the pin does: `CR-BP` has two pins whose function is `common` (`11` and `21
 sites, so no rule over function could tell them apart.
 
 **Label** — the *text* of an identifier as written on the sheet, as opposed to the thing itself.
-Two separate ideas use the word:
+**Three** separate ideas use the word, and keeping them apart is most of understanding this screen:
 
 - *which side of a dot* its id is written on — eight compass points, your choice;
-- for a wire or a net, *where its name is printed*, which is the only position either of them has.
+- for a wire or a net, *where its printed name sits* on the run — `label_point` in the file, optional,
+  and never counted as missing;
+- since 2026-08-24, an **end label**: the wire's or net's name at **each of its ends**.
+
+**End label** *(new 2026-08-24)* — one per wire end and one per net member terminal: **265 of them on
+this sheet**, all of them drawn without anybody placing anything. Their position is not stored,
+because it does not need to be — the anchor is a terminal point you already placed, and the *side* is
+computed: away from the wire's other end, away from the centre of the rest of the net, snapped to one
+of the eight, stepped clockwise past anything already written there.
+
+So `locations.json` holds **only the exceptions**. A side you chose, or an end you hid. Nothing else,
+and in particular never the side the rule would have chosen anyway — *Reset to default* deletes the
+record rather than writing that value in, because a default stored as though a person chose it makes
+the file stop being able to tell you what anybody actually decided.
+
+**What an end label says** is worth knowing before it surprises you: a **wire** shows its colour and
+gauge (`BLUE 18AWG`) and never `W052`, because every `W###` is an id the extraction invented and is
+printed nowhere on the paper. A **net** shows its own id. `10_tests_end_labels.md` is the whole of it.
 
 ---
 
@@ -83,14 +100,21 @@ coordinate. That was built once and rejected.
 
 ### Toolbar
 
-**The counts.** Two numbers that are deliberately not added together:
+**The counts**, as of 2026-08-24:
 
-    3 of 178 placed · 175 to do · 0 of 97 wire and net labels
+    41 of 47 placed · 6 to do · 71 wires · 26 nets · 0 end labels moved by hand
 
-`178` is components + terminals — the things that **need** a point. `97` is nets + wires, whose
-routes are already known from their terminals; their labels are optional polish and are **never**
-counted into "to do". A progress bar that can never reach the end is worse than no progress bar.
-Hover the counts for that explanation on screen.
+`47` here is the placeable rows still outstanding plus the placed ones — components and terminals,
+the things that **need** a point, and the only work on this screen. The wires and nets are counted as
+what they are: things in the index.
+
+**The last number counts decisions, not gaps.** All 265 end labels already exist; this says how many
+of them you have moved or hidden by hand. It starts at 0 and there is nothing to finish.
+
+*What used to be there was `0 of 97 wire and net labels`, and it was removed on purpose.* A wire with
+no printed-name position is not incomplete — every citation of it already frames the right run — so
+that number was a progress bar over something optional, which is exactly the complaint `K7` records
+about the *To do* filter. Hover the counts for the short version on screen.
 
 **The save badge**, and it is the first thing to read when something seems not to have worked:
 
@@ -135,8 +159,14 @@ a coordinate you typed and the server silently ignored is the worst outcome avai
 | **To do** *(default)* | Components and terminals nobody has placed. This is the work queue. |
 | **Components** | All 47, placed or not. |
 | **Terminals** | All 131. |
-| **Wire & net labels** | All 97 nets and wires. Their routes are computed; their labels are placeable. |
+| **Wires** | All 71. Two ends each, each with a label already; a compass per end. |
+| **Nets** | All 26. One label per member terminal, up to nine of them. |
 | **All** | All 275 entries. |
+
+**`Wires` and `Nets` were one button** — `Wire & net labels` — **until 2026-08-24.** One button over
+97 rows was right while the only thing either kind could carry was a printed name. It stopped being
+right when each end got a label of its own: a wire has two ends and a pair of compasses, a net has up
+to nine members and a list, and they are worked on in different sittings. **T-560.**
 
 A row leaving *To do* the moment you place it is correct, and is the single most common "it
 disappeared" report.
@@ -285,6 +315,11 @@ so. Zoom back out to 50% or less and every flight works as it always did.
   already placed — switch to *Components* or *All* to see everything.
 - A wire or net gets a dot **only once its label point exists**. Before that there is nothing
   honest to draw: its `point` is the midpoint of a bounding box, which is usually blank paper.
+- **End labels are text, not dots** *(2026-08-24)*. Arm a wire or a net and its name appears at each
+  of its ends — hanging off pins that already have dots, with nothing new to click and nothing to
+  drag. They obey the same 30% floor as every other piece of label text, and the ends of the armed
+  row bring their pins' dots onto the sheet with them whatever the filter says, because a label with
+  no dot beside it is a label whose side you cannot check.
 - Dots are **draggable here and nowhere else**. The Drawing tab passes no drag handler, so a stray
   drag there pans the sheet and cannot edit the file.
 - The **Drawing tab draws the same dots, by the same rules** — one per place, filled versus hollow,
@@ -317,4 +352,13 @@ a small **place it** button, which arms that pin over here and switches tabs.
 
 **Why it matters to this tab.** It is the pay-off of the 131 terminals: a net highlight is only as
 good as its members' points, and the roster is where somebody notices that one of them has none.
-`09_tests_net_membership.md`, T-500–T-520.
+`09_tests_net_membership.md`, T-500–T-530.
+
+**Two corrections to that card, later the same day** (2026-08-24), both asked for after walking it:
+
+- **the parent components are no longer marked** on the sheet. They are still *named* on the card
+  under `runs through`, which is a different claim — net 120's seven pins were bringing five extra
+  rings and five forced labels with them, and *"this adds clutter and confusion to the drawing"* is
+  the right verdict. **T-530.**
+- **a card reached from a roster row carries `← back to 120`**, which puts the roster back and frames
+  the net again. One step, not a history. **T-525.**

@@ -130,7 +130,9 @@ def test_placed_sites_reach_the_components_and_their_terminals(tmp_path: Path) -
     assert "from locations.json: 3 sites, 6 terminals, 0 labels" in out
 
 
-def test_a_wire_gets_where_its_name_is_written_and_never_a_route(tmp_path: Path) -> None:
+def test_a_wire_gets_where_its_name_is_written_and_never_a_route_from_its_endpoints(
+    tmp_path: Path,
+) -> None:
     """The distinction the `wires` section exists to hold. A wire's path is its two endpoint
     terminals; a line drawn between them because no conductor joined them would be an invented
     route, and the netlist's authority rests on never having invented one. So the key is

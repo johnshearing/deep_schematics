@@ -31,21 +31,29 @@ on their own line and never as "to do".
 
 ## T-300 · Wires and nets are in the list, and are not work
 
+**Amended 2026-08-24 (Session 2).** Three things in this test changed and the point of it did not:
+wires and nets are still not work. `10_tests_end_labels.md` T-560 is the current version of the
+first two steps and is the one to walk; this is kept because the *reason* is still the reason.
+
 **Do.** Filter **To do**. Look for `W047`.
 
 **Expected.** Not there. Nor any net number.
 
-**Do.** Filter **Wire & net labels**.
+**Do.** Filter **Wires**, then **Nets**. *(One button, `Wire & net labels`, until 2026-08-24.)*
 
-**Expected.** 97 rows — 71 `W###` and 26 nets. Every one reads **`route from its terminals`**, in
-grey. **All 71 wires** carry the `our id` badge, because `W###` appears nowhere on the printed sheet;
-only two nets do (`NET-PB1` and `NET-PB2`, printed as `PB1` and `PB2` and renamed during extraction
-to avoid colliding with the push-buttons of those names).
+**Expected.** 71 `W###` and 26 nets between the two. Every one reads **`ends known, no path`** in
+grey — *"route from its terminals"* until 2026-08-24, and that phrase is now false by decision: a
+route is lifted from the sheet's own conductor strokes or traced by a person, never computed from the
+two ends. **All 71 wires** carry the `our id` badge, because `W###` appears nowhere on the printed
+sheet; only two nets do (`NET-PB1` and `NET-PB2`, printed as `PB1` and `PB2` and renamed during
+extraction to avoid colliding with the push-buttons of those names).
 
 **Do.** Read the toolbar counts.
 
-**Expected.** `… · 0 of 97 wire and net labels`, as a separate clause. The "to do" number does not
-include them.
+**Expected.** `… · 71 wires · 26 nets · 0 end labels moved by hand`. **Not** `0 of 97 wire and net
+labels`, which is what this test used to expect: that was a progress bar over something optional,
+which is `K7`'s shape, and it was removed. The "to do" number still does not include them, which is
+what this test has always been for.
 
 ---
 
@@ -163,6 +171,15 @@ of the 275 entries dropped it on the way out of the server and the viewer applie
 halves of that sentence looked correct in isolation: the editor wrote the file properly, the file
 held `"label": {"dir": "w"}`, and the viewer honoured every `label_dir` it was given.
 
+**Extended 2026-08-24: the same round trip for an *end* label.** Arm a wire on the Locate tab, set
+one end's side with its compass, and check that end on the Drawing tab with `Wire & net labels`
+switched on. It is the same class of fault in a different field — `label_dir` on a **member** of a
+wire or net this time, published by `_member` in `drawing.py` — and it has the same one-line failure
+mode: a side that is not in the payload is a side the reader cannot see. The difference is what the
+default means. A terminal's own label defaults to east *because there is nothing better to say*; an
+end label's default is **computed** from the wire's other end, so "it came out east" is a real
+symptom here rather than a plausible one. See `10_tests_end_labels.md` T-565.
+
 **If it is still east.** Look at the API before the UI:
 `curl -s localhost:9700/api/designators | python -m json.tool | grep -A3 'DISC1:L1'` — if there is
 no `places` array on that entry, it is `_entry` in `server/app/drawing.py`; if there is one and it
@@ -175,9 +192,12 @@ restart (index §1).
 
 **Do.** Pick a wire whose label you placed, and click **Remove the label point**.
 
-**Expected.** The dot disappears, the row returns to `route from its terminals`, the count drops, and
-the id is **gone from the `wires` object** in the file — not nulled. If it was the only one,
-`"wires"` is left as `{}`.
+**Expected.** The dot disappears, the row returns to `ends known, no path`, and the id is **gone from
+the `wires` object** in the file — not nulled. If it was the only one, `"wires"` is left as `{}`.
+
+**One exception since 2026-08-24:** if that wire also has an **end-label** override, the record stays
+and keeps only its `labels`. The two are answers to different questions — where the printed name sits,
+and which way each end faces — and removing one must not silently take the other with it.
 
 **And confirm the route survived.** Switch to the **Drawing** tab and select that wire: it still
 frames the run correctly and rings its two endpoint components. Removing a label must never affect a

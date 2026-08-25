@@ -59,9 +59,16 @@ nothing later depends on having done it early. `110` is the other worked net in
 2. `CR2:14`'s ring is on the **NO contact on the far left**, not on CR2's coil;
 3. `TB-120:1`, `:2` and `:3` are **three separate dots**, about 24 pt and 76 pt apart in y —
    zoom in if they look like one;
-4. the components CR2, TB-120 and the others are **still** marked as well. That is correct: a relay
-   drawn in two places is genuinely part of the net in both, and the card demotes them rather than
-   dropping them (T-510).
+4. **the components CR2, TB-120 and the others are *not* marked.** Their dots are on the sheet
+   because the `Components` group is switched on, not because the net highlighted them — switch that
+   group off and they go, while the seven pins stay (T-530).
+
+**Amended 2026-08-24, the same day.** The first version of this test expected the parent components
+to be ringed as well, on the reasoning that a relay drawn in two places is genuinely part of the net
+in both. The user's answer, after walking it: *"the components are also marked and this adds clutter
+and confusion to the drawing. Please show only terminals when displaying a net."* They are right, and
+the reasoning that put them there confused **saying** something with **marking** it — the card still
+names all five under `runs through` (T-510). See T-530.
 
 **Do.** Hover each ringed terminal.
 
@@ -141,6 +148,66 @@ still listed, because dropping it would under-report the net.
 
 ---
 
+## T-525 · Back to the roster, without paying for another question
+
+*Added 2026-08-24, asked for after walking T-515.*
+
+**Do.** With net `120` selected, click a roster row — `CR2:14` — and land on that pin.
+
+**Expected.** At the **top of the pin's card**, above its id, a small **← back to `120`**.
+
+**Do.** Press it.
+
+**Expected.** You are back on net `120`: the roster is on screen with all seven members, and the
+sheet has **framed the net again** rather than staying zoomed into the one pin you flew to. That is
+deliberate — you left the roster by flying somewhere, so the way back is the view you left, with the
+next row you want one click away.
+
+**Do.** Look at net `120`'s own card.
+
+**Expected.** **No back link.** Nothing sent you there — a citation and a click on a dot are both
+arrivals from nowhere — and a button that goes nowhere is worse than no button.
+
+**Do.** From the net's card, click a component chip under `runs through` instead.
+
+**Expected.** The same thing: that component's card offers **← back to `120`**.
+
+**Why this exists.** Walking a net means visiting its members one at a time, and until this landed
+the only ways back to the net were a citation in an answer — which costs a question — or hunting it
+down. It is **one** step and deliberately not a history: a back button that sometimes goes two places
+is worse than one that always goes one.
+
+---
+
+## T-530 · A net marks terminals, and nothing else
+
+*Added 2026-08-24. This is the amendment to T-500 point 4, as its own test.*
+
+**Do.** With net `120` selected, count what is marked on the sheet, then press **Components** in the
+toolbar to switch that group off.
+
+**Expected.** The five component dots **disappear**. The seven ringed pins stay exactly as they were,
+and so does the card.
+
+**Why that is the interesting assertion.** Before this change the components were in the highlight
+set, and the one visible consequence of that was this: a switched-off group still draws anything the
+selection marks (H11), so the component dots *stayed* — and there was no way to get them off the
+screen while reading a net. Now they are ordinary dots on an ordinary layer.
+
+**Do.** Switch `Components` back on and look at the labels.
+
+**Expected.** The five components are drawn plainly — small dots, no ring, and **no id written
+beside them** below 30% zoom. A marked dot forces its label on at any zoom, so ringing five
+components also wrote five names on the sheet on top of the seven that belong to the net.
+
+**Do.** Select a **terminal** instead — `CR2:14` on its own.
+
+**Expected.** Its parent component `CR2` **is** ringed, quietly. That is one dot saying *this is the
+relay whose pin you are looking at*, which is context rather than clutter, and it is the case
+`members` is still used for.
+
+---
+
 ## T-520 · *place it* — from noticing to fixing, without hunting
 
 **Do.** Select a net and look for a member row that does **not** read `placed`.
@@ -192,3 +259,7 @@ Publishing the membership grew `/api/designators` from **90.0 KB to 110.1 KB** �
 about 20 KB, or 22%. It is fetched once per page load and again after each save, against 2.2 MB of
 tiles on the same page. Recorded here because "it is only a few fields" is how a payload doubles
 over six sessions, and because the next person to add one should know what the last one cost.
+
+**Session 2 added 1.5 KB to that** — `111.6 KB` — which is the 69 wires that have a colour and a
+gauge each carrying it as a `spec` string. The end labels themselves cost **nothing** in the payload:
+they are computed in the browser from points that were already there.

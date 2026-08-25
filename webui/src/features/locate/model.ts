@@ -20,15 +20,31 @@ import type {
   LocationsDocument,
   Place,
   Placement,
+  StoredEndLabel,
   StoredSite,
 } from '@/api/types'
 
 /**
+ * The schema this editor writes, and it is stamped onto the draft as it loads.
+ *
+ * Schema 2 only added the `labels` key to the wire and net sections, so a schema-1 file has no key
+ * that needs converting — the migration *is* the version number, and it happens the next time
+ * anything is saved. The server reads both and writes back either, so a browser holding a bundle
+ * from before the bump keeps working rather than having every save silently refused.
+ */
+export const SCHEMA = 2
+
+/**
  * What a row in the list is showing.
  *
- * `computed` is a net or a wire whose *route* is known from its terminals — which is all a route
- * ever is — and whose **name has not been placed**. `labelled` is the same thing once somebody has
- * said where the name is written. Neither is ever `parent` or `seed`: nothing estimates a label.
+ * `computed` is a net or a wire whose ends are known from its terminals and whose **printed name
+ * has not been placed**. `labelled` is the same thing once somebody has said where that name is
+ * written. Neither is ever `parent` or `seed`: nothing estimates a label.
+ *
+ * The word the row shows for `computed` used to be *"route from its terminals"*, and it is not
+ * that any more — a route is either lifted from the PDF's own conductor strokes or traced by a
+ * person, and "computed from the terminals" is the one thing it may never be. See §3 of
+ * `_claude_notes/highlighting_wires_and_nets.md`.
  */
 export type RowState = Placement | 'computed' | 'labelled' | 'none'
 
@@ -77,7 +93,7 @@ export function emptyDocument(
 ): LocationsDocument {
   return {
     drawing_number: drawingNumber,
-    schema: 1,
+    schema: SCHEMA,
     page_size_pt: pageSize,
     components: {},
     terminals: {},
@@ -96,6 +112,62 @@ function labelSection(kind: string): 'wires' | 'nets' {
  * because the list row knows the id long before it cares which kind it is. */
 export function storedLabel(document: LocationsDocument, identifier: string) {
   return document.wires?.[identifier] ?? document.nets?.[identifier]
+}
+
+/**
+ * The end-label decisions the draft holds for this wire or net, keyed by terminal id.
+ *
+ * Empty is the normal answer and is not a gap: every end has a label, at the side
+ * `features/drawing/endLabels.ts` computes from points that already exist. This is only the
+ * exceptions, which is what keeps 269 end labels from being 269 rows of work.
+ */
+export function endLabelsOf(
+  document: LocationsDocument,
+  identifier: string,
+): Record<string, StoredEndLabel> {
+  return storedLabel(document, identifier)?.labels ?? {}
+}
+
+/**
+ * Record a decision about one end label, or **delete it** — which is what *Reset to default* does.
+ *
+ * `next` of `null`, or of anything that normalises to nothing, removes the override. That is the
+ * one rule in here worth stating twice: storing the side the rule would have computed anyway makes
+ * the file stop distinguishing *nobody has looked at this* from *a person decided this*, and that
+ * distinction is the whole reason `locations.json` exists. So `hidden: false` is stripped rather
+ * than written, and a record left with no `labels` and no `label_point` is dropped entirely rather
+ * than left behind as an empty shell.
+ *
+ * No `by`/`at` stamp, deliberately, and it is the only authored thing here without one: a side is
+ * a presentational choice about a point somebody else already signed for, not a claim about where
+ * anything *is*. The `by` on the terminal's point is the claim, and it is untouched.
+ */
+export function setEndLabel(
+  document: LocationsDocument,
+  identifier: string,
+  kind: string,
+  terminal: string,
+  next: StoredEndLabel | null,
+): LocationsDocument {
+  const section = labelSection(kind)
+  const existing = document[section]?.[identifier]
+  const labels = { ...existing?.labels }
+
+  const cleaned: StoredEndLabel = {
+    ...(next?.dir ? { dir: next.dir } : {}),
+    ...(next?.hidden ? { hidden: true } : {}),
+  }
+  if (Object.keys(cleaned).length) labels[terminal] = cleaned
+  else delete labels[terminal]
+
+  const record = { ...existing }
+  if (Object.keys(labels).length) record.labels = labels
+  else delete record.labels
+
+  const kept = { ...document[section] }
+  if (Object.keys(record).length) kept[identifier] = record
+  else delete kept[identifier]
+  return { ...document, [section]: kept }
 }
 
 // -- reading the draft ---------------------------------------------------------------------
@@ -245,23 +317,39 @@ export function draftPoint(
   return isPoint(site?.point) ? site.point : null
 }
 
-/** The header line. Only components and terminals count towards it: counting the 97 nets and
- * wires as outstanding work would put a number on the screen that can never be finished. */
+/**
+ * The header line. Only components and terminals count as work: counting the 97 nets and wires as
+ * outstanding would put a number on the screen that can never be finished.
+ *
+ * **Nothing here counts label points, and that is deliberate.** It used to read
+ * *"0 of 97 wire and net labels"*, which is a progress bar over something optional — the shape of
+ * `K7`, the *"To do"* filter that can never reach zero. An absent `label_point` is not missing
+ * data: every citation of that wire already frames the right run. So the wires and the nets are
+ * reported as what they are, a count of things in the index, and the only *authored* number here is
+ * how many end labels a person has moved or hidden out of the 269 that draw themselves.
+ */
 export function coverage(entries: Designator[], document: LocationsDocument) {
   const placeable = entries.filter((entry) => PLACEABLE.has(entry.kind))
   const confirmed = placeable.filter(
     (entry) => draftPlacement(document, entry) === 'confirmed',
   ).length
-  const labellable = entries.filter((entry) => LABELLABLE.has(entry.kind))
-  const labelled = labellable.filter((entry) => rowState(document, entry) === 'labelled').length
+  const sections = [document.wires ?? {}, document.nets ?? {}]
   return {
     placeable: placeable.length,
     confirmed,
     remaining: placeable.length - confirmed,
-    // Reported apart from the rest, and never added into `remaining`: a wire with no label is
-    // finished work with a nicety missing, not an unplaced thing.
-    labellable: labellable.length,
-    labelled,
+    wires: entries.filter((entry) => entry.kind === 'wire').length,
+    nets: entries.filter((entry) => entry.kind === 'net').length,
+    /** End-label overrides in the draft — decisions, not labels. */
+    authored: sections.reduce(
+      (total, section) =>
+        total +
+        Object.values(section).reduce(
+          (count, record) => count + Object.keys(record.labels ?? {}).length,
+          0,
+        ),
+      0,
+    ),
   }
 }
 
@@ -484,7 +572,13 @@ export function clear(document: LocationsDocument, target: Target): LocationsDoc
   if (target.label) {
     const section: 'wires' | 'nets' = document.nets?.[target.id] ? 'nets' : 'wires'
     const kept = { ...document[section] }
-    delete kept[target.id]
+    // Only the printed name's position goes. The end-label decisions in the same record are
+    // answers to a different question — which way each end's label faces — and taking them away
+    // as a side effect of *Remove the label point* would silently undo work nobody asked about.
+    const rest = { ...kept[target.id] }
+    for (const key of ['label_point', 'source', 'by', 'at', 'label'] as const) delete rest[key]
+    if (Object.keys(rest).length) kept[target.id] = rest
+    else delete kept[target.id]
     return { ...document, [section]: kept }
   }
   if (target.site === null) {

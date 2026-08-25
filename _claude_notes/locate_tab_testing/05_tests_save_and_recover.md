@@ -110,6 +110,45 @@ you were on the other tab.
 
 ---
 
+## T-426 · The Ask tab keeps your place *(added 2026-08-24)*
+
+**Not a Locate test at all** — it lives here because T-425 above is the other half of the same
+crossing, and `F2` is what both are about.
+
+**Do.** Ask something that produces a long answer, so the transcript scrolls. Scroll **up** into the
+middle of it and find a clickable identifier. Click it — you land on the drawing. Now press `F2` to
+come back.
+
+**Expected.** You are back at **the same line you were reading**, not at the bottom of the answer.
+
+**Do.** Cross back and forth a few times, from different places in the answer.
+
+**Expected.** Each time you return to wherever you last were.
+
+**Do.** Now scroll to the very bottom, cross over and come back.
+
+**Expected.** The bottom — and if an answer is still streaming, it keeps following it. *"I was at the
+end"* and *"I was 3000 px down, which happened to be the end at the time"* are different intentions
+and the tab remembers which one you had.
+
+**Do.** Press **New conversation**, then cross over and back.
+
+**Expected.** The top of an empty screen. A remembered offset measured against a transcript that no
+longer exists would leave you looking at blank space.
+
+**Why it was wrong.** The Ask tab is the one tab that is **not** `keepMounted` — a transcript is
+cheap to rebuild, where a pan, a zoom and an unsaved draft are not — so every crossing unmounts it
+and every return builds a fresh one, which started at the bottom. That is the whole point of the
+`F2` seam undone: the loop it exists for is *read a line, click the identifier in it, check the
+sheet, come back to the same line*, and a reader who has to find their place again each time is
+being charged for the round trip.
+
+**If it lands in the wrong place.** `webui/src/features/ask/AskTab.tsx` — the offset is module state
+beside the component, on purpose: it changes on every scroll event, and putting it in a store would
+re-render the whole transcript sixty times a second while somebody scrolls.
+
+---
+
 ## T-430 · Refusals, and the red strip
 
 Validation is **per field**: one bad value costs that value and nothing else, and everything refused

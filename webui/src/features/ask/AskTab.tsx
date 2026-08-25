@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { RotateCcw } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -9,12 +9,38 @@ import { Composer } from './Composer'
 import { MessageView } from './MessageView'
 import { StarterQuestions } from './StarterQuestions'
 
+/**
+ * Where the reader had got to, kept **outside the component** on purpose.
+ *
+ * This tab is the one that is *not* `keepMounted` — the Drawing and Locate tabs are, because a
+ * pan, a zoom and an unsaved draft are expensive to rebuild, while a transcript is cheap. So
+ * every trip to the drawing unmounts this tab and every trip back mounts a fresh one, with
+ * `pinned` starting true and the follow effect firing on its first run: the reader lands at the
+ * **bottom** of the answer they were half way through.
+ *
+ * That is the wrong end. The loop this whole seam exists for is *read a line, click the
+ * identifier in it, look at the sheet, come back to the same line* — `F2` there and `F2` back —
+ * and a reader who has to find their place again each time is being charged for the round trip.
+ *
+ * Module state rather than a store field, and that is not laziness: the offset changes on every
+ * scroll event, and `AskTab` subscribes to the whole of `useChatStore`, so writing it into a
+ * store would re-render the entire transcript sixty times a second while somebody scrolls. It
+ * survives an unmount, dies with the page, and nothing renders from it.
+ *
+ * `pinned` is remembered beside it, because "I was at the bottom" and "I was 3000 px down, which
+ * happens to be the bottom of what existed then" are different intentions: the first should follow
+ * a growing answer and the second should not.
+ */
+const view = { top: 0, pinned: true }
+
+/** How close to the bottom still counts as "following the stream". */
+const PINNED_SLACK = 80
+
 export function AskTab() {
   const { messages, busy, sessionCostUsd, reset } = useChatStore()
   const drawing = useAppStore((s) => s.drawing)
   const bottom = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
-  const pinned = useRef(true)
 
   // Follow the stream, but stop following the moment the reader scrolls up — they are
   // probably re-reading the probe sequence while the rest arrives.
@@ -23,14 +49,30 @@ export function AskTab() {
     if (!element) return
     const onScroll = () => {
       const distance = element.scrollHeight - element.scrollTop - element.clientHeight
-      pinned.current = distance < 80
+      view.pinned = distance < PINNED_SLACK
+      view.top = element.scrollTop
     }
     element.addEventListener('scroll', onScroll, { passive: true })
     return () => element.removeEventListener('scroll', onScroll)
   }, [])
 
+  /**
+   * Put the reader back where they were, before the browser paints.
+   *
+   * A layout effect rather than an effect, so the restored offset is never briefly visible as a
+   * jump. It runs once per mount, which is exactly the event being corrected for. If they were at
+   * the bottom, going to the bottom *is* their position — and it is also what the follow effect
+   * below would do, so the two agree rather than fighting.
+   */
+  useLayoutEffect(() => {
+    const element = scroller.current
+    if (!element) return
+    if (view.pinned) bottom.current?.scrollIntoView({ block: 'end' })
+    else element.scrollTop = view.top
+  }, [])
+
   useEffect(() => {
-    if (pinned.current) bottom.current?.scrollIntoView({ block: 'end' })
+    if (view.pinned) bottom.current?.scrollIntoView({ block: 'end' })
   }, [messages])
 
   return (
@@ -61,7 +103,14 @@ export function AskTab() {
             size="sm"
             className="ml-auto h-6 px-2"
             disabled={busy}
-            onClick={reset}
+            /* A new conversation is a new place to be, so the remembered offset goes with the
+               old one — otherwise the first trip to the drawing and back would restore a scroll
+               position measured against a transcript that no longer exists. */
+            onClick={() => {
+              view.top = 0
+              view.pinned = true
+              reset()
+            }}
           >
             <RotateCcw className="size-3" />
             New conversation

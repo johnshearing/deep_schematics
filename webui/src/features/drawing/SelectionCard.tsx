@@ -11,9 +11,9 @@
  * the one part of the screen the reader is looking at.
  */
 
-import { Crosshair, X } from 'lucide-react'
+import { ArrowLeft, Crosshair, X } from 'lucide-react'
 
-import type { Designator, EntryTerminal } from '@/api/types'
+import type { Designator, DesignatorKind, EntryTerminal } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { KIND_LABEL, placementLabel } from '@/lib/designators'
 import { cn } from '@/lib/utils'
@@ -25,6 +25,10 @@ interface Props {
   onSelectMember: (componentId: string) => void
   /** Fly to one of the member terminals and select it. */
   onSelectTerminal: (terminalId: string) => void
+  /** What sent the reader to this card, when something did. Null for a citation, a click on a
+   * dot, or a net nobody arrived at from anywhere. */
+  back?: { kind: DesignatorKind; id: string } | null
+  onBack?: () => void
   /** Arm this pin on the Locate tab. Absent on a server started without an editor, which is the
    * normal state of a reader's copy — the roster still says what it knows, it just cannot offer
    * to fix it. */
@@ -49,6 +53,8 @@ export function SelectionCard({
   canSelect,
   onSelectMember,
   onSelectTerminal,
+  back = null,
+  onBack,
   onPlaceTerminal,
   onAsk,
   onClose,
@@ -67,6 +73,27 @@ export function SelectionCard({
         'rounded-lg border bg-card/95 p-3 shadow-lg backdrop-blur-sm',
       )}
     >
+      {/* The way back to the roster, above the heading rather than beside the ✕, because it is
+          about where you *were* and the rest of the card is about where you are. Offered only
+          when something actually sent you here — a roster row or a `runs through` chip — so a
+          citation's card and a click on a dot look exactly as they did. */}
+      {back && onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          title={`Back to ${KIND_LABEL[back.kind]} ${back.id}${
+            back.kind === 'net' || back.kind === 'wire' ? ', and its list of terminals' : ''
+          }`}
+          className={cn(
+            'mb-1.5 flex items-center gap-1 text-[11px] text-muted-foreground',
+            'hover:text-foreground focus-visible:text-foreground focus-visible:outline-none',
+          )}
+        >
+          <ArrowLeft className="size-3" />
+          back to <span className="font-mono">{back.id}</span>
+        </button>
+      )}
+
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">

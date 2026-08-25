@@ -54,7 +54,10 @@ Two things to hold on to:
 
 | Behaviour | File | Symbol |
 |---|---|---|
-| The file format, and every validation message | `server/app/locations.py` | `parse`, `_sites`, `_site`, `_terminals`, `_labels`, `_placed`, `_label_dir` |
+| The file format, and every validation message | `server/app/locations.py` | `parse`, `_sites`, `_site`, `_terminals`, `_labels`, `_end_labels`, `_placed`, `_label_dir` |
+| **Which schema versions are read and written** | `server/app/locations.py` | `SCHEMA` = 2, `READABLE` = (1, 2). Both `parse` and `save_locations` accept either — a stale browser bundle sending 1 must not have every save refused, which would be total silent data loss on the machine least likely to notice. The client stamps 2 on load (`locateStore.load`), so the file is upgraded by being written |
+| **The end-label overrides** — wire or net id → terminal id → a side, or hidden | `server/app/locations.py` | `EndLabel`, `Locations.end_labels`, `Geometry.end_labels`, `Geometry.end_label`, `END_LABELS_KEY`. Only the exceptions are stored; absent means *the side the viewer computes* |
+| Whether a `labels` key on a wire is a label on a pin that wire touches | `server/app/locations.py` | `resolve_geometry`'s `touches` map — the only refusal in the file whose symptom on screen would otherwise be **nothing at all**. See hazard H14 |
 | Which provenance words exist | `server/app/locations.py` | `SOURCES` = `("human","seed")`, `PLACEMENT` = `{human→confirmed, seed→seed}` |
 | Wire/net label sections and key | `server/app/locations.py` | `LABEL_SECTIONS` = `("wires","nets")`, `LABEL_KEY` = `"label_point"` |
 | The precedence, and cross-checks against the netlist | `server/app/locations.py` | `resolve_geometry` |
@@ -65,6 +68,7 @@ Two things to hold on to:
 | **What a wire or a net is made of** — its member terminals, in order, **undeduped**, each with its own point and `placement` | `server/app/drawing.py` | `_entry`'s `terminal_ids` parameter and `_member`. `[from, to]` for a wire, `member_terminals` for a net. **Not** `members`, which is those terminals' *parent components* — see hazard H12 |
 | **Whether `places` is published at all** — and it must be whenever a place carries a `label_dir`, single dot or not, because that field exists nowhere else in the payload | `server/app/drawing.py` | `_entry`, the `len(places) > 1 or any("label_dir" …)` test. This was the 2026-08-19 label-side fault (T-335): 269 of 275 entries are single, and eliding their `places` elided the side a human chose |
 | Which ids the extraction invented (`our id`) | `server/app/drawing.py` | `WIRE_IDS_ARE_OURS`, `INVENTED_TERMINAL_PREFIX`, `INVENTED_TERMINAL_PARENTS`, `INVENTED_NET_PREFIX` |
+| **What a wire's end label says** — its colour and gauge, as printed | `server/app/drawing.py` | `_wire_spec`, published as `spec`. 69 of 71 have one. It exists because `WIRE_IDS_ARE_OURS`: a label reading `W052` would name something the reader cannot find on the paper |
 | The gate — routes registered or not | `server/app/main.py` | `if settings.allow_edits:` inside `create_app` |
 | Password check | `server/app/main.py` | `_require_editor`, `_check_editor_password` |
 | `GET`/`PUT /api/locations`, `POST /api/editor/unlock` | `server/app/main.py` | `get_locations`, `put_locations`, `editor_unlock` |
@@ -76,8 +80,9 @@ Two things to hold on to:
 `test_locations.py` (format, precedence, refusals, labels), `test_editor.py` (the gate, the write
 path, the cache-clear), `test_extraction_generator.py` (the generated artifact), **`test_api.py`**
 (the designator index and every other route — this is where an `_entry` change is tested),
-`test_config.py`, `test_invocation.py`, `test_runner.py` (the model child). **106 tests**, of which
-the artifact one is red exactly while `locations.json` is ahead of `circuit_logic.json`.
+`test_config.py`, `test_invocation.py`, `test_runner.py` (the model child). **117 tests as of Session
+2 on 2026-08-24** (was 106), of which the artifact one is red exactly while `locations.json` is ahead
+of `circuit_logic.json`.
 
 ---
 
@@ -94,7 +99,12 @@ the artifact one is red exactly while `locations.json` is ahead of `circuit_logi
 | A wire or net turned into something drawable — **its label point, never its route** | `webui/src/features/drawing/DrawingTab.tsx` | `atLabelPoint` (shared by the layer and by `selectedMarker`, so a label dot cannot exist in one path and not the other) |
 | What kind a click on the sheet raises | `webui/src/features/drawing/DrawingTab.tsx` | `onMarker` — `marker.kind`, **not** the `'component'` it was hard-coded to before 2026-08-19 |
 | Which components the selection card may offer as links | `webui/src/features/drawing/DrawingTab.tsx` | `located` — built from the components group whether or not it is switched on; see hazard H11 |
-| **Everything the selection marks**, which for a net or a wire includes its member terminals — and so is what draws them through a switched-off `Terminals` group | `webui/src/features/drawing/DrawingTab.tsx` | `relatedIds` — `entry.members` **plus** `entry.terminals[].id`. Drop the second half and a net's highlight goes back to marking parent components |
+| **Everything the selection marks**, which for a net or a wire is its member terminals **and nothing else** | `webui/src/features/drawing/DrawingTab.tsx` | `relatedIds` — `entry.terminals[].id` where there are any, `entry.members` otherwise. Changed 2026-08-24: it was the union of both, and ringing the parent components put more than half the marks on places the net does not touch. A component or a terminal still uses `members`, which for a terminal is the one relay it hangs off |
+| **Where every wire and net end label goes** | `webui/src/features/drawing/endLabels.ts` | `planEndLabels`, `defaultSide`, `CLOCKWISE`, `DEFAULT_SIDE`, `PlannedLabel`, `Overrides`. Pure, 13 unit tests. Planned over the **whole** index, never over the visible subset — see invariant 9 |
+| Which end labels are drawn, and the selection's exemption from the switch | `webui/src/features/drawing/DrawingTab.tsx` | `endLabels` (the plan), `drawnEndLabels` (the subset), `drawable` — the last is why the labels group has a button at all now: its *markers* are still zero on this drawing |
+| The text itself, and its side | `webui/src/features/drawing/MarkerLayer.tsx` | `EndLabel` — a `pointer-events-none` span at a dot-sized anchor, through the same `LABEL_SIDE` table as a marker's own id. `data-end-label="<owner>@<terminal>"` is how a test finds one |
+| The compass per end, and what *Reset* does | `webui/src/features/locate/TargetPanel.tsx` | `LabelPanel`, `EndLabelRow`, `LabelSide`'s `note`. The row is found by `data-end` |
+| **Recording or deleting one end-label decision** | `webui/src/features/locate/model.ts` | `setEndLabel`, `endLabelsOf`. Normalises to nothing and **deletes** — see invariant 10 |
 | The member roster on the selection card, and its state words | `webui/src/features/drawing/SelectionCard.tsx` | `MemberRow`; the words come from `lib/designators.ts` `PLACEMENT_LABEL` / `placementLabel` |
 | **The three placement words, in one place** — `placed`, `estimate`, `on its component`, and `nowhere` for no placement at all | `webui/src/lib/designators.ts` | `PLACEMENT_LABEL`, `NOWHERE_LABEL`, `placementLabel`. Imported by `WorkList.tsx`'s `STATE` and by the roster, so the editor's list and the reader's card cannot drift into different English |
 | *place it* on a roster row — the one place outside the Locate feature that touches `locateStore` | `webui/src/features/drawing/DrawingTab.tsx` | `placeTerminal`, offered only when `health.editing.enabled`. Sets the target; writes nothing |
@@ -111,6 +121,8 @@ the artifact one is red exactly while `locations.json` is ahead of `circuit_logi
 | The screen, click-to-place, the advance, the overlay | `webui/src/features/locate/LocateTab.tsx` | `LocateTab`, `put`, `aim`, `editable`, `PasswordGate`, `SaveStatus` |
 | Leaving placing mode — `Esc`, and the ✕ on the panel | `webui/src/features/locate/LocateTab.tsx` | the `Escape` effect (a `window` listener guarded on `activeTabId`); `TargetPanel.tsx` `Header`. **`isTextField` moved out on 2026-08-19** — it is `webui/src/lib/keys.ts` now, shared with the Drawing tab's Escape. See hazard H10 |
 | Which tab is on screen, and the key that changes it | `webui/src/App.tsx` | the `F2` effect (`hasDrawingTab`, bare key only) — `F2` crosses to the Drawing tab from here and back; `tabIds.ts` holds the ids |
+| **Where the reader was in the transcript**, across an `F2` round trip | `webui/src/features/ask/AskTab.tsx` | `view` — module state, not a store field: it changes on every scroll event and this component subscribes to the whole of `useChatStore`, so a store write would re-render every message sixty times a second while somebody scrolls. Restored in a `useLayoutEffect`, cleared by *New conversation* |
+| **The way back to the card that sent you here** | `webui/src/stores/appStore.ts` | `Selection.from`, set by `select(kind, id, origin, from)` — only from a roster row or a `runs through` chip. `SelectionCard.tsx` `back`/`onBack`; `DrawingTab.tsx` `onBack`. One step, deliberately not a stack |
 | Rows and their state words | `webui/src/features/locate/WorkList.tsx` | `STATE` |
 | **The order of every list on the left**, and so the order the advance walks | `webui/src/features/locate/LocateTab.tsx` | the `entries` memo, `BY_ID` (an `Intl.Collator`, `numeric`) |
 | Sites, pins, the compass, the wire/net panel | `webui/src/features/locate/TargetPanel.tsx` | `ComponentPanel`, `TerminalPanel`, `LabelPanel`, `LabelSide` |
@@ -141,6 +153,7 @@ wrong, it is wrong here.
 | Removing things | `clear`, `removeSite` — both drop the parent record when it empties |
 | Rounding and provenance stamping | `signed` (private) — one decimal place, `source: human`, `by`, `at` |
 | What may be nudged from the keyboard? | `draftPoint` — a point this target's own record already holds, and nothing resolved |
+| What has a person decided about one wire end? | `endLabelsOf`, `setEndLabel` — and `SCHEMA`, which this module owns on the client side |
 
 **Client tests** ▲ — all nine files and their counts, since the four listed before were only this
 feature's. **127 tests.**
@@ -156,6 +169,12 @@ feature's. **127 tests.**
 | `components/Markdown.test.tsx` | 13 | |
 | `components/UnlockButton.test.tsx` | 4 | |
 | `App.test.tsx` | 8 | the tabs, and the `F2` effect |
+
+**After Session 2, 2026-08-24: 185 web tests over 13 files.** New: `features/ask/AskTab.test.tsx`
+(3 — the remembered scroll position, which no browser will tell you about), and
+`features/drawing/endLabels.test.ts` (13 — the whole label rule as arithmetic, because a label on
+the wrong side sits *on the conductor it names*). Grown: `LocateTab.test.tsx` (37),
+`DrawingTab.test.tsx` (35), `model.test.ts` (27).
 
 ~~**There is no test file for `stores/locateStore.ts`.**~~ **There is one now** — written 2026-08-24
 with the undo stack, which is exactly the case that sentence anticipated: 12 tests in
@@ -351,12 +370,49 @@ Whole-document snapshots rather than inverse patches, on purpose: 38 KB × 50 is
 2.2 MB of tiles already on the page, and a patch scheme that is subtly wrong loses work — which is
 the thing being fixed. `_claude_notes/highlighting_wires_and_nets.md` §12 records the fork.
 
+### H14 — A label on a terminal the wire does not touch draws nothing *(added 2026-08-24)*
+
+`labels` in `locations.json` is keyed by terminal id, and the key has to be one of that **wire's two
+endpoint terminals** or one of that **net's member terminals**. Anything else is a decision about an
+end that does not exist: nothing is drawn, nothing is broken, and on screen it is indistinguishable
+from a compass control that does not work.
+
+So `resolve_geometry` builds a `touches` map from the netlist, refuses the override **by name**
+(*"puts a label on 'TB-110:1' for W047, which W047 does not touch"*) and drops it. It is the only
+refusal in this file whose symptom would otherwise be *nothing at all*, which is why it is checked
+against the netlist rather than only for shape.
+
+Two things to keep straight if this moves: the shape check belongs in `parse` (which knows nothing
+about this drawing) and the membership check belongs in `resolve_geometry` (which is handed the
+netlist). And the **count** in the report says what is *in the file*, so an orphaned override is
+counted and reported — the same convention a `label_point` for a wire the netlist does not have has
+always had.
+
+### H15 — The end-label plan must see everything, not just what is on screen *(added 2026-08-24)*
+
+`planEndLabels` is handed the **whole** designator index and plans **all 265** labels, and the caller
+then draws whichever subset it wants. That looks wasteful and is not optional.
+
+The plan is what decides who gets a contested side: a label whose computed side is already occupied
+steps clockwise. Plan only the *visible* labels and that arithmetic changes with every layer switch,
+every selection and every zoom past the 30% floor — so pressing `Terminals` would slide an unrelated
+wire's label around its pin. A label that wanders when you press something unrelated is a label a
+reader stops believing is attached to anything, and the cost of the alternative is one pass over 275
+entries in a memo.
+
+The same reasoning is why the reservations include **every** marker's own id label whether or not
+that group is switched on.
+
 ---
 
 ## 5. Invariants — if one of these is violated, that is the bug
 
-1. **There is no way to author a wire's route.** Not in the file, not in the editor, not in the API.
-   A wire carries `label_point` and nothing else. Owner: `LABELLABLE` (`model.ts`), `_labels`
+1. **A wire's route is never *computed*.** Not in the file, not in the editor, not in the API. A wire
+   carries `label_point` and, since 2026-08-24, the sides of its two end labels — and nothing else.
+   *(Restated with the §3 amendment the user accepted on 2026-08-23: a route lifted from the PDF's
+   own conductor strokes, or traced by a person, becomes legal in Session 5. A route **synthesised
+   from its endpoints** never does, and that is what this invariant has always actually guarded. The
+   index's §8 now carries the full wording.)* Owner: `LABELLABLE` (`model.ts`), `_labels`
    (`server/app/locations.py`), and ▲ `fold_in_labels` — which is **not** in the server: it is in
    `schematic_extraction/PS20115MLM4-2/extracted_docs/author_circuit_logic.py`, the generator.
    **Nor is one ever drawn.** No dot appears at a wire's or a net's `point` — that is the centre of a
@@ -380,3 +436,14 @@ the thing being fixed. `_claude_notes/highlighting_wires_and_nets.md` §12 recor
    **already owns** (`draftPoint`), never a resolved seed or a parent fallback. Turning an estimate
    into a `source: human` point one arrow-press away from it would be a `derived` tier by the back
    door, which is invariant 3 in different clothes.
+9. **A label's position depends on the points and nothing else.** *(added 2026-08-24 with the end
+   labels.)* Not on what is selected, which layer is on, what the zoom is, or the order the payload
+   arrived in. Owner: `planEndLabels` in `features/drawing/endLabels.ts`; hazard H15 is the reasoning
+   and *"is the same plan however the index is ordered"* is the test.
+10. **A default is never written into the file as though a human chose it.** *(added 2026-08-24.)*
+   *Reset to default* **deletes** the override, un-hiding deletes it, and `hidden: false` is stripped
+   on the way in and refused on the way back out. Owner: `setEndLabel` (`model.ts`) and `_end_labels`
+   (`locations.py`) — refused from *both* ends deliberately. This is invariant 3 in a third set of
+   clothes: a file that cannot distinguish *nobody has looked at this* from *a person decided this*
+   has stopped being a record of who said what, which is the only thing it is for. T-570 walks it,
+   and it is the one assertion in that document worth reporting loudly.

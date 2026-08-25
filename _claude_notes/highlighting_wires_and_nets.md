@@ -1,7 +1,14 @@
 # Highlighting wires and nets
 
 **Version 2 — 2026-08-23.** Reworked after the review in `claude.md`. Version 1 (2026-08-19) was a
-report to argue with; this is the plan to execute. Nothing has been built.
+report to argue with; this is the plan to execute.
+
+> **Progress. Sessions 1 and 2 both landed on 2026-08-24** — Phases **0**, **A** and **B**. `Ctrl+Z`
+> and the keyboard nudge, a net highlighted as the terminals it is made of, and an end label at every
+> wire end and net terminal with `locations.json` at **schema 2**. **The next session is 3, Phase C**:
+> the Drawing tab's list. `change_history.md` has the two dated entries; `08_results_log.md` says what
+> the user has walked. Everything below is as written on 2026-08-23 except the per-session notes in
+> §13 and the three amendments recorded there.
 
 **Status of the gate.** Version 1 said *"nothing in this plan proceeds until you accept the §7
 amendment"*. **You accepted it as written on 2026-08-23**, so §3 below is now the rule and every
@@ -1005,6 +1012,10 @@ highlighted conductor is the right one; that judgement is built out of Sessions 
 ### Session 1 — the editor stops punishing mistakes, and a net tells the truth
 **Phases 0 + A.** Together because both make what already exists correct, and neither adds a screen.
 
+> **Landed 2026-08-24.** One thing was corrected the same day: Phase A kept the parent components in
+> a net's highlight and the user reported it as clutter, so they are named on the card and no longer
+> marked on the sheet. See Session 2's note.
+
 | | |
 |---|---|
 | **You will be able to** | press `Ctrl+Z` and get the coordinate you just lost back · nudge an armed dot exactly 1.0 pt or 0.1 pt with `Shift`(+`Alt`)+arrows · click net `120` and see **seven terminal dots** ringed instead of five component dots, with `CR2:14` on CR2's NO contact rather than on its coil 630 pt away · read a roster naming every member and its state |
@@ -1016,6 +1027,27 @@ highlighted conductor is the right one; that judgement is built out of Sessions 
 ### Session 2 — wires and nets become two things, with a label at every end
 **Phase B.** The first schema change. On its own because it is the largest single phase and the one
 that touches the file.
+
+> **Landed 2026-08-24**, with three corrections the user asked for after Session 1 — a net marks only
+> its terminals, a roster row has a way back, and the Ask tab keeps the reader's place across `F2`.
+> **265 end labels appeared and `locations.json` did not change**, which is the lesson below coming
+> out exactly as predicted. Four things went differently from the plan and are worth knowing:
+>
+> - **the count did not "split into two".** §8.1 said the third toolbar count becomes two, but §6 also
+>   forbids `label_point` from ever being a count — and it was one. So it was **removed**: the header
+>   reads `71 wires · 26 nets · 0 end labels moved by hand`, where the last number counts *decisions*.
+>   A progress bar over something optional is `K7`'s shape and this plan says so in three places.
+> - **the panel is handed the planned labels rather than recomputing the rule.** A compass that
+>   disagreed with the label beside it on screen would be worse than no compass.
+> - **`spec` is a new field on the wire entry.** §7 says an end label shows `BLUE 18AWG`; the payload
+>   had that only inside a human sentence, and string-surgery on a display label is not a source.
+> - **§8 of the index was replaced with §3's amendment here**, which Session 6 was holding. The
+>   `computed` row state now reads `ends known, no path`, so the manual had to stop saying the
+>   opposite in the same breath.
+>
+> Also landed: `READABLE = (1, 2)` on **both** the read and the write path. The plan only asked for
+> `parse` to accept 1; refusing a schema-1 *write* would make a cached browser bundle into a tab whose
+> every save is silently rejected.
 
 | | |
 |---|---|

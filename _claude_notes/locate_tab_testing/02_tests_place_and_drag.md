@@ -333,7 +333,13 @@ zoom controls.
 
 **Expected.** `Components` is **on**, `Terminals` and `Wire & net labels` are **off** — the view this
 tab has always had, so nothing appears unasked. A group with nothing to draw has **no button at
-all**: on a drawing where nobody has placed a label yet there are only two.
+all**.
+
+**Changed 2026-08-24:** the third button is now there on this drawing, where before there were only
+two. Nobody has placed a printed-name position, so that group has no *markers* — but it now also
+carries the **265 end labels**, one at each wire end and net terminal, and those are text rather than
+dots. "Nothing to draw" means both halves are empty. Press it and expect a great deal of text at once
+above 30% zoom; that is `10_tests_end_labels.md` T-550, and it is why the group still starts off.
 
 **Expected, added 2026-08-19 on request.** A group that is **on** is a **filled** button — the same
 way this tab's filter buttons show which filter is in effect — and one that is off is plain. Press

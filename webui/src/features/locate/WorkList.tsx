@@ -42,10 +42,15 @@ const STATE: Record<RowState, { label: string; tone: string; Icon: typeof Circle
     tone: 'text-[var(--color-warning)]',
     Icon: CircleDashed,
   },
-  // Its route is known and its name has not been placed. Both halves matter: the first is why
-  // this is not work to do, the second is why the row is still clickable.
+  // Its two ends are known and its printed name has not been placed. Both halves matter: the
+  // first is why this is not work to do, the second is why the row is still clickable.
+  //
+  // It said *"route from its terminals"* until 2026-08-24, and that sentence is now false by
+  // decision: a wire's route is lifted from the PDF's own conductor strokes or traced by a person,
+  // and a path computed from the two endpoints is the one thing it may never be. Nothing about the
+  // *state* changed — only a phrase that would have taught the reader the wrong rule.
   computed: {
-    label: 'route from its terminals',
+    label: 'ends known, no path',
     tone: 'text-muted-foreground',
     Icon: Link2,
   },

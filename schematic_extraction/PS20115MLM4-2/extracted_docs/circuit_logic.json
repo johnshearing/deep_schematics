@@ -1872,8 +1872,8 @@
       "function": "line",
       "net": "L1",
       "location": {
-        "x": 368.4,
-        "y": 50.7,
+        "x": 368.7,
+        "y": 50.6,
         "source": "human"
       }
     },
@@ -1883,8 +1883,8 @@
       "function": "output",
       "net": "L1-A",
       "location": {
-        "x": 385.3,
-        "y": 51.1,
+        "x": 384.7,
+        "y": 50.6,
         "source": "human"
       }
     },
@@ -1894,8 +1894,8 @@
       "function": "line",
       "net": null,
       "location": {
-        "x": 369.1,
-        "y": 67.3,
+        "x": 368.7,
+        "y": 67.1,
         "source": "human"
       }
     },
@@ -1905,8 +1905,8 @@
       "function": "output",
       "net": null,
       "location": {
-        "x": 384.9,
-        "y": 67.6,
+        "x": 384.7,
+        "y": 67.1,
         "source": "human"
       }
     },
@@ -1916,7 +1916,7 @@
       "function": "neutral",
       "net": "N",
       "location": {
-        "x": 367.6,
+        "x": 368.5,
         "y": 83.8,
         "source": "human"
       }
@@ -1927,8 +1927,8 @@
       "function": "output",
       "net": "N-1",
       "location": {
-        "x": 384.9,
-        "y": 84.6,
+        "x": 384.7,
+        "y": 83.8,
         "source": "human"
       }
     },
@@ -2719,8 +2719,8 @@
       "function": "input",
       "net": "120",
       "location": {
-        "x": 381.4,
-        "y": 663.7,
+        "x": 381.5,
+        "y": 663.8,
         "source": "human"
       }
     },

@@ -41,12 +41,14 @@ two terminals whose function is `common` (`11` and `21`) at different sites, so 
 disambiguate them. A terminal may also carry its own point, which is how `A1` and `A2` end up 20
 pt apart as printed rather than sharing the coil's.
 
-### Why wires and nets get a label position and nothing else
+### Why wires and nets get label positions and nothing else
 
     components   sites, each with a point and the pins drawn there
     terminals    a point of its own, which beats the site claiming that pin
     wires        label_point — where `BLUE 18AWG` is written
+                 labels      — which side of each end's pin its end label sits on
     nets         label_point — where the net number is written beside its conductor
+                 labels      — the same, per member terminal
 
 A wire has no place of its own. Its geometry is its two endpoint terminals, and drawing a line
 between them because no conductor in `geometry.json` joined them would be **inventing a wire
@@ -58,6 +60,28 @@ land on it rather than on the midpoint of a rectangle. `label_point` is that, an
 after what it holds so the next reader is not tempted to treat it as the wire's location. It is
 optional in a way a terminal's point is not: a terminal with no point is missing data, a wire with
 no label point is merely unpolished, and the editor counts them separately for that reason.
+
+### End labels, and why the file holds almost none of them
+
+Schema 2 adds `labels`, keyed by **terminal id**, to both sections. It is the answer to a different
+question from `label_point`: not *where is this wire's name printed on the run* but *which side of
+each of its two ends does its name hang off*. Both may exist at once and neither implies the other.
+
+**Every wire end and every net terminal has an end label by default**, computed by the viewer from
+points that already exist — away from the wire's other end, away from the net's centroid — so 269
+labels appear on this drawing and **none of them is work**. This file stores only the exceptions: a
+side a person chose, or a label they hid. An empty `labels` therefore means *every default is
+right*, which is the normal case, and it is what keeps a queue of 269 rows from existing. (That
+queue is `K7` in the manual, and not repeating it was a design requirement rather than an accident.)
+
+A default is **never** written in as though a human had chosen it. Storing the value the rule would
+have produced anyway makes the file stop distinguishing *nobody has looked at this* from *a person
+decided this*, which is the distinction the whole file exists for — so *Reset to default* deletes
+the override rather than writing the computed side.
+
+The key is validated against the netlist rather than here: a side on a terminal the wire does not
+touch is refused **by name** in `resolve_geometry`, because it is the one mistake a hand edit can
+make here that has no visible symptom on screen.
 
 ### Three layers, and why they are separate functions
 
@@ -92,8 +116,17 @@ from pathlib import Path
 from typing import Any
 
 #: Bumped only for a change old readers must not silently misinterpret. A file declaring anything
-#: else is refused whole — half-understood coordinates are worse than none.
-SCHEMA = 1
+#: outside `READABLE` is refused whole — half-understood coordinates are worse than none.
+#:
+#: **2 adds `labels`** to the `wires` and `nets` sections: the end-label overrides. Nothing in
+#: `components` or `terminals` changed, which is why 1 is still readable — a schema-1 file has no
+#: new keys to convert, so the upgrade is the version number and nothing else. The editor stamps
+#: `SCHEMA` onto the draft when it loads one, so the next save writes 2.
+SCHEMA = 2
+
+#: The versions this server understands. A 2 read by a server that only knows 1 is refused loudly
+#: by that server's own check, which is correct: it would drop every end label silently otherwise.
+READABLE = (1, 2)
 
 FILENAME = "locations.json"
 
@@ -120,6 +153,19 @@ class Placed:
 
 
 @dataclass(frozen=True)
+class EndLabel:
+    """One end label a person has taken a decision about, and nothing else is stored.
+
+    `dir` is the side they chose; `hidden` is *"do not draw this one at all"*. Both optional and at
+    least one present — an entry with neither says nothing, and a record that says nothing is a
+    mistake worth reporting rather than a fact worth keeping.
+    """
+
+    dir: str | None = None
+    hidden: bool = False
+
+
+@dataclass(frozen=True)
 class Site:
     """One place a component is drawn, and the terminals drawn there (bare pin names)."""
 
@@ -140,6 +186,9 @@ class Locations:
     #: Where a wire's or a net's *name* is written on the sheet, keyed by wire or net id. See
     #: the module docstring: this is a label position and never a route.
     labels: dict[str, Placed] = field(default_factory=dict)
+    #: The end-label exceptions: wire or net id → terminal id → what a person decided. Only
+    #: overrides are here; everything absent is at the side the viewer's rule computes.
+    end_labels: dict[str, dict[str, EndLabel]] = field(default_factory=dict)
     problems: tuple[str, ...] = ()
 
     def site_for(self, component: str, pin: str) -> Site | None:
@@ -162,6 +211,9 @@ class Locations:
             ),
             "labels": len(self.labels),
             "confirmed_labels": sum(1 for p in self.labels.values() if p.source == "human"),
+            # Overrides, not labels: every wire end and net terminal has one already. This is
+            # how many a person has moved or hidden, which is the only part anybody authored.
+            "end_labels": sum(len(ends) for ends in self.end_labels.values()),
         }
 
 
@@ -196,23 +248,26 @@ def parse(raw: Any) -> Locations:
     on disk yet and answer with the same words the next read will use."""
     if not isinstance(raw, dict):
         return Locations(present=True, problems=(f"{FILENAME} is not an object",))
-    if raw.get("schema") != SCHEMA:
+    if raw.get("schema") not in READABLE:
         return Locations(
             present=True,
-            problems=(f"{FILENAME} declares schema {raw.get('schema')!r}, not {SCHEMA}",),
+            problems=(
+                f"{FILENAME} declares schema {raw.get('schema')!r}, not one of {READABLE}",
+            ),
         )
 
     problems: list[str] = []
     page = _page_size(raw.get("page_size_pt"), problems)
     sites = _sites(raw.get("components"), problems)
     terminals = _terminals(raw.get("terminals"), problems)
-    labels = _labels(raw, problems)
+    labels, end_labels = _labels(raw, problems)
     return Locations(
         present=True,
         page_size_pt=page,
         sites=sites,
         terminals=terminals,
         labels=labels,
+        end_labels=end_labels,
         problems=tuple(problems),
     )
 
@@ -316,16 +371,34 @@ LABEL_SECTIONS = ("wires", "nets")
 LABEL_KEY = "label_point"
 
 
-def _labels(raw: dict[str, Any], problems: list[str]) -> dict[str, Placed]:
-    """`wires` and `nets`, both holding nothing but where the name is written.
+#: The key holding the end-label overrides, and the two things one of them may say.
+END_LABELS_KEY = "labels"
 
-    A wire has no place of its own: its geometry is its two endpoint terminals, and inventing a
-    route between them is the one thing the netlist's authority rests on never doing. But the
-    *text* — `BLUE 18AWG`, or a net number beside a conductor — is printed somewhere specific on
-    the sheet, and a reader following a citation wants to land on it. So this is the only thing
-    either section can carry.
+
+def _labels(
+    raw: dict[str, Any], problems: list[str]
+) -> tuple[dict[str, Placed], dict[str, dict[str, EndLabel]]]:
+    """`wires` and `nets`, holding where the name is written and which way each end's label faces.
+
+    A wire has no place of its own here. A route **synthesised from its two endpoint terminals** is
+    the one thing the netlist's authority rests on never inventing — a straight chord between two
+    pins no conductor joined is not slightly wrong, it is somewhere else, across circuits the wire
+    never touches. (A route *lifted from the PDF's own conductor strokes*, or traced by a person
+    along the printed conductor, is a different thing and is not in this schema yet; when it arrives
+    it will say which of the two it was. `derived` is a rejected value in that vocabulary as it is
+    in this one.) But the *text* — `BLUE 18AWG`, or a net number beside a conductor — is printed
+    somewhere specific on the sheet, and a reader following a citation wants to land on it. So
+    `label_point` is one of the two things either section can carry, and `labels` is the other.
+
+    **`label_point` is required only when there is nothing else.** A record with end-label
+    overrides and no point is a complete, sensible thing to say — *this wire's ends face these
+    ways, and nobody has said where its printed name is* — and demanding a point would report it
+    as broken. A record with neither is a record that says nothing, and that is still reported
+    naming `label_point`, because on a schema-1 file that is the only key it could have meant.
     """
     out: dict[str, Placed] = {}
+    ends: dict[str, dict[str, EndLabel]] = {}
+    seen: set[str] = set()
     for section in LABEL_SECTIONS:
         value = raw.get(section)
         if value is None:
@@ -340,14 +413,65 @@ def _labels(raw: dict[str, Any], problems: list[str]) -> dict[str, Placed]:
             if not isinstance(body, dict):
                 problems.append(f"{section}[{identifier}] is not an object")
                 continue
-            if identifier in out:
+            if identifier in seen:
                 # Only reachable if a wire and a net share an id, which this drawing's do not.
                 # Reported rather than arbitrated: silently preferring one would move a label.
                 problems.append(f"{identifier!r} has a label in both wires and nets")
                 continue
-            placed = _placed(f"{section}[{identifier}]", body, problems, key=LABEL_KEY)
-            if placed is not None:
-                out[identifier] = placed
+            seen.add(identifier)
+            where = f"{section}[{identifier}]"
+
+            overrides = _end_labels(where, body.get(END_LABELS_KEY), problems)
+            if overrides:
+                ends[identifier] = overrides
+            # Only demanded when the record has no end labels to justify its existence.
+            if LABEL_KEY in body or END_LABELS_KEY not in body:
+                placed = _placed(where, body, problems, key=LABEL_KEY)
+                if placed is not None:
+                    out[identifier] = placed
+    return out, ends
+
+
+def _end_labels(
+    where: str, value: Any, problems: list[str]
+) -> dict[str, EndLabel]:
+    """The `labels` map: terminal id → the decision a person took about that end.
+
+    Per field, like everything else here, and the unit is **one end label**: a bad `dir` costs that
+    end and leaves the wire's other end alone. Whether the terminal is one this wire or net
+    actually touches is not knowable from the file alone and is checked in `resolve_geometry`.
+    """
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        problems.append(f"{where}.{END_LABELS_KEY} is not an object")
+        return {}
+
+    out: dict[str, EndLabel] = {}
+    for terminal, body in value.items():
+        at = f"{where}.{END_LABELS_KEY}[{terminal!r}]"
+        if not isinstance(terminal, str) or ":" not in terminal:
+            problems.append(f"{at} is not a COMPONENT:PIN id")
+            continue
+        if not isinstance(body, dict):
+            problems.append(f"{at} is not an object")
+            continue
+
+        direction = body.get("dir")
+        if direction is not None and direction not in COMPASS:
+            problems.append(f"{at} has dir {direction!r}, not one of {COMPASS}")
+            continue
+        hidden = body.get("hidden")
+        if hidden is not None and not isinstance(hidden, bool):
+            problems.append(f"{at} has hidden {hidden!r}, which is not true or false")
+            continue
+        if direction is None and not hidden:
+            # Nothing decided. Refused rather than kept, because a file full of empty records is
+            # a file that can no longer tell you what a person actually chose — and `hidden:
+            # false` is the shape *Reset to default* must never leave behind.
+            problems.append(f"{at} says nothing: an end label needs a dir or hidden")
+            continue
+        out[terminal] = EndLabel(dir=direction, hidden=bool(hidden))
     return out
 
 
@@ -426,7 +550,11 @@ def save_locations(
     """
     if not isinstance(raw, dict):
         raise LocationsRefused(f"{FILENAME} must be a JSON object.")
-    if raw.get("schema") != SCHEMA:
+    # Every version this server can read, it can also write back. The editor stamps `SCHEMA` onto
+    # the draft as it loads, so in practice a save arrives as 2 and the file is upgraded by being
+    # written — but a browser holding a cached bundle from before the bump must not have every one
+    # of its saves refused, which would turn a stale tab into silent, total data loss.
+    if raw.get("schema") not in READABLE:
         raise LocationsRefused(
             f"{FILENAME} declares schema {raw.get('schema')!r}; this server writes {SCHEMA}."
         )
@@ -517,6 +645,10 @@ class Geometry:
     #: Where a wire's or net's name is written, for the ones somebody has placed. Not geometry:
     #: `rect` still frames the run, and this is only where the text sits.
     labels: dict[str, Spot] = field(default_factory=dict)
+    #: The end-label overrides that survived the check against the netlist: wire or net id →
+    #: terminal id → what a person decided. Absent means *the computed default*, which is the
+    #: normal state of 269 of this drawing's end labels.
+    end_labels: dict[str, dict[str, EndLabel]] = field(default_factory=dict)
     #: Whether there is a `locations.json` at all. A fresh extraction has none, which is not a
     #: problem; a file that parsed to nothing is.
     present: bool = False
@@ -531,6 +663,13 @@ class Geometry:
 
     def label(self, identifier: str | None) -> Spot | None:
         return self.labels.get(identifier) if identifier else None
+
+    def end_label(self, identifier: str | None, terminal_id: str | None) -> EndLabel | None:
+        """What a person decided about this one end of this one wire or net, or None for *nobody
+        has said anything, use the default*."""
+        if not identifier or not terminal_id:
+            return None
+        return self.end_labels.get(identifier, {}).get(terminal_id)
 
     def report(self) -> dict[str, Any]:
         return {"file": self.present, **self.counts, "problems": list(self.problems)}
@@ -563,12 +702,20 @@ def resolve_geometry(
     terminals = [t for t in (doc.get("terminals") or []) if isinstance(t, dict)]
     known_components = {c["id"] for c in components if isinstance(c.get("id"), str)}
     known_terminals = {t["id"] for t in terminals if isinstance(t.get("id"), str)}
-    known_labels = {
-        item["id"]
-        for key in ("wires", "nets")
-        for item in (doc.get(key) or [])
-        if isinstance(item, dict) and isinstance(item.get("id"), str)
-    }
+    # What each wire or net is *made of*, which is what an end label may be keyed on. A wire's is
+    # its two endpoint terminals and a net's is its members; anything else is a label on a pin the
+    # thing does not touch, which draws nothing and is invisible on screen.
+    touches: dict[str, set[str]] = {}
+    for item in doc.get("wires") or []:
+        if isinstance(item, dict) and isinstance(item.get("id"), str):
+            pair = (item.get("from_terminal"), item.get("to_terminal"))
+            touches[item["id"]] = {t for t in pair if isinstance(t, str)}
+    for item in doc.get("nets") or []:
+        if isinstance(item, dict) and isinstance(item.get("id"), str):
+            touches[item["id"]] = {
+                t for t in (item.get("member_terminals") or []) if isinstance(t, str)
+            }
+    known_labels = set(touches)
     owner_of = {
         t["id"]: t.get("parent_component") for t in terminals if isinstance(t.get("id"), str)
     }
@@ -584,6 +731,28 @@ def resolve_geometry(
             problems.append(
                 f"{FILENAME} places a label for {lid!r}, which is not a wire or net in the netlist"
             )
+
+    # The end labels, checked against the membership. This is the only refusal in the file whose
+    # symptom would otherwise be *nothing at all*: a side stored against a pin the wire does not
+    # touch is never drawn, never reported, and looks exactly like a compass control that does not
+    # work. So it is named, and the label is dropped rather than kept as a fact about nowhere.
+    resolved_end_labels: dict[str, dict[str, EndLabel]] = {}
+    for lid, overrides in stored.end_labels.items():
+        if lid not in known_labels:
+            problems.append(
+                f"{FILENAME} labels the ends of {lid!r}, which is not a wire or net in the netlist"
+            )
+            continue
+        kept = {}
+        for tid, override in overrides.items():
+            if tid not in touches[lid]:
+                problems.append(
+                    f"{FILENAME} puts a label on {tid!r} for {lid}, which {lid} does not touch"
+                )
+                continue
+            kept[tid] = override
+        if kept:
+            resolved_end_labels[lid] = kept
 
     resolved_components: dict[str, tuple[Spot, ...]] = {}
     for component in components:
@@ -645,6 +814,7 @@ def resolve_geometry(
         problems=tuple(problems),
         counts=stored.counts(),
         labels={i: Spot.of(p, None) for i, p in stored.labels.items()},
+        end_labels=resolved_end_labels,
         present=stored.present,
     )
 

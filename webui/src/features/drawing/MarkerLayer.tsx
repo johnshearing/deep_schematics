@@ -7,6 +7,12 @@
  * are far cheaper painted, so they will go into `paint.ts` rather than here. The rule is
  * "interactive in the DOM, decorative in the canvas".
  *
+ * **End labels are the one deliberate exception to that rule**, and the reason is text: they need
+ * the same `LABEL_SIDE` table, the same white ground and the same font as the ids beside every dot,
+ * and painting text into the canvas would be a second implementation of all three that would
+ * eventually disagree. So they are DOM, and `pointer-events-none` to the last span, which is what
+ * keeps them decorative — nothing is placed there and nothing can be clicked there.
+ *
  * Everything is positioned through `pointToCss`, which is `paint.ts`'s own projection divided
  * by the device-pixel ratio. There is exactly one projection in this application; a second one
  * here would eventually disagree with the tiles, and a marker half an inch off the component it
@@ -45,6 +51,7 @@ import { useRef } from 'react'
 import type { Compass, Designator, Place, Placement } from '@/api/types'
 import { placesOf } from '@/lib/designators'
 import { cn } from '@/lib/utils'
+import type { PlannedLabel } from './endLabels'
 import { cssToPoint, pointToCss } from './paint'
 import type { Viewport } from './useTileViewport'
 
@@ -102,6 +109,18 @@ interface Props {
    * already enough to say "there are things here". */
   showLabels: boolean
   /**
+   * The wire and net **end labels** to draw, already planned by `endLabels.ts`.
+   *
+   * They are text at a terminal's point rather than dots of their own, so they are not markers:
+   * nothing is placed there, nothing can be dragged there, and there is no second thing to click.
+   * They are also `pointer-events-none` to the last span — a label is offset from its dot by a few
+   * pixels, and one that took the pointer would both swallow a pan started next to a pin and
+   * re-create `H6`, the dot that eats the click meant for the paper underneath it.
+   *
+   * They obey `showLabels` for exactly the reason the ids do: 269 strings at fit zoom is a fog.
+   */
+  endLabels?: PlannedLabel[]
+  /**
    * A dot was clicked. **The `place` is the dot that was clicked, not the entry's first one** —
    * `CR-BP` has three, and a caller told only the id has to guess which, which is how selecting
    * the NO contact used to fly the sheet to the coil.
@@ -126,6 +145,7 @@ export function MarkerLayer({
   selected = null,
   relatedIds,
   showLabels,
+  endLabels,
   onSelect,
   onDragPoint,
   onDragEnd,
@@ -134,6 +154,18 @@ export function MarkerLayer({
 
   return (
     <div className="pointer-events-none absolute inset-0" data-testid="marker-layer">
+      {/* Under the markers in the DOM order, so a dot is never covered by somebody else's text. */}
+      {showLabels &&
+        endLabels?.map((label) => (
+          <EndLabel
+            key={label.key}
+            label={label}
+            viewport={viewport}
+            dpr={dpr}
+            selected={label.owner === selected?.id}
+          />
+        ))}
+
       {markers.map((entry) =>
         // The selection draws itself below, at its own point and under its own name. Drawing it
         // here as well would put two dots on one spot and let the quieter one win the click.
@@ -171,6 +203,49 @@ export function MarkerLayer({
           />
         ))}
     </div>
+  )
+}
+
+/**
+ * One end label: a wire's spec, or a net's number, beside a pin that already has a point.
+ *
+ * The anchor is the same size as a dot and centred the same way, so an end label sits exactly as
+ * far off its point as the dot's own id does — the `LABEL_SIDE` lookup then does the rest, and
+ * there is one table deciding where a label goes rather than two that would drift.
+ */
+function EndLabel({
+  label,
+  viewport,
+  dpr,
+  selected,
+}: {
+  label: PlannedLabel
+  viewport: Viewport
+  dpr: number
+  selected: boolean
+}) {
+  const { left, top } = pointToCss(label.point, viewport, dpr)
+  return (
+    <span
+      style={{ left, top }}
+      className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2"
+      data-end-label={`${label.owner}@${label.terminal}`}
+    >
+      <span
+        className={cn(
+          'absolute',
+          LABEL_SIDE[label.dir],
+          'rounded px-1 py-px font-mono text-[10px] leading-tight whitespace-nowrap',
+          // The same white ground the ids use, because this also sits over black line art on
+          // white paper and has to be legible against both.
+          selected
+            ? 'bg-[var(--color-danger)] text-white'
+            : 'bg-white/85 text-neutral-900 shadow-[0_0_0_1px_rgba(0,0,0,0.15)]',
+        )}
+      >
+        {label.text}
+      </span>
+    </span>
   )
 }
 

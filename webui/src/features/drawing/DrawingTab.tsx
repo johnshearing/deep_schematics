@@ -44,6 +44,7 @@ import { useAppStore } from '@/stores/appStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useLocateStore } from '@/stores/locateStore'
 import { ASK_TAB_ID, DRAWING_TAB_ID, LOCATE_TAB_ID } from '@/tabIds'
+import { planEndLabels } from './endLabels'
 import { MarkerLayer } from './MarkerLayer'
 import { SelectionCard } from './SelectionCard'
 import { TileSheet } from './TileSheet'
@@ -108,9 +109,10 @@ const LAYERS: {
     label: 'Wire & net labels',
     Icon: Tag,
     note: (shown, total) =>
-      `${shown} of the ${total} wires and nets have had the place their name is printed put on ` +
-      `record. That is all a wire or a net can carry here: its route is its two endpoint ` +
-      `terminals, and this system never draws a line no conductor joined.`,
+      `${shown} labels for the ${total} wires and nets: one at each end of every wire and at ` +
+      `every terminal of every net, on the side that keeps it clear of its own run — plus the ` +
+      `printed name of any whose position somebody has placed. A wire shows its colour and ` +
+      `gauge, because its W-number is ours and is printed nowhere on the sheet.`,
   },
 ]
 
@@ -157,6 +159,15 @@ export function DrawingTab() {
     labels: false,
   })
 
+  /**
+   * Every end label on the sheet, planned in one pass and **independently of what is on screen.**
+   *
+   * Planned from the whole index rather than from the visible subset, because the plan is what
+   * decides which of two labels on one dot gets the side it wants — and a label that moved when an
+   * unrelated switch was pressed would be a label a reader stops trusting. See `endLabels.ts`.
+   */
+  const endLabels = useMemo(() => planEndLabels(designators?.entries ?? []), [designators])
+
   /** Every group, whether or not it is switched on: the toolbar needs the counts of the hidden
    * ones to offer them, and `located` below has to keep answering for components regardless. */
   const layers = useMemo<Record<Layer, { markers: Designator[]; total: number }>>(() => {
@@ -191,26 +202,34 @@ export function DrawingTab() {
 
   const entry = selection ? (byToken.get(normalise(selection.id)) ?? null) : null
   /**
-   * Everything the selection marks, and for a net or a wire **its member terminals are in here.**
+   * Everything the selection marks — and for a net or a wire that is **its member terminals and
+   * nothing else.**
    *
-   * They have to be, and for two separate reasons that happen to want the same set. `MarkerLayer`
-   * rings what is in here, so the seven pins of net 120 get their own dots instead of the net
-   * being summarised by the five components those pins happen to hang off — `CR2:14` on CR2's NO
-   * contact rather than a ring on the coil 630 pt away. And `markers` below lets a *switched-off*
-   * group contribute anything in this set, so the pins of a selected net draw even with the
-   * `Terminals` switch off, which is the one case the overlay must stay visible for (H11).
+   * The terminals have to be in here for two separate reasons that want the same set.
+   * `MarkerLayer` rings what is in here, so the seven pins of net 120 get their own dots instead
+   * of the net being summarised by the five components those pins happen to hang off — `CR2:14` on
+   * CR2's NO contact rather than a ring on the coil 630 pt away. And `markers` below lets a
+   * *switched-off* group contribute anything in this set, so the pins of a selected net draw even
+   * with the `Terminals` switch off, which is the one case the overlay must stay visible for (H11).
    *
-   * The parent components stay too: a relay drawn in two places is genuinely part of the net in
-   * both, and the card demotes them to `runs through` rather than dropping them.
+   * **The parent components are deliberately not in here, and that is a change of mind.** The
+   * first version marked them as well, on the reasoning that a relay drawn in two places is
+   * genuinely part of the net in both. True, and it is still said on the card as `runs through` —
+   * but ringing it is a different claim from saying it. Net 120's seven pins bring five components
+   * with them, each ringed and each label forced on below the zoom floor, so more than half the
+   * marks on screen were on places the net does not actually touch. The user's words for it were
+   * *"this adds clutter and confusion to the drawing"*, and they are right: a highlight whose job
+   * is *which of these is the one I care about* must not also mark the things nearby.
+   *
+   * A component or a terminal keeps its `members`, which for a terminal is the one component it
+   * hangs off — a single quiet ring saying whose pin this is, not a crowd.
    */
-  const relatedIds = useMemo(
-    () =>
-      new Set([
-        ...(entry?.members ?? []),
-        ...(entry?.terminals ?? []).map((member) => member.id),
-      ]),
-    [entry],
-  )
+  const relatedIds = useMemo(() => {
+    const members = entry?.terminals?.length
+      ? entry.terminals.map((member) => member.id)
+      : (entry?.members ?? [])
+    return new Set(members)
+  }, [entry])
   /** A marker for the selection itself — at its own point, under its own name, and only where
    * there is a real place to put one. See `atLabelPoint` for the wire and net case. */
   const selectedMarker = useMemo<Designator | null>(() => {
@@ -234,6 +253,35 @@ export function DrawingTab() {
           : layers[id].markers.filter((m) => relatedIds.has(m.id)),
       ),
     [layers, relatedIds, shown],
+  )
+
+  /**
+   * How many marks each group actually has to draw — which for the labels group is **not** the
+   * number of markers.
+   *
+   * A group with nothing to draw gets no button, and the labels group has no *markers* on this
+   * drawing at all: `label_point` is where a printed name sits and nobody has placed one. Its end
+   * labels are text hanging off pins rather than dots of their own, so counting only markers would
+   * hide the switch for 269 labels that are sitting there ready to draw.
+   */
+  const drawable = useMemo<Record<Layer, number>>(
+    () => ({
+      components: layers.components.markers.length,
+      terminals: layers.terminals.markers.length,
+      labels: layers.labels.markers.length + endLabels.length,
+    }),
+    [layers, endLabels],
+  )
+
+  /**
+   * **The selection's own end labels draw through a switched-off group**, which is the same
+   * exemption `markers` makes above and the same reasoning: hiding the thing an answer just
+   * pointed at is the one case the overlay must stay visible for (H11). Select net `120` with the
+   * labels group off and its seven ends say `120`; nothing else does.
+   */
+  const drawnEndLabels = useMemo(
+    () => (shown.labels ? endLabels : endLabels.filter((label) => label.owner === entry?.id)),
+    [endLabels, entry?.id, shown.labels],
   )
 
   /**
@@ -329,6 +377,23 @@ export function DrawingTab() {
     [setActiveTab],
   )
 
+  /**
+   * Back to the card that sent you here — the roster, in practice.
+   *
+   * The flight comes with it (`origin` defaults to `'text'`, which is what pans the sheet), and
+   * that is the point rather than a side effect: you left the roster by flying to one pin, so
+   * going back means seeing the whole net framed again, with every member ringed and the next row
+   * one click away. Landing back on the card with the sheet still zoomed into one pin would be
+   * half a return.
+   *
+   * It carries no `from` of its own, so the net's card offers no back link — there is nothing
+   * behind it, and a button that goes nowhere is worse than no button.
+   */
+  const onBack = useCallback(() => {
+    const from = useAppStore.getState().selection?.from
+    if (from) select(from.kind, from.id)
+  }, [select])
+
   const ask = useCallback(() => {
     if (!entry) return
     setComposerText(suggestedQuestion(entry))
@@ -382,7 +447,7 @@ export function DrawingTab() {
               tab is where those labels come from, so the honest answer is that there are none
               yet, and the toolbar says it by having no button. */}
           {LAYERS.map(({ id, label, Icon, note }) =>
-            layers[id].markers.length === 0 ? null : (
+            drawable[id] === 0 ? null : (
               <Button
                 key={id}
                 /* **Filled when the group is on**, which is how the Locate tab has drawn its own
@@ -396,7 +461,7 @@ export function DrawingTab() {
                 size="sm"
                 aria-pressed={shown[id]}
                 onClick={() => setShown((on) => ({ ...on, [id]: !on[id] }))}
-                title={note(layers[id].markers.length, layers[id].total)}
+                title={note(drawable[id], layers[id].total)}
                 className="h-8"
               >
                 <Icon />
@@ -484,6 +549,7 @@ export function DrawingTab() {
             relatedIds={relatedIds}
             // Ids are legible from about a third of native zoom; below that they are a fog.
             showLabels={viewer.percent >= 30}
+            endLabels={drawnEndLabels}
             onSelect={onMarker}
           />
         )}
@@ -492,8 +558,15 @@ export function DrawingTab() {
           <SelectionCard
             entry={entry}
             canSelect={(id) => located.has(id)}
-            onSelectMember={(id) => select('component', id)}
-            onSelectTerminal={(id) => select('terminal', id)}
+            /* Both of these are steps *off* this card, so both record where they came from and
+               the next card offers the way back. `from` is the entry the reader is leaving, not
+               the one they arrived from, so a chain of clicks never accumulates. */
+            onSelectMember={(id) => select('component', id, 'text', { kind: entry.kind, id: entry.id })}
+            onSelectTerminal={(id) =>
+              select('terminal', id, 'text', { kind: entry.kind, id: entry.id })
+            }
+            back={selection?.from ?? null}
+            onBack={onBack}
             onPlaceTerminal={editingEnabled ? placeTerminal : undefined}
             onAsk={ask}
             onClose={clearSelection}
@@ -513,7 +586,8 @@ export function DrawingTab() {
             three independent switches — the same three groups the Locate tab filters by. Click any
             dot for what it is, or click any{' '}
             <span className="font-medium text-foreground">identifier in an answer</span> to fly
-            here and land on it.{' '}
+            here and land on it. A wire or net you select shows its name at every one of its ends
+            whether that switch is on or not, and labels of every kind are hidden below 30% zoom.{' '}
           </>
         )}
         Redrawn at your display's full resolution on every frame, from the

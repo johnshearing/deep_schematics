@@ -18,7 +18,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from .locations import Spot, resolve_geometry
+from .locations import EndLabel, Spot, resolve_geometry
 
 #: The one fact about this drawing that a careful reader still gets wrong. The title block
 #: has no revision field; the `D` in the side tab and the SIZE box is the sheet size. §12 Q21
@@ -134,8 +134,9 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
       run rather than the components it happens to pass through. Neither is ever *placed*: their
       geometry is their endpoints', which is why placing 131 terminals gives 71 wires their
       positions for free. Both also publish `terminals` — the membership itself, in order and
-      undeduped, each member with its own point and provenance. `members` is those terminals'
-      parent components and is **not** a substitute for it; see `_entry`.
+      undeduped, each member with its own point and provenance, and with the side of its **end
+      label** where a person has chosen one. `members` is those terminals' parent components and is
+      **not** a substitute for it; see `_entry`.
 
     `point` is the centre of `rect`; `rect` is what the viewer frames; `places` is every distinct
     place the id is drawn — each with its own point, site name and `placement` — and is present
@@ -215,6 +216,7 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
                 with_placement=False,
                 label_at=geometry.label(nid),
                 terminal_ids=pins,
+                end_labels=geometry.end_labels.get(nid, {}),
             )
         )
 
@@ -234,6 +236,8 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
                 with_placement=False,
                 label_at=geometry.label(wid),
                 terminal_ids=ends,
+                end_labels=geometry.end_labels.get(wid, {}),
+                spec=_wire_spec(wire),
             )
         )
 
@@ -258,6 +262,8 @@ def _entry(
     with_placement: bool = True,
     label_at: Spot | None = None,
     terminal_ids: list[Any] | None = None,
+    end_labels: dict[str, EndLabel] | None = None,
+    spec: str | None = None,
 ) -> dict[str, Any]:
     """One row of the index.
 
@@ -280,6 +286,20 @@ def _entry(
     `label_at` is for wires and nets only, and is **not** geometry: `rect` still frames the run
     from its endpoints. It is where the name is printed on the sheet, so a citation of `W048` can
     land on the text instead of on the midpoint of a rectangle. Absent until a person places it.
+
+    `end_labels` is the *exceptions* to the end-label rule, keyed by terminal id, and it rides on
+    the member rather than on the entry because it is a fact about one end. Every wire end and every
+    net terminal gets a label whether or not it is in here — the side is computed from points that
+    already exist — so what is published is only what a person decided, and a member with neither
+    key is a member at the default. Publishing it at all is the lesson of the label-side fault of
+    2026-08-19 restated: a side that is not in the payload is a side the reader cannot see, and
+    `label_dir` lives nowhere else.
+
+    `spec` is the wire's colour and gauge, together, as printed — `BLUE 18AWG`. Wires are the one
+    kind whose id is **ours** (`WIRE_IDS_ARE_OURS`), so `W052` appears nowhere on the sheet and an
+    end label showing it would name something the reader cannot verify. The spec is what is
+    actually written beside the conductor, and it is published separately from `label` because
+    `label` is a sentence for a human and this is a string to draw.
     """
     seen: list[str] = []
     for member in members:
@@ -335,10 +355,12 @@ def _entry(
         entry["placement"] = found[0].placement if found else None
     if terminal_ids is not None:
         entry["terminals"] = [
-            _member(tid, spot)
+            _member(tid, spot, (end_labels or {}).get(tid))
             for tid, spot in zip(terminal_ids, placed, strict=True)
             if isinstance(tid, str)
         ]
+    if spec:
+        entry["spec"] = spec
     if label_at is not None:
         entry["label_point"] = [label_at.point[0], label_at.point[1]]
         if label_at.label_dir:
@@ -348,13 +370,20 @@ def _entry(
     return entry
 
 
-def _member(terminal_id: str, spot: Spot | None) -> dict[str, Any]:
+def _member(
+    terminal_id: str, spot: Spot | None, end_label: EndLabel | None = None
+) -> dict[str, Any]:
     """One terminal a wire or net is made of, carrying **its own** provenance.
 
     Its own, not the entry's: a net whose members are two confirmed pins and one nobody has
     placed is three different claims, and a single `placement` on the net could only be a lie
     about two of them. `point` is null where the resolver found nothing at all — legitimate, and
     the roster says `nowhere` rather than drawing a dot somewhere plausible.
+
+    `label_dir` and `hidden` appear only where somebody decided one. Their absence is not a gap in
+    the data: the viewer computes the side from this point and the wire's other end, or from the
+    net's centroid, and that computed answer is the right one for 269 of this drawing's 269 ends
+    until a person says otherwise.
     """
     member: dict[str, Any] = {
         "id": terminal_id,
@@ -363,6 +392,10 @@ def _member(terminal_id: str, spot: Spot | None) -> dict[str, Any]:
     }
     if spot is not None and spot.site:
         member["site"] = spot.site
+    if end_label is not None and end_label.dir:
+        member["label_dir"] = end_label.dir
+    if end_label is not None and end_label.hidden:
+        member["hidden"] = True
     return member
 
 
@@ -398,9 +431,16 @@ def _net_label(net: dict[str, Any]) -> str:
 
 
 def _wire_label(wire: dict[str, Any]) -> str:
-    head = " ".join(str(v) for v in (wire.get("color"), wire.get("gauge")) if v)
+    head = _wire_spec(wire)
     ends = f"{wire.get('from_terminal')} → {wire.get('to_terminal')}"
     return f"{head} wire, {ends}" if head else f"wire, {ends}"
+
+
+def _wire_spec(wire: dict[str, Any]) -> str | None:
+    """`BLUE 18AWG` — what is actually printed beside the conductor, and so what an end label
+    says. 69 of this drawing's 71 wires have one; the other two get no spec and no end-label text
+    rather than an invented `W###` the reader cannot find on the sheet."""
+    return " ".join(str(v) for v in (wire.get("color"), wire.get("gauge")) if v) or None
 
 
 def tile_manifest(drawing_dir: Path) -> dict[str, Any] | None:

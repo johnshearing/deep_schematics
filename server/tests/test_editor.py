@@ -24,6 +24,11 @@ from app.main import create_app
 
 PASSWORD = "let-me-draw"
 
+#: Deliberately still `schema: 1`. This server writes 2, and a payload declaring the version
+#: before it has to be accepted rather than refused — a browser holding a cached bundle from
+#: before the bump would otherwise have every save rejected, which is total silent data loss on
+#: exactly the machine least likely to notice. `test_a_stale_client_writing_the_older_schema_is_
+#: still_written` below is the same fact as an assertion.
 DOCUMENT: dict[str, Any] = {
     "drawing_number": "PS20115MLM4-2",
     "schema": 1,
@@ -133,7 +138,7 @@ def test_the_file_on_disk_is_the_document_the_editor_sent(editor, drawing_dir: P
 def test_get_returns_what_put_stored_so_the_round_trip_loses_nothing(editor) -> None:
     fresh = editor.get("/api/locations", headers={"X-Editor-Password": PASSWORD}).json()
     assert fresh["present"] is False
-    assert fresh["document"]["schema"] == 1
+    assert fresh["document"]["schema"] == 2
     assert fresh["document"]["components"] == {}
 
     put(editor, DOCUMENT)
@@ -155,6 +160,20 @@ def test_a_payload_for_another_drawing_is_refused_whole(editor, drawing_dir: Pat
 def test_an_unknown_schema_is_refused_rather_than_written(editor, drawing_dir: Path) -> None:
     assert put(editor, {**DOCUMENT, "schema": 99}).status_code == 409
     assert not (drawing_dir / "locations.json").exists()
+
+
+def test_a_stale_client_writing_the_older_schema_is_still_written(
+    editor, drawing_dir: Path
+) -> None:
+    """A version bump must not turn a cached bundle into a save that never lands.
+
+    The client stamps the current schema onto the draft as it loads, so a save normally arrives as
+    the version this server writes. A browser that has not reloaded since the bump sends the one
+    before — and refusing it would mean a run of placements silently going nowhere, on the machine
+    whose owner has least reason to suspect the version number.
+    """
+    assert put(editor, {**DOCUMENT, "schema": 1}).status_code == 200
+    assert json.loads((drawing_dir / "locations.json").read_text())["schema"] == 1
 
 
 def test_a_bad_coordinate_costs_that_coordinate_and_is_reported(editor) -> None:

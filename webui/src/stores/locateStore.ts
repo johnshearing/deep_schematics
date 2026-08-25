@@ -179,7 +179,15 @@ export const useLocateStore = create<LocateState>()((set, get) => ({
       set({
         // An extraction nobody has placed anything on gets an empty document rather than a
         // failure: a fresh drawing and a half-placed one differ in content, not in kind.
-        document: body.document ?? model.emptyDocument(drawingNumber, pageSize),
+        //
+        // **The schema is stamped on here, and that is the whole of the 1 → 2 migration.** Schema 2
+        // only added the `labels` key to the wire and net sections, so a schema-1 file has nothing
+        // to convert — every point in it means exactly what it always did. Doing it on load rather
+        // than in the save keeps `GET /api/locations` answering the file verbatim, which is what
+        // stops this editor from silently deleting a field it does not know about.
+        document: body.document
+          ? { ...body.document, schema: model.SCHEMA }
+          : model.emptyDocument(drawingNumber, pageSize),
         report: body.report,
         unlocked: true,
         saveState: 'clean',
