@@ -21,6 +21,7 @@ spelled out, and `fold_in_labels` lives in the generator rather than the server.
     ┌── authored by a human ───────────────────────────────────────────────┐
     │  author_circuit_logic.py     the netlist: what connects              │
     │  locations.json              the geometry: where it is drawn         │
+    │  label_corrections.json      the readings: what the ink says         │
     └──────────────────────────────┬───────────────────────────────────────┘
                                    │ python author_circuit_logic.py
                                    ▼
@@ -39,6 +40,22 @@ spelled out, and `fold_in_labels` lives in the generator rather than the server.
               (read only)                    (draft + PUT /api/locations)
                                                    │
                                                    └─→ save_locations() → locations.json
+
+**The third authored file joins that picture at the side rather than in the middle**, and the shape of
+the diagram is the argument for it being a separate file:
+
+    geometry.json  ──(reduced, cached)──►  ink.py           the strings and runs lifted off the paper
+                                             │
+    label_corrections.json ──────────────────┤ resolve_corrections()
+                                             ▼
+                                    GET / PUT /api/review    ← the Review tab, and nothing else
+                                             │
+                                             └─→ corrected_text()  ← Phase E's matcher reads this
+
+**Nothing in that column reaches `circuit_logic.json`.** `author_circuit_logic.py` does not read
+`label_corrections.json` and a test asserts its output is byte-identical with and without one. A
+correction is about a *reading of the sheet*; the netlist is about *what connects*, and it is already
+right (§2 of the wires-and-nets plan measured it: 26 nets, 131 terminals, no twins).
 
 Two things to hold on to:
 
@@ -74,7 +91,20 @@ Two things to hold on to:
 | `GET`/`PUT /api/locations`, `POST /api/editor/unlock` | `server/app/main.py` | `get_locations`, `put_locations`, `editor_unlock` |
 | The `problems` list the UI shows | `server/app/main.py` | `_locations_report` (goes through `resolve_geometry`, so it catches netlist mismatches too) |
 | Drawing number / page size guards | `server/app/main.py` | `_drawing_identity` |
-| Settings | `server/app/config.py` | `allow_edits`, `editor_password`, `editor_name`, `editor_password_required` |
+| **The reduced read of `geometry.json`** — and the one place the 620 KB file narrows | `server/app/ink.py` | `load_ink` (`lru_cache`), `reduce`, `Label`, `Conductor`, `Flag`, `Ink`. Keeps named fields and drops `symbols`, `boxes`, `rects`, `junctions`, `stats`, `params` and the conductor `points` polylines. **There is no code path from here to the whole file** — see hazard H17 |
+| **Which label a run's net name was read from**, and the other direction of it | `server/app/ink.py` | `net_label_source_of`, `conductors_of`, `net_label_sources`. Matched on the text of a bound label, and it matches for all 70 on this sheet with 0 runs unexplained. This is the link a correction travels along |
+| **The corrections file, and every validation message** | `server/app/label_corrections.py` | `parse`, `_correction`, `SCHEMA` = 1, `SECTION` = `"labels"`, `Correction`, `Corrections`. `text` is required and may be `null`; `""` is refused **by name** |
+| **Whether a correction is keyed on something on this sheet** | `server/app/label_corrections.py` | `resolve_corrections` — refused by name, because its symptom would otherwise be *nothing at all*. The `H14` treatment, in a second file |
+| **What one reading now says**, corrections applied, for the screen and for Phase E | `server/app/label_corrections.py` | `Reading`, `resolve_corrections`, **`corrected_text`** — the function Session 6's candidate ranking reads, put here so the answer is given once |
+| Writing corrections: atomic, whole-file, two refusals | `server/app/label_corrections.py` | `save_corrections`, `CorrectionsRefused`, `skeleton`. **No page-size check**: a string does not stop being true at a different page size, which is the one honest difference from `save_locations` |
+| `GET`/`PUT /api/review`, and what one item may carry | `server/app/main.py` | `get_review`, `put_review`, **`_reading`** (the second half of the boundary — every key explicit, no spread), `_review_report` |
+| Settings | `server/app/config.py` | `allow_edits`, `editor_password`, `editor_name`, `editor_password_required`. **Both** editing tabs are gated on `allow_edits`, and both take `editor_password` |
+
+**Server tests, after Session 4: 141 over eight files.** The new one is **`test_review.py`** (24), and
+four of its assertions are the session rather than the feature: the item key set is *pinned* so a
+careless spread cannot widen the boundary, `load_ink` is asserted to parse once for N requests,
+`/api/review` is asserted absent with `allow_edits` false, and the generator's output is compared **as
+bytes** with and without a corrections file.
 
 **Server tests** ▲ — all seven files, since the three listed before were only the editor's:
 `test_locations.py` (format, precedence, refusals, labels), `test_editor.py` (the gate, the write
@@ -134,7 +164,11 @@ of `circuit_logic.json`.
 | The site-name box: local text, one write, visible refusal | `webui/src/features/locate/TargetPanel.tsx` | `SiteName` — and see hazard H4 |
 | Draft, debounced autosave, unlock, load | `webui/src/stores/locateStore.ts` | `edit`, `place`, `save`, `load`, `unlock`, `SAVE_DEBOUNCE_MS` = 900 |
 | Re-reading the index after a save | `webui/src/stores/appStore.ts` | `refreshDesignators` |
-| Whether the tab exists | `webui/src/tabs.ts` | `isEnabled: tilesAvailable && editingEnabled`; `editingEnabled` from `health.editing.enabled` in `App.tsx` |
+| **The review queue's order, its filters, and what a decision writes** | `webui/src/features/review/model.ts` | `orderItems`, `filterItems`, `setCorrection`, `rowState`, `ROW_LABEL`, `SCOPES`, `progress`, `SCHEMA`. Pure, 21 unit tests. **`setCorrection` with no `text` deletes** — invariant 10, in a third file |
+| **The review screen** — the queue, the boxes, the ring on the ink | `webui/src/features/review/ReviewTab.tsx` | `ReviewTab`, `ReadingRow`, **`InkRing`**, `PasswordGate`, `SaveStatus`, `TONE`. `data-reading="<id>"` finds a row and `data-ink-ring="<id>"` finds the ring |
+| **The ring, and why it is DOM rather than canvas** | `webui/src/features/review/ReviewTab.tsx` | `InkRing` — through **`pointToCss`**, like everything else that lands on the sheet (invariant 2). One box rather than 149 polylines, and `test-setup.ts` forces `getContext('2d')` to null, so a canvas ring could not be asserted at all while this one has a position a test can read |
+| **The corrections draft, and its debounced save** | `webui/src/stores/reviewStore.ts` | `document`, `items`, `edit`, `save`, `load`, `refresh`, `setCurrent`, `SAVE_DEBOUNCE_MS` = 900. Deliberately **no undo stack** and **no `stale`** — the header of that file says why for both |
+| Whether the tab exists | `webui/src/tabs.ts` | `isEnabled: tilesAvailable && editingEnabled`; `editingEnabled` from `health.editing.enabled` in `App.tsx`. **Both** editing tabs use that rule, and for the Review tab both halves are load-bearing: no editor means no routes, and no tiles means no ink to read against |
 | Wire contract | `webui/src/api/types.ts` | `Designator`, `Place`, `Placement`, `LocationsDocument`, `StoredSite`, `StoredLabel` |
 | The three HTTP calls | `webui/src/api/client.ts` | `editorUnlock`, `getLocations`, `putLocations` |
 
@@ -174,6 +208,19 @@ feature's. **127 tests.**
 | `components/Markdown.test.tsx` | 13 | |
 | `components/UnlockButton.test.tsx` | 4 | |
 | `App.test.tsx` | 8 | the tabs, and the `F2` effect |
+
+**After Session 4, 2026-08-25: 232 web tests over 15 files.** Two new files, both the Review tab's:
+`features/review/model.test.ts` (**21** — the queue's order and what a decision writes, pure) and
+`features/review/ReviewTab.test.tsx` (**19** — the screen against a stubbed server). Nothing existing
+moved: the tab is additive, and `App.test.tsx`'s tab assertions did not need touching because they
+were written against `enabledTabs(context)` rather than against a list of four names.
+
+Two idioms in the new suite worth knowing before adding to it. The **ring** is asserted through
+`pointToCss` plus the viewer's own exported `focusScale`/`centreOn`, with
+`prefers-reduced-motion: reduce` stubbed so the flight *lands* instead of animating — asserting a
+position mid-`panTo` is asserting on the machine's load, and it was, for one test run. And the
+**900 ms debounce** is waited out with a real timer plus a 3 s `waitFor`, not faked, because the store
+chains a second save when the draft moved in flight.
 
 **After Session 3, 2026-08-25: 192 web tests over 13 files** — seven new in `DrawingTab.test.tsx`
 (42), all of them about the list and the seam between it and the sheet, plus the existing switch tests
@@ -436,6 +483,73 @@ The other half of the split is what is **persisted**: `appStore.drawingListOpen`
 about how much sheet you want to see), and the filters and the search text are not (a list that came
 back tomorrow showing only wires reads as a broken index rather than as yesterday's filter).
 
+### H17 — `geometry.json` must never reach the browser, or the model, whole *(added 2026-08-25)*
+
+620 KB, about **150,000 tokens**. `prompts.py` §3 has forbidden the model from reading it since v1,
+and until Session 4 nothing on the server read it either. Now one route does, and the rule is kept
+**structurally rather than by remembering it** — which is the only way a rule about a 620 KB file
+survives five more sessions.
+
+Two narrowings, both with names:
+
+- **`ink.py` `reduce()`** keeps named fields and drops the rest at the parse boundary: `symbols`,
+  `boxes`, `rects`, `junctions`, `stats`, `params`, `endpoint_bindings`, and the conductor `points`
+  polylines. What survives is 664 small records. **There is no function in `ink.py` that returns the
+  raw parse**, so no route can leak it by spreading something.
+- **`main.py` `_reading()`** narrows again to what the screen draws, key by key, with **no `**rest`**.
+  `test_a_review_item_carries_only_the_fields_the_screen_draws` pins the set and asserts the response
+  text contains none of the dropped section names.
+
+The result is a **119 KB** payload for all 664 readings, behind the editor password.
+
+**When Phase E needs the conductor polylines**, they are added *in `ink.py`*, named, behind the same
+cache — and `/api/conductors` decides what to publish. The loader still never returns the file. A
+route that reads `geometry.json` itself would be the regression, and it would look like nothing.
+
+### H18 — Two whole-document drafts now, in two stores *(added 2026-08-25)*
+
+`H1` was *the editor loads the document once and PUTs the whole thing, so the last save wins.* There
+are now **two** of those: `locateStore` over `locations.json` and `reviewStore` over
+`label_corrections.json`. That is deliberate and is the safer of the two arrangements — **two files,
+two drafts, no overlap** — rather than one store over one document written from two screens, which
+would make `H1` fire between the Locate tab and the Review tab as a matter of course.
+
+What it means in practice:
+
+- **a hand edit to either file while its tab is open is overwritten by that tab's next save.** `K2` is
+  still theoretical and is now theoretical about two files;
+- **the two stores must not learn about each other.** The one existing exception is the roster's
+  *place it*, which sets a target and writes nothing. Anything that made a review decision touch
+  `locateStore`, or a placement touch `reviewStore`, would re-create the single-draft problem inside
+  the code instead of in the file;
+- `reviewStore` has **no undo stack**, and the header of that file argues it: `Ctrl+Z` there is the
+  *text box's*, which is what somebody typing a string expects, and every correction is one field of
+  one row that the row still shows with its `was` beside it. The Locate tab needed a stack because a
+  drag destroys a coordinate that is then nowhere on screen. If that turns out to be wrong, the stack
+  is the same eight lines inside `edit` that it already is over there.
+
+### H19 — A blur is not a decision, and the box's baseline is what decides that *(added 2026-08-25)*
+
+`ReadingRow`'s input holds its own text and commits on `Enter` or blur — the `H4` rule. The subtlety
+is **what it compares against** before writing:
+
+    if (typed.current.trim() === settled) return          // settled = the correction, else item.text
+
+Compare against the *stored correction* instead — `stored?.text ?? ''` — and every untouched row
+writes itself the moment it loses focus, because the box was showing the machine's reading and the
+correction was empty. **Tabbing down the queue would sign all 278 readings**, each as
+`{text: 'LI-A', was: 'LI-A'}`, and the file would say a person had confirmed things nobody looked at.
+That was a real bug for the length of one test run;
+`records nothing when a box is left exactly as the machine read it` is the assertion that caught it.
+
+The second half of the same decision: `settled` falls back to **`item.text`** rather than `item.read`,
+because a run's reading can change without anybody touching that row — correcting the label its net
+name is bound from does exactly that (`via`). A box still showing the superseded string would invite
+somebody to correct it a second time on the run itself.
+
+And saying *the machine was right* is therefore an **explicit press**, the ✓ — which is disabled on an
+empty box, where there is nothing to accept and the honest decision is *not a label*.
+
 ---
 
 ## 5. Invariants — if one of these is violated, that is the bug
@@ -461,7 +575,12 @@ back tomorrow showing only wires reads as a broken index rather than as yesterda
    pins at different sites.
 5. **Nothing refused is silent.** Every rejected value lands in `problems` and the UI shows it.
 6. **Generated files stay generated.** `circuit_logic.json` is only ever written by
-   `author_circuit_logic.py`.
+   `author_circuit_logic.py`. *(Extended 2026-08-25: and the generator reads **two** authored inputs,
+   not three. `label_corrections.json` corrects a reading of the ink and must never reach the
+   netlist — the netlist is already right, and a session wiring the corrections in would move the
+   artifact every answer is checked against with nothing else in the project noticing. Owner:
+   `test_the_generator_output_is_byte_identical_with_and_without_a_corrections_file`, which compares
+   bytes rather than making an argument.)*
 7. **A terminal nobody placed has no location in the generated artifact** — not its parent's.
    The substitution happens at read time and is labelled `parent`.
 8. **Nothing writes a coordinate a person did not choose.** *(added 2026-08-24 with the keyboard.)*
@@ -480,3 +599,13 @@ back tomorrow showing only wires reads as a broken index rather than as yesterda
    clothes: a file that cannot distinguish *nobody has looked at this* from *a person decided this*
    has stopped being a record of who said what, which is the only thing it is for. T-570 walks it,
    and it is the one assertion in that document worth reporting loudly.
+
+   *Extended 2026-08-25 to the third file, with the line drawn exactly.* On the Review tab **Reset
+   deletes** the correction rather than writing the machine's reading back in (`setCorrection` with no
+   `text`; T-730). But a **confirmation** — the ✓ pressed on an unchanged string — **is kept**, and
+   that is not an exception to this invariant. The test is whether the value would have existed
+   without a person: an end label's side is *computed*, so storing it as a decision is a lie, whereas
+   **nothing produces *a person checked this* but a person.** A verified low-confidence reading is new
+   information and the queue's job is to get smaller. Owners: `features/review/model.ts`
+   `setCorrection`, `label_corrections.py` `_correction` (which refuses `""`, the shape that would
+   blur the two).

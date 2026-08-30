@@ -132,6 +132,24 @@ range writes anything: `git diff` on `schematic_extraction/` should be empty aft
 | T-640 | The six `nowhere` rows are listed, selectable, and have no dot and no flight · no editing control anywhere on a row | | |
 | T-650 | **`SWUI_ALLOW_EDITS=false`: no Locate tab, and the whole list works exactly as before** — the acceptance criterion | | |
 
+## T-70x–T-74x — correcting what the extraction read — `12_tests_label_corrections.md`
+
+*Added 2026-08-25 with Session 4 (Phase F). **A new `Review` tab; needs the editor password and a
+server restart.** None walked. A new authored file appears the first time you correct anything:
+`label_corrections.json`. **T-740 is the acceptance criterion** — the netlist must not move.*
+
+| Test | What it checks | Result | Notes if not P |
+|---|---|:--:|---|
+| T-700 | Four tabs; the screen is locked and fetches nothing until unlocked · `278 flagged · 515 strings · 149 runs` · **worst-read first**, `T0012` `LI-A` at 40% at the top · the 150 blanks grouped at the end | | |
+| T-705 | A row says what was read, how sure, and what sort · **the caret's row is ringed on the sheet**, one ring only · a run has no confidence and says what it is missing | | |
+| T-710 | `LI-A` → `L1-A` saves itself · **the run `C0030` reads it too**, `via T0012` · the file has one entry with `was` · `was` stays the *machine's* reading across a second correction | | |
+| T-715 | `Net names` leaves **149** — 30 flagged labels + 119 runs · the nine misreads by id · the header count is over what is on screen | | |
+| T-720 | **`All readings` reaches what the extractor was confident and wrong about** · `T0300` reads `BLACK 22 AW6` and its raw OCR said `AWG` · 51 tidyings, 2 flagged · correcting an unflagged row does not make it flagged | | |
+| T-725 | **not a label** writes `null`, never `""` · `YY` at 75% and `NOT CONNECTED` at **100%** are both real cases · an emptied box is Reset, not an empty correction | | |
+| T-730 | **Reset deletes the entry** rather than writing the machine's reading in · ✓ on an unchanged row records a **confirmation**, and that is deliberately kept · **blur alone records nothing** · Reset is disabled with nothing to take back | | |
+| T-735 | The 79 runs with no net name bound · naming one directly writes `was: null` · a run's own correction beats the label beside it · a blank string | | |
+| T-740 | **The netlist does not move** — one new untracked file and nothing else · re-running the generator changes nothing · 141 server / 232 web green, artifact test **not** stale · the Drawing and Ask tabs unchanged | | |
+
 ---
 
 ## Failure detail

@@ -1,4 +1,9 @@
-# Locate tab — instruction and test manual
+# The editing and reading screens — instruction and test manual
+
+*It began as the Locate tab's and now covers **four** screens: `Locate`, `Drawing`, `Ask` and — since
+2026-08-25 — `Review`. **The directory keeps the name `locate_tab_testing/`** on purpose: dozens of
+cross-references point at it and a rename costs more than it buys. The plan's §11 recorded that fork
+and this is the honest title instead.*
 
 **This file is the index. Read it first and read it whole; it is short on purpose.** Everything
 else in this directory is a leaf document you pull in only when you need it, so that a session
@@ -24,8 +29,10 @@ Editor password: **`edit-1234`** (in `server/.env` as `SWUI_EDITOR_PASSWORD`).
 
 Three facts that have each cost a session already:
 
-1. **No `SWUI_ALLOW_EDITS=true`, no Locate tab.** It is in `server/.env` now. With it false the
-   routes are never registered — that is deliberate, not a bug.
+1. **No `SWUI_ALLOW_EDITS=true`, no Locate tab — and since 2026-08-25, no `Review` tab either.** It
+   is in `server/.env` now. With it false the routes are never registered — that is deliberate, not a
+   bug. The two editing tabs take the **same** password: both write an authored file, and that is one
+   permission.
 2. **`python -m app` has no reloader.** Any change under `server/app/` needs a restart.
 3. **The client is a built bundle.** Any change under `webui/src/` needs
    `cd webui && npm run build`, *and* a server restart if the server changed too. A rebuilt bundle
@@ -37,13 +44,15 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **117 server, 192 web, ruff clean, tsc clean** *(2026-08-25, after Session 3 of
-the wires-and-nets plan — a pure client session, so the server count did not move; it was 117 and 185
-after Session 2, 111 and 155 after Session 1, and 106 and 127 before that)* — except
+Expected right now: **141 server, 232 web, ruff clean, tsc clean** *(2026-08-25, after Session 4 of
+the wires-and-nets plan; it was 117 and 192 after Session 3, 117 and 185 after Session 2, 111 and 155
+after Session 1, and 106 and 127 before that)* — except
 that
 `test_the_committed_artifact_is_exactly_what_the_generator_writes` is red whenever `locations.json`
 has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a failure; re-run the
-generator (§5) and it goes green.
+generator (§5) and it goes green. **A review run cannot cause it** — that is Session 4's acceptance
+criterion (T-740), and if the artifact test goes red after correcting a label, something is very
+wrong.
 
 ---
 
@@ -56,6 +65,18 @@ A better guesser was built and rejected: at that accuracy a proposal must be aud
 costs what placing costs, and it costs more when the proposal is confidently wrong. So the rule is
 **the indexing pass gets one chance to guess, and after that a human owns the positions.** The
 Locate tab is where that human works, and `locations.json` is the file that records who said so.
+
+## 2a. And what the Review tab is for, in one paragraph *(added 2026-08-25)*
+
+The same argument, one layer down. This PDF has **no embedded font text** — `geometry.json` says so
+itself — so every string on the sheet was read by OCR off the *shapes of the strokes*, and the
+extraction flagged **278** of its own results as doubtful on 2026-08-03. Nothing had ever read that
+list. It matters because 30 of the 70 printed net names came back at confidence 0.4 and nine of them
+are wrong, which is why only **17 of 26** nets can be matched to a printed conductor — the comparison
+Session 6's path finder is built on. So the Review tab is a queue of 664 readings with the **ink on
+screen beside each one**, and `label_corrections.json` records what a person said the paper actually
+says. It corrects a *reading of the sheet* and never the netlist, which is already right: T-740 is the
+test, and it compares bytes.
 
 ---
 
@@ -73,12 +94,19 @@ Read the index (this file) plus **only** what the symptom calls for.
 | `09_tests_net_membership.md` | **T-500–T-530.** What a net is made of, and where its highlight goes: rings on **terminals and only terminals**, the member roster on the selection card, the way **back** to it, *place it*. **Drawing tab, no password.** | Anything about a net or wire highlight marking the wrong place — or too much. |
 | `10_tests_end_labels.md` | **T-550–T-590.** A label at both ends of every wire and at every net terminal, on by default and costing nothing: the two-ended compass, the per-member net list, `hidden`, **Reset to default deleting rather than writing**, three labels on one pin, and the `Wires`/`Nets` filter split. **Both tabs.** | Anything about a wire's or net's name on the sheet, or about `locations.json` growing lines nobody asked for. |
 | `11_tests_drawing_list.md` | **T-600–T-650.** The Drawing tab's list of all 275 designators: the order, the four filter buttons, the search box, the collapse · **the list filters the list and the switches filter the sheet, and neither touches the other** · five switches · a net selected without spending a question (`K9`) · **and all of it with `SWUI_ALLOW_EDITS=false`**, which is the acceptance criterion. **Drawing tab, no password.** | Anything about finding a designator, about the list and the sheet disagreeing, or about a row doing something to the drawing you did not ask for. |
+| `12_tests_label_corrections.md` | **T-700–T-740.** The new **`Review`** tab: 664 readings the extraction lifted off the paper, the 278 it doubted itself, and the third authored file — `label_corrections.json`. Worst-read first · the ink ringed beside the row · `All readings` · `not a label` as `null` · **Reset deleting** · and **T-740, the netlist not moving**. **Needs the editor password and a restart.** | Anything about a misread label, a run with no net name, or a correction that did not stick — or the artifact test going red after a review run. |
 | `06_code_map.md` | Every behaviour → the file and function that owns it. The data flow end to end. The known hazards, with reasoning. | Always, when troubleshooting. Never needed to *run* a test. |
 | `07_drawing_facts.md` | The concrete ids and coordinates on `PS20115MLM4-2` the tests refer to — relay pin lists, the three `CR-BP` sites, `W048`, net `110`. | When a test names an id and you need to know what it is. |
 | `08_results_log.md` | Every test id in a table, blank, for the user to mark up. | **A troubleshooting session should read this first** — it says what is actually broken. |
 
-**Do not read** `geometry.json` (608 KB, ~150,000 tokens) or `circuit_logic.json` in full.
+**Do not read** `geometry.json` (620 KB, ~150,000 tokens) or `circuit_logic.json` in full.
 `07_drawing_facts.md` exists so that never becomes necessary.
+
+*Since 2026-08-25 the **server** reads `geometry.json`, for the Review tab, and that changes nothing
+about the line above.* `server/app/ink.py` narrows it to named fields behind an `lru_cache` and the
+route narrows it again, so 620 KB becomes a 119 KB payload of 664 readings and **the file itself
+reaches neither the browser nor the model** — `prompts.py` §3 still forbids it. If you need a number
+out of it in a session, get it with a `python3 -c` one-liner that prints a summary. Hazard **H17**.
 
 ---
 
@@ -332,6 +360,64 @@ is the label-corrections review screen.
                       lib/designators.ts beside the new readerRowState and is
                       re-exported by features/locate/model.ts.
 
+### 5e. Session 4 of the wires-and-nets plan, 2026-08-25
+
+**Phase F.** A new tab, two new routes, three new server modules and **the third authored file**. The
+plan is `_claude_notes/highlighting_wires_and_nets.md`; §13 there says Session 5 is paths on the
+sheet. **Server change — restart needed**, and the client is a rebuilt bundle.
+
+24. **The extraction's own doubts are on a screen, and the ink is beside them.** `geometry.json` has
+    carried a `review_queue` since 2026-08-03 — **278 items** — and *nothing had ever read it.* The
+    new **`Review`** tab is 664 readings: **515 strings** the OCR pass lifted off the paper and
+    **149 runs** of conductor the vector pass lifted out of the PDF. The queue is **worst-read
+    first**, the 150 blanks are grouped at the end because they need a decision rather than a
+    correction, and the row your caret is in is **ringed on the sheet** — because correcting a
+    transcription by reading the transcription is how a misread becomes a confirmed misread. There is
+    no font in this PDF: `geometry.json`'s own `text_source` says *"every label must be verified with
+    the vision pass"*, and **30 of the 70 printed net names came back at confidence 0.4.**
+    **T-700–T-740** in the new `12_tests_label_corrections.md`, none walked.
+
+25. **`label_corrections.json`, and it is not `locations.json`.** Three reasons, each sufficient: it
+    keys on *extraction* ids (`T0012`, `C0080`) rather than designators; it is written from a second
+    screen, so folding it in would widen the `K2`/`H1` last-write-wins window across two workflows;
+    and it is a different claim — *what the ink says* against *where the thing is drawn*. Schema 1.
+    `text` is required and may be **`null`**, which is *this is not a label* — `""` is refused **by
+    name**, because it would read as *"I looked and there is nothing here"*, which is a claim about
+    the ink. `was` keeps the machine's reading forever, since a re-extraction destroys the original.
+    **Reset deletes the entry** rather than writing the reading back in (invariant 10 again, T-730) —
+    but a **confirmation** *is* kept, and the distinction is exact: a label's side would have been
+    computed anyway with nobody looking, and nothing produces *a person checked this* but a person.
+
+26. **Correcting a label reaches every run that reads its net name.** `LI-A` → `L1-A` on `T0012` makes
+    `C0030` read `L1-A` too, and the row says so — *reads `L1-A` via `T0012`*. This is the point of
+    the phase: Session 6's matcher compares the **run's** printed name against a wire's net id, so a
+    screen that fixed the label and left the run alone would have unlocked nothing. A correction on
+    the run itself still wins, and is the only thing available for the **79 runs with no name bound at
+    all** — which is more than the 30 misreads.
+
+27. **The netlist does not move, and it is asserted in bytes.** `author_circuit_logic.py` does not
+    read this file and must not start:
+    `test_the_generator_output_is_byte_identical_with_and_without_a_corrections_file`. No `stale`
+    banner, and the artifact test stays green after a review run — corrections are like paths and end
+    labels, authored and free of regeneration. **T-740** is the acceptance criterion.
+
+    One thing found while writing the tests and worth knowing before Session 6: **51 labels have a
+    reading that differs from their own raw OCR, and only 2 of them are flagged.** Some of that
+    tidying is right (`JRANGE 16AWG` → `ORANGE 16AWG`) and some is a step backwards
+    (`BLACK 22 AWG` → `BLACK 22 AW6`, at 0.83, unflagged). That whole class is reachable only through
+    **`All readings`**, which is why decision 3's *"editing all of them should be possible"* was not
+    a nicety. **T-720.**
+
+    tests             141 server, 232 web, ruff and tsc clean. New: a whole
+                      `tests/test_review.py` (24), a first
+                      `features/review/model.test.ts` (21) and
+                      `features/review/ReviewTab.test.tsx` (19). New files:
+                      `server/app/ink.py` (the reduced read of `geometry.json`),
+                      `server/app/label_corrections.py` (the file, and the join),
+                      `webui/src/features/review/{ReviewTab.tsx,model.ts}`,
+                      `webui/src/stores/reviewStore.ts`. New hazards **H17**,
+                      **H18** and **H19**.
+
 ### 5a. What is in the files, 2026-08-24
 
 **The counts below replaced a stale block that still described 6 components and 18 terminals.**
@@ -410,7 +496,12 @@ The first column is what the user says. Use this to pick one leaf document, not 
 
 | Symptom | Read | Most likely owner |
 |---|---|---|
-| No Locate tab at all | §1 above | `SWUI_ALLOW_EDITS`; `tabs.ts` `isEnabled` |
+| No Locate tab at all, or no Review tab | §1 above | `SWUI_ALLOW_EDITS`; `tabs.ts` `isEnabled` — both editing tabs need it **and** tiles |
+| A correction I typed on the Review tab did nothing | `12_tests_label_corrections.md` **T-710**, **T-730** | did you press `Enter` or the ✓? **Blur alone is deliberately not a decision** (`06_code_map.md` §H19), or tabbing through the queue would sign all 278 readings |
+| I corrected a label and the conductor beside it still reads the old string | `12_tests_label_corrections.md` **T-710** | `label_corrections.py` `resolve_corrections` — a run's reading must follow the label its net name is bound from (`ink.net_label_source_of`), or Phase F unlocks nothing for the matcher |
+| `label_corrections.json` grew a line nobody asked for, or lost one | `12_tests_label_corrections.md` **T-730** | *Reset* **deletes**; `""` is refused. `features/review/model.ts` `setCorrection` |
+| The red strip on the Review tab names an id I do not recognise | `12_tests_label_corrections.md` — hand-editing | a correction keyed on something not in `geometry.json` is refused **by name**, because its symptom would otherwise be nothing at all. Same reasoning as `H14` |
+| The artifact test went red after a review run | `12_tests_label_corrections.md` **T-740** | **that is a bug, not `K6`.** Nothing this screen writes can make `circuit_logic.json` stale; the generator does not read the corrections and a test asserts it in bytes |
 | Password rejected, or the tab shows the lock forever | `05_tests_save_and_recover.md` T-400 | `main.py` `_require_editor`, `locateStore.unlock` |
 | Stuck in placing mode — a dot stays red, the cursor stays a crosshair | `02_tests_place_and_drag.md` T-165 | the `Escape` effect in `LocateTab.tsx`; `TargetPanel.tsx` `Header` ✕ |
 | `Esc` did something nobody asked for, on this tab or the other one | `06_code_map.md` **§H10** | there are two `window` Escape listeners since 2026-08-19 — this tab's and the Drawing tab's — and the `activeTabId` guard is all that separates them |
@@ -475,7 +566,8 @@ if one bites harder than described. Full reasoning is in `06_code_map.md`.
 | **K4** | The eight-way label control does nothing until the point exists | Place first, then choose the side. **Narrowed 2026-08-24:** it no longer applies to a wire's or a net's **end** labels, which are anchored to terminal points that already exist and whose compasses are live the moment the row is armed (T-565). It stands for the old `label_point` and for a component site with no point yet. | small — create-on-set, on what is left of it |
 | **K5** | You cannot place a point *under* an existing dot by clicking it | The dot swallows the click and retargets instead. Zoom in, or drag the dot. | design question |
 | **K6** | `circuit_logic.json` goes stale after every save | Deliberate — the banner says so and `test_the_committed_artifact_is_exactly_what_the_generator_writes` goes red until you re-run the generator. | not a bug |
-| **K10** | An invented net id is printed on the sheet as its end label | `NET-PB1` and `NET-PB2` are prefixed names for nets the sheet prints as `PB1` and `PB2` (`INVENTED_NET_PREFIX`), so their end labels say a word that is not on the paper. Two nets of 26. Found while writing T-550 on 2026-08-24. | small — publish the printed form beside the id and label with that. Deliberately not done in Session 2: it is the same question Phase F asks about every misread label, and answering it twice in two places is how the two answers drift |
+| **K10** | An invented net id is printed on the sheet as its end label | `NET-PB1` and `NET-PB2` are prefixed names for nets the sheet prints as `PB1` and `PB2` (`INVENTED_NET_PREFIX`), so their end labels say a word that is not on the paper. Two nets of 26. Found while writing T-550 on 2026-08-24. **Still open after Session 4, and now with an answer in view:** Phase F turned out *not* to be the same question — a correction says what the **ink** says, and `PB2` is read correctly off the sheet (`T0269`, 0.9); what differs is the **netlist's** name for that net, which is a curated decision and belongs to `author_circuit_logic.py`. So the two answers were never going to collide. | small, and unchanged — publish the printed form beside the id and label with that. Nothing in Session 4 blocks it |
+| **K11** | The Review tab records a run's **net name** and nothing else about a run | 40 of the 119 flagged conductors were flagged for a missing `spec_label` or an unbound endpoint rather than a missing net name, and this screen cannot record either. They can still be **decided** — the net name they do have gets confirmed, so `278 decided` is reachable and this is **not `K7`** — but a `spec` gap stays a gap, and Phase E's ranking uses the spec as its second signal. Chosen deliberately: the net name is the signal that unlocks the matcher, and a second field per run doubles the schema for the weaker one. | small — a `spec` key beside `text`, if Phase E turns out to want it. Decide after using the ranking, not before |
 | **K7** | Six rows in *To do* can never sensibly be finished | The two off-page machines and four referenced drawings say `nowhere` and have no position on this sheet, so "to do" cannot reach 0. Exactly the complaint that made wire labels a separate count — and I missed it here. **Unchanged on the Locate tab**, and worth knowing that on the Drawing tab's new list those same six rows are not a chore at all: there, `nowhere` is information — *this identifier is real and it is not on this sheet* (T-640). | small — exclude `nowhere` from the queue, or count them apart |
 | ~~**K8**~~ | ~~A marker moved by accident cannot be put back~~ | **Fixed 2026-08-24.** `Ctrl+Z` over the draft, fifty whole-document snapshots deep, announcing what it undid and arming the row it changed; `Ctrl+Shift+Z` redoes. Plus `Shift`+arrows to nudge an armed point by 1.0 pt and `Shift`+`Alt`+arrows by 0.1 pt, so a small move never needs a small drag. **A minimum-drag threshold stays rejected** — small moves are legitimate. **The stack is in memory and dies with the page:** cross-session recovery is still git, which is why a run of placement should end in a commit. T-470–T-490 test it. | done — `stores/locateStore.ts` `edit`/`undo`/`redo`, `LocateTab.tsx` `nudge` and the key effect, `model.ts` `draftPoint` |
 | ~~**K9**~~ | ~~A net cannot be selected from the sheet~~ | **Fixed 2026-08-25.** The Drawing tab has a list of all 275 designators down its left: type or scroll, click the row, and the net is selected and framed with its seven pins ringed — the same selection a citation raises, without the question. T-610 walks it against T-500, which is the same test at the price of one model answer. | done — `features/drawing/DrawingList.tsx`, `components/DesignatorList.tsx`, `DrawingTab.tsx` `onRow` |
@@ -527,16 +619,17 @@ Nine files in _claude_notes/locate_tab_testing/, with the one you named as the i
 | `07_drawing_facts.md` | The real ids and coordinates, so nobody reads geometry.json (150k tokens) | 1.7k |
 | `08_results_log.md` | All 28 tests as a blank table for you to mark up | 0.9k |
 
-*(**Twelve** files now. `09_tests_net_membership.md` came with Session 1 on 2026-08-24,
-`10_tests_end_labels.md` with Session 2 the same day, and `11_tests_drawing_list.md` with Session 3 on
-2026-08-25; the plan adds three more — `12` through `14` — one per remaining session. §3 above is the
-current map; this table is kept as written.)*
+*(**Thirteen** files now. `09_tests_net_membership.md` came with Session 1 on 2026-08-24,
+`10_tests_end_labels.md` with Session 2 the same day, `11_tests_drawing_list.md` with Session 3 on
+2026-08-25 and `12_tests_label_corrections.md` with Session 4 the same day; the plan adds two more —
+`13` and `14` — one per remaining session. §3 above is the current map; this table is kept as
+written.)*
 
 *(**38** now — T-425 was added with the `F2` work, T-190 and T-360 with the Drawing tab's layer
 switches, and T-115 and T-335 with changes 11–13, all on 2026-08-19; **T-470–T-490 and T-500–T-520
-came with Session 1 of the wires-and-nets plan on 2026-08-24, and T-550–T-590 with Session 2 the same
-day, and T-600–T-650 with Session 3 on 2026-08-25**. §5 above is the current count; this section is
-kept as written.)*
+came with Session 1 of the wires-and-nets plan on 2026-08-24, T-550–T-590 with Session 2 the same day,
+T-600–T-650 with Session 3 on 2026-08-25, and T-700–T-740 with Session 4 the same day**. §5 above is
+the current count; this section is kept as written.)*
 
 28 numbered tests. Each one doubles as a lesson — what to click, what should happen, and why it matters — so working through them in order teaches the whole screen. Each also says where to look if it fails, so a report of "T-142 failed, the dot landed half an inch left" points straight at paint.ts cssToPoint.
 

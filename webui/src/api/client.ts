@@ -8,12 +8,15 @@
  */
 
 import type {
+  CorrectionsDocument,
   DesignatorIndex,
   DrawingSummary,
   Health,
   LocationsDocument,
   LocationsResponse,
+  ReviewResponse,
   SaveLocationsResponse,
+  SaveReviewResponse,
   ServerEvent,
   StarterQuestion,
 } from './types'
@@ -92,6 +95,41 @@ export async function putLocations(
   })
   if (!response.ok) throw new ApiError(response.status, await detail(response))
   return (await response.json()) as SaveLocationsResponse
+}
+
+/**
+ * Every reading on the sheet, the extractor's own doubts about them, and the corrections so far.
+ *
+ * Behind the editor password with the rest of the write surface, and not only because of the `PUT`:
+ * this is the one route that opens `geometry.json`, and a reader's copy has no business downloading
+ * 664 OCR readings it cannot act on. Throws 404 when the server was started without
+ * `SWUI_ALLOW_EDITS=true` — the route does not exist.
+ */
+export async function getReview(): Promise<ReviewResponse> {
+  const response = await fetch(`${API}/review`, {
+    headers: { Accept: 'application/json', ...editorHeader() },
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  return (await response.json()) as ReviewResponse
+}
+
+/**
+ * Replace `label_corrections.json` wholesale — the same shape of write as `putLocations`, and for
+ * the same reasons.
+ *
+ * One deliberate difference in what comes back: **no `stale` banner.** A saved point makes
+ * `circuit_logic.json` stale because the generator folds positions into it; a corrected *reading*
+ * changes nothing the generator writes, and a server test asserts the netlist is byte-identical
+ * with and without this file.
+ */
+export async function putReview(document: CorrectionsDocument): Promise<SaveReviewResponse> {
+  const response = await fetch(`${API}/review`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...editorHeader() },
+    body: JSON.stringify({ document }),
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  return (await response.json()) as SaveReviewResponse
 }
 
 function editorHeader(): Record<string, string> {

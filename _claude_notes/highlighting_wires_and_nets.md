@@ -3,14 +3,15 @@
 **Version 2 — 2026-08-23.** Reworked after the review in `claude.md`. Version 1 (2026-08-19) was a
 report to argue with; this is the plan to execute.
 
-> **Progress. Sessions 1 and 2 landed on 2026-08-24 and Session 3 on 2026-08-25** — Phases **0**,
-> **A**, **B** and **C**. `Ctrl+Z` and the keyboard nudge, a net highlighted as the terminals it is
-> made of, an end label at every wire end and net terminal with `locations.json` at **schema 2**, and
-> the Drawing tab's list of all 275 designators with five layer switches over the sheet. **The next
-> session is 4, Phase F**: the label-corrections review screen — the first new tab, the second
-> authored file, and two routes behind `allow_edits`. `change_history.md` has the three dated entries;
-> `08_results_log.md` says what the user has walked. Everything below is as written on 2026-08-23
-> except the per-session notes in §13 and the amendments recorded there.
+> **Progress. Sessions 1 and 2 landed on 2026-08-24; Sessions 3 and 4 on 2026-08-25** — Phases **0**,
+> **A**, **B**, **C** and **F**. `Ctrl+Z` and the keyboard nudge, a net highlighted as the terminals it
+> is made of, an end label at every wire end and net terminal with `locations.json` at **schema 2**,
+> the Drawing tab's list of all 275 designators with five layer switches over the sheet, and the
+> **`Review`** tab over the 664 readings the extraction lifted off the paper — with
+> `label_corrections.json` as the third authored file. **The next session is 5, Phases D + G**: wire
+> paths in the file, in the API and painted on the sheet. `change_history.md` has the four dated
+> entries; `08_results_log.md` says what the user has walked. Everything below is as written on
+> 2026-08-23 except the per-session notes in §13 and the amendments recorded there.
 
 **Status of the gate.** Version 1 said *"nothing in this plan proceeds until you accept the §7
 amendment"*. **You accepted it as written on 2026-08-23**, so §3 below is now the rule and every
@@ -1094,6 +1095,41 @@ changes your day-to-day most.
 
 ### Session 4 — the review screen
 **Phase F.** Before paths, because it corrects the labels the path matcher reads.
+
+> **Landed 2026-08-25.** The queue, the `All labels` switch, the `Net labels` filter, `not a label`,
+> `was`, and the netlist asserted immovable **in bytes**. Six things went differently from the plan
+> and are worth knowing:
+>
+> - **the queue is 664 readings, not 502 labels.** §Phase F said *"every one of the 502"*, which is
+>   `stats.text_labels`; the file holds **515** label objects and — the substantive part — **149
+>   conductors**, which are the other half of the review queue's 278. A run's reading is the **net
+>   name printed beside it**, so it belongs in the same queue under the same validator. Measured:
+>   515 strings + 149 runs = 664, of which 278 are flagged.
+> - **a correction to a label propagates to the runs that read it.** Not in the plan, and without it
+>   the phase would have unlocked nothing: Session 6 compares the **run's** name against a wire's net
+>   id, so correcting `T0012` and leaving `C0030` reading `LI-A` would have been a fixed row and an
+>   unfixed matcher. `ink.net_label_source_of` is the link, matched on text, and all 70 of this
+>   sheet's net names match with 0 runs unexplained.
+> - **`""` is refused by name and `text` is required.** The plan's schema showed `text: null` for
+>   *not a label*; it did not say what an empty string means, and the two claims are different —
+>   *there is no text here* is about the ink, *this is not a label* is about the item. One string for
+>   both would make the file unable to say the second, which seven of the 34 printed net names need.
+> - **a *confirmation* is stored**, and it is the one thing in this project that agrees with a
+>   computed value. Invariant 10 forbids that for an end label's side; the line is that a side would
+>   have been produced anyway with nobody looking, and **nothing produces *a person checked this* but
+>   a person.** Written into `06_code_map.md` invariant 10 rather than left as a judgement call.
+> - **the `Net labels` filter is 149, not 34.** The plan said *"the 34 that unlock Phase E"*, which is
+>   the count of distinct printed strings. As rows it is **70 labels + 149 runs = 219** across all
+>   readings, or **30 + 119 = 149** inside the flagged scope — and the 30 are exactly the §2 misread
+>   table, every one at confidence 0.4.
+> - **no search box**, deliberately, unlike the Drawing tab's list: `T0247` means nothing to anybody,
+>   so the way in is the order and the scope. And **no undo stack** — `Ctrl+Z` is the text box's,
+>   which is what typing a string expects; the reasoning is in `reviewStore.ts`'s header.
+>
+> Also found, and worth having before Session 6: **51 labels have a reading that differs from their own
+> raw OCR and only 2 are flagged.** Some of that tidying is right and some is a step backwards
+> (`BLACK 22 AWG` → `BLACK 22 AW6`, 0.83, unflagged). That whole class is reachable only through
+> `All readings`, which makes decision 3 load-bearing rather than generous.
 
 | | |
 |---|---|

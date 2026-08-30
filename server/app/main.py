@@ -49,6 +49,14 @@ from .drawing import (
     tile_file,
     tile_manifest,
 )
+from .label_corrections import (
+    CorrectionsRefused,
+    Reading,
+    corrections_path,
+    resolve_corrections,
+    save_corrections,
+)
+from .label_corrections import skeleton as corrections_skeleton
 from .limits import ConcurrencyGate, SpendLedger, make_limiter
 from .locations import (
     LocationsRefused,
@@ -84,6 +92,18 @@ class AskRequest(BaseModel):
 
 class UnlockRequest(BaseModel):
     password: str = ""
+
+
+class CorrectionsRequest(BaseModel):
+    """The whole `label_corrections.json`, as the review screen holds it.
+
+    `dict[str, Any]` for exactly the reason `LocationsRequest` is: `app/label_corrections.py` is the
+    one validator and it reports per entry into a `problems` list the screen shows. A pydantic model
+    here would refuse the whole document with a 422 for one malformed reading, in different words,
+    before that validator ever ran.
+    """
+
+    document: dict[str, Any]
 
 
 class LocationsRequest(BaseModel):
@@ -376,6 +396,79 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "`python author_circuit_logic.py` in the extraction directory.",
             }
 
+        @app.get("/api/review")
+        async def get_review(
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """Every reading on the sheet, the extractor's own doubts about them, and the
+            corrections a person has made.
+
+            Behind `allow_edits` with the rest of the write surface, and that is not only about the
+            `PUT`: this is the one endpoint that reads `geometry.json`, and a reader's copy has no
+            business downloading 664 OCR readings it cannot do anything with.
+
+            **`geometry.json` itself never leaves this process.** It is 608 KB and about 150,000
+            tokens; `prompts.py` §3 forbids the model from reading it and nothing has ever sent it
+            to a browser. `ink.load_ink` narrows it to named fields behind an `lru_cache` and
+            `_reading` below narrows it again to what the screen draws, so there is no code path
+            from the file to a response — see `ink.py`'s header and hazard `H17`.
+
+            `document` is verbatim, for the same reason `GET /api/locations` is: the screen sends it
+            straight back, so anything normalised away here would be silently deleted on the next
+            save.
+            """
+            _require_editor(app.state.settings, x_editor_password)
+            ink, corrections, readings = resolve_corrections(settings.drawing_dir)
+
+            path = corrections_path(settings.drawing_dir)
+            try:
+                document = json.loads(path.read_text("utf-8"))
+                present = True
+            except FileNotFoundError:
+                document = corrections_skeleton(_drawing_identity(settings)[0])
+                present = False
+            except (OSError, json.JSONDecodeError) as exc:
+                raise HTTPException(
+                    500, f"label_corrections.json could not be read: {exc}"
+                ) from exc
+
+            return {
+                "present": present,
+                "document": document,
+                "report": _review_report(corrections, ink.problems),
+                "counts": {**ink.counts(), "net_names": sum(1 for r in readings if r.net_name)},
+                "items": [_reading(r) for r in readings],
+            }
+
+        @app.put("/api/review")
+        async def put_review(
+            body: CorrectionsRequest,
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """Replace `label_corrections.json`. Whole, atomic, cache cleared behind it.
+
+            **No `stale` banner, and that is the interesting part.** A saved point makes
+            `circuit_logic.json` stale because the generator folds positions into it; a corrected
+            *reading* changes nothing the generator writes, and a test asserts the netlist is
+            byte-identical with and without this file. Corrections are like paths and end labels:
+            authored, and free of regeneration.
+            """
+            _require_editor(app.state.settings, x_editor_password)
+            number, _ = _drawing_identity(settings)
+            try:
+                save_corrections(settings.drawing_dir, body.document, drawing_number=number)
+            except CorrectionsRefused as exc:
+                raise HTTPException(409, str(exc)) from exc
+            except OSError as exc:
+                raise HTTPException(
+                    500, f"label_corrections.json could not be written: {exc}"
+                ) from exc
+            # Reported through the *resolver* rather than through the parse the writer handed back,
+            # so the screen is told about the one problem only the ink can reveal: a correction
+            # keyed on an id that is not on this sheet, which is otherwise silent.
+            ink, corrections, _ = resolve_corrections(settings.drawing_dir)
+            return {"saved": True, "report": _review_report(corrections, ink.problems)}
+
     # -- the one endpoint that spends money -----------------------------------------------
 
     @app.post("/api/ask")
@@ -577,6 +670,68 @@ def _locations_report(settings: Settings) -> dict[str, Any]:
         settings.drawing_dir, doc, manifest["page_size_pt"] if manifest else None
     )
     return geometry.report()
+
+
+def _review_report(corrections: Any, ink_problems: tuple[str, ...]) -> dict[str, Any]:
+    """What the review screen shows in its red strip, from both files at once.
+
+    `geometry.json`'s own problems are folded in rather than kept apart, because from the screen's
+    point of view they are the same kind of news — *something you are looking at could not be read*
+    — and two strips would be one more thing to explain than the situation deserves.
+    """
+    report = corrections.report()
+    return {**report, "problems": [*report["problems"], *ink_problems]}
+
+
+def _reading(reading: Reading) -> dict[str, Any]:
+    """One review item, and **this is the second half of the boundary** (`ink.py` is the first).
+
+    Every key is here on purpose and there is no `**rest`: a conductor's polyline, a label's
+    `center`, the extraction's `params` and `stats` are all one careless spread away from a browser,
+    and `test_a_review_item_carries_only_the_fields_the_screen_draws` pins the list.
+
+    Absent keys are meaningful rather than tidy. `correction` absent is *nobody has looked at this*,
+    which the screen draws differently from a correction that happens to agree with the machine, and
+    `confidence: null` says *this reading has no confidence to report* — which is true of a
+    conductor, whose net name was bound to it rather than read.
+    """
+    item: dict[str, Any] = {
+        "id": reading.id,
+        "kind": reading.kind,
+        "read": reading.read,
+        "text": reading.text,
+        "confidence": reading.confidence,
+        "flagged": reading.flagged,
+        "net_name": reading.net_name,
+        "rect": list(reading.rect) if reading.rect else None,
+    }
+    if reading.label_kind:
+        item["label_kind"] = reading.label_kind
+    if reading.raw_ocr and reading.raw_ocr != reading.read:
+        # Only where it differs from what the extraction settled on. It agrees for 485 of the 515
+        # labels, and a field repeating its neighbour is a field a reader stops reading.
+        item["raw_ocr"] = reading.raw_ocr
+    if reading.missing:
+        item["missing"] = list(reading.missing)
+    if reading.conductors:
+        item["conductors"] = list(reading.conductors)
+    if reading.via:
+        item["via"] = reading.via
+    if reading.correction is not None:
+        item["correction"] = {
+            key: value
+            for key, value in (
+                ("text", reading.correction.text),
+                ("was", reading.correction.was),
+                ("note", reading.correction.note),
+                ("by", reading.correction.by),
+                ("at", reading.correction.at),
+            )
+            # `text` always, even when it is null — that is the *not a label* claim and dropping it
+            # would turn it into an entry that says nothing.
+            if key == "text" or value is not None
+        }
+    return item
 
 
 def _require_editor(settings: Settings, supplied: str | None) -> None:

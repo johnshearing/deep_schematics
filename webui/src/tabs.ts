@@ -1,10 +1,11 @@
 import type { ComponentType } from 'react'
-import { Crosshair, Map, MessageSquareText, type LucideIcon } from 'lucide-react'
+import { Crosshair, Map, MessageSquareText, ScanText, type LucideIcon } from 'lucide-react'
 
 import { AskTab } from '@/features/ask/AskTab'
 import { DrawingTab } from '@/features/drawing/DrawingTab'
 import { LocateTab } from '@/features/locate/LocateTab'
-import { ASK_TAB_ID, DRAWING_TAB_ID, LOCATE_TAB_ID } from '@/tabIds'
+import { ReviewTab } from '@/features/review/ReviewTab'
+import { ASK_TAB_ID, DRAWING_TAB_ID, LOCATE_TAB_ID, REVIEW_TAB_ID } from '@/tabIds'
 
 /**
  * The tab registry — one array, consumed by both the trigger list and the panels.
@@ -78,6 +79,22 @@ export const TABS: TabDef[] = [
     // Kept mounted for the same reason as the Drawing tab, plus one of its own: an unsaved draft
     // and a half-finished run of placements must survive a trip to Ask to read something.
     keepMounted: true,
+    isEnabled: (context: TabContext) => context.tilesAvailable && context.editingEnabled,
+  },
+  {
+    id: REVIEW_TAB_ID,
+    label: 'Review',
+    icon: ScanText,
+    Component: ReviewTab,
+    order: 40,
+    // Kept mounted for the third of the three reasons as well as the first two: a half-finished
+    // review is a scroll position in a 664-row queue plus an unsaved draft, and losing either on a
+    // trip to Ask would make checking one reading against an answer cost the run.
+    keepMounted: true,
+    // The same rule as Locate, and both halves are load-bearing. `editingEnabled` because this
+    // screen writes an authored file and its routes do not exist without it; `tilesAvailable`
+    // because the whole point is reading the ink rather than the transcription, and with no sheet
+    // to show there is nothing to read against.
     isEnabled: (context: TabContext) => context.tilesAvailable && context.editingEnabled,
   },
 ].sort((a, b) => a.order - b.order)

@@ -15,22 +15,34 @@ a dated entry like the rest and the section goes.
 
 ---
 
-## NEXT UP — Session 4 of the wires-and-nets plan
+## NEXT UP — Session 5 of the wires-and-nets plan
 
 **Superseded as of 2026-08-25.** The work in progress is
 **`_claude_notes/highlighting_wires_and_nets.md`** — a six-session plan whose §0 says what to read
-and whose §13 is the schedule. **Sessions 1 (Phases 0 + A) and 2 (Phase B) landed 2026-08-24 and
-Session 3 (Phase C) on 2026-08-25**; see the three dated entries below. **The next session is Session
-4, Phase F** — the label-corrections review screen — and it should begin by reading
-`08_results_log.md` for how the user got on with T-426, T-470–T-530, T-550–T-590 and T-600–T-650.
+and whose §13 is the schedule. **Sessions 1 (Phases 0 + A) and 2 (Phase B) landed 2026-08-24, and
+Sessions 3 (Phase C) and 4 (Phase F) on 2026-08-25**; see the four dated entries below. **The next
+session is Session 5, Phases D + G** — wire paths in the file, in the API and painted on the sheet —
+and it should begin by reading `08_results_log.md` for how the user got on with T-426, T-470–T-530,
+T-550–T-590, T-600–T-650 and T-700–T-740.
 
-What Session 4 inherits, and it is a bigger step than Session 3 was: **a second authored file**
-(`label_corrections.json`), **two new routes** behind `settings.allow_edits`, and **a new tab**. Two
-things to carry into it. `geometry.json` must never reach the browser whole — the GET publishes a
-subset behind an `lru_cache`, and that is a new hazard for the code map, not a detail. And
-`author_circuit_logic.py` must **not** read the corrections file: the netlist is already right, and
-the plan asks for a test that says so by name, so that a later session does not wire it in and quietly
-move the index.
+What Session 5 inherits, and four things to carry into it:
+
+- **`locations.json` goes to a `path` key** with the two provenance axes of the plan's §3 and §6.
+  `derived` is a rejected value on **both** axes and a test must refuse it by name. A route
+  synthesised from a wire's two endpoints is still the one thing forbidden.
+- **`paint.ts` gets `polylineToDevice` and `paintRuns`**, routed through the **same** `tileDestRect`
+  arithmetic as `pointToCss`. Invariant 2: there is one projection, and `paint.test.ts`'s existing
+  agreement idiom is how it stays that way. Note that `test-setup.ts` forces `getContext('2d')` to
+  null, so the canvas cannot be asserted through the DOM — the geometry is tested pure, and the runs
+  handed to `TileSheet` are tested as props. Session 4's ink ring is DOM for exactly that reason and
+  is not a precedent for a canvas stroke.
+- **There is no path editor until Session 6**, so §13 requires that session's lesson document to
+  include **a worked hand-edit** — the `W052` block from the plan's §6, pasted in with the server
+  stopped — and to say plainly that it is temporary scaffolding rather than the workflow.
+- **The conductor polylines are not read yet.** `server/app/ink.py` deliberately drops `points` and
+  `endpoint_bindings` at the parse boundary. Session 5 and 6 add them **there**, named, behind the
+  same `lru_cache`, and let the route decide what to publish — `geometry.json` must go on reaching
+  neither the browser nor the model whole. That is hazard **H17**, new in Session 4.
 
 Job E below is done — the placement run finished on 2026-08-20 and all 131 terminals are placed. Job
 F is still the runner-up and still worth doing as its own piece of work. **The rest of this section
@@ -140,6 +152,154 @@ a specific question needs them.
 
 Semicolons, not `&&`, so one failure does not hide the state of the other three. Run
 `npm run build` **and restart the server** at the end; see the state block above for why both.
+
+---
+
+## 2026-08-25 — Session 4 of the wires-and-nets plan: the extraction's own doubts, on a screen
+
+**Phase F of `_claude_notes/highlighting_wires_and_nets.md`.** The biggest single step so far: **a new
+tab, two new routes, three new server modules, a new client feature and store, and the third authored
+file.** Server change — **restart needed** — and the client is a rebuilt bundle.
+
+**The headline is a sentence about age.** `geometry.json` has carried the extraction's own list of
+doubts since the sheet was indexed on **2026-08-03** — `pages[0].review_queue`, **278 items**, each
+with a bounding box and a confidence — and **nothing had ever read it.** The file even says why there
+are so many, in a field of its own:
+
+> `text_source`: *"OCR of stroked glyph geometry — this PDF has no embedded font text, so every label
+> must be verified with the vision pass."*
+
+There is no font in this PDF. Every string on the sheet was read off the *shapes of the strokes*, and
+**30 of the 70 printed net names came back at confidence 0.4.** That is not cosmetic: it is what
+limits the whole project. Session 6 ranks candidate conductors by comparing a run's printed net name
+against a wire's net id, and **only 17 of 26 nets match a printed conductor group today.** Nine of the
+nine misses are misreads — `LI-A` for `L1-A`, capital I for the digit 1; `TINSP1` for `IINSP1`; `130.`
+and `OV.` where trailing ink was taken for a full stop. Correcting them is not repairing the index.
+**It is unlocking the matcher.**
+
+### 1. The screen
+
+**A `Review` tab: 664 readings, the queue on the left and the sheet on the right.** 515 strings the
+OCR pass lifted off the paper, 149 runs of conductor the vector pass lifted out of the PDF, and the
+row your caret is in is **ringed on the sheet**. That last part is the design rather than a garnish:
+correcting a transcription by reading the transcription is how a misread becomes a *confirmed*
+misread, and the only thing worth reading is the paper.
+
+**Its own tab, not a panel on the Locate tab.** That screen is already the densest in the application,
+and this is a different job with a different file behind it — which is also the reason it is a second
+store: two screens over one whole-document draft would make `H1` fire between them as a matter of
+course.
+
+Three controls and no more. **`Flagged` / `All readings`**, because the extractor was *confident and
+wrong* about a whole class of things (below). **`Net names`**, which narrows to the 149 readings a
+run's net name depends on — the only ones that move Session 6. And per row: a box, a **not a label**
+button, and **Reset**. Deliberately no search box: `T0247` means nothing to anybody, so the way in is
+the order, not a query.
+
+**The queue is worst-read first**, and the **150 blanks are grouped at the end** — 71 strings the OCR
+gave up on and 79 runs with no name bound — because each needs somebody to look at the paper and
+*decide*, which is slower work than fixing a string that is nearly right. Put them first and the queue
+stalls on its own first screen. A run sorts after every string that has a confidence, because its name
+was **bound** rather than guessed at and ranking it as a guess of zero would bury the 0.4 strings that
+are the actual work.
+
+### 2. The file, and the two claims it can make
+
+**`label_corrections.json`, schema 1, and it is deliberately not `locations.json`.** Three reasons,
+each sufficient on its own: it keys on **extraction** ids (`T0012`, `C0080`) rather than designators;
+it is written from a second screen, so folding it in would widen the `K2`/`H1` last-write-wins window
+across two workflows instead of one; and it is a different claim — *what the ink says* against *where
+the thing is drawn*.
+
+`text` is required and may be **`null`**, which is *this is not a label*. `""` is **refused by name**,
+and that refusal is the interesting one: an empty string reads as *"I looked and there is no text
+here"*, which is a claim about the ink, where `null` is a claim about the **item**. Letting one string
+mean both would make the file unable to say the second — and it needs to, because `T0309` and `T0303`
+read `NOT CONNECTED` at **100% confidence** and are not net names, and `T0213` reads `YY` at 75% and
+never was one.
+
+`was` keeps the machine's reading **forever**, because `geometry.json` is regenerated by a
+re-extraction and would take the original with it. It stays the *machine's* reading however many times
+the box is retyped: a `was` that drifted to the previous correction would leave nothing to audit.
+
+**Reset deletes the entry** rather than writing the reading back in — invariant 10, in a third file.
+**But a confirmation is kept**, and the line between them is exact enough to be worth stating: an end
+label's side would have been computed anyway with nobody looking, so storing it destroys information,
+whereas **nothing produces *a person checked this* but a person.**
+
+### 3. Correcting a label reaches the runs that read it
+
+`LI-A` → `L1-A` on `T0012` makes `C0030` read `L1-A` too, and the row says so — *reads `L1-A` via
+`T0012`, bound as `LI-A`*. **This is the point of the phase.** Session 6's matcher compares the
+**run's** name against a wire's net id, so a screen that fixed the label and left the run alone would
+have fixed a row and unlocked nothing at all.
+
+The link is computed rather than stored (`ink.net_label_source_of`): a run's `net_label` is matched
+against the text of each label bound to it, and on this sheet **all 70 match, with 0 runs left
+unexplained.** A correction on the run itself still wins — the more specific claim — and it is the
+only thing available for the **79 runs with no name bound at all**, which is more work than the 30
+misreads and probably more value.
+
+### 4. `geometry.json` still reaches neither the browser nor the model
+
+620 KB, about **150,000 tokens**, forbidden to the model by `prompts.py` §3 since v1. One route now
+reads it, and the rule is kept **structurally** rather than by remembering it — hazard **H17**.
+
+`ink.py` `reduce()` keeps named fields and drops `symbols`, `boxes`, `rects`, `junctions`, `stats`,
+`params`, `endpoint_bindings` and the conductor `points` polylines at the parse boundary; **no function
+in that module returns the raw parse**, so no route can leak it by spreading something. `main.py`
+`_reading()` narrows again, key by key, with no `**rest`, and a test **pins the key set**. Result:
+**119 KB for all 664 readings**, behind the editor password, one cached parse however many times the
+screen asks.
+
+### 5. What was found while writing the tests
+
+**51 labels have a reading that differs from their own raw OCR, and only 2 of them are flagged.** Some
+of that tidying is right — `JRANGE 16AWG` → `ORANGE 16AWG`, `BLUE 1GAWG` → `BLUE 16AWG`,
+`SPEED CONTROLER` → `CONTROLLER`. Some of it is a step backwards: `BLACK 22 AWG` → `BLACK 22 AW6` at
+0.83, `CB1 8AMP CIRCUIT BREAKER` → `CB1 AMP CIRCUIT BREAKER` at 0.92, `THIS DRAWING IS` → `THIS
+DRAWINGS IS` at 0.86. **None of those is flagged**, which is the whole argument for `All readings`
+being in the plan rather than a nicety, and it is why the row shows the raw OCR wherever the two
+differ.
+
+### 6. The netlist does not move, asserted in bytes
+
+`author_circuit_logic.py` does not read this file and must not start:
+`test_the_generator_output_is_byte_identical_with_and_without_a_corrections_file`, which runs the
+generator twice in scratch directories and compares the two 217 KB artifacts. **No `stale` banner**,
+and the artifact test stays green after a review run — corrections are like paths and end labels,
+authored and free of regeneration. **T-740 is the acceptance criterion**, and it is a `git status` in
+the lesson rather than an argument in a comment.
+
+### 7. One real bug, caught by a test
+
+`ReadingRow`'s box committed against the *stored correction* rather than against the value it was
+**showing**, so an untouched row wrote itself on blur. **Tabbing down the queue would have signed all
+278 readings** as `{text: 'LI-A', was: 'LI-A'}` — the file claiming a person had confirmed things
+nobody looked at, which is the exact failure invariant 10 exists to prevent, arriving through a
+different door. `records nothing when a box is left exactly as the machine read it` is the assertion
+that caught it, and it is hazard **H19**. Saying *the machine was right* is now an explicit press of
+the ✓, which is disabled on an empty box because there is nothing there to accept.
+
+### 8. What landed, and what it cost
+
+| | |
+|---|---|
+| New server | `app/ink.py`, `app/label_corrections.py`, `GET`/`PUT /api/review` in `main.py` (`_reading`, `_review_report`) |
+| New client | `features/review/{ReviewTab.tsx,model.ts}`, `stores/reviewStore.ts`, `REVIEW_TAB_ID`, a `tabs.ts` entry, `getReview`/`putReview`, six types |
+| New tests | `tests/test_review.py` (24), `features/review/model.test.ts` (21), `features/review/ReviewTab.test.tsx` (19) |
+| Checks | **141 server, 232 web, ruff and tsc clean.** Was 117 / 192 |
+| Docs | `12_tests_label_corrections.md` (**T-700–T-740**, none walked); the index's §1, §3, §5e, §6 and §7; `06_code_map.md` with three new hazards and two extended invariants; `08_results_log.md` |
+| Known issues | **`K11` is new** — this screen records a run's net name and nothing else about a run, so a `spec_label` gap stays a gap. **`K10` is still open, and its answer got easier**: Phase F turned out *not* to be the same question, because `PB2` is read correctly off the paper and what differs is the netlist's chosen name for that net |
+| `locations.json` | untouched. Different file, different claim |
+| `circuit_logic.json` | untouched, and provably so |
+
+**Not done, and named rather than left implicit.** No undo stack on the Review tab — `Ctrl+Z` there is
+the text box's, which is what somebody typing a string expects, and the argument is in
+`reviewStore.ts`'s header along with what it would cost to change our mind. No `spec_label`
+corrections (`K11`). And `drawing.py` does **not** read the corrections, because nothing it publishes
+comes from a printed label: the resolution lives in `label_corrections.corrected_text`, which is the
+function Session 6 imports, written once so the two phases cannot answer the same question differently.
 
 ---
 
