@@ -150,18 +150,22 @@ two — every one of them is still auditable against its `was`.
 > `C0061` still records `C4E-1`). Every one carries a `note` saying what it is and why, so the batch
 > is findable later. The file parses with **no problems** and now holds **654** entries.
 >
+> **A second batch of three followed** — `C0054`, `C0114` and `C0034` from §4 item 7, each verified
+> against its endpoints before being written, and a fourth (`C0115`) refused. **34 entries in all.**
+>
 > | | before the review run | after it | now |
 > |---|---|---|---|
 > | Nets with ≥1 printed conductor | 17 of 26 | 22 of 26 | **24 of 26** |
-> | Runs with a usable net name | 70 | 36 | **67** |
+> | Runs with a usable net name | 70 | 36 | **70** |
+>
+> Back to 70 named runs — the same count the extraction started with, but a different 70: the seven
+> partial reads that were never names (`4`, `U`, `+4`, `A`, `YY`, `50`, `PBL`) are gone, and seven
+> real ones a person supplied are in.
 >
 > **The two nets still unmatched are `NET-PB1` and `NET-PB2` — which is `K10`, not a reading.** The
-> sheet prints `PB1`/`PB2` and the netlist prefixed them. So every net on this drawing is now
-> reachable by Phase E's matcher the moment `K10` is answered, and `K10` has been updated in the
-> manual's §7 to say so.
->
-> `C0054` was **left alone** — it was the one judgement call in the table and your instruction was
-> the 29. Section 5's census has since settled it with evidence; see there.
+> sheet prints `PB1`/`PB2` and the netlist prefixed them; **both of those names are now on a run**,
+> so every net on this drawing becomes reachable the moment `K10` is answered. `K10` in the manual's
+> §7 has been updated to say so.
 >
 > Nothing else changed. `circuit_logic.json` was not touched, no generator was run, and the file is
 > uncommitted and yours to commit.
@@ -882,23 +886,44 @@ G and the plan is explicit that a session builds its phase and stops.
    pass gets cheaper each sheet"**, both gated on drawing number two and both carrying the
    *proposals, never findings* discipline. The existing *A review-queue UI* entry is marked built and
    worked through, with the 17 → 24 number on it.
-7. **Four more runs, if you want them — your call, not mine** (from §5's census, which resolved
-   itself into a much shorter list than expected). Each is a real wire run with its net name printed
-   within 4 pt, and each is four keystrokes on the Review tab:
+7. **Four more runs from §5's census — three written 2026-09-02, one refused.**
 
-   | Run | Spec | Length | The ink beside it | Type |
+   You asked me to write these if I judged they would help. Before writing I checked each against
+   evidence the census had not used: **do the run's own endpoints land on terminals that are members
+   of the net I would be claiming?** Three passed and one failed, which is the reason the check was
+   worth running rather than a formality.
+
+   | Run | Spec | Endpoint 0 | Endpoint 1 | Verdict |
    |---|---|---|---|---|
-   | `C0054` | BLACK 22AWG | 748 pt | `T0214` = `PB1` @ 3.8 pt | `PB1` |
-   | `C0114` | GREEN 16AWG | 773 pt | `T0304`/`T0364` = `0V` @ 3.4 pt | `0V` |
-   | `C0115` | BLUE 16AWG | 362 pt | `T0351` = `110` @ 3.5 pt | `110` |
-   | `C0034` | BLACK 10AWG | 193 pt | `T0094` = `L1` @ 3.6 pt | `L1` |
+   | `C0054` | BLACK 22AWG | `PB1:4` @ 13.6 pt ✔ | `CR1:A1` @ 4.4 pt ✔ | **written `PB1`** |
+   | `C0114` | GREEN 16AWG | `TB-0V:10` @ 0.2 pt ✔ | `INFEED1:2` @ 1.0 pt ✔ | **written `0V`** |
+   | `C0034` | BLACK 10AWG | `PLG2:B` @ 1.5 pt ✔ | `TB-L1:1` @ 1.8 pt ✔ | **written `L1`** |
+   | `C0115` | BLUE 16AWG | `INFEED1:1` @ **71 pt** ✘ | same point as endpoint 0 ✘ | **refused** |
 
-   I did not write these, deliberately. The 31 in §2 were *restorations of the machine's own
-   reading*; these four would be **new bindings the extractor never made**, which is the class of
-   claim this project reserves for a person — and they are four rows. `C0054` is the interesting one:
-   it is the row I parked as a judgement call, and the census settles it — the ink 3.8 pt away reads
-   `PB1`, not the `PBL` the extractor bound. Naming it makes `NET-PB1` reachable the moment `K10` is
-   answered, which with `PB2` already printed would be **26 of 26**.
+   ✔ = a member terminal of the claimed net. The three that passed each match a specific wire as
+   well: `C0054` is `W040` (`PB1:4 → CR1:A1`, the only wire on that net), `C0114` matches
+   `W062`/`W067` (the green 16AWG 0V conductors of the two interface cables), `C0034` is `W004`
+   (`PLG2:B → TB-L1:1`).
+
+   **`C0115` is not a conductor at all.** Its two endpoints are 0.4 pt apart and it is a
+   75.6 × 105.8 pt rectangle — **the outline of the INFEED1 connector box**, enclosing the whole
+   six-way legend (`0V`/`GREEN 16AWG`, `120.`/`RED 16AWG`, `130`/`ORANGE 16AWG`, `TINSP1`/`BLACK
+   16AWG`, `TINSP2`/`WHITE 16AWG`). Its `BLUE 16AWG` spec is a false binding to `T0357` *inside* the
+   box, and the blank `T0351` the census matched at 3.5 pt is the legend's own `110`, printed inside
+   the table rather than beside a run. **You had already marked it *not a label*, and that is
+   correct** — as is your `C0116`, the sheet's only other closed loop. Naming it would have handed
+   Phase E a box outline as a candidate net-110 conductor, which is precisely the *"a wrong line is
+   worse than no line"* failure §3 of the plan exists to forbid.
+
+   `C0054` is the one that moves something: the ink 3.8 pt away reads `PB1`, not the `PBL` the
+   extractor bound. With `PB2` already printed on a run, **both `NET-PB1` and `NET-PB2` now have a
+   printed conductor waiting under their sheet names**, so `K10` is the only thing between the
+   matcher and **26 of 26**.
+
+   `C0086`, written earlier in the day, was re-checked against the same failure mode and holds: one
+   segment, no second parallel edge, all eight `TB-24E1-A` points within 0.19 pt of its x and all
+   eight members of net `24E-1` — and the block's outline is recorded separately in `boxes` at
+   `[50.7, 155.7, 70.8, 700.8]`, so `C0086` is the bus running down the middle of it.
 
 **What I would not build:** a bounding-box editor (question 6), a `kind` editor (Fact 3), a symbol
 classifier on this screen (question 19), or a "needs repair" category (question 11).

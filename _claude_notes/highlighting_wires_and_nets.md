@@ -15,8 +15,10 @@ report to argue with; this is the plan to execute.
 >
 > **The `Review` queue has been worked end to end, 2026-09-01/02.** `label_corrections.json` holds
 > **654** decisions over 664 readings, and the thing Phase E is built on moved a long way: the nets
-> with at least one printed conductor to match against went **17 of 26 → 24 of 26**, and the two
-> that are left are `NET-PB1` and `NET-PB2`, which is **`K10`** rather than a reading. The user then
+> with at least one printed conductor to match against went **17 of 26 → 24 of 26** (70 of the 149
+> runs carry a usable name), and the two that are left are `NET-PB1` and `NET-PB2`, which is
+> **`K10`** rather than a reading — **both of those nets now have a run carrying their *printed*
+> name (`PB1`, `PB2`), so `K10` alone is worth 26 of 26 to Phase E's matcher.** The user then
 > asked 23 questions about that screen; the answers are
 > `_claude_notes/review_tab_questions.md` and they produced two things this plan now carries: **the
 > small batch between Sessions 5 and 6** at the end of §13, and four rejected ideas recorded there
@@ -1214,6 +1216,7 @@ argument that put Phase 0 in front of everything.
 | **Touches** | `GET /api/conductors` behind `allow_edits`, a new pure `paths.ts`, `TargetPanel.tsx`, the counts and the `Paths` filter |
 | **Writes** | `14_tests_path_editor.md` T-900–T-960 · a new `paths.test.ts` |
 | **Expect** | **19** wires to come back with one candidate and still ask for a click, **33** with two or three, **19** with none. Those numbers are the shape of the work, and if the first two are much smaller than that, the ranking is wrong |
+| **Also do here** | **`K10`, and it is now worth two nets rather than two labels.** Publish each net's *printed* form beside its id and have `candidates()` compare against **both** — `NET-PB1`/`NET-PB2` are the only two nets of 26 with no match, and since 2026-09-02 both have a run carrying the printed `PB1`/`PB2`. Nothing else on the sheet is waiting on anything. Manual §7 `K10` has the reasoning · **plus the small batch above, at the head of the session** |
 | **Then** | §3's amendment is fully in force: rewrite the index's §8 with it, if Session 2 has not already |
 
 ---

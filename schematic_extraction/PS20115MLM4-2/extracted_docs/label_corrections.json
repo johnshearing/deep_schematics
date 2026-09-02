@@ -2650,10 +2650,11 @@
       "at": "2026-09-02T13:34:07.158Z"
     },
     "C0034": {
-      "text": null,
+      "text": "L1",
       "was": "U",
+      "note": "W004, BLACK 10AWG: ends 1.5 pt from PLG2:B and 1.8 pt from TB-L1:1, both L1 members, and the spec matches. The extractor bound this run the reading \"U\". Printed L1 is T0094, 3.6 pt. review_tab_questions.md §4 item 7.",
       "by": "js",
-      "at": "2026-09-01T23:44:12.110Z"
+      "at": "2026-09-02T14:48:55.241Z"
     },
     "C0039": {
       "text": "GND",
@@ -2688,10 +2689,11 @@
       "at": "2026-09-01T23:44:50.451Z"
     },
     "C0054": {
-      "text": null,
+      "text": "PB1",
       "was": "PBL",
+      "note": "W040, BLACK 22AWG: the run ends 13.6 pt from PB1:4 and 4.4 pt from CR1:A1, which are the only two members of that net. The ink reads PB1 (T0214, 3.8 pt); the netlist calls the net NET-PB1, which is K10 and belongs to author_circuit_logic.py. review_tab_questions.md §4 item 7.",
       "by": "js",
-      "at": "2026-09-01T23:44:58.143Z"
+      "at": "2026-09-02T14:48:55.241Z"
     },
     "C0056": {
       "text": "GND",
@@ -3831,10 +3833,11 @@
       "at": "2026-09-02T01:49:53.224Z"
     },
     "C0114": {
-      "text": null,
+      "text": "0V",
       "was": null,
+      "note": "GREEN 16AWG, 773 pt: ends 0.2 pt from TB-0V:10 and 1.0 pt from INFEED1:2, both 0V members; the spec matches W062/W067, the green 16AWG 0V conductors of the infeed and discharge cables. Printed 0V is T0304/T0364, 3.4 pt. review_tab_questions.md §4 item 7.",
       "by": "js",
-      "at": "2026-09-02T01:50:00.952Z"
+      "at": "2026-09-02T14:48:55.241Z"
     },
     "C0115": {
       "text": null,
