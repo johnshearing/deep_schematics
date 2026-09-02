@@ -12,6 +12,16 @@ report to argue with; this is the plan to execute.
 > paths in the file, in the API and painted on the sheet. `change_history.md` has the four dated
 > entries; `08_results_log.md` says what the user has walked. Everything below is as written on
 > 2026-08-23 except the per-session notes in §13 and the amendments recorded there.
+>
+> **The `Review` queue has been worked end to end, 2026-09-01/02.** `label_corrections.json` holds
+> **654** decisions over 664 readings, and the thing Phase E is built on moved a long way: the nets
+> with at least one printed conductor to match against went **17 of 26 → 24 of 26**, and the two
+> that are left are `NET-PB1` and `NET-PB2`, which is **`K10`** rather than a reading. The user then
+> asked 23 questions about that screen; the answers are
+> `_claude_notes/review_tab_questions.md` and they produced two things this plan now carries: **the
+> small batch between Sessions 5 and 6** at the end of §13, and four rejected ideas recorded there
+> with their reasons. Read that document before touching the `Review` tab; do not read it to build
+> Phases D and G.
 
 **Status of the gate.** Version 1 said *"nothing in this plan proceeds until you accept the §7
 amendment"*. **You accepted it as written on 2026-08-23**, so §3 below is now the rule and every
@@ -1150,6 +1160,50 @@ changes your day-to-day most.
 | **Writes** | `13_tests_paths_highlight.md` T-800–T-840 · a new `test_paths.py`, cases in `paint.test.ts` |
 | **Safe to stop after** | **only if you accept that authoring is hand-editing until Session 6.** If that is not acceptable, treat 5 and 6 as one long session and do not stop between them |
 | **The proof to look for** | after saving a path, `circuit_logic.json` stays current and the artifact test stays green. That is paths being display geometry, demonstrated rather than asserted |
+
+### Between Sessions 5 and 6 — the small batch
+**Not a phase, and not a session of its own.** Six items that came out of the user working the whole
+`Review` queue on 2026-09-01 and asking 23 questions about it; the answers are in
+`_claude_notes/review_tab_questions.md`, which is the reasoning for every line below and should be
+read before touching any of them.
+
+**Do these at the head of Session 6, before Phase E**, or as a short sitting of their own if
+Session 5 runs long. Not before Session 5 — Phases D and G are the queued work and none of this
+blocks them. Together they are perhaps half a session; individually none is worth a session, which
+is exactly why they are listed together and why the list exists at all rather than living in a
+console message nobody kept.
+
+**Why before Phase E rather than after:** the first four change what a person sees while making 71
+judgements about conductors, and the fifth is the one that let 34 net names be lost by accident. A
+tool you are about to spend a long authoring run inside is worth sharpening first — the same
+argument that put Phase 0 in front of everything.
+
+| | What | Where | Why |
+|---|---|---|---|
+| **1** | **Recompute the `kind` badge from the settled text.** The row prints the extraction-time `kind`, so after `125,` → `125` the badge still says `text` where `classify_label()` would now say `net_number`. | `ReviewTab.tsx` `{item.kind === 'label' ? item.label_kind ?? 'text' : 'run'}`, or publish it recomputed from `main.py` | `kind` is a pure function of the text (`classify_label` in `extract.py`) and `ink.py` calls it *"a hint for the reader, never a filter this server applies"*. So a badge that disagrees with the text beside it is the only defect there is here — and it made the user ask three separate times for a way to edit a field that **must not exist**. There is nothing to author; there is a stale display |
+| **2** | **A third scope on the queue: `not a label`.** Beside `Flagged` and `All readings`. | `features/review/model.ts` `SCOPES` and the filter; it is a predicate over `stored.text === null`, which the payload already carries | *Not a label* is 279 decisions and there is no way back to them. The user asked for exactly this (question 11) and the need is proven: finding the 36 runs that needed revisiting took a database query rather than a click. **No search box** — `reviewStore.ts` explains why and the reasoning holds: `T0247` means nothing to anybody |
+| **3** | **A `note` box on each row.** A second, wider input under the reading, writing `note`. | `ReviewTab.tsx`; `setCorrection` in `features/review/model.ts` already **preserves** a `note` it did not write | **No schema change** (schema stays 1), no new validator — `note` is already an optional string in `label_corrections.py` and already round-trips. Today it can only be written by hand-editing with the server stopped. The user asked whether they should put an asterisk in the *text* box and describe the problem there (question 23); the answer is no, because the text box is a claim about the ink that Phase E's matcher reads — and the right answer is to give the note somewhere honest to live |
+| **4** | **Reword the ✖ button on a run row.** Its tooltip is written entirely about labels; on a conductor it must say *"no net name is printed on this run"*. | `ReviewTab.tsx`, the `Ban` button's `title` | **This wording cost 34 net names.** Used as a bookmark it is free on a label row and destructive on a run row, because `corrected_text()` drops a `null` and Session 6's matcher never sees that run again. The code comment beside the button already says the right sentence; the tooltip the user reads does not |
+| **5** | **Frame a run with its polyline, not the box round its endpoints.** The `InkRing` for a conductor should follow the ink. | `ink.py` `Conductor` (+ `points`, + a `rect` over all of them) and `InkRing` in `ReviewTab.tsx` | `C0002` is a three-segment L and its ring is a 206 × 215 pt rectangle over a quarter of the sheet, with a dozen unrelated runs inside it. Questions 16 and 17. **Do this with Phase E, not Phase D** — `points` is deliberately absent from `ink.py` and arrives when `/api/conductors` needs it, which is Phase E; `ink.py`'s own docstring says *"it adds them **here**, named, behind the same cache"*. Phase D reads authored paths out of `locations.json` and never touches the ink loader, so there is nothing to reuse until E. Once `points` are loaded this is a few lines |
+| **6** | **Re-run `build_kg.py`**, and say in the manual's §5a that it is part of the recipe. | `cd schematic_extraction/PS20115MLM4-2/extracted_docs && python ../../../schematic_skills/scripts/build_kg.py circuit_logic.json -o custom_kg.json --pretty --validate` | `custom_kg.json` is generated from `circuit_logic.json` and is **behind it by a placement run**. `K6` and the artifact test cover `author_circuit_logic.py` and say nothing about the second half of the recipe that `EXTRACTION_NOTES.md` prescribes. `prompts.py` ranks the file fourth and *"never as the primary source"*, so the exposure is small — but it is real staleness that nothing tests |
+
+**Rejected while answering the same 23 questions, with reasons, so none of them creeps back in:**
+
+- ~~**A bounding-box editor**~~ — move and re-dimension a label's box. A label bbox is read by
+  **one** thing: the ring you look at while reviewing. Phase E's ranking never touches it,
+  `author_circuit_logic.py` never touches it, and the model never sees `geometry.json` at all. So it
+  is wrong in the cheapest possible place — the one place where a person is already looking at the
+  paper. Against that: `geometry.json` is **generated**, so the corrections would have to be a fourth
+  authored file with its own schema, validator, cache and lock, plus a rubber-band drawing surface.
+  A session and a half whose whole payoff is a better ring. **Where a wrong box means a reading is
+  *missing*, correct the run instead** — that already works, and it puts the string where the matcher
+  looks. `T0338`/`C0059` is the worked example (question 18).
+- ~~**A `kind` editor**~~ — item 1 above is the whole of the real problem. `kind` is computed.
+- ~~**A "needs repair" category** on the queue~~ — a queue over a repair we have decided not to
+  build, and a category nobody can act on is `K7`'s exact shape. Item 3 is what the user actually
+  wanted.
+- ~~**Symbol classification on the `Review` tab**~~ — that screen answers one question, *what does
+  the ink say here*. Moved to `webui_ideas.md` §6, where it belongs, and gated on drawing number two.
 
 ### Session 6 — the path editor
 **Phase E.** The last one, and the one that spends your judgement rather than your patience.

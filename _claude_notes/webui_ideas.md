@@ -220,11 +220,71 @@ the skill is not reproducible by design, and the hardest-won lesson on this draw
 small circles were crossover hops, not terminals — is exactly the kind of judgement a fully
 automated pipeline gets wrong. Build a wizard with a human in it, not a black box.
 
-### A review-queue UI
+### A review-queue UI — **built 2026-08-25, and worked through 2026-09-01**
 `geometry.json` already ships **278 flagged review items and 159 low-confidence labels** and there
 is currently nothing to triage them with. Show the crop, show the OCR guess, let a human type the
 right answer. This is a small feature that directly improves extraction accuracy — the thing every
 answer downstream depends on.
+
+*This is the `Review` tab — Session 4 / Phase F of `highlighting_wires_and_nets.md`. It came out as
+**664** readings rather than 278, because a conductor's net name is a reading too, and it writes
+`label_corrections.json`, the third authored file. One drawing has now been worked end to end: 654
+decisions, and the nets with a printed conductor to match against went from **17 of 26 to 24 of
+26**. The two ideas below are what that run showed is worth building next, and both of them are
+about **drawing number two rather than this one** — so neither should be designed until a second
+sheet exists to test the design against.*
+
+### Feed the corrections back into the extractor's lexicon
+**The highest-leverage idea in this section, and the cheapest, because the thing to improve is a
+word list rather than a model.**
+
+`extract.py` runs tesseract over 600 DPI crops and then applies `correct_token()` — rules plus a
+hand-written `LEXICON` of wire colours and domain words, with special cases for the failures a CAD
+stroke font produces (the slashed zero, `AVG` → `AWG`, `MDD-LINX` → `MOD-LINX`). Its last line is
+`return t, 0.4`, which is why so much of the review queue sits at exactly 0.4: **that confidence
+does not mean "I am unsure", it means "no rule of mine recognised this."**
+
+`label_corrections.json` is therefore already a labelled dataset for exactly that word list: every
+entry carries `was` (what the machine saw) and `text` (what the paper says), produced by a person,
+one drawing at a time.
+
+What to build, when there is a second drawing to justify it:
+
+- a script in `schematic_skills/` that reads every drawing's `label_corrections.json` and reports
+  the `was → text` pairs by frequency, split into *the lexicon would have caught this if the word
+  were in it* and *this needs a new rule*;
+- read the report, hand-edit `LEXICON`. **Keep the human in the loop.** An auto-grown lexicon is a
+  guesser, and this project's whole position is that a guesser gets one chance and then a person
+  owns it — the same argument that produced the Locate tab.
+
+Keep the corrections **per drawing** and the lexicon **shared**, which is the split the directories
+already have: `schematic_skills/` is the reusable half, `schematic_extraction/<drawing>/` is the
+per-sheet half. **Not before drawing two**: one sheet's corrections cannot tell a systematic glyph
+confusion from this sheet's draughtsman, and the library is the whole point.
+
+### A symbol library, so the vision pass gets cheaper each sheet
+The review run surfaced a class the current pipeline has no vocabulary for: ink that is a **symbol**
+rather than a string. An oval round three conductors meaning *these are one cable* came back as the
+letter `A`; part of a circuit-breaker symbol came back as a hyphen; a 10.8 pt diagonal that is the
+bar of a normally-closed contact came back as a *conductor*. **46 of the 149 extracted conductors
+are shorter than 15 pt**, which is roughly the scale of symbol strokes rather than wiring.
+
+None of this costs anything today — the vision pass read all of it correctly off the tiles, and
+`circuit_logic.json` has the cables, the breakers and the contacts with their classes and ratings.
+It costs on **the next sheet**, where a human reads the same symbols again from scratch.
+
+The shape worth exploring: a small library of this drawing style's symbols, matched against clusters
+of short strokes, proposing *"that is a normally-closed contact"* / *"that oval groups these three
+conductors into a cable"* — **as ranked proposals for the vision pass to confirm, never as
+findings.** Same discipline as everything else here.
+
+Two deliberate non-goals, so this does not creep into the wrong screen:
+
+- **Not on the `Review` tab.** That screen answers one question — *what does the ink say here* — and
+  a screen that also classifies symbols is a different screen. *Not a label* remains the correct
+  and complete answer for a symbol fragment.
+- **Not in `label_corrections.json`.** A symbol identification is not a reading, and that file's
+  whole claim is that it holds one kind of statement.
 
 ### The correction loop
 When an answer is wrong, the fix belongs in `author_circuit_logic.py`, then regenerate. Never

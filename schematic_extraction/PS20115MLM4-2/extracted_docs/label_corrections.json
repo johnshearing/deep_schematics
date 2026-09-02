@@ -2553,16 +2553,18 @@
       "at": "2026-09-01T23:13:28.651Z"
     },
     "C0001": {
-      "text": null,
+      "text": "0V",
       "was": "0V",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:35:15.995Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0002": {
-      "text": null,
+      "text": "0V",
       "was": "OV.",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:40:52.880Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0003": {
       "text": "N-1",
@@ -2571,10 +2573,11 @@
       "at": "2026-09-01T23:41:09.022Z"
     },
     "C0004": {
-      "text": null,
+      "text": "24E-1",
       "was": "24E-1",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:41:37.284Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0005": {
       "text": "L1",
@@ -2589,10 +2592,11 @@
       "at": "2026-09-01T23:41:59.358Z"
     },
     "C0008": {
-      "text": null,
+      "text": "24E-1",
       "was": "24E-1",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:42:13.680Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0009": {
       "text": "24E-1",
@@ -2607,10 +2611,11 @@
       "at": "2026-09-01T23:42:32.845Z"
     },
     "C0020": {
-      "text": null,
+      "text": "0V",
       "was": "0V",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:42:41.133Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0022": {
       "text": "24E-1",
@@ -2625,10 +2630,11 @@
       "at": "2026-09-01T23:43:30.096Z"
     },
     "C0029": {
-      "text": null,
+      "text": "GND",
       "was": "GND",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:43:49.776Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0030": {
       "text": "L1-A",
@@ -2637,10 +2643,11 @@
       "at": "2026-09-01T23:44:02.072Z"
     },
     "C0031": {
-      "text": null,
+      "text": "0V",
       "was": "0V",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:44:07.400Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0034": {
       "text": null,
@@ -2649,10 +2656,11 @@
       "at": "2026-09-01T23:44:12.110Z"
     },
     "C0039": {
-      "text": null,
+      "text": "GND",
       "was": "GND",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:44:19.406Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0042": {
       "text": "+24V",
@@ -2661,10 +2669,11 @@
       "at": "2026-09-01T23:44:31.599Z"
     },
     "C0043": {
-      "text": null,
+      "text": "N",
       "was": "N",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:44:36.871Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0046": {
       "text": "GND",
@@ -2685,16 +2694,18 @@
       "at": "2026-09-01T23:44:58.143Z"
     },
     "C0056": {
-      "text": null,
+      "text": "GND",
       "was": "\"GND",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:45:10.741Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0061": {
-      "text": null,
+      "text": "24E-1",
       "was": "C4E-1",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:45:16.805Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0062": {
       "text": "L1",
@@ -2715,10 +2726,11 @@
       "at": "2026-09-01T23:45:47.013Z"
     },
     "C0076": {
-      "text": null,
+      "text": "110",
       "was": "110",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:46:00.895Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0078": {
       "text": "24E-1",
@@ -2727,10 +2739,11 @@
       "at": "2026-09-01T23:46:25.141Z"
     },
     "C0079": {
-      "text": null,
+      "text": "125",
       "was": "125",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:46:48.016Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0080": {
       "text": "120",
@@ -2739,28 +2752,32 @@
       "at": "2026-09-01T23:46:53.519Z"
     },
     "C0081": {
-      "text": null,
+      "text": "120",
       "was": "120",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:47:02.312Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0082": {
-      "text": null,
+      "text": "24E-1",
       "was": "24E-1",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:47:18.038Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0083": {
-      "text": null,
+      "text": "DIR",
       "was": "DIR",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:47:22.668Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0084": {
-      "text": null,
+      "text": "0V",
       "was": "0V",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:47:28.131Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0085": {
       "text": "DIR",
@@ -2769,16 +2786,18 @@
       "at": "2026-09-01T23:47:34.159Z"
     },
     "C0088": {
-      "text": null,
+      "text": "RUN",
       "was": "RUN",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:47:38.806Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0089": {
-      "text": null,
+      "text": "DIR",
       "was": "DIR",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:48:04.088Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0090": {
       "text": "24E-1",
@@ -2793,16 +2812,18 @@
       "at": "2026-09-01T23:48:29.440Z"
     },
     "C0093": {
-      "text": null,
+      "text": "130",
       "was": "130.",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:48:44.017Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0095": {
-      "text": null,
+      "text": "RUN",
       "was": "RUN",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:48:51.228Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0098": {
       "text": "110",
@@ -2811,10 +2832,11 @@
       "at": "2026-09-01T23:49:02.549Z"
     },
     "C0099": {
-      "text": null,
+      "text": "24E-1",
       "was": "24E-1",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:49:10.927Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0101": {
       "text": "RUN",
@@ -2835,10 +2857,11 @@
       "at": "2026-09-01T23:49:40.385Z"
     },
     "C0105": {
-      "text": null,
+      "text": "0V",
       "was": "OV.",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:49:48.214Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0109": {
       "text": "120",
@@ -2847,10 +2870,11 @@
       "at": "2026-09-01T23:49:59.463Z"
     },
     "C0110": {
-      "text": null,
+      "text": "SPD",
       "was": "SPD",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:50:07.776Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0111": {
       "text": "110",
@@ -2859,16 +2883,18 @@
       "at": "2026-09-01T23:50:14.063Z"
     },
     "C0117": {
-      "text": null,
+      "text": "130",
       "was": "130",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:50:21.538Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0118": {
-      "text": null,
+      "text": "N",
       "was": "N",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:50:26.972Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0121": {
       "text": "SPD",
@@ -2877,16 +2903,18 @@
       "at": "2026-09-01T23:50:33.682Z"
     },
     "C0122": {
-      "text": null,
+      "text": "0V",
       "was": "OV.",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:50:39.396Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0123": {
-      "text": null,
+      "text": "24E-1",
       "was": "24E-1",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:50:44.242Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0126": {
       "text": null,
@@ -2901,10 +2929,11 @@
       "at": "2026-09-01T23:52:47.297Z"
     },
     "C0134": {
-      "text": null,
+      "text": "RUN",
       "was": "RUN",
+      "note": "restored 2026-09-02: this run does carry that printed net name; the earlier \"not a label\" was being used as a bookmark. See review_tab_questions.md §2.",
       "by": "js",
-      "at": "2026-09-01T23:52:54.064Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0141": {
       "text": "PB1-SP",
@@ -3657,10 +3686,11 @@
       "at": "2026-09-02T01:39:36.237Z"
     },
     "C0059": {
-      "text": null,
+      "text": "110",
       "was": null,
+      "note": "W059, BLUE 16AWG, INFEED1:1 -> TB-110:2; the printed 110 beside it is T0338, which the OCR pass returned blank. review_tab_questions.md Q18.",
       "by": "js",
-      "at": "2026-09-02T01:39:42.271Z"
+      "at": "2026-09-02T13:34:07.158Z"
     },
     "C0060": {
       "text": null,
@@ -3919,6 +3949,13 @@
       "was": null,
       "by": "js",
       "at": "2026-09-02T01:51:54.240Z"
+    },
+    "C0086": {
+      "text": "24E-1",
+      "was": null,
+      "note": "the 24E-1 bus running the length of TB-24E1-A:1..8 down the left edge; the name is printed at its head as T0131. review_tab_questions.md Q21.",
+      "by": "js",
+      "at": "2026-09-02T13:34:07.158Z"
     }
   }
 }

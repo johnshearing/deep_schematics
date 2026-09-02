@@ -121,8 +121,10 @@ angles:
 The Review tab draws the box round `[954.38, 298.66]` and `[748.38, 83.67]`, which is a 206 × 215 pt
 rectangle over a quarter of the sheet. The ink is a thin L inside it. **Nothing is missing from the
 data; the review screen just is not a route viewer.** Phase D — *the session you have queued up
-next* — loads `points`, adds `polylineToDevice`/`paintRuns` to `paint.ts`, and paints the actual
-strokes.
+next* — adds `polylineToDevice`/`paintRuns` to `paint.ts` and paints real polylines on the sheet;
+Phase E is where `ink.py` gains the conductor `points` themselves, for `/api/conductors`.
+*(Corrected 2026-09-02: an earlier draft of this paragraph put the `points` load in Phase D. Phase D
+reads authored paths out of `locations.json` and never opens the ink loader.)*
 
 ### Fact 5 — a "confirmed" reading is worth storing even when nothing reads it
 
@@ -139,7 +141,32 @@ two — every one of them is still auditable against its `was`.
 
 ---
 
-## 2. One thing that needs your attention before Session 6
+## 2. One thing that needed attention before Session 6 — **done 2026-09-02**
+
+> **Applied at your request, 2026-09-02.** All 29 run names in the table below are back, plus
+> `C0086` = `24E-1` and `C0059` = `110` from questions 21 and 18 — **31 entries**, written straight
+> into `label_corrections.json` with the server stopped, in the same shape and key order
+> `setCorrection` writes, with each row's original `was` preserved (`C0002` still records `OV.`,
+> `C0061` still records `C4E-1`). Every one carries a `note` saying what it is and why, so the batch
+> is findable later. The file parses with **no problems** and now holds **654** entries.
+>
+> | | before the review run | after it | now |
+> |---|---|---|---|
+> | Nets with ≥1 printed conductor | 17 of 26 | 22 of 26 | **24 of 26** |
+> | Runs with a usable net name | 70 | 36 | **67** |
+>
+> **The two nets still unmatched are `NET-PB1` and `NET-PB2` — which is `K10`, not a reading.** The
+> sheet prints `PB1`/`PB2` and the netlist prefixed them. So every net on this drawing is now
+> reachable by Phase E's matcher the moment `K10` is answered, and `K10` has been updated in the
+> manual's §7 to say so.
+>
+> `C0054` was **left alone** — it was the one judgement call in the table and your instruction was
+> the 29. Section 5's census has since settled it with evidence; see there.
+>
+> Nothing else changed. `circuit_logic.json` was not touched, no generator was run, and the file is
+> uncommitted and yours to commit.
+
+### The original finding, kept as written
 
 I would not be doing my job if I buried this. **Your review run is 653 decisions over 664 readings —
 essentially the whole queue — and it has done far more good than harm.** Measured against the
@@ -591,9 +618,10 @@ net name in a neighbouring box, already read.
 things are going on and both are already handled by the plan.
 
 **The box.** Fact 4: the ring is `min/max` over the run's **two endpoints**, because `ink.py`
-deliberately does not load `points`. Phase D loads them and paints the real polyline. Fifty of the
-149 conductors are multi-segment, up to five segments — the plan calls `C0008` *"a real 4-corner
-orthogonal route"*. **The corners are in the file and always were.**
+deliberately does not load `points`. Fifty of the 149 conductors are multi-segment, up to five
+segments — the plan calls `C0008` *"a real 4-corner orthogonal route"*. **The corners are in the file
+and always were.** Phase D builds the machinery that draws a polyline on the sheet (`paintRuns`);
+Phase E is what loads the conductor `points` and lets you pick one.
 
 **The stop at the crossover.** That is not a defect either, and I measured it. `C0001` ends at
 `(728.42, 83.67)`; `C0002`'s third vertex is `(763.20, 83.67)` running to `(748.38, 83.67)`. Between
@@ -627,13 +655,17 @@ C0002  points  [954.38, 298.66] → [763.20, 298.66] → [763.20, 83.67] → [74
 The ink is a thin three-segment L; the ring is the rectangle it fits inside. Every crossing run you
 see inside that rectangle is unrelated to `C0002`.
 
-After Phase D you will see the L. `paintRuns` in `paint.ts`, routed through the same `tileDestRect`
-arithmetic as `pointToCss` so the stroke can never disagree with the tiles, drawn under the DOM
-markers in the same rAF pass.
+**On the sheet, after Phase D, you will see the L** — for any wire whose `path` has been authored
+from those runs. `paintRuns` in `paint.ts`, routed through the same `tileDestRect` arithmetic as
+`pointToCss` so the stroke can never disagree with the tiles, drawn under the DOM markers in the same
+rAF pass. (Session 5 ships no path editor, so the way to see one is the worked hand-edit its lesson
+document is required to include.)
 
-**One thing worth doing in Session 5 while I am in there:** the Review tab's ring for a conductor
-could use the same polyline once `points` are loaded, which turns this from "a known limitation" into
-"fixed as a side effect". I will raise it when I write Session 5 rather than change the plan now.
+**On the Review tab the ring stays a box until Phase E**, and that is item 5 of the small batch in
+the plan's §13. `ink.py` gains the conductor `points` when `/api/conductors` needs them — its own
+docstring says *"it adds them **here**, named, behind the same cache"* — and that is Phase E. Phase D
+reads authored paths out of `locations.json` and never opens the ink loader, so there is nothing to
+reuse in Session 5.
 
 **And a correction to note about this row specifically:** `C0002` read `OV.` — the slashed zero plus
 a trailing ink speck, which the plan's §2 table lists by name as *"`130.`, `OV.` → `130`, `0V` —
@@ -827,28 +859,46 @@ G and the plan is explicit that a session builds its phase and stops.
 
 ## 4. What I would actually do, in order
 
-Nothing here is code — these are your decisions, and the first two are yours to make today.
+*Status added 2026-09-02, after you asked for 1, 2, 5 and 6 and for the census in §5.*
 
-1. **Put the 29 run net names back** (§2's table). Ten minutes on the Review tab, and it takes the
-   matched-run count from 36 back over 70 and restores nets `125` and `130`. Highest value per minute
-   of anything on this list.
-2. **Type `24E-1` into `C0086`** and `110` into `C0059` (questions 21 and 18). Two rows, two of the
-   most important conductors on the sheet.
-3. **Commit `label_corrections.json`.** 653 corrections in the working tree, 90 in git. It is authored
-   content and git is the only cross-session undo the system has.
-4. **Then Session 5 — Phases D and G**, exactly as `claude_next_phase.md` has it queued. That fixes
-   questions 16 and 17 by building the thing they are asking for.
-5. **Small items for a later sitting, in one batch** — none of them worth a session of their own, all
-   of them worth doing before Session 6 spends your judgement on 71 wires:
-   - recompute the `kind` badge from the settled text (Fact 3);
-   - a third scope, `not a label`, on the Review tab (question 11);
-   - a `note` box on each row (question 23);
-   - reword the ✖ button's tooltip so that on a run row it says *"no net name is printed on this
-     run"* (§2 — this is the wording that cost 34 net names);
-   - re-run `build_kg.py`, and add it beside `author_circuit_logic.py` in the manual's §5a (question 1a).
-6. **For the roadmap, not for now** — two entries in `webui_ideas.md` under *what makes drawing two
-   cheaper than drawing one*: the lexicon feedback loop (question 10) and a symbol library
-   (question 19). Both want a second drawing before they can be designed honestly.
+1. ~~**Put the 29 run net names back**~~ — **done.** §2 has the outcome: 24 of 26 nets matched.
+2. ~~**Type `24E-1` into `C0086`** and `110` into `C0059`~~ — **done**, in the same batch.
+3. **Commit `label_corrections.json`.** **Yours, and only yours** — 654 entries in the working tree
+   against 90 in git. It is authored content git cannot regenerate, and it is now the only
+   uncommitted thing in the extraction directory.
+4. **Then Session 5 — Phases D and G**, as `claude_next_phase.md` has it queued. That is what fixes
+   questions 16 and 17, by building the thing they are asking for.
+5. ~~**Small items for a later sitting, in one batch**~~ — **recorded**, 2026-09-02, in
+   `highlighting_wires_and_nets.md` §13 as **"Between Sessions 5 and 6 — the small batch"**, with the
+   file and symbol for each and the reasoning for why it goes before Phase E rather than after. Six
+   items now rather than five: the fifth is *frame a run with its polyline instead of the box round
+   its endpoints*, and it belongs with **Phase E** rather than Phase D — `ink.py` gains the conductor
+   `points` when `/api/conductors` needs them, and Phase D reads authored paths out of
+   `locations.json` without opening the ink loader at all.
+   The four rejected ideas from this document are recorded beside them, struck through with reasons,
+   so they do not creep back. The plan's opening progress note points at both.
+6. ~~**For the roadmap**~~ — **written**, 2026-09-02, into `webui_ideas.md` §6 *Ingest and correct*:
+   **"Feed the corrections back into the extractor's lexicon"** and **"A symbol library, so the vision
+   pass gets cheaper each sheet"**, both gated on drawing number two and both carrying the
+   *proposals, never findings* discipline. The existing *A review-queue UI* entry is marked built and
+   worked through, with the 17 → 24 number on it.
+7. **Four more runs, if you want them — your call, not mine** (from §5's census, which resolved
+   itself into a much shorter list than expected). Each is a real wire run with its net name printed
+   within 4 pt, and each is four keystrokes on the Review tab:
+
+   | Run | Spec | Length | The ink beside it | Type |
+   |---|---|---|---|---|
+   | `C0054` | BLACK 22AWG | 748 pt | `T0214` = `PB1` @ 3.8 pt | `PB1` |
+   | `C0114` | GREEN 16AWG | 773 pt | `T0304`/`T0364` = `0V` @ 3.4 pt | `0V` |
+   | `C0115` | BLUE 16AWG | 362 pt | `T0351` = `110` @ 3.5 pt | `110` |
+   | `C0034` | BLACK 10AWG | 193 pt | `T0094` = `L1` @ 3.6 pt | `L1` |
+
+   I did not write these, deliberately. The 31 in §2 were *restorations of the machine's own
+   reading*; these four would be **new bindings the extractor never made**, which is the class of
+   claim this project reserves for a person — and they are four rows. `C0054` is the interesting one:
+   it is the row I parked as a judgement call, and the census settles it — the ink 3.8 pt away reads
+   `PB1`, not the `PBL` the extractor bound. Naming it makes `NET-PB1` reachable the moment `K10` is
+   answered, which with `PB2` already printed would be **26 of 26**.
 
 **What I would not build:** a bounding-box editor (question 6), a `kind` editor (Fact 3), a symbol
 classifier on this screen (question 19), or a "needs repair" category (question 11).
@@ -859,15 +909,51 @@ classifier on this screen (question 19), or a "needs repair" category (question 
 
 Said plainly, so nobody treats this document as more certain than it is:
 
+Three of the four items here were settled on 2026-09-02 by the census you asked for. They are struck
+through rather than deleted, so the reasoning stays traceable.
+
+- ~~**Whether every one of the 84 blank labels sits over a real reading**~~ — **run.** See below.
+- ~~**`C0054`'s `PBL`**~~ — **settled by the census.** The ink 3.8 pt from that run is `T0214`,
+  reading `PB1`. I still have not put the ring on it and looked, and it is one of the four rows in
+  §4 item 7 that are yours to press rather than mine to write.
+- ~~**How many of the 149 conductors are symbol strokes rather than wiring**~~ (question 22) —
+  **46 are under 15 pt**, and 78 of the 82 unnamed runs carry no colour or gauge at all. It changes
+  nothing, exactly as I guessed, but it is now a number rather than a guess.
+
+### The census — blank labels sitting over unnamed runs
+
+The first pass looked alarming and was mostly noise: **35** of the 82 still-unnamed runs have a blank
+label within 10 pt. But almost all of those blanks were ones you had already decided about, and the
+few carrying a correction carried things like `11` and `B` — terminal and plug-pin markings, not net
+names, because a blank *near* a run is not the same as a blank *belonging to* one.
+
+The second pass is the one that matters. **Split the 82 unnamed runs by whether they carry a
+`spec_label`** — a colour and gauge printed beside them — because that is what separates a real wire
+run from a symbol stroke the tracer picked up:
+
+```
+runs with no net name                                   82
+  ...carrying a spec (a real wire run)                   4
+  ...carrying nothing at all                            78
+  ...shorter than 15 pt (symbol strokes, like C0107)    46
+```
+
+**Four.** And every one of the four has its net name printed within 4 pt — they are the table in §4
+item 7. So the honest summary is:
+
+- **`T0338`/`C0059` was not the tip of an iceberg.** It was one of five, and four of the five are now
+  identified by name with the evidence beside them.
+- **78 of the 82 unnamed runs carry nothing at all, and 46 are under 15 pt.** Those are the class
+  `C0107` belongs to — symbol strokes that `trace_conductors` collected because they are short
+  strokes like any other. They have no net name because they are not wiring, and *not a label* is the
+  true answer for them. This also retires my own open item about censusing them: the number is 46 and
+  it changes nothing, exactly as I guessed.
+- **After the four, this seam is exhausted.** There is nothing further to be had from the review
+  screen for Phase E; what is left is `K10` and the path editor itself.
+
+### Still not verified
+
 - **The note in `T0412`** (question 20). I confirmed the box, the `skipped_graphic` status, and that
   `circuit_logic.json` has a `notes` array; I did not read the note off the tiles and compare it
-  line by line. That one needs your eyes on the paper.
-- **`C0054`'s `PBL`.** I am confident it is the printed `PB1` and that the netlist calls that net
-  `NET-PB1` (`K10`), but I did not put the ring on it and look.
-- **How many of the 149 conductors are symbol strokes rather than wiring** (question 22). `C0107`
-  clearly is. I did not census the rest, because no answer I can imagine would change the plan.
-- **Whether every one of the 84 blank labels sits over a real reading**, the way `T0338` sits over
-  `C0059`'s `110`. `T0338` is proof that some do. A systematic pass — *for each unnamed run, is there
-  a blank label within 8 pt of it?* — would find the rest, and it is a `python3 -c` one-liner rather
-  than a feature. Worth running before Session 6 if you want the matcher at its best; say so and I
-  will run it.
+  line by line. That one needs your eyes on the paper, and it is the only place in these 23 questions
+  where content might genuinely be absent rather than duplicated.
