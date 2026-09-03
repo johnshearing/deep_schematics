@@ -344,6 +344,161 @@ def test_a_wire_gets_both_a_printed_name_and_a_side_for_each_of_its_ends(
     assert report(drawing_dir)["problems"] == []
 
 
+# -- paths: where a wire actually runs ------------------------------------------------------
+#
+# The block below is the one from the plan's §6, with this fixture's ids: two points of ink, the
+# conductor it was lifted from, and the two axes that say how we know it.
+
+PATH = {
+    "runs": [[[379.8, 663.7], [301.8, 663.7]]],
+    "conductors": ["C0080"],
+    "geometry": "extracted",
+    "attribution": "human",
+    "by": "js",
+    "at": "2026-09-02T18:04:11.512Z",
+}
+
+
+def paths(drawing_dir: Path) -> dict[str, Any]:
+    return resolve_geometry(drawing_dir, load_circuit_logic(drawing_dir)).paths
+
+
+def test_a_wire_carries_a_route_lifted_from_the_ink_and_still_no_location(
+    drawing_dir: Path,
+) -> None:
+    """The amendment of 2026-08-23, in the file at last — and the half of it that did not change.
+
+    A path is legal now because it is **lifted from the PDF's own conductor strokes** or traced by
+    a person, and it says forever which. What stays illegal is a route synthesised from the wire's
+    two endpoints, and the proof that it is still illegal is that the designator index is
+    untouched: `rect` is still the endpoints' bounding box, there is no `placement`, and nothing
+    in the entry names a polyline. The path travels on its own endpoint, for the one client that
+    paints it.
+    """
+    write_locations(drawing_dir, {**LOCATIONS, "wires": {"W047": {"path": PATH}}})
+
+    path = paths(drawing_dir)["W047"]
+    assert path.runs == (((379.8, 663.7), (301.8, 663.7)),)
+    assert (path.geometry, path.attribution) == ("extracted", "human")
+    assert path.conductors == ("C0080",)
+
+    entry = index(drawing_dir)["W047"]
+    assert entry["rect"] == [110.0, 90.0, 307.0, 210.0]
+    assert "placement" not in entry and "path" not in entry
+    body = report(drawing_dir)
+    assert (body["paths"], body["problems"]) == (1, [])
+
+
+def test_a_path_of_one_point_is_refused_and_costs_that_path_only(drawing_dir: Path) -> None:
+    """The unit of refusal here is the **whole path**, and that is the deliberate difference from
+    every other refusal in this file. A bad `dir` costs one end label because the other end is a
+    separate decision; half a route is not half a decision — it is a line that stops in the middle
+    of the sheet and claims to be a wire. Everything else in the record survives."""
+    write_locations(
+        drawing_dir,
+        {
+            **LOCATIONS,
+            "wires": {
+                "W047": {
+                    "path": {**PATH, "runs": [[[379.8, 663.7]]]},
+                    "labels": {"CR1:A1": {"dir": "ne"}},
+                }
+            },
+        },
+    )
+    problems = report(drawing_dir)["problems"]
+    assert any("fewer than two points" in p for p in problems)
+    assert paths(drawing_dir) == {}
+    # The end label the same record carries is untouched, and so is every point in the file.
+    ends = {m["id"]: m.get("label_dir") for m in index(drawing_dir)["W047"]["terminals"]}
+    assert ends["CR1:A1"] == "ne"
+    assert index(drawing_dir)["CR1:A1"]["point"] == [110.0, 210.0]
+
+
+def test_a_path_off_the_page_is_refused(drawing_dir: Path) -> None:
+    """A point at (3000, 900) on a 1224 × 792 pt sheet is not drawn slightly wrong; it is drawn
+    where nobody can see it, and a highlight nobody can see is indistinguishable from none. The
+    page checked against is the one the **file itself** declares, so this stays a shape check that
+    knows nothing about this drawing."""
+    write_locations(
+        drawing_dir,
+        {
+            **LOCATIONS,
+            "wires": {"W047": {"path": {**PATH, "runs": [[[379.8, 663.7], [3000, 900]]]}}},
+        },
+    )
+    problems = report(drawing_dir)["problems"]
+    assert any("off a 1224.0×792.0 pt page" in p for p in problems)
+    assert paths(drawing_dir) == {}
+
+
+def test_a_path_that_says_it_was_derived_is_refused_by_name(drawing_dir: Path) -> None:
+    """Invariant 3 in a third set of clothes, on **both** axes.
+
+    `derived` is not a worse provenance than `extracted`; it is the claim this whole project is
+    built on refusing — a route computed from the wire's two endpoints. Refused *by name* rather
+    than as "not one of the two", because a value spelled out in the refusal is a value somebody
+    has to argue for before it can come back.
+    """
+    for axis in ("geometry", "attribution"):
+        write_locations(
+            drawing_dir, {**LOCATIONS, "wires": {"W047": {"path": {**PATH, axis: "derived"}}}}
+        )
+        problems = report(drawing_dir)["problems"]
+        assert any(f"{axis} 'derived'" in p and "never derived" in p for p in problems)
+        assert paths(drawing_dir) == {}
+
+
+def test_a_net_stores_no_path_of_its_own(drawing_dir: Path) -> None:
+    """*"A net is just a collection of wire paths."* So a path under `nets` is not a smaller
+    mistake than a wrong one — it is a decision that would be saved, kept, and never drawn.
+    Named for the same reason `H14` is: the symptom would otherwise be nothing at all."""
+    write_locations(drawing_dir, {**LOCATIONS, "nets": {"110": {"path": PATH}}})
+
+    problems = report(drawing_dir)["problems"]
+    assert any("a net stores none of its own" in p for p in problems)
+    assert paths(drawing_dir) == {}
+
+
+def test_a_path_for_a_wire_the_netlist_does_not_have_is_reported(drawing_dir: Path) -> None:
+    write_locations(drawing_dir, {**LOCATIONS, "wires": {"W999": {"path": PATH}}})
+
+    problems = report(drawing_dir)["problems"]
+    assert any("W999" in p and "not a wire in the netlist" in p for p in problems)
+    assert paths(drawing_dir) == {}
+    # Counted anyway: the count says what is *in the file*, and the problem list is what says one
+    # of them is orphaned. The same convention as an end label on a pin the wire does not touch.
+    assert report(drawing_dir)["paths"] == 1
+
+
+def test_no_path_on_this_sheet_is_a_decision_and_false_is_refused(drawing_dir: Path) -> None:
+    """The `K7` defence. Six of this drawing's rows can never be finished because they are not on
+    the sheet at all, and a queue that can never reach the end is a queue people stop believing;
+    so *there is nothing here to trace* is something a person can say. `false` is refused for the
+    same reason `hidden: false` is — it is what a *Reset* that wrote instead of deleting would
+    leave behind, and the file must keep *nobody looked* apart from *somebody decided*."""
+    write_locations(drawing_dir, {**LOCATIONS, "wires": {"W047": {"no_path_on_this_sheet": True}}})
+    stored = load_locations(drawing_dir)
+    assert stored.no_path == frozenset({"W047"})
+    assert (stored.counts()["no_path"], stored.problems) == (1, ())
+
+    write_locations(
+        drawing_dir, {**LOCATIONS, "wires": {"W047": {"no_path_on_this_sheet": False}}}
+    )
+    problems = report(drawing_dir)["problems"]
+    assert any("says nothing: delete the key instead" in p for p in problems)
+    assert report(drawing_dir)["no_path"] == 0
+
+
+def test_a_wire_with_only_a_path_is_not_missing_anything(drawing_dir: Path) -> None:
+    """A record with a route and no printed name is a complete thing to say — *this is where the
+    wire runs, and nobody has said where its name is written* — and `label_point` has been
+    optional since it was added. Demanding one here would report every traced wire as broken."""
+    write_locations(drawing_dir, {**LOCATIONS, "wires": {"W047": {"path": PATH}}})
+    assert report(drawing_dir)["problems"] == []
+    assert report(drawing_dir)["labels"] == 0
+
+
 def test_a_label_for_something_that_is_not_a_wire_or_net_is_reported(drawing_dir: Path) -> None:
     write_locations(
         drawing_dir,
@@ -541,6 +696,11 @@ def test_counts_say_how_much_of_the_drawing_a_human_has_confirmed(drawing_dir: P
         # And this is not "how many end labels there are" — every wire end and net terminal has
         # one. It is how many a person has moved or hidden, which is the only authored part.
         "end_labels": 0,
+        # The two halves of "this wire has been dealt with", counted apart because they are
+        # different claims: a route somebody traced, and a wire somebody looked for and found
+        # nothing to trace. Without the second a count of paths could never reach 71 (`K7`).
+        "paths": 0,
+        "no_path": 0,
         "problems": [],
     }
 

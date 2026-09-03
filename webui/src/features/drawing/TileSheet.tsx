@@ -38,7 +38,7 @@ import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { tileUrl } from '@/api/client'
 import type { Tile } from '@/api/types'
-import { paintSheet } from './paint'
+import { paintRuns, paintSheet, type Polyline } from './paint'
 import type { Viewport } from './useTileViewport'
 
 interface Props {
@@ -51,6 +51,15 @@ interface Props {
   size: { width: number; height: number }
   /** Device pixels per CSS pixel. */
   dpr: number
+  /**
+   * The highlighted wire's runs, or the union of a net's wires' — **one selection at a time.**
+   *
+   * Painted here, in the same frame as the tiles, rather than on a layer of its own: it is the
+   * one overlay with no interaction in it, it goes *under* the DOM markers, and a second canvas
+   * would be a second thing to keep in step with the viewport. Absent, or empty, is the normal
+   * state — nothing is highlighted until somebody selects a wire or a net that has a path.
+   */
+  runs?: readonly Polyline[]
   onTileSettled: (file: string, ok: boolean) => void
 }
 
@@ -66,6 +75,7 @@ export const TileSheet = memo(function TileSheet({
   viewport,
   size,
   dpr,
+  runs,
   onTileSettled,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -112,13 +122,25 @@ export const TileSheet = memo(function TileSheet({
           image: ready(images.current.get(tile.file)),
         })),
       })
+      // After the tiles, so the highlight lies over the ink it follows, and before the DOM
+      // markers, which are a layer above this canvas entirely.
+      if (runs?.length) paintRuns({ ctx, dpr, viewport, runs })
     })
     return () => cancelAnimationFrame(frame.current)
-  }, [tiles, width, height, viewport, size.width, size.height, dpr, arrivals])
+  }, [tiles, width, height, viewport, size.width, size.height, dpr, runs, arrivals])
 
   return (
     <>
-      <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 block h-full w-full" />
+      <canvas
+        ref={canvasRef}
+        /* How many runs this frame was asked to highlight. **The only assertable trace of the
+           highlight there is**: `test-setup.ts` forces `getContext('2d')` to null, so nothing
+           painted on this canvas can be read back through the DOM. The arithmetic is tested
+           directly in `paint.test.ts`, and this is how a screen test knows the right runs reached
+           the sheet. The same idiom as `data-end-label` and `data-ink-ring`. */
+        data-runs={runs?.length ?? 0}
+        className="pointer-events-none absolute inset-0 block h-full w-full"
+      />
 
       {/* Loaders, not content. `hidden` still fetches and decodes; it just never composites,
           which is the job — the canvas is the only thing that draws. */}

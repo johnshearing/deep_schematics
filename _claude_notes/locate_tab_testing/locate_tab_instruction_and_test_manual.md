@@ -44,9 +44,9 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **141 server, 232 web, ruff clean, tsc clean** *(2026-08-25, after Session 4 of
-the wires-and-nets plan; it was 117 and 192 after Session 3, 117 and 185 after Session 2, 111 and 155
-after Session 1, and 106 and 127 before that)* — except
+Expected right now: **157 server, 251 web, ruff clean, tsc clean** *(2026-09-02, after Session 5 of
+the wires-and-nets plan; it was 141 and 232 after Session 4, 117 and 192 after Session 3, 117 and 185
+after Session 2, 111 and 155 after Session 1, and 106 and 127 before that)* — except
 that
 `test_the_committed_artifact_is_exactly_what_the_generator_writes` is red whenever `locations.json`
 has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a failure; re-run the
@@ -95,6 +95,7 @@ Read the index (this file) plus **only** what the symptom calls for.
 | `10_tests_end_labels.md` | **T-550–T-590.** A label at both ends of every wire and at every net terminal, on by default and costing nothing: the two-ended compass, the per-member net list, `hidden`, **Reset to default deleting rather than writing**, three labels on one pin, and the `Wires`/`Nets` filter split. **Both tabs.** | Anything about a wire's or net's name on the sheet, or about `locations.json` growing lines nobody asked for. |
 | `11_tests_drawing_list.md` | **T-600–T-650.** The Drawing tab's list of all 275 designators: the order, the four filter buttons, the search box, the collapse · **the list filters the list and the switches filter the sheet, and neither touches the other** · five switches · a net selected without spending a question (`K9`) · **and all of it with `SWUI_ALLOW_EDITS=false`**, which is the acceptance criterion. **Drawing tab, no password.** | Anything about finding a designator, about the list and the sheet disagreeing, or about a row doing something to the drawing you did not ask for. |
 | `12_tests_label_corrections.md` | **T-700–T-740.** The new **`Review`** tab: 664 readings the extraction lifted off the paper, the 278 it doubted itself, and the third authored file — `label_corrections.json`. Worst-read first · the ink ringed beside the row · `All readings` · `not a label` as `null` · **Reset deleting** · and **T-740, the netlist not moving**. **Needs the editor password and a restart.** | Anything about a misread label, a run with no net name, or a correction that did not stick — or the artifact test going red after a review run. |
+| `13_tests_paths_highlight.md` | **T-800–T-840.** A wire highlighted **along the PDF's own conductor strokes** rather than between its ends: `GET /api/paths`, the stroke on the canvas, a net as the union of its wires' runs, the highlight surviving its own layer switch, and the two triggers — an Ask-tab citation and an armed row on the Locate tab. **It begins with a hand edit**, because the path editor is Session 6 and without one there is nothing to look at; the document says so and says what to keep. **Both tabs; the highlight itself needs no password.** | Anything about a wire's route: nothing highlighted, the wrong conductor highlighted, a highlight that vanishes when a switch is pressed, or `locations.json` refusing a path you pasted. |
 | `06_code_map.md` | Every behaviour → the file and function that owns it. The data flow end to end. The known hazards, with reasoning. | Always, when troubleshooting. Never needed to *run* a test. |
 | `07_drawing_facts.md` | The concrete ids and coordinates on `PS20115MLM4-2` the tests refer to — relay pin lists, the three `CR-BP` sites, `W048`, net `110`. | When a test names an id and you need to know what it is. |
 | `08_results_log.md` | Every test id in a table, blank, for the user to mark up. | **A troubleshooting session should read this first** — it says what is actually broken. |
@@ -418,6 +419,69 @@ sheet. **Server change — restart needed**, and the client is a rebuilt bundle.
                       `webui/src/stores/reviewStore.ts`. New hazards **H17**,
                       **H18** and **H19**.
 
+### 5f. Session 5 of the wires-and-nets plan, 2026-09-02
+
+**Phases D and G.** A new endpoint, a new field in `locations.json`, and the first thing on this
+screen that draws a *line* rather than a dot. The plan is
+`_claude_notes/highlighting_wires_and_nets.md`; §13 there says Session 6 is the path editor — and
+that the **small batch** at the end of §13 goes at the head of it, before Phase E. **Server change —
+restart needed**, and the client is a rebuilt bundle.
+
+28. **A wire can be highlighted along the ink, and a net is the union of its wires' runs.** Schema 2
+    gains `path` on a wire: `runs` (a **list** of polylines, because a crossover hop is a real gap
+    the highlight must show rather than close), `conductors`, and two provenance axes —
+    `geometry: extracted | human` for *where the line came from* and `attribution: printed | human`
+    for *who says it is this wire's*. **`derived` is refused by name on both**, which is §8's rule
+    made enforceable rather than merely written down. A **net stores nothing**: a path under `nets`
+    is refused by name, and its highlight is assembled from its wires every time it is drawn.
+    `GET /api/paths` publishes the two maps, and it is **free of the editor password** — a path is
+    authored display geometry out of `locations.json`, the ink loader is never opened, and *which of
+    these lines is the one I care about* is a reader's question first (hazard **H20**).
+    **T-800–T-840** in the new `13_tests_paths_highlight.md`, none walked.
+
+29. **The stroke is 5 pt wide — in points, so it tracks the ink** — translucent so the conductor
+    stays readable through it, with a 3 device-pixel floor so it survives the 11% fit. It is painted
+    on the tile canvas rather than in the DOM (`paint.ts` `paintRuns`, through the same
+    `tileDestRect` as every marker: invariant 2, one projection), under the markers and after the
+    tiles. **One wire or one net at a time**, and the highlight is read off the selection alone, so
+    it survives its own layer switch being off — `H11` again. Both triggers landed with it: an
+    Ask-tab citation of a net paints it, and arming a wire or net on the **Locate** tab paints it
+    too, which means you can now see the run while you place its pins.
+
+30. **There is no path editor yet, so `13_tests_paths_highlight.md` begins with a hand edit.**
+    Temporary scaffolding, stated as such in the document, with the exact blocks to paste and a step
+    that asks what to keep. **Do it with the server stopped and no editor tab open** (`K2`/`H1`), and
+    know that the editor will not eat it: every mutation rewrites the record it found, and
+    `model.test.ts` has a test that says so.
+
+    **A correction to the plan came out of writing it.** §6, §3, this manual's §8 and
+    `07_drawing_facts.md` all paired **`W052` with `C0080`**. Measured against the terminal points
+    placed on 2026-08-20 that is wrong: `C0080` is **`W053`**'s run (both ends within 1.7 pt of its
+    pins) and `W052`'s is **`C0109`**. The plan was written using `CR2`'s coil as `CR2:14`'s
+    position, which is where that pin resolved before anybody placed it — and that is also where its
+    "600 pt diagonal" came from. Nothing in the code depended on it; `07_drawing_facts.md` now
+    carries the measured pairings, because Session 6's ranking will be checked against them.
+
+    **The proof of the phase, and it is worth doing once by hand:** save a path and
+    `circuit_logic.json` stays current. No banner, no regeneration, artifact test green —
+    `test_a_path_does_not_reach_the_netlist` compares the generator's bytes with and without one.
+
+    tests             157 server, 251 web, ruff and tsc clean. New:
+                      `tests/test_paths.py` (7) and `webui/src/lib/paths.test.ts`
+                      (6), eight path refusals in `test_locations.py`, one in
+                      `test_extraction_generator.py`, five in `paint.test.ts`,
+                      five in `DrawingTab.test.tsx`, one each in
+                      `LocateTab.test.tsx` and `model.test.ts`. New files:
+                      `webui/src/lib/paths.ts` (`pathsFor` — the union rule, shared
+                      by both tabs) and `13_tests_paths_highlight.md`. What moved:
+                      `WirePath`, `_paths`, `_no_path` and `Geometry.paths` in
+                      `locations.py`; `paths_index` in `drawing.py`;
+                      `polylineToDevice`, `paintRuns` and `HIGHLIGHT` in `paint.ts`;
+                      an optional `runs` prop on `TileSheet` (and `data-runs` on its
+                      canvas, which is the only trace a test can read); `paths` in
+                      `appStore`, refreshed with the designators because one save
+                      moves both. New hazard **H20**.
+
 ### 5a. What is in the files, 2026-08-24
 
 **The counts below replaced a stale block that still described 6 components and 18 terminals.**
@@ -433,12 +497,17 @@ against the files, not remembered:
                       52 of those 131 carry a chosen label side; the other 79 sit
                         at the default
                       multi-site components: CR-BP, CR-SW, CR-ON, CR1, CR2
-                      **"wires": {} and "nets": {} — no label points, and no
-                        end-label overrides either.** As of Session 2 those two
-                        sections hold two different things, and both being empty
-                        is the *normal* state: 265 end labels are drawn from the
-                        terminal points above, and the file records only the ones
-                        somebody overruled.
+                      **"wires": {} and "nets": {} — no label points, no
+                        end-label overrides, and (since Session 5) no paths.** Those
+                        two sections now hold three different things, and all of them
+                        being empty is the *normal* state: 265 end labels are drawn
+                        from the terminal points above and the file records only the
+                        ones somebody overruled, while a `path` is authored one wire
+                        at a time and the editor for it arrives in Session 6. Until
+                        then the only way to put one in is by hand, with the server
+                        stopped — `13_tests_paths_highlight.md` T-800 says exactly
+                        what to paste, and T-840 asks what to keep. **A net never
+                        gets a path**: its highlight is the union of its wires'.
                       Consequence worth stating out loud, because the whole
                       wires-and-nets plan turns on it: every one of the 71 wires now
                       has two human-confirmed ends, and all 127 net member terminals
@@ -539,6 +608,11 @@ The first column is what the user says. Use this to pick one leaf document, not 
 | A run stops where it crosses another wire, and the rest of it is a different id | `_claude_notes/review_tab_questions.md` **Q16** | **that is the ink, and it is deliberate.** The extractor splits a conductor at every crossover hop — 88 of them, `EXTRACTION_NOTES.md` correction 5 — which is why the plan's `path.runs` is a **list** of polylines and why Phase E offers multi-select across a hop. `C0001` and `C0002` are one physical run with a 20 pt gap at y = 83.67 |
 | The `kind` badge on a Review row disagrees with the text I just typed | `_claude_notes/review_tab_questions.md` **Fact 3**; plan §13 small batch item 1 | `kind` is `classify_label()` in `extract.py`, a **pure function of the text**, and `ink.py` calls it *"a hint for the reader, never a filter this server applies"*. The badge is just not recomputed after a correction. **There is nothing to author and no editor to build** |
 | I marked a run *not a label* and its net name vanished from the matcher | `_claude_notes/review_tab_questions.md` **§2** | **working as designed, and the wording is the bug.** On a **run** row that button means *no net name is printed on this run*, and `corrected_text()` drops a `null` so Phase E never sees it. 34 net names were lost this way on 2026-09-01 and 31 put back. *Reset* (↺) takes the decision back |
+| A wire or net I selected is not highlighted on the sheet | `13_tests_paths_highlight.md` **T-815** | **expected for 70 of the 71 wires.** The card says `no path yet` because nobody has traced one, and the path editor is Session 6. If the card says `highlighted` and the sheet does not, that is a real fault: `pathsFor` in `lib/paths.ts`, then the `runs` prop on `TileSheet` |
+| I pasted a path into `locations.json` and nothing changed | `13_tests_paths_highlight.md` **T-800** | was the server already running? The parse is cached per process (`H2`) — restart it. Was the block under `"nets"`? A net stores no path and the red strip says so by name |
+| The red strip names a path I hand-edited | `13_tests_paths_highlight.md` **the table at the end** | `locations.py` `_paths` — a run of one point, a coordinate off the page the file declares, or `geometry`/`attribution` outside their two words. **`derived` is refused by name on both axes**, and the whole path is dropped rather than half of it |
+| The highlight is on a conductor, but the wrong one | `13_tests_paths_highlight.md` **T-810** | that is a judgement, not a bug — a path says which conductor a **person** said this wire is. Correct the block, or drop it and wait for Session 6's ranked candidates |
+| The highlight disappeared when I pressed a layer switch | `13_tests_paths_highlight.md` **T-825**, then `06_code_map.md` **§H11** | it must not: the highlight is read off the selection alone. Same exemption as the rings and the end labels |
 | Password rejected, or the tab shows the lock forever | `05_tests_save_and_recover.md` T-400 | `main.py` `_require_editor`, `locateStore.unlock` |
 | Stuck in placing mode — a dot stays red, the cursor stays a crosshair | `02_tests_place_and_drag.md` T-165 | the `Escape` effect in `LocateTab.tsx`; `TargetPanel.tsx` `Header` ✕ |
 | `Esc` did something nobody asked for, on this tab or the other one | `06_code_map.md` **§H10** | there are two `window` Escape listeners since 2026-08-19 — this tab's and the Drawing tab's — and the `activeTabId` guard is all that separates them |
@@ -633,10 +707,21 @@ circuits. The ink says one horizontal run at y = 663.7, from x = 379.8 to x = 30
 slightly wrong, it is somewhere else — and for a highlighter whose job is *which of these lines is the
 one I care about*, a wrong line is worse than no line.
 
-**As of Session 2 nothing in the system stores a path at all**, and a wire still carries only a
-`label_point` and its end-label sides. `path` arrives in Session 5 with the two provenance axes
-(`geometry: extracted | human`, `attribution: printed | human`), and `derived` is a **rejected** value
-on both of them. Until then, a row reading `ends known, no path` is telling the literal truth.
+**Since Session 5, 2026-09-02, the file can hold one** — and only in the two ways the rule allows.
+A wire may carry a `path`: `runs`, `conductors`, and the two provenance axes
+(`geometry: extracted | human`, `attribution: printed | human`). **`derived` is a rejected value on
+both**, refused by name with a test per axis, and a net carries no path at all because its highlight
+is the union of its wires'. Nothing computes a run, nothing stretches one to meet the pins it stops
+short of, and where there is none the card says *no path yet* rather than drawing a chord. A row
+still reading `ends known, no path` is telling the literal truth about 70 of the 71 wires, and the
+editor that changes that is Session 6.
+
+**The worked example above has been corrected.** `W052`'s two pins were placed on 2026-08-20 at
+(236.1, 563.4) and (300.1, 563.3), which puts its run at **`C0109`**; `C0080` — the y = 663.7 run
+quoted above — is **`W053`**'s, within 1.7 pt at both ends. The 600 pt diagonal was measured from
+`CR2`'s coil, which is where `CR2:14` resolved before anybody placed it. The *argument* is unchanged
+and is better made by `W068`, whose chord is 312 pt straight across the middle of the sheet while its
+ink goes 644 pt the long way round: `13_tests_paths_highlight.md` T-820.
 
 ---
 
@@ -656,17 +741,17 @@ Nine files in _claude_notes/locate_tab_testing/, with the one you named as the i
 | `07_drawing_facts.md` | The real ids and coordinates, so nobody reads geometry.json (150k tokens) | 1.7k |
 | `08_results_log.md` | All 28 tests as a blank table for you to mark up | 0.9k |
 
-*(**Thirteen** files now. `09_tests_net_membership.md` came with Session 1 on 2026-08-24,
+*(**Fourteen** files now. `09_tests_net_membership.md` came with Session 1 on 2026-08-24,
 `10_tests_end_labels.md` with Session 2 the same day, `11_tests_drawing_list.md` with Session 3 on
-2026-08-25 and `12_tests_label_corrections.md` with Session 4 the same day; the plan adds two more —
-`13` and `14` — one per remaining session. §3 above is the current map; this table is kept as
-written.)*
+2026-08-25, `12_tests_label_corrections.md` with Session 4 the same day and
+`13_tests_paths_highlight.md` with Session 5 on 2026-09-02; `14` comes with the last session. §3
+above is the current map; this table is kept as written.)*
 
 *(**38** now — T-425 was added with the `F2` work, T-190 and T-360 with the Drawing tab's layer
 switches, and T-115 and T-335 with changes 11–13, all on 2026-08-19; **T-470–T-490 and T-500–T-520
 came with Session 1 of the wires-and-nets plan on 2026-08-24, T-550–T-590 with Session 2 the same day,
-T-600–T-650 with Session 3 on 2026-08-25, and T-700–T-740 with Session 4 the same day**. §5 above is
-the current count; this section is kept as written.)*
+T-600–T-650 with Session 3 on 2026-08-25, T-700–T-740 with Session 4 the same day, and T-800–T-840
+with Session 5 on 2026-09-02**. §5 above is the current count; this section is kept as written.)*
 
 28 numbered tests. Each one doubles as a lesson — what to click, what should happen, and why it matters — so working through them in order teaches the whole screen. Each also says where to look if it fails, so a report of "T-142 failed, the dot landed half an inch left" points straight at paint.ts cssToPoint.
 

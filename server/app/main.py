@@ -45,6 +45,7 @@ from .drawing import (
     designator_index,
     drawing_summary,
     load_circuit_logic,
+    paths_index,
     source_document,
     tile_file,
     tile_manifest,
@@ -239,6 +240,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """
         try:
             return designator_index(settings.drawing_dir)
+        except DrawingUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    @app.get("/api/paths")
+    async def paths() -> dict[str, Any]:
+        """Where each traced wire runs on the sheet, and which wires each net is made of.
+
+        Its own endpoint rather than a field on `/api/designators`, for the same two reasons that
+        one is separate from `/api/drawing`: it changes when a *different* file is saved, and a
+        client that cannot load it loses the highlight while every citation stays clickable.
+
+        **Free, like the drawing itself.** The Locate editor writes paths and the reader reads
+        them: a highlight is display geometry, and *which of these lines is the one I care about*
+        is a reader's question before it is an editor's. Nothing here comes from `geometry.json`
+        — an authored path is in `locations.json`, and the ink loader is not opened.
+        """
+        try:
+            return paths_index(settings.drawing_dir)
         except DrawingUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 

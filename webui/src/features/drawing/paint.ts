@@ -137,3 +137,103 @@ export function paintSheet({ ctx, device, dpr, viewport, sheet, tiles }: PaintAr
   }
   return drawn
 }
+
+// -- the highlighter ------------------------------------------------------------------------
+//
+// A wire's route, painted along the ink rather than between its ends. Here rather than in
+// `MarkerLayer` for the reason that file's own header gives: 149 conductor polylines are far
+// cheaper on a canvas than as DOM, and this one already owns the projection they have to agree
+// with. A path is never computed — it is lifted from the PDF's own strokes or traced by a person
+// (`server/app/locations.py`) — so everything below only draws what somebody authored.
+
+/** One run of a path: two or more points in PDF points. Several of them make a path, because a
+ * crossover hop is a real gap in the ink and closing it would draw a segment nobody drew. */
+export type Polyline = readonly (readonly [number, number])[]
+
+export interface RunStyle {
+  /** Stroke width in **points**, so the highlight thickens with the ink as you zoom in. */
+  widthPt: number
+  /** …but never thinner than this in device pixels. At the 11% fit a 5 pt stroke is about three
+   * device pixels, and below two it stops reading as a highlight at all. */
+  minDevicePx: number
+  /** Translucent, so the black conductor underneath stays readable through it: the reader is
+   * checking *which* line this is, and a highlight that hid the line would answer nothing. */
+  stroke: string
+}
+
+/**
+ * The highlighter, and there is one of it.
+ *
+ * 5 pt against 16 pt conductor rows is wide enough to see at a glance and narrow enough that it
+ * cannot be mistaken for covering the row above or below — which matters on a sheet where being
+ * one row out names a different circuit. The colour is the selection's own, at the alpha that
+ * still lets 0.5 pt line art through.
+ */
+export const HIGHLIGHT: RunStyle = {
+  widthPt: 5,
+  minDevicePx: 3,
+  stroke: 'rgba(214, 74, 38, 0.42)',
+}
+
+/**
+ * A polyline in PDF points, projected onto the backing store in **device pixels**.
+ *
+ * Every vertex goes through `tileDestRect`, exactly as `pointToCss` does, and that is the whole
+ * design of this function: there is one projection in this application, and a highlight that
+ * computed its own would eventually lie about which conductor it is on. `paint.test.ts` asserts
+ * the agreement vertex by vertex rather than trusting the comment.
+ */
+export function polylineToDevice(
+  points: Polyline,
+  viewport: Viewport,
+  dpr: number,
+): { x: number; y: number }[] {
+  return points.map((point) => {
+    const dest = tileDestRect([point[0], point[1], point[0], point[1]], viewport, dpr)
+    return { x: dest.x, y: dest.y }
+  })
+}
+
+export interface PaintRunsArgs {
+  ctx: CanvasRenderingContext2D
+  dpr: number
+  viewport: Viewport
+  /** One wire's runs, or the union of a net's wires' runs. **One selection at a time**: two
+   * highlights in one colour would say the two are the same thing, and a second colour would be
+   * a legend nobody asked for. */
+  runs: readonly Polyline[]
+  style?: RunStyle
+}
+
+/** Paint the highlight. Returns how many runs were drawn, which is what the tests assert on —
+ * jsdom has no 2D context, so the canvas itself can never be inspected. */
+export function paintRuns({
+  ctx,
+  dpr,
+  viewport,
+  runs,
+  style = HIGHLIGHT,
+}: PaintRunsArgs): number {
+  if (!(viewport.scale > 0) || runs.length === 0) return 0
+
+  ctx.save()
+  ctx.strokeStyle = style.stroke
+  ctx.lineWidth = Math.max(style.minDevicePx, style.widthPt * viewport.scale * dpr)
+  // Round, so a corner of an orthogonal route does not grow a notch and a one-segment run does
+  // not stop dead at its endpoint — the ink it follows has neither.
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+
+  let drawn = 0
+  for (const run of runs) {
+    if (run.length < 2) continue
+    const points = polylineToDevice(run, viewport, dpr)
+    ctx.beginPath()
+    ctx.moveTo(points[0].x, points[0].y)
+    for (const point of points.slice(1)) ctx.lineTo(point.x, point.y)
+    ctx.stroke()
+    drawn += 1
+  }
+  ctx.restore()
+  return drawn
+}

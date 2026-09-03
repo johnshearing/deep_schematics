@@ -250,6 +250,56 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
     }
 
 
+def paths_index(drawing_dir: Path) -> dict[str, Any]:
+    """Where each traced wire runs, and which wires each net is made of.
+
+    Two maps, because a highlight is two different questions:
+
+        wires   W052 → the polylines somebody has traced, and how they know them
+        nets    120  → ["W052", "W053", "W063", "W068"]
+
+    **A net stores nothing.** Its highlight is the union of its wires' paths, so this endpoint
+    publishes the membership and lets the client take the union — which is also what lets a net
+    say *none of my four wires has a path yet* rather than drawing nothing and looking broken.
+    The map is computed from each wire's `net`, which is in `circuit_logic.json` and is the one
+    thing about a wire the designator index does not already publish.
+
+    **A wire with no path is absent, not null.** The client asks "is there one", and a key whose
+    value is null is a third state to explain for no gain.
+
+    Separate from `/api/designators` and, like it, deliberately **uncached**: it is a few dozen
+    dictionary lookups over two already-cached parses, and a client that fails to load it loses
+    the highlight and nothing else. Free of the editor gate on purpose — a path is display
+    geometry, a reader is exactly who wants to see which line is which, and this reads
+    `locations.json` rather than `geometry.json`, so there is nothing here a reader may not have.
+    """
+    doc = load_circuit_logic(drawing_dir)
+    manifest = tile_manifest(drawing_dir)
+    geometry = resolve_geometry(drawing_dir, doc, manifest["page_size_pt"] if manifest else None)
+
+    wires: dict[str, Any] = {}
+    for wid, path in geometry.paths.items():
+        published: dict[str, Any] = {
+            "runs": [[[x, y] for x, y in run] for run in path.runs],
+            "geometry": path.geometry,
+            "attribution": path.attribution,
+        }
+        # Absent on a hand trace, and the absence is the record: there was no conductor to lift.
+        if path.conductors:
+            published["conductors"] = list(path.conductors)
+        wires[wid] = published
+
+    nets: dict[str, list[str]] = {}
+    for wire in doc.get("wires") or []:
+        if not isinstance(wire, dict):
+            continue
+        wid, net = wire.get("id"), wire.get("net")
+        if isinstance(wid, str) and isinstance(net, str):
+            nets.setdefault(net, []).append(wid)
+
+    return {"wires": wires, "nets": nets}
+
+
 def _entry(
     identifier: str,
     kind: str,

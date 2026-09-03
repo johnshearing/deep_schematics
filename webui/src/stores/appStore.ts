@@ -1,13 +1,21 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-import { getDesignators, getDrawing, getHealth, getQuestions, unlock } from '@/api/client'
+import {
+  getDesignators,
+  getDrawing,
+  getHealth,
+  getPaths,
+  getQuestions,
+  unlock,
+} from '@/api/client'
 import type {
   Designator,
   DesignatorIndex,
   DesignatorKind,
   DrawingSummary,
   Health,
+  PathIndex,
   StarterQuestion,
 } from '@/api/types'
 import { buildLookup } from '@/lib/designators'
@@ -57,6 +65,16 @@ interface AppState {
   /** Null while loading, and after a failure — in which case citations stay plain text and
    * nothing else changes. */
   designators: DesignatorIndex | null
+  /**
+   * Where each traced wire runs, and which wires each net is made of.
+   *
+   * Null while loading and after a failure, in which case nothing is highlighted and everything
+   * else on both tabs works exactly as it did — the same degradation as `designators`. Here
+   * rather than in either tab because **both** read it: the Drawing tab highlights the selection
+   * and the Locate tab highlights the armed row, and two fetches of one file would be two answers
+   * that could disagree.
+   */
+  paths: PathIndex | null
   /** Every id and unambiguous alias, case-folded. The allowlist a backticked span is matched
    * against; see `lib/designators.ts` for why it is an allowlist. */
   byToken: Map<string, Designator>
@@ -109,9 +127,10 @@ interface AppState {
   clearSelection: () => void
   loadAll: () => Promise<void>
   refreshHealth: () => Promise<void>
-  /** Re-read the designator index, which is what the Locate editor's save changes. Without it
-   * the editor would place a point, the file on disk would be right, and the Drawing tab would
-   * keep drawing the estimate until the page was reloaded. */
+  /** Re-read the designator index **and the paths**, which is what the Locate editor's save
+   * changes. Without it the editor would place a point, the file on disk would be right, and the
+   * Drawing tab would keep drawing the estimate until the page was reloaded. Both come out of
+   * `locations.json`, so one save moves both and one refresh has to fetch both. */
   refreshDesignators: () => Promise<void>
   submitUnlock: (password: string) => Promise<boolean>
 }
@@ -124,6 +143,7 @@ export const useAppStore = create<AppState>()(
       drawing: null,
       questions: [],
       designators: null,
+      paths: null,
       byToken: new Map(),
       selection: null,
       model: 'sonnet',
@@ -144,11 +164,12 @@ export const useAppStore = create<AppState>()(
       clearSelection: () => set({ selection: null }),
 
       loadAll: async () => {
-        const [health, drawing, questions, designators] = await Promise.allSettled([
+        const [health, drawing, questions, designators, paths] = await Promise.allSettled([
           getHealth(),
           getDrawing(),
           getQuestions(),
           getDesignators(),
+          getPaths(),
         ])
         const index = designators.status === 'fulfilled' ? designators.value : null
         set({
@@ -158,6 +179,7 @@ export const useAppStore = create<AppState>()(
           questions: questions.status === 'fulfilled' ? questions.value : [],
           // Built once here rather than on every render of every citation in every answer.
           designators: index,
+          paths: paths.status === 'fulfilled' ? paths.value : null,
           byToken: buildLookup(index),
           loaded: true,
         })
@@ -172,6 +194,13 @@ export const useAppStore = create<AppState>()(
         } catch {
           // Keep the index we have. A failed refresh means the overlay is one save behind,
           // which is a great deal better than every citation in every answer going inert.
+        }
+        try {
+          // The same save wrote both: one `PUT /api/locations` can move a point *and* accept a
+          // path, so re-reading one and not the other would leave the sheet half a save behind.
+          set({ paths: await getPaths() })
+        } catch {
+          // As above: the highlight is one save behind, and nothing else changes.
         }
       },
 

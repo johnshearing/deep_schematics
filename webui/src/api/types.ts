@@ -231,6 +231,11 @@ export interface LocationsReport {
    * per wire end and per net terminal whether anybody has touched it or not. Absent on a server
    * older than schema 2. */
   end_labels?: number
+  /** Wires with a traced route, and wires somebody has looked at and found nothing to trace.
+   * Two counts because they are two claims, and the second is what lets the first ever reach 71
+   * — six of this drawing's rows are not on this sheet at all. */
+  paths?: number
+  no_path?: number
   problems: string[]
 }
 
@@ -241,6 +246,50 @@ export interface DesignatorIndex {
   located: number
   locations?: LocationsReport
   entries: Designator[]
+}
+
+/**
+ * One run of a wire's path: two or more points in PDF points, along the printed conductor.
+ *
+ * **Never computed.** A route is lifted from the PDF's own vector strokes or traced by a person,
+ * and a straight chord between a wire's two endpoints is the one thing it may not be — on this
+ * sheet `W052`'s chord is a 600 pt diagonal across four unrelated circuits, while the ink is one
+ * horizontal run 78 pt long.
+ */
+export type Polyline = [number, number][]
+
+/**
+ * Where one wire runs, and the two axes that say how we know it.
+ *
+ * `geometry` is where the line came from — `extracted` is a conductor out of `geometry.json`,
+ * which is the PDF's own strokes rather than a reading of them; `human` is a person tracing it
+ * corner by corner. `attribution` is who says this run belongs to *this* wire — `printed` is the
+ * net name beside it matching, `human` is a person saying so. A lifted conductor is exact
+ * geometry with uncertain attribution, and that pair is what a human is confirming.
+ *
+ * `runs` is a list because a crossover hop is a real gap in the ink — this sheet has 88 of them —
+ * and a path spanning one should show the gap rather than close it.
+ */
+export interface WirePath {
+  runs: Polyline[]
+  geometry: 'extracted' | 'human'
+  attribution: 'printed' | 'human'
+  /** The extracted runs it was lifted from. **Absent on a hand trace**, and that absence is the
+   * record: there was no conductor to lift. */
+  conductors?: string[]
+}
+
+/**
+ * `GET /api/paths` — the highlight, in two maps.
+ *
+ * `wires` holds only the wires somebody has traced; a wire with no path is **absent**, not null.
+ * `nets` is every net's wires, whether or not any of them is traced, because **a net stores no
+ * path of its own**: its highlight is the union of its wires' runs. That is also what lets a net
+ * say *none of my four wires has a path yet* instead of drawing nothing and reading as broken.
+ */
+export interface PathIndex {
+  wires: Record<string, WirePath>
+  nets: Record<string, string[]>
 }
 
 /**
@@ -300,6 +349,12 @@ export interface StoredLabel {
   label?: { dir?: Compass }
   /** Terminal id → what a person decided about that end. */
   labels?: Record<string, StoredEndLabel>
+  /** Where this wire runs — **wires only**. A net carrying one is refused by name, because its
+   * highlight is the union of its wires' paths and a path stored here would never be drawn. */
+  path?: WirePath & { by?: string; at?: string }
+  /** *There is nothing on this sheet to trace* — a decision, and only ever `true`. Never written
+   * as `false`, for the same reason `hidden: false` is refused. */
+  no_path_on_this_sheet?: true
   by?: string
   at?: string
   [key: string]: unknown

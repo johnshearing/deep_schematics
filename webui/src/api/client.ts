@@ -14,6 +14,7 @@ import type {
   Health,
   LocationsDocument,
   LocationsResponse,
+  PathIndex,
   ReviewResponse,
   SaveLocationsResponse,
   SaveReviewResponse,
@@ -169,6 +170,16 @@ export const tileUrl = (file: string) => `${API}/tiles/${encodeURIComponent(file
 export const getHealth = () => getJson<Health>('/health')
 export const getDrawing = () => getJson<DrawingSummary>('/drawing')
 export const getDesignators = () => getJson<DesignatorIndex>('/designators')
+/**
+ * Where each traced wire runs, and which wires each net is made of.
+ *
+ * Free, like the drawing itself: a path comes out of `locations.json` rather than out of
+ * `geometry.json`, and *which of these lines is the one I care about* is a reader's question
+ * before it is an editor's. Its own call rather than a field on the designator index because it
+ * changes when a different file is saved, and because a client that cannot load it loses the
+ * highlight while every citation stays clickable.
+ */
+export const getPaths = () => getJson<PathIndex>('/paths')
 export const getQuestions = () =>
   getJson<{ questions: StarterQuestion[] }>('/questions').then((r) => r.questions)
 

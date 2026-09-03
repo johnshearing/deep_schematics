@@ -52,6 +52,7 @@ import {
   type Viewport,
 } from '@/features/drawing/useTileViewport'
 import { isTextField } from '@/lib/keys'
+import { pathsFor } from '@/lib/paths'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
 import { useLocateStore } from '@/stores/locateStore'
@@ -152,6 +153,7 @@ export function LocateTab() {
   const drawing = useAppStore((s) => s.drawing)
   const health = useAppStore((s) => s.health)
   const designators = useAppStore((s) => s.designators)
+  const paths = useAppStore((s) => s.paths)
   const activeTabId = useAppStore((s) => s.activeTabId)
 
   const {
@@ -301,6 +303,24 @@ export function LocateTab() {
     return planEndLabels(entries, (owner, terminal) => endLabelsOf(document, owner)[terminal])
       .filter((label) => label.owner === targetEntry.id)
   }, [document, entries, targetEntry])
+
+  /**
+   * **The armed wire's or net's route, highlighted along the ink** — Phase G's second trigger.
+   *
+   * Off the armed target, not off the Drawing tab's selection: the two screens deliberately do not
+   * share that state (`H10` is what two coupled listeners already cost), and they are asking
+   * different questions — one is *what am I reading*, the other *what am I working on*. What they
+   * do share is the answer to *which runs is that*, which is `pathsFor`, so the two highlights
+   * cannot come to disagree about what a net is.
+   *
+   * It comes from the **saved** file rather than from the draft, and until Session 6 builds the
+   * path editor that is the whole of it: nothing on this screen writes a path yet, so there is no
+   * unsaved one to prefer.
+   */
+  const runs = useMemo(
+    () => pathsFor(paths, targetEntry?.kind, targetEntry?.id)?.runs,
+    [paths, targetEntry],
+  )
 
   const marked = useMemo(() => {
     if (!document || !targetEntry) return null
@@ -733,6 +753,7 @@ export function LocateTab() {
               viewport={viewer.viewport}
               size={viewer.size}
               dpr={viewer.dpr}
+              runs={runs}
               onTileSettled={onTileSettled}
             />
           )}
@@ -792,7 +813,8 @@ export function LocateTab() {
         <Key>Shift</Key>+<Key>Alt</Key>+arrows by {FINE_NUDGE_PT} pt, at any zoom — bare arrows
         still pan · <Key>Ctrl</Key>+<Key>Z</Key> undoes the last change and{' '}
         <Key>Ctrl</Key>+<Key>Shift</Key>+<Key>Z</Key> puts it back ·{' '}
-        <Key>Esc</Key> selects nothing and gives the hand back · past {FLY_CEILING_PERCENT}% zoom,
+        <Key>Esc</Key> selects nothing and gives the hand back · arming a wire or a net
+        highlights whatever run somebody has traced for it · past {FLY_CEILING_PERCENT}% zoom,
         picking a row leaves the sheet exactly where it is · filled dots
         were placed by hand, hollow ones are the indexing pass&apos;s estimate. Saved to{' '}
         <span className="font-mono">locations.json</span>, which is authored and belongs in git

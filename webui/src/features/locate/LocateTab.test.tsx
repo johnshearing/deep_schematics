@@ -1019,6 +1019,49 @@ describe('LocateTab', () => {
     expect(useLocateStore.getState().document!.terminals['CR-BP:A1'].point).toEqual([612, 396])
   })
 
+  /**
+   * Phase G's second trigger, and the smallest thing in Session 5: arming a wire lights whatever
+   * somebody has traced for it.
+   *
+   * Off the **armed target** rather than off the Drawing tab's selection — the two screens keep
+   * their own idea of what you are looking at, deliberately (`H10`) — but through the same
+   * `pathsFor`, so the two can never come to disagree about what a net is made of. The canvas
+   * cannot be read in jsdom, so what is asserted is the runs that reached the sheet.
+   */
+  it('highlights the armed wire’s traced run along the ink', async () => {
+    useAppStore.setState({
+      paths: {
+        wires: {
+          W047: {
+            runs: [
+              [
+                [700, 679],
+                [861, 679],
+              ],
+            ],
+            geometry: 'extracted',
+            attribution: 'human',
+            conductors: ['C0080'],
+          },
+        },
+        nets: { '110': ['W047'] },
+      },
+    })
+    await open()
+    const runs = () => Number(sheet().querySelector('canvas')?.dataset.runs ?? -1)
+    expect(runs()).toBe(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    await waitFor(() => expect(runs()).toBe(1))
+
+    // Arming something with no route puts the sheet back to plain ink — one at a time, and a
+    // terminal has no route to draw.
+    fireEvent.click(screen.getByRole('button', { name: 'All' }))
+    fireEvent.click(row('CR-BP:A1'))
+    await waitFor(() => expect(runs()).toBe(0))
+  })
+
   it('shows every coordinate the server refused', async () => {
     stubServer({
       report: { ...EMPTY_REPORT, problems: ["CR-GHOST is not in circuit_logic.json"] },

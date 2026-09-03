@@ -8,9 +8,11 @@ report to argue with; this is the plan to execute.
 > is made of, an end label at every wire end and net terminal with `locations.json` at **schema 2**,
 > the Drawing tab's list of all 275 designators with five layer switches over the sheet, and the
 > **`Review`** tab over the 664 readings the extraction lifted off the paper — with
-> `label_corrections.json` as the third authored file. **The next session is 5, Phases D + G**: wire
-> paths in the file, in the API and painted on the sheet. `change_history.md` has the four dated
-> entries; `08_results_log.md` says what the user has walked. Everything below is as written on
+> `label_corrections.json` as the third authored file. **Session 5 landed 2026-09-02** — Phases
+> **D** and **G**: `path` in `locations.json` with both provenance axes, `GET /api/paths`, and a
+> wire highlighted along the PDF's own conductor strokes from either tab. **The next session is 6,
+> Phase E** — the path editor, preceded by the small batch at the end of §13.
+> `change_history.md` has the five dated entries; `08_results_log.md` says what the user has walked. Everything below is as written on
 > 2026-08-23 except the per-session notes in §13 and the amendments recorded there.
 >
 > **The `Review` queue has been worked end to end, 2026-09-01/02.** `label_corrections.json` holds
@@ -197,6 +199,13 @@ they always tested:
 - the `_labels` docstring in `server/app/locations.py`, which states the rule for the next reader
 
 ### Why the geometry objection was real, kept here so nobody re-opens it
+
+> **Correction, 2026-09-02.** The `W052` ↔ `C0080` pairing in the paragraph below is **wrong**, and
+> the numbers in it were taken before `CR2:14` was placed. `C0080` is `W053`'s run; `W052`'s is
+> `C0109`. The measured pairings for all four of net 120's wires are in `07_drawing_facts.md`, and
+> the wire that makes this argument properly is **`W068`** — a 312 pt chord against 644 pt of ink
+> that goes out to x = 798 and comes back, in two pieces with a 3.5 pt crossover hop between them.
+> The reasoning below stands as written; only the example is at fault.
 
 A schematic conductor does not run diagonally from pin to pin. It runs orthogonally, with corners,
 and where it crosses another wire it is drawn with a crossover hop — this sheet has 88 of those
@@ -1153,6 +1162,31 @@ changes your day-to-day most.
 
 ### Session 5 — paths appear on the sheet
 **Phases D + G.** Storing and drawing a route, plus the citation and list triggers.
+
+> **Landed 2026-09-02.** `path` in the file with both provenance axes and `derived` refused by name
+> on each, `no_path_on_this_sheet` validated and counted, `GET /api/paths`, the stroke on the tile
+> canvas, and both triggers. **157 server / 251 web, ruff and tsc clean.** Five things went
+> differently from the plan and are worth knowing:
+>
+> - **the worked example was wrong, and it is corrected.** §3 and §6 pair `W052` with `C0080`;
+>   measured against the terminal points placed on 2026-08-20, `C0080` is **`W053`**'s run and
+>   `W052`'s is **`C0109`**. The 600 pt diagonal in §3 was measured from `CR2`'s **coil**, which is
+>   where `CR2:14` resolved before anybody placed it. The argument is untouched and is better made
+>   by **`W068`**: a 312 pt chord against 644 pt of ink in two pieces with a crossover hop between
+>   them. `07_drawing_facts.md` now carries the measured pairings for all four of net 120's wires,
+>   because Session 6's ranking should reproduce them.
+> - **`/api/paths` is not behind `allow_edits`.** §Phase D said "beside `/api/designators`" and did
+>   not say which side of the gate; the answer follows from the two reasons `/api/review` is gated,
+>   neither of which holds — a path is authored display geometry out of `locations.json`, the ink
+>   loader is never opened, and *which of these lines is the one I care about* is a reader's
+>   question first. Hazard `H20`, and a test asserts both halves.
+> - **a net carrying a `path` is refused by name.** §6 says a net stores nothing; it did not say
+>   what happens if a hand edit puts one there, and the honest answer is the `H14` treatment,
+>   because the symptom would otherwise be nothing at all.
+> - **the unit of refusal is the whole path**, not the field. Half a route is not half a decision —
+>   it is a line that stops in the middle of the sheet and claims to be a wire.
+> - **the viewer's ceiling is 200%, not 400%** (`MAX_OVERZOOM`), so `13_tests_paths_highlight.md`
+>   walks the stroke at 11% and at 200%.
 
 | | |
 |---|---|

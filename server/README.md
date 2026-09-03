@@ -149,12 +149,13 @@ a web request.
 | `GET` | `/api/source` | the source PDF, inline — `404` when none sits beside the extraction |
 | `GET` | `/api/tiles/{name}` | one rendered tile of the sheet; only names the manifest lists |
 | `GET` | `/api/designators` | every citable id, with where it is — the allowlist behind clickable citations |
+| `GET` | `/api/paths` | where each traced wire runs, and which wires each net is made of — the highlight. Authored display geometry out of `locations.json`, so it is free like the drawing itself |
 | `GET` | `/api/questions` | starter questions |
 | `POST` | `/api/unlock` | check the demo password without spending a question; own rate limit |
 | `POST` | `/api/ask` | NDJSON answer stream; rate-limited |
 | `POST` | `/api/turns/{turn_id}/cancel` | Stop button |
 
-Three more exist **only** when `SWUI_ALLOW_EDITS=true`, and all three require
+Five more exist **only** when `SWUI_ALLOW_EDITS=true`, and all of them require
 `X-Editor-Password` when one is configured:
 
 | Method | Path | Purpose |
@@ -162,6 +163,8 @@ Three more exist **only** when `SWUI_ALLOW_EDITS=true`, and all three require
 | `POST` | `/api/editor/unlock` | check the editor password; mirrors `/api/unlock`, own rate limit |
 | `GET` | `/api/locations` | `locations.json` verbatim, or an empty document shaped like it |
 | `PUT` | `/api/locations` | replace it, whole and atomically; answers with what was refused |
+| `GET` | `/api/review` | the 664 readings the extraction lifted off the paper, with its own doubts and any correction. **The one route that opens `geometry.json`**, and it never leaves this process whole |
+| `PUT` | `/api/review` | replace `label_corrections.json`, whole and atomically. No `stale` banner: a corrected reading changes nothing the generator writes |
 
 ### The `/api/ask` stream
 

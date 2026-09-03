@@ -150,6 +150,23 @@ server restart.** None walked. A new authored file appears the first time you co
 | T-735 | The 79 runs with no net name bound · naming one directly writes `was: null` · a run's own correction beats the label beside it · a blank string | | |
 | T-740 | **The netlist does not move** — one new untracked file and nothing else · re-running the generator changes nothing · 141 server / 232 web green, artifact test **not** stale · the Drawing and Ask tabs unchanged | | |
 
+## T-80x–T-84x — a wire highlighted along the ink — `13_tests_paths_highlight.md`
+
+**These need a hand edit** — there is no path editor until Session 6, and T-800 says which block to
+paste, with the server stopped. It is scaffolding, and T-840 asks you to decide what to keep.
+
+| Test | What it checks | Result | Notes if not P |
+|---|---|:--:|---|
+| T-800 | The hand-edited `W052` block parses · `/api/paths` publishes it · a wire with no path is **absent**, and `nets` lists all 26 with their wires | | |
+| T-805 | **The proof: 157 server tests green and the artifact test *not* stale after saving a path** | | |
+| T-810 | `W052` highlighted along `C0109` · the ink readable through the stripe · it stops short of the pins rather than being stretched to meet them | | |
+| T-815 | The two provenance badges and the conductor id · **`no path yet` on a wire that has none** · no path line at all on a component | | |
+| T-820 | **A net is the union of its wires' runs** — four stripes, `3 of its 4 wires` · `W068`'s crossover gap · **nothing under `"nets"` in the file** | | |
+| T-825 | The highlight survives `Nets`, `Labels` and `Components` being switched off (`H11`) · one at a time · `Esc` clears it | | |
+| T-830 | The stroke is in **points**: visible at the 11% fit, thickened at 200%, and never reaching the rows 16 pt away | | |
+| T-835 | An Ask-tab citation of `120` lands on the net and paints it — same `select()` as a list row | | |
+| T-840 | Arming a wire on the **Locate** tab highlights it · a terminal clears it · **the pasted `path` survives an end-label edit on the same wire** · the cleanup, and the four checks | | |
+
 ---
 
 ## Failure detail

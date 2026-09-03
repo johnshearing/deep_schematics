@@ -283,6 +283,39 @@ describe('wire and net labels', () => {
       expect(doc.wires).toEqual({ W047: { labels: { 'CR-BP:A1': { hidden: true } } } })
     })
 
+    /**
+     * **Session 5's scaffolding, guarded.** Until the path editor exists (Session 6) the only way
+     * to author a `path` is to hand-edit the file with the server stopped, and the very next thing
+     * a person does after pasting one is open the editor and work on that same wire. Every
+     * mutation here spreads the record it found, so an unknown key survives — but "it happens to
+     * work" and "a test says so" are different states for something whose failure would silently
+     * delete a run somebody traced by hand.
+     */
+    it('leaves a hand-edited path alone while the same wire’s labels change', () => {
+      const path = {
+        runs: [
+          [
+            [379.8, 663.7],
+            [301.8, 663.7],
+          ],
+        ] as [number, number][][],
+        geometry: 'extracted' as const,
+        attribution: 'human' as const,
+        conductors: ['C0080'],
+      }
+      const start = { ...fresh(), wires: { W047: { path } } }
+
+      let doc = setEndLabel(start, 'W047', 'wire', 'CR-BP:A1', { dir: 'ne' })
+      expect(doc.wires!.W047.path).toBe(path)
+
+      doc = place(doc, { id: 'W047', site: null, label: true }, [742, 511], STAMP, 'wire')
+      expect(doc.wires!.W047.path).toBe(path)
+
+      // Even *Remove the label point*, which deletes by name for exactly this reason.
+      doc = clear(doc, { id: 'W047', site: null, label: true })
+      expect(doc.wires).toEqual({ W047: { path, labels: { 'CR-BP:A1': { dir: 'ne' } } } })
+    })
+
     it('puts a net’s in `nets`, because a person reads this file', () => {
       const doc = setEndLabel(fresh(), '110', 'net', 'CR-BP:A1', { dir: 's' })
       expect(doc.nets).toEqual({ 110: { labels: { 'CR-BP:A1': { dir: 's' } } } })

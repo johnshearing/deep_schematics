@@ -40,6 +40,7 @@ import { SOURCE_URL } from '@/api/client'
 import type { Designator, DesignatorKind } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { normalise, suggestedQuestion } from '@/lib/designators'
+import { pathsFor } from '@/lib/paths'
 import { isTextField } from '@/lib/keys'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
@@ -163,6 +164,7 @@ export function DrawingTab() {
   const drawing = useAppStore((s) => s.drawing)
   const activeTabId = useAppStore((s) => s.activeTabId)
   const designators = useAppStore((s) => s.designators)
+  const paths = useAppStore((s) => s.paths)
   const byToken = useAppStore((s) => s.byToken)
   const selection = useAppStore((s) => s.selection)
   const select = useAppStore((s) => s.select)
@@ -281,6 +283,21 @@ export function DrawingTab() {
       : (entry?.members ?? [])
     return new Set(members)
   }, [entry])
+  /**
+   * **The highlight: the selected wire's route, or the union of the selected net's wires'.**
+   *
+   * Read off the selection and nothing else, which is what makes it survive its own layer switch
+   * being off — the same exemption the rings and the end labels have (`H11`), and for the same
+   * reason: hiding the thing an answer just pointed at is the one case the overlay must stay
+   * visible for. One at a time, deliberately: two highlights in one colour would claim the two are
+   * the same thing.
+   *
+   * Nothing here is computed from the wire's endpoints. What is painted was lifted from the PDF's
+   * own conductor strokes or traced by a person, and if nobody has done either then nothing is
+   * painted and the card says so — a wrong line is worse than no line.
+   */
+  const path = useMemo(() => pathsFor(paths, entry?.kind, entry?.id), [paths, entry])
+
   /** A marker for the selection itself — at its own point, under its own name, and only where
    * there is a real place to put one. See `atLabelPoint` for the wire and net case. */
   const selectedMarker = useMemo<Designator | null>(() => {
@@ -649,6 +666,7 @@ export function DrawingTab() {
               viewport={viewer.viewport}
               size={viewer.size}
               dpr={viewer.dpr}
+              runs={path?.runs}
               onTileSettled={onTileSettled}
             />
           )}
@@ -677,6 +695,7 @@ export function DrawingTab() {
           {entry && (
             <SelectionCard
               entry={entry}
+              path={path}
               canSelect={(id) => located.has(id)}
               /* Both of these are steps *off* this card, so both record where they came from and
                  the next card offers the way back. `from` is the entry the reader is leaving, not
@@ -713,7 +732,9 @@ export function DrawingTab() {
             <span className="font-medium text-foreground">identifier in an answer</span> to fly
             here and land on it. A wire or net you select shows its name at every one of its ends
             whether those switches are on or not, and labels of every kind are hidden below 30%
-            zoom.{' '}
+            zoom. A wire or net that has been traced is also{' '}
+            <span className="font-medium text-foreground">highlighted along the ink</span> — the
+            drawing&apos;s own conductor strokes, never a line between its ends.{' '}
           </>
         )}
         Redrawn at your display's full resolution on every frame, from the

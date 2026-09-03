@@ -33,6 +33,8 @@ spelled out, and `fold_in_labels` lives in the generator rather than the server.
                                    │                      where anything is
                                    ▼
                         designator_index()  →  GET /api/designators
+                        paths_index()       →  GET /api/paths     ← the highlight: authored
+                                   │                                 runs, and each net's wires
                                    │
                     ┌──────────────┴──────────────┐
                     ▼                             ▼
@@ -81,7 +83,11 @@ Two things to hold on to:
 | Parse cache — **and the bug it can cause** | `server/app/locations.py` | `load_locations` is `lru_cache`d; `save_locations` calls `load_locations.cache_clear()` |
 | Writing: atomic, whole-file, four refusals | `server/app/locations.py` | `save_locations`, `LocationsRefused` |
 | The empty document a fresh drawing gets | `server/app/locations.py` | `skeleton` |
-| Publishing `point`/`rect`/`places`/`placement`/`label_point` | `server/app/drawing.py` | `designator_index`, `_entry` |
+| **Where a wire runs, and the two axes that say how we know it** | `server/app/locations.py` | `WirePath`, `_paths`, `PATH_KEY`, `GEOMETRIES` = `("extracted","human")`, `ATTRIBUTIONS` = `("printed","human")`, `DERIVED` — refused **by name** on both axes. The unit of refusal is the **whole path**, unlike everything else in this file: half a route is a line that stops in the middle of the sheet and claims to be a wire |
+| **The explicit *nothing here to trace*** | `server/app/locations.py` | `_no_path`, `NO_PATH_KEY`, `Locations.no_path`. `false` is refused as *says nothing*, exactly as `hidden: false` is — invariant 10 |
+| **Whether a path is for a wire the netlist has** — and that a **net** carries none | `server/app/locations.py` | `resolve_geometry`'s `known_wires`, and the `section == "nets"` refusal in `_labels`. A net's highlight is the union of its wires' paths, so a path stored on a net would be saved and never drawn: the `H14` treatment again |
+| **`GET /api/paths`** — the highlight | `server/app/drawing.py` | `paths_index`. Two maps: `wires` → the traced ones only (**absent**, never null, when there is none) and `nets` → its wires, from `wire.net`. Uncached, and **not** behind `allow_edits` — see hazard H20 |
+| Publishing `point`/`rect`/`places`/`placement`/`label_point` | `server/app/drawing.py` | `designator_index`, `_entry`. **Not paths**: a route travels on its own endpoint, so the index is exactly what it was |
 | **What a wire or a net is made of** — its member terminals, in order, **undeduped**, each with its own point and `placement` | `server/app/drawing.py` | `_entry`'s `terminal_ids` parameter and `_member`. `[from, to]` for a wire, `member_terminals` for a net. **Not** `members`, which is those terminals' *parent components* — see hazard H12 |
 | **Whether `places` is published at all** — and it must be whenever a place carries a `label_dir`, single dot or not, because that field exists nowhere else in the payload | `server/app/drawing.py` | `_entry`, the `len(places) > 1 or any("label_dir" …)` test. This was the 2026-08-19 label-side fault (T-335): 269 of 275 entries are single, and eliding their `places` elided the side a human chose |
 | Which ids the extraction invented (`our id`) | `server/app/drawing.py` | `WIRE_IDS_ARE_OURS`, `INVENTED_TERMINAL_PREFIX`, `INVENTED_TERMINAL_PARENTS`, `INVENTED_NET_PREFIX` |
@@ -99,6 +105,15 @@ Two things to hold on to:
 | Writing corrections: atomic, whole-file, two refusals | `server/app/label_corrections.py` | `save_corrections`, `CorrectionsRefused`, `skeleton`. **No page-size check**: a string does not stop being true at a different page size, which is the one honest difference from `save_locations` |
 | `GET`/`PUT /api/review`, and what one item may carry | `server/app/main.py` | `get_review`, `put_review`, **`_reading`** (the second half of the boundary — every key explicit, no spread), `_review_report` |
 | Settings | `server/app/config.py` | `allow_edits`, `editor_password`, `editor_name`, `editor_password_required`. **Both** editing tabs are gated on `allow_edits`, and both take `editor_password` |
+
+**Server tests, after Session 5: 157 over nine files.** The new one is **`test_paths.py`** (7), and
+two of its assertions are the session rather than the feature: `/api/paths` is asserted to answer
+with `allow_edits` **false**, and `ink.load_ink` is monkeypatched to raise, so a route that ever
+started reading `geometry.json` fails rather than merely being slower (`H17`). The eight new cases in
+`test_locations.py` are the refusals — one point, off the page, `derived` by name, a net carrying a
+path — and `test_extraction_generator.py` gained
+**`test_a_path_does_not_reach_the_netlist`**, which compares the generator's output in bytes with
+and without a path. That last one is the proof of Phase D.
 
 **Server tests, after Session 4: 141 over eight files.** The new one is **`test_review.py`** (24), and
 four of its assertions are the session rather than the feature: the item key set is *pinned* so a
@@ -121,6 +136,10 @@ of `circuit_logic.json`.
 | Behaviour | File | Symbol |
 |---|---|---|
 | **The one projection**, both directions | `webui/src/features/drawing/paint.ts` | `pointToCss`, `cssToPoint` |
+| **The highlighter** — a wire's route painted along the ink | `webui/src/features/drawing/paint.ts` | `polylineToDevice`, `paintRuns`, `HIGHLIGHT` (5 pt wide, floor 3 device px, translucent), `Polyline`, `RunStyle`. Every vertex goes through `tileDestRect`, which is invariant 2: one projection, or the highlight drifts off the conductor it names |
+| **Where it is painted** — under the DOM markers, in the tiles' own rAF pass | `webui/src/features/drawing/TileSheet.tsx` | the optional `runs` prop, painted after `paintSheet`. `data-runs` on the canvas is how a test knows what reached the sheet: `test-setup.ts` forces `getContext('2d')` to null, so nothing painted can be read back |
+| **What a selection highlights** — a wire's own runs, a net's the union of its wires' | `webui/src/lib/paths.ts` | `pathsFor`, `PathSummary`. Pure, 6 unit tests, and shared by **both** tabs so they cannot come to disagree about what a net is made of. Null for a component or a terminal; an empty summary for a wire nobody has traced — two different answers, both used |
+| **What the card says about a path**, including that there is none | `webui/src/features/drawing/SelectionCard.tsx` | `PathNote`, `GEOMETRY_WORD`, `ATTRIBUTION_WORD`. *`no path yet`* is load-bearing while 70 of 71 wires have none: an unhighlighted sheet cannot say which of *not traced* and *broken* it is |
 | Pan, zoom, fly-to | `webui/src/features/drawing/useTileViewport.ts` | `panTo`, `focusScale`, `centreOn` |
 | Dots: one per place, filled vs hollow, label side, drag | `webui/src/features/drawing/MarkerLayer.tsx` | `Marker`, `LABEL_SIDE`, `PLACEMENT_NOTE`, `onDragPoint`, `DRAG_SLOP` |
 | ▲ **How far a press must travel before it is a drag** | `webui/src/features/drawing/MarkerLayer.tsx` | **`DRAG_SLOP = 3`** CSS pixels of *pointer* travel, in `onPointerMove`: `if (!dragged.current && Math.hypot(dx, dy) < DRAG_SLOP) return`. Its own comment is the design: *"Small enough that a deliberate nudge works, large enough that a shaky click still selects."* **A minimum-drag threshold therefore already exists** — anyone asked to add one should read this first. Note what it does *not* prevent: once the press has travelled past 3 px the handler fires on every subsequent move with the delta from the press origin, so a press that goes out and comes most of the way back commits the small residual it ended on. That is not a twitch getting through; it is a real drag ending near where it started, and the cure for it is undo, not a bigger number |
@@ -163,7 +182,8 @@ of `circuit_logic.json`.
 | Sites, pins, the compass, the wire/net panel | `webui/src/features/locate/TargetPanel.tsx` | `ComponentPanel`, `TerminalPanel`, `LabelPanel`, `LabelSide` |
 | The site-name box: local text, one write, visible refusal | `webui/src/features/locate/TargetPanel.tsx` | `SiteName` — and see hazard H4 |
 | Draft, debounced autosave, unlock, load | `webui/src/stores/locateStore.ts` | `edit`, `place`, `save`, `load`, `unlock`, `SAVE_DEBOUNCE_MS` = 900 |
-| Re-reading the index after a save | `webui/src/stores/appStore.ts` | `refreshDesignators` |
+| Re-reading the index after a save | `webui/src/stores/appStore.ts` | `refreshDesignators` — **and the paths with it since 2026-09-02**: one `PUT /api/locations` moves both, so refreshing one and not the other leaves the sheet half a save behind |
+| Where the paths live on the client | `webui/src/stores/appStore.ts` | `paths`, loaded by `loadAll` beside `designators`. Null while loading and after a failure, which is *nothing is highlighted* and not *nothing is traced* |
 | **The review queue's order, its filters, and what a decision writes** | `webui/src/features/review/model.ts` | `orderItems`, `filterItems`, `setCorrection`, `rowState`, `ROW_LABEL`, `SCOPES`, `progress`, `SCHEMA`. Pure, 21 unit tests. **`setCorrection` with no `text` deletes** — invariant 10, in a third file |
 | **The review screen** — the queue, the boxes, the ring on the ink | `webui/src/features/review/ReviewTab.tsx` | `ReviewTab`, `ReadingRow`, **`InkRing`**, `PasswordGate`, `SaveStatus`, `TONE`. `data-reading="<id>"` finds a row and `data-ink-ring="<id>"` finds the ring |
 | **The ring, and why it is DOM rather than canvas** | `webui/src/features/review/ReviewTab.tsx` | `InkRing` — through **`pointToCss`**, like everything else that lands on the sheet (invariant 2). One box rather than 149 polylines, and `test-setup.ts` forces `getContext('2d')` to null, so a canvas ring could not be asserted at all while this one has a position a test can read |
@@ -208,6 +228,14 @@ feature's. **127 tests.**
 | `components/Markdown.test.tsx` | 13 | |
 | `components/UnlockButton.test.tsx` | 4 | |
 | `App.test.tsx` | 8 | the tabs, and the `F2` effect |
+
+**After Session 5, 2026-09-02: 251 web tests over 16 files.** One new file, `lib/paths.test.ts`
+(**6** — the union rule as arithmetic), plus five in `paint.test.ts` (**20** — the highlighter's
+projection and its stroke), five in `DrawingTab.test.tsx` (**47**), one in `LocateTab.test.tsx`
+(**38**) and one in `model.test.ts` (**28**). The last of those is the odd one and is worth knowing
+why it exists: until Session 6 the only way to author a path is a hand edit, so
+*leaves a hand-edited path alone while the same wire's labels change* guards the scaffolding the
+lesson document asks the user to paste in.
 
 **After Session 4, 2026-08-25: 232 web tests over 15 files.** Two new files, both the Review tab's:
 `features/review/model.test.ts` (**21** — the queue's order and what a decision writes, pure) and
@@ -550,16 +578,38 @@ somebody to correct it a second time on the run itself.
 And saying *the machine was right* is therefore an **explicit press**, the ✓ — which is disabled on an
 empty box, where there is nothing to accept and the honest decision is *not a label*.
 
+### H20 — the highlight is free, and that is a decision rather than an oversight *(added 2026-09-02)*
+
+Every other route that reads an authored file is behind `allow_edits`: `/api/locations`,
+`/api/review`. **`/api/paths` is not**, and the reasoning is the two things that put the others
+behind the gate, neither of which applies here.
+
+- **What it reads.** `/api/review` is the one route that opens `geometry.json` — 608 KB, ~150,000
+  tokens, `H17`. A path is authored and lives in `locations.json`; the ink loader is never touched,
+  and `test_nothing_here_opens_the_ink` monkeypatches `load_ink` to raise so that a later session
+  cannot quietly change that.
+- **Who wants it.** 664 OCR readings are no use to somebody who cannot correct them. *Which of these
+  lines is the one I care about* is a **reader's** question before it is an editor's — a technician
+  with the drawing and no password is exactly the person the highlight is for. The Drawing tab's
+  list already had that as its acceptance criterion (T-650), and this inherits it.
+
+What that means for anyone adding to this route: it may publish **authored display geometry and
+nothing else.** Session 6's `/api/conductors` — 149 candidate polylines out of the ink — is a
+different route with a different gate, and the two must not be merged for convenience.
+
 ---
 
 ## 5. Invariants — if one of these is violated, that is the bug
 
-1. **A wire's route is never *computed*.** Not in the file, not in the editor, not in the API. A wire
-   carries `label_point` and, since 2026-08-24, the sides of its two end labels — and nothing else.
-   *(Restated with the §3 amendment the user accepted on 2026-08-23: a route lifted from the PDF's
-   own conductor strokes, or traced by a person, becomes legal in Session 5. A route **synthesised
-   from its endpoints** never does, and that is what this invariant has always actually guarded. The
-   index's §8 now carries the full wording.)* Owner: `LABELLABLE` (`model.ts`), `_labels`
+1. **A wire's route is never *computed*.** Not in the file, not in the editor, not in the API.
+   *(Amended in force since 2026-09-02, which is the whole of Phase D: a wire may now carry a
+   `path` — one or more polylines **lifted from the PDF's own conductor strokes** or **traced by a
+   person** — and it says forever which of the two it was. A route **synthesised from its
+   endpoints** never becomes legal, and that is what this invariant always actually guarded:
+   `derived` is refused by name on both axes, in `_paths`, with a test per axis. Nothing computes a
+   run, nothing stretches one to meet the pins it stops short of, and nothing draws a chord when
+   there is no path — the card says *no path yet* instead. The index's §8 carries the full
+   wording.)* Owner: `LABELLABLE` (`model.ts`), `_labels`
    (`server/app/locations.py`), and ▲ `fold_in_labels` — which is **not** in the server: it is in
    `schematic_extraction/PS20115MLM4-2/extracted_docs/author_circuit_logic.py`, the generator.
    **Nor is one ever drawn.** No dot appears at a wire's or a net's `point` — that is the centre of a

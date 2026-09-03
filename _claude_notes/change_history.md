@@ -15,34 +15,41 @@ a dated entry like the rest and the section goes.
 
 ---
 
-## NEXT UP — Session 5 of the wires-and-nets plan
+## NEXT UP — Session 6 of the wires-and-nets plan
 
-**Superseded as of 2026-08-25.** The work in progress is
-**`_claude_notes/highlighting_wires_and_nets.md`** — a six-session plan whose §0 says what to read
-and whose §13 is the schedule. **Sessions 1 (Phases 0 + A) and 2 (Phase B) landed 2026-08-24, and
-Sessions 3 (Phase C) and 4 (Phase F) on 2026-08-25**; see the four dated entries below. **The next
-session is Session 5, Phases D + G** — wire paths in the file, in the API and painted on the sheet —
-and it should begin by reading `08_results_log.md` for how the user got on with T-426, T-470–T-530,
-T-550–T-590, T-600–T-650 and T-700–T-740.
+**The work in progress is `_claude_notes/highlighting_wires_and_nets.md`** — a six-session plan whose
+§0 says what to read and whose §13 is the schedule. **Sessions 1 (Phases 0 + A) and 2 (Phase B)
+landed 2026-08-24, Sessions 3 (Phase C) and 4 (Phase F) on 2026-08-25, and Session 5 (Phases D + G)
+on 2026-09-02**; see the five dated entries below. **The next session is the last: Session 6, Phase
+E** — the path editor — and it should begin by reading `08_results_log.md` for how the user got on
+with T-800–T-840, which is the first walk of the highlighter.
 
-What Session 5 inherits, and four things to carry into it:
+What Session 6 inherits, and six things to carry into it:
 
-- **`locations.json` goes to a `path` key** with the two provenance axes of the plan's §3 and §6.
-  `derived` is a rejected value on **both** axes and a test must refuse it by name. A route
-  synthesised from a wire's two endpoints is still the one thing forbidden.
-- **`paint.ts` gets `polylineToDevice` and `paintRuns`**, routed through the **same** `tileDestRect`
-  arithmetic as `pointToCss`. Invariant 2: there is one projection, and `paint.test.ts`'s existing
-  agreement idiom is how it stays that way. Note that `test-setup.ts` forces `getContext('2d')` to
-  null, so the canvas cannot be asserted through the DOM — the geometry is tested pure, and the runs
-  handed to `TileSheet` are tested as props. Session 4's ink ring is DOM for exactly that reason and
-  is not a precedent for a canvas stroke.
-- **There is no path editor until Session 6**, so §13 requires that session's lesson document to
-  include **a worked hand-edit** — the `W052` block from the plan's §6, pasted in with the server
-  stopped — and to say plainly that it is temporary scaffolding rather than the workflow.
-- **The conductor polylines are not read yet.** `server/app/ink.py` deliberately drops `points` and
-  `endpoint_bindings` at the parse boundary. Session 5 and 6 add them **there**, named, behind the
-  same `lru_cache`, and let the route decide what to publish — `geometry.json` must go on reaching
-  neither the browser nor the model whole. That is hazard **H17**, new in Session 4.
+- **The small batch at the end of the plan's §13 goes first**, before Phase E. Six items out of the
+  23 `Review`-tab questions of 2026-09-01, four of which change what a person sees while making 71
+  judgements about conductors. `_claude_notes/review_tab_questions.md` is the reasoning.
+- **`locations.json` can hold a path now** — `runs`, `conductors`, `geometry`, `attribution` — and
+  `no_path_on_this_sheet` is validated and counted but **nothing on screen can write either**. That
+  is the whole of Phase E: `GET /api/conductors`, a ranked `candidates()`, the wire panel, **Trace**,
+  and the `Paths` count that can only reach 71 because the *no path* state exists.
+- **The conductor polylines are still not loaded.** `server/app/ink.py` drops `points` and
+  `endpoint_bindings` at the parse boundary and Phase D never opened it —
+  `test_nothing_here_opens_the_ink` asserts as much. Session 6 adds them **there**, named, behind the
+  same `lru_cache`, and `/api/conductors` decides what to publish. That is hazard `H17`, and `H20`
+  is its new neighbour: `/api/paths` is free precisely because it does *not* read the ink, so the two
+  routes must not be merged.
+- **`K10` is worth two nets now**, and it is Session 6's: publish each net's *printed* form beside
+  its id and compare against both. `NET-PB1` and `NET-PB2` are the only two of 26 with no printed
+  conductor to match against, and since 2026-09-02 both printed names are on a run.
+- **The ranking has four answers to check itself against.** `07_drawing_facts.md` now carries the
+  measured wire-to-conductor pairings for all four of net 120's wires, including the two-conductor
+  ones. If `candidates()` does not reproduce that table, the ranking is what is wrong. Note what the
+  table shows: the second half of a real path is routinely a conductor with **no printed label**
+  (`C0092`, `C0057`), so a matcher that ranks on the printed name alone finds one end of a wire and
+  not the other.
+- **The plan's own worked example was corrected on 2026-09-02.** `W052` pairs with `C0109`, not with
+  `C0080` — that one is `W053`'s. The plan was written before `CR2:14` was placed.
 
 Job E below is done — the placement run finished on 2026-08-20 and all 131 terminals are placed. Job
 F is still the runner-up and still worth doing as its own piece of work. **The rest of this section
@@ -154,6 +161,125 @@ Semicolons, not `&&`, so one failure does not hide the state of the other three.
 `npm run build` **and restart the server** at the end; see the state block above for why both.
 
 ---
+
+## 2026-09-02 — Session 5 of the wires-and-nets plan: the sheet can show you a wire
+
+**Phases D and G of `_claude_notes/highlighting_wires_and_nets.md`.** A new endpoint, a new field in
+`locations.json`, and the first mark this application draws that is a **line** rather than a dot.
+Server change — **restart needed** — and the client is a rebuilt bundle.
+
+**What it is for, in one comparison.** `W068` is `DISCHARGE1:3 → TB-120:2`, RED 16AWG. A straight
+line between those two pins is 312 pt diagonally across the middle of the sheet, crossing a dozen
+conductors it has nothing to do with. The ink says something else entirely: west 125 pt along
+`C0081`, a **3.5 pt gap** where the run crosses another wire, then 368 pt east, 76 pt north and 199
+pt back west — 644 pt of conductor going the long way round. For a highlighter whose whole job is
+*which of these lines is the one I care about*, the chord is not approximately right. It is
+somewhere else.
+
+### 1. The file: `path`, and the two axes
+
+Schema 2 gains `path` on a **wire** — and nothing on a net, ever, because a net's highlight is the
+union of its wires' runs and a path stored on a net would be authored, saved and never drawn (it is
+refused **by name**, the `H14` treatment). A path is `runs` — a *list* of polylines, because that
+3.5 pt gap is real ink and closing it would draw a segment nobody drew — plus `conductors`, and two
+provenance axes:
+
+| | | |
+|---|---|---|
+| `geometry` | `extracted` \| `human` | the PDF's own vector stroke, or a person tracing it |
+| `attribution` | `printed` \| `human` | the printed net name beside it matches, or a person said so |
+
+**`derived` is refused by name on both**, with a test per axis. That is invariant 3 in a third set
+of clothes and it is the whole of §8's rule made enforceable rather than merely written down.
+
+The unit of refusal is the **whole path**, which is the deliberate difference from every other
+refusal in the file: a bad `dir` costs one end label because the wire's other end is a separate
+decision, but half a route is a line that stops in the middle of the sheet and claims to be a wire.
+A run of one point, a coordinate off the page the file itself declares, an unknown word on either
+axis — the path goes and everything else in the record stays.
+
+`no_path_on_this_sheet` also landed, validated and counted (`false` refused as *says nothing*, the
+same rule as `hidden: false`). **Nothing on screen can write it yet** — it is Phase E's, and it is
+the `K7` defence: without it a count of paths could never reach 71.
+
+### 2. The endpoint, and why it is free
+
+`GET /api/paths` publishes two maps: `wires` → the traced ones (**absent**, never null, where there
+is no path) and `nets` → each net's wires, computed from `wire.net`, which is the one thing about a
+wire the designator index does not already carry. The client takes the union — which is what lets a
+net say *none of my four wires has a path yet* instead of drawing nothing and reading as broken.
+
+**It is not behind `allow_edits`**, unlike every other route that touches an authored file, and that
+is hazard **H20** rather than an oversight. `/api/review` is gated because it is the one route that
+opens `geometry.json` (`H17`) and because 664 OCR readings are no use to somebody who cannot correct
+them. Neither applies here: a path lives in `locations.json`, the ink loader is never touched — a
+test monkeypatches `load_ink` to raise — and *which line is this* is a **reader's** question before
+it is an editor's.
+
+### 3. The stroke, and the one projection
+
+`paint.ts` gains `polylineToDevice` and `paintRuns`, routed through the **same** `tileDestRect`
+arithmetic as `pointToCss`; `paint.test.ts` asserts the agreement vertex by vertex, because a
+highlight that computed its own projection would eventually sit on the wrong conductor with complete
+confidence. It is painted on the tile canvas in the tiles' own rAF pass, after them and under the
+DOM markers.
+
+5 pt wide **in points**, so it thickens with the ink instead of being a hairline at 11% and a band
+across four rows at 200%; floor of 3 device pixels so the 11% fit still shows it; translucent, so the
+conductor stays readable through the thing pointing at it; round caps and joins, because the ink has
+neither a notch at a corner nor a square end. **One wire or one net at a time.**
+
+Phase G came with it and was as small as the plan promised: the highlight is read off the Drawing
+tab's `selection` and off the Locate tab's `target`, so an Ask-tab citation paints a net and arming a
+wire paints it — and it survives every layer switch, because it is read off the selection and off
+nothing else (`H11`). One shared pure function, `lib/paths.ts` `pathsFor`, is what keeps the two
+tabs from ever disagreeing about what a net is made of.
+
+### 4. The proof, and it is the point of the phase
+
+**Saving a path leaves `circuit_logic.json` current.** No banner, no regeneration, artifact test
+green — because the generator does not read paths and never will: a polyline says nothing about what
+connects to what, which `from_terminal` and `to_terminal` already answer.
+`test_a_path_does_not_reach_the_netlist` compares the generator's output in **bytes** with and
+without one, which is invariant 6's treatment of `label_corrections.json` applied to the fourth thing
+that could quietly move the artifact every answer is checked against.
+
+### 5. A correction to the plan, found while writing the lesson
+
+The plan's §3 and §6, the manual's §8 and `07_drawing_facts.md` all pair **`W052` with `C0080`**.
+Measured against the terminal points placed on 2026-08-20, that is wrong: `C0080` is **`W053`**'s run
+— both ends within 1.7 pt of its pins — and `W052`'s is **`C0109`**. The plan was written on
+2026-08-23 using `CR2`'s coil as `CR2:14`'s position, which is where that pin resolved before anybody
+placed it, and that is also where its "600 pt diagonal" came from. Nothing in the code depended on
+it. `07_drawing_facts.md` now carries the measured pairings for all four of net 120's wires, because
+Session 6's ranking should reproduce them — and two of the four need a conductor with **no printed
+label** to reach their second end, which is a fact about the matcher, not about this drawing.
+
+### 6. The one thing about this session that is unlike the others
+
+**There is no path editor until Session 6**, so `13_tests_paths_highlight.md` opens with a **worked
+hand-edit** — the exact blocks to paste into `locations.json` with the server stopped — and says
+plainly that it is temporary scaffolding and not the workflow. The editor will not eat it: every
+mutation rewrites the record it found, and `model.test.ts` now has a test that says so.
+
+    tests             157 server, 251 web, ruff and tsc clean (was 141 and 232).
+                      New: tests/test_paths.py (7), webui/src/lib/paths.test.ts (6),
+                      eight path refusals in test_locations.py, one in
+                      test_extraction_generator.py, five in paint.test.ts, five in
+                      DrawingTab.test.tsx, one each in LocateTab.test.tsx and
+                      model.test.ts.
+    new files         webui/src/lib/paths.ts, server/tests/test_paths.py,
+                      webui/src/lib/paths.test.ts,
+                      _claude_notes/locate_tab_testing/13_tests_paths_highlight.md
+    what moved        WirePath/_paths/_no_path/Geometry.paths in locations.py;
+                      paths_index in drawing.py; GET /api/paths in main.py;
+                      polylineToDevice/paintRuns/HIGHLIGHT in paint.ts; a `runs` prop
+                      and `data-runs` on TileSheet; `paths` in appStore, refreshed
+                      with the designators because one save moves both; a path line
+                      on SelectionCard. New hazard H20.
+    authored files    **none changed.** locations.json and label_corrections.json are
+                      exactly as the user left them; the hand edit in T-800 is the
+                      user's to make and to keep or discard.
 
 ## 2026-08-25 — Session 4 of the wires-and-nets plan: the extraction's own doubts, on a screen
 

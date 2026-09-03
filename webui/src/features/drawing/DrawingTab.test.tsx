@@ -14,7 +14,13 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { DrawingTab, DRAWING_TAB_ID } from './DrawingTab'
-import type { Designator, DesignatorIndex, DrawingSummary, TileManifest } from '@/api/types'
+import type {
+  Designator,
+  DesignatorIndex,
+  DrawingSummary,
+  PathIndex,
+  TileManifest,
+} from '@/api/types'
 import { buildLookup } from '@/lib/designators'
 import { useAppStore } from '@/stores/appStore'
 import { useChatStore } from '@/stores/chatStore'
@@ -99,6 +105,47 @@ const W048: Designator = {
   label_point: [742, 511], label_dir: 'w',
 }
 
+/**
+ * What `/api/paths` says about this drawing: `W048` traced, and a second wire on net 110 that
+ * shares it — so a net's highlight is the union of two wires' runs rather than one wire's.
+ *
+ * The runs are along the ink and nowhere near a line between the wire's ends, which is the whole
+ * point of the format: `W048` runs `CR-BP:A2 → CB1:2`, and the chord between those two pins would
+ * cross most of the sheet.
+ */
+const PATHS: PathIndex = {
+  wires: {
+    W048: {
+      runs: [
+        [
+          [385.4, 660.7],
+          [301.8, 660.7],
+        ],
+      ],
+      geometry: 'extracted',
+      attribution: 'printed',
+      conductors: ['C0080'],
+    },
+    W049: {
+      runs: [
+        [
+          [301.8, 639.6],
+          [426.3, 639.6],
+        ],
+      ],
+      geometry: 'human',
+      attribution: 'human',
+    },
+  },
+  nets: { '110': ['W048', 'W049'] },
+}
+
+/** How many runs the sheet was asked to highlight this frame. jsdom hands back no 2D context, so
+ * this attribute on the canvas is the only trace the paint leaves — see `TileSheet`. */
+function highlighted(): number {
+  return Number(screen.getByRole('application').querySelector('canvas')?.dataset.runs ?? -1)
+}
+
 /** The index with something in all three groups, which is what the layer switches are about. */
 function withLabels() {
   const index: DesignatorIndex = {
@@ -171,6 +218,7 @@ beforeEach(() => {
     activeTabId: 'ask',
     designators: INDEX,
     byToken: buildLookup(INDEX),
+    paths: null,
     selection: null,
   })
 })
@@ -179,6 +227,7 @@ afterEach(() => {
   for (const name of descriptors) delete (HTMLElement.prototype as never)[name]
   useAppStore.setState({
     activeTabId: 'ask', designators: null, byToken: new Map(), selection: null, health: null,
+    paths: null,
     // The collapse is persisted, so a test that closes the list would close it for every test
     // after it — and for whoever runs the suite twice in one browser.
     drawingListOpen: true,
@@ -1012,6 +1061,98 @@ describe('DrawingTab', () => {
         .getByRole('option', { name: /^110/ })
         .getAttribute('aria-selected'),
     ).toBe('false')
+  })
+
+  /**
+   * The highlight — Phases D and G, and the sentence in `06_code_map.md` §8 they were unblocked
+   * by: **a wire's route is never computed.** Everything painted below came out of
+   * `locations.json`, where a person put it after lifting it from the PDF's own strokes.
+   *
+   * The canvas cannot be read in jsdom, so what these assert is the runs that reached the sheet
+   * plus what the card says about them. The projection itself is `paint.test.ts`'s, and the union
+   * rule is `lib/paths.test.ts`'s; this is the seam between them and the screen.
+   */
+  it('highlights the runs of a selected wire, and says where they came from', async () => {
+    withLabels()
+    useAppStore.setState({ paths: PATHS })
+    render(<DrawingTab />)
+    activate()
+    expect(highlighted()).toBe(0)
+
+    act(() => useAppStore.getState().select('wire', 'W048'))
+
+    await waitFor(() => expect(highlighted()).toBe(1))
+    // The two provenance axes, on screen, because a hand-traced path has to say so everywhere it
+    // appears and a lifted one is worth trusting differently.
+    expect(sheet().getByText('lifted from the ink')).toBeTruthy()
+    expect(sheet().getByText('matched by its printed name')).toBeTruthy()
+    expect(sheet().getByText('C0080')).toBeTruthy()
+  })
+
+  it('highlights a net as the union of its wires’ runs', async () => {
+    withLabels()
+    useAppStore.setState({ paths: PATHS })
+    render(<DrawingTab />)
+    activate()
+
+    act(() => useAppStore.getState().select('net', '110'))
+
+    // Two wires, one run each, and the net stores none of its own. `part hand-traced` because one
+    // of the two was drawn by a person: rounding that to either word would be a claim about ink
+    // nobody lifted.
+    await waitFor(() => expect(highlighted()).toBe(2))
+    expect(sheet().getByText(/2 of its 2 wires/)).toBeTruthy()
+    expect(sheet().getByText('part hand-traced')).toBeTruthy()
+  })
+
+  it('says a net has no path yet rather than drawing nothing and looking broken', async () => {
+    // The normal state of this drawing until Session 6 builds the path editor. An empty sheet
+    // cannot distinguish *nobody has traced this* from *the highlight is broken*, so the card
+    // says which, with the count that makes it legible.
+    withLabels()
+    useAppStore.setState({ paths: { wires: {}, nets: { '110': ['W048', 'W049'] } } })
+    render(<DrawingTab />)
+    activate()
+
+    act(() => useAppStore.getState().select('net', '110'))
+
+    await waitFor(() => expect(sheet().getByText(/no path yet/)).toBeTruthy())
+    expect(sheet().getByText(/none of its 2 wires has one/)).toBeTruthy()
+    expect(highlighted()).toBe(0)
+  })
+
+  it('keeps the highlight when the selection’s own layer is switched off', async () => {
+    // `H11` again, and the same reasoning as the rings and the end labels: hiding the thing an
+    // answer just pointed at is the one case the overlay must stay visible for. The highlight is
+    // read off the selection and off nothing else, which is what makes this true by construction.
+    withLabels()
+    useAppStore.setState({ paths: PATHS })
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('wire', 'W048'))
+    await waitFor(() => expect(highlighted()).toBe(1))
+
+    fireEvent.click(group('Wires'))
+    expect(group('Wires').getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(group('Wires'))
+    expect(group('Wires').getAttribute('aria-pressed')).toBe('false')
+    expect(highlighted()).toBe(1)
+  })
+
+  it('highlights one thing at a time, and nothing for a kind that has no route', async () => {
+    // Two highlights in one colour would say the two are the same thing, and a component has no
+    // route to draw — so selecting one clears the sheet rather than leaving the last wire lit.
+    withLabels()
+    useAppStore.setState({ paths: PATHS })
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('wire', 'W048'))
+    await waitFor(() => expect(highlighted()).toBe(1))
+
+    act(() => useAppStore.getState().select('component', 'CR-BP'))
+    await waitFor(() => expect(highlighted()).toBe(0))
+    // And no card line about a path, because a relay has none in the way a stone has no opinion.
+    expect(sheet().queryByText(/no path yet/)).toBeNull()
   })
 
   it('offers no tab at all when the sheet has never been rendered to tiles', () => {

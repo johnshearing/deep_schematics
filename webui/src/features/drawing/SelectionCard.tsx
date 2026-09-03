@@ -16,10 +16,14 @@ import { ArrowLeft, Crosshair, X } from 'lucide-react'
 import type { Designator, DesignatorKind, EntryTerminal } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { KIND_LABEL, placementLabel } from '@/lib/designators'
+import type { PathSummary } from '@/lib/paths'
 import { cn } from '@/lib/utils'
 
 interface Props {
   entry: Designator
+  /** What is highlighted on the sheet for this selection, and how it is known. Null for a
+   * component or a terminal, which have no route in the way a stone has no opinion. */
+  path?: PathSummary | null
   /** Members that have a location, so the chips only offer places we can actually go. */
   canSelect: (componentId: string) => boolean
   onSelectMember: (componentId: string) => void
@@ -50,6 +54,7 @@ interface Props {
  */
 export function SelectionCard({
   entry,
+  path = null,
   canSelect,
   onSelectMember,
   onSelectTerminal,
@@ -117,6 +122,8 @@ export function SelectionCard({
         </Button>
       </div>
 
+      {path && <PathNote entry={entry} path={path} />}
+
       {terminals.length > 0 && (
         <div className="mt-2">
           <p className="text-[11px] text-muted-foreground">
@@ -167,6 +174,88 @@ export function SelectionCard({
         </Button>
       </div>
     </div>
+  )
+}
+
+/**
+ * What is highlighted, in one line — **and what is not, which is the half that matters today.**
+ *
+ * Until Session 6 there is no path editor, so almost every wire on this sheet has no route yet.
+ * A card that said nothing about it would leave a reader deciding between *this wire has no path*
+ * and *this screen is broken*, on the evidence of an unhighlighted drawing. So the absence is
+ * stated, with the count that makes it legible: a net with four wires and none of them traced is
+ * a different thing from a net with no wires.
+ *
+ * The two provenance badges are the amendment of 2026-08-23 made visible. `lifted from the ink`
+ * is the PDF's own vector strokes; `hand-traced` is a person following the printed run, and it
+ * says so **everywhere it appears** — that was a condition of allowing hand tracing at all.
+ */
+function PathNote({ entry, path }: { entry: Designator; path: PathSummary }) {
+  const wires = entry.kind === 'net' ? `${path.wires} wire${path.wires === 1 ? '' : 's'}` : null
+
+  if (path.traced === 0) {
+    return (
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        no path yet
+        {wires ? ` — none of its ${wires} has one` : ''}, so nothing is highlighted
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+      <span>
+        highlighted
+        {wires ? `: ${path.traced} of its ${wires}` : ''}
+      </span>
+      <Badge
+        title={
+          path.geometry === 'human'
+            ? 'Traced by hand along the printed conductor.'
+            : path.geometry === 'mixed'
+              ? 'Some of these runs are the PDF\u2019s own strokes and some were traced by hand.'
+              : 'Lifted from the PDF\u2019s own vector strokes — not a reading of them, and never a line between the wire\u2019s ends.'
+        }
+      >
+        {GEOMETRY_WORD[path.geometry ?? 'extracted']}
+      </Badge>
+      <Badge
+        title={
+          path.attribution === 'printed'
+            ? 'The net name printed beside this conductor matches this wire\u2019s net.'
+            : path.attribution === 'mixed'
+              ? 'Some of these runs were matched by their printed name and some were assigned by a person.'
+              : 'A person said this run belongs to this wire.'
+        }
+      >
+        {ATTRIBUTION_WORD[path.attribution ?? 'human']}
+      </Badge>
+      {path.conductors.length > 0 && (
+        <span className="font-mono" title="The conductors in geometry.json these runs came from">
+          {path.conductors.join(' ')}
+        </span>
+      )}
+    </div>
+  )
+}
+
+const GEOMETRY_WORD: Record<string, string> = {
+  extracted: 'lifted from the ink',
+  human: 'hand-traced',
+  mixed: 'part hand-traced',
+}
+
+const ATTRIBUTION_WORD: Record<string, string> = {
+  printed: 'matched by its printed name',
+  human: 'assigned by hand',
+  mixed: 'part assigned by hand',
+}
+
+function Badge({ children, title }: { children: string; title: string }) {
+  return (
+    <span className="rounded border px-1 text-[10px]" title={title}>
+      {children}
+    </span>
   )
 }
 

@@ -166,3 +166,48 @@ def test_a_broken_locations_file_still_writes_the_netlist(tmp_path: Path) -> Non
     assert len(doc["components"]) == 47
     assert "WARNING: locations.json ignored" in out
     assert "from locations.json: 0 sites, 0 terminals" in out
+
+
+def test_a_path_does_not_reach_the_netlist(tmp_path: Path) -> None:
+    """**The proof of Phase D, in bytes.** Saving a path must not make `circuit_logic.json` stale.
+
+    A polyline says nothing about *what connects to what*: `from_terminal` and `to_terminal`
+    already answer that, and 149 conductors half of them multi-segment would inflate the one file
+    the model reads end to end. So paths are display geometry, they live only in `locations.json`,
+    and the generator does not read them — which is why authoring one costs no regeneration, no
+    banner, and no red artifact test. This is invariant 6's treatment of `label_corrections.json`
+    applied to the fourth thing that could quietly move the artifact every answer is checked
+    against.
+    """
+    base = {
+        "drawing_number": "PS20115MLM4-2",
+        "schema": 2,
+        "components": {},
+        "terminals": {},
+        "wires": {"W048": {"label_point": [742, 511], "source": "human"}},
+    }
+    traced = {
+        **base,
+        "wires": {
+            "W048": {
+                **base["wires"]["W048"],
+                "path": {
+                    "runs": [[[379.8, 663.7], [301.8, 663.7]]],
+                    "conductors": ["C0080"],
+                    "geometry": "extracted",
+                    "attribution": "human",
+                },
+                "no_path_on_this_sheet": False,
+            }
+        },
+    }
+
+    (tmp_path / "plain").mkdir()
+    (tmp_path / "with-path").mkdir()
+    plain, _ = run(tmp_path / "plain", base)
+    with_path, out = run(tmp_path / "with-path", traced)
+    assert with_path == plain
+    # And it is not merely ignored by accident: the fold still saw the record and applied the one
+    # thing in it that belongs in the netlist.
+    assert find(with_path["wires"], "W048")["label_location"]["x"] == 742.0
+    assert "from locations.json: 0 sites, 0 terminals, 1 labels" in out

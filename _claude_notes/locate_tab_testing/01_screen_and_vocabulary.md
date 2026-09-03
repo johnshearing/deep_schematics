@@ -47,6 +47,36 @@ the file stop being able to tell you what anybody actually decided.
 gauge (`BLUE 18AWG`) and never `W052`, because every `W###` is an id the extraction invented and is
 printed nowhere on the paper. A **net** shows its own id. `10_tests_end_labels.md` is the whole of it.
 
+**Path** *(new 2026-09-02)* — where a wire **actually runs on the paper**, and the one thing on this
+screen that is a line rather than a point. It is a *list* of polylines, not one, because the
+extractor splits a conductor at every crossover hop — 88 of them on this sheet — and a path across a
+hop must show the gap rather than close it with a segment nobody drew.
+
+A path is **never computed.** It is *lifted from the ink* — a conductor polyline out of
+`geometry.json`, which is the PDF's own vector strokes rather than a reading of them — or *traced by
+a person* along the printed run. It records which, forever, on two axes:
+
+| | | |
+|---|---|---|
+| `geometry` | `extracted` | the polyline is the PDF's own stroke |
+| | `human` | somebody drew it, and it says so everywhere it appears |
+| `attribution` | `printed` | the net name printed beside that conductor matches this wire's net |
+| | `human` | a person said this run is this wire's |
+
+`derived` is a **rejected** word on both, refused by name: a straight line between a wire's two pins
+is not a rough path, it is a different claim. `W068`'s chord is 312 pt across the middle of the
+sheet and its ink is 644 pt going the long way round.
+
+**A net has no path of its own** — its highlight is the union of its wires', so tracing one wire
+improves every net it is on. `13_tests_paths_highlight.md` is the whole of it, and until Session 6
+the only way to author one is a hand edit.
+
+**Highlight** *(new 2026-09-02)* — the translucent orange stripe along a selected wire's or net's
+path. 5 pt wide **in points**, so it thickens with the drawing rather than staying a fixed number of
+pixels; never thinner than 3 device pixels, so it survives the 11% fit; and translucent, because you
+are deciding *which* line this is and a highlight that hid the line would remove the evidence. **One
+wire or one net at a time.**
+
 ---
 
 ## Provenance: the three states, and there is no fourth
@@ -324,6 +354,12 @@ so. Zoom back out to 50% or less and every flight works as it always did.
   drag. They obey the same 30% floor as every other piece of label text, and the ends of the armed
   row bring their pins' dots onto the sheet with them whatever the filter says, because a label with
   no dot beside it is a label whose side you cannot check.
+- **A highlight is not a dot either** *(2026-09-02)*. Select a wire or a net that somebody has
+  traced and its run is painted along the ink — on the tile canvas, under every dot, and **through
+  the same projection**, so it cannot drift off the conductor it names. It is read off the selection
+  (or, here, off the armed row) and off nothing else, so it stays lit through every layer switch and
+  goes out when you select something else. Nothing to click and nothing to drag: the editor for it
+  is Session 6.
 - Dots are **draggable here and nowhere else**. The Drawing tab passes no drag handler, so a stray
   drag there pans the sheet and cannot edit the file.
 - The **Drawing tab draws the same dots, by the same rules** — one per place, filled versus hollow,

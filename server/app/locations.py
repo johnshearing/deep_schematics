@@ -83,6 +83,41 @@ The key is validated against the netlist rather than here: a side on a terminal 
 touch is refused **by name** in `resolve_geometry`, because it is the one mistake a hand edit can
 make here that has no visible symptom on screen.
 
+### A wire's path, and the two axes it carries
+
+Schema 2's other addition, and the one the whole file's authority rests on. A wire may carry a
+`path`: one or more polylines along the printed conductor, plus **which of two things it is**.
+
+    geometry     extracted   the polyline is a conductor out of `geometry.json` — the PDF's own
+                             vector strokes, not a reading of them
+                 human       a person traced it corner by corner along the printed run
+    attribution  printed     the net name printed beside that conductor matches this wire's net
+                 human       a person said this run is this wire
+
+`derived` is a **rejected** value on both axes and is refused by name, because it is the one thing
+a route may never be: synthesised from the wire's two endpoints. `W052` runs `CR2:14 → TB-120:1`;
+a straight chord between those pins is a 600 pt diagonal across the relay column and four
+unrelated circuits, while the ink says one horizontal run at y = 663.7 from x = 379.8 to 301.8.
+The chord is not slightly wrong, it is somewhere else — and for a highlighter whose job is *which
+of these lines is the one I care about*, a wrong line is worse than no line.
+
+`runs` is a **list** of polylines rather than one, because this sheet's extractor splits a
+conductor at every crossover hop — 88 of them — and a path spanning two of those is a real gap in
+the ink that should show as a gap rather than be closed by a segment nobody drew. `conductors`
+records which extracted runs it was lifted from and is absent on a hand trace.
+
+**A net stores no path at all.** Its highlight is the union of its wires' paths, so a `path` under
+`nets` is refused by name: it would be authored, saved, and never drawn, which is the shape of
+mistake this file reports rather than keeps.
+
+`no_path_on_this_sheet` is the explicit *there is nothing here to trace* state, so that a count of
+paths can reach 71 instead of stopping short at the wires whose run is on another drawing. That is
+the `K7` defence, put in deliberately.
+
+**Nothing here reaches `circuit_logic.json`.** `author_circuit_logic.py` does not read paths and
+must not start: a polyline adds nothing to *what connects to what*, and the daily consequence is
+that saving a path leaves the netlist current and the artifact test green.
+
 ### Three layers, and why they are separate functions
 
 `load_locations()` validates *shape*: a point is two numbers, a source is a word we know, a label
@@ -138,6 +173,16 @@ COMPASS = ("n", "ne", "e", "se", "s", "sw", "w", "nw")
 #: it is the indexing pass's estimate. See the module docstring on why there is no third.
 SOURCES = ("human", "seed")
 
+#: The two axes a wire's path carries, and they are separate questions: `geometry` is where the
+#: line came from, `attribution` is who says it belongs to this wire. A lifted conductor is exact
+#: geometry with uncertain attribution, and that pair is precisely what a human confirms.
+GEOMETRIES = ("extracted", "human")
+ATTRIBUTIONS = ("printed", "human")
+
+#: Refused by name on **both** axes. Not merely "not one of the two": a value spelled out in the
+#: refusal is a value somebody has to argue for before it comes back. See the module docstring.
+DERIVED = "derived"
+
 
 class LocationsRefused(ValueError):
     """A write that would make the whole file meaningless. Never raised by the read path."""
@@ -166,6 +211,24 @@ class EndLabel:
 
 
 @dataclass(frozen=True)
+class WirePath:
+    """Where one wire actually runs on the paper, and which of the two ways we know it.
+
+    `runs` is a tuple of polylines — plural because a crossover hop is a real gap in the ink, and
+    a path across one should show the gap rather than close it with a segment nobody drew. Each
+    polyline is at least two points, in PDF points, in the same space as the tiles.
+
+    `conductors` names the extracted runs it was lifted from and is empty on a hand trace, which
+    is why it is the one field here that may be absent from the file.
+    """
+
+    runs: tuple[tuple[tuple[float, float], ...], ...]
+    geometry: str
+    attribution: str
+    conductors: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Site:
     """One place a component is drawn, and the terminals drawn there (bare pin names)."""
 
@@ -189,6 +252,12 @@ class Locations:
     #: The end-label exceptions: wire or net id → terminal id → what a person decided. Only
     #: overrides are here; everything absent is at the side the viewer's rule computes.
     end_labels: dict[str, dict[str, EndLabel]] = field(default_factory=dict)
+    #: Where each wire runs, for the wires somebody has said. **Wires only** — a net's highlight
+    #: is the union of its wires' paths and it stores nothing of its own.
+    paths: dict[str, WirePath] = field(default_factory=dict)
+    #: The wires a person has marked *there is nothing here to trace*. A decision, not a gap:
+    #: without it a count of paths could never reach 71, which is `K7`'s exact shape.
+    no_path: frozenset[str] = frozenset()
     problems: tuple[str, ...] = ()
 
     def site_for(self, component: str, pin: str) -> Site | None:
@@ -214,6 +283,10 @@ class Locations:
             # Overrides, not labels: every wire end and net terminal has one already. This is
             # how many a person has moved or hidden, which is the only part anybody authored.
             "end_labels": sum(len(ends) for ends in self.end_labels.values()),
+            # The two halves of "this wire has been dealt with": a path, or a reason there is
+            # none. Counted apart because they are different claims and a queue needs both.
+            "paths": len(self.paths),
+            "no_path": len(self.no_path),
         }
 
 
@@ -260,7 +333,10 @@ def parse(raw: Any) -> Locations:
     page = _page_size(raw.get("page_size_pt"), problems)
     sites = _sites(raw.get("components"), problems)
     terminals = _terminals(raw.get("terminals"), problems)
-    labels, end_labels = _labels(raw, problems)
+    # The page is handed down so a path can be checked against the sheet it was drawn on. It is
+    # the *file's own* declaration, so this stays a shape check that knows nothing about this
+    # drawing; the check against the rendered page size is `resolve_geometry`'s, as it always was.
+    labels, end_labels, paths, no_path = _labels(raw, page, problems)
     return Locations(
         present=True,
         page_size_pt=page,
@@ -268,6 +344,8 @@ def parse(raw: Any) -> Locations:
         terminals=terminals,
         labels=labels,
         end_labels=end_labels,
+        paths=paths,
+        no_path=no_path,
         problems=tuple(problems),
     )
 
@@ -374,21 +452,37 @@ LABEL_KEY = "label_point"
 #: The key holding the end-label overrides, and the two things one of them may say.
 END_LABELS_KEY = "labels"
 
+#: Where a wire runs, and the explicit *it does not run anywhere on this sheet*. Both are the
+#: `wires` section's alone — see `_paths` for why a net carrying either is refused.
+PATH_KEY = "path"
+NO_PATH_KEY = "no_path_on_this_sheet"
+
+#: Everything a wire or net record may hold besides `label_point`. A record with any of these and
+#: no point is a complete, sensible thing to say, so `label_point` is only demanded when a record
+#: would otherwise say nothing at all.
+OTHER_KEYS = (END_LABELS_KEY, PATH_KEY, NO_PATH_KEY)
+
 
 def _labels(
-    raw: dict[str, Any], problems: list[str]
-) -> tuple[dict[str, Placed], dict[str, dict[str, EndLabel]]]:
-    """`wires` and `nets`, holding where the name is written and which way each end's label faces.
+    raw: dict[str, Any], page: tuple[float, float] | None, problems: list[str]
+) -> tuple[
+    dict[str, Placed],
+    dict[str, dict[str, EndLabel]],
+    dict[str, WirePath],
+    frozenset[str],
+]:
+    """`wires` and `nets`: where the name is written, which way each end's label faces, and — for
+    a wire — where it actually runs.
 
-    A wire has no place of its own here. A route **synthesised from its two endpoint terminals** is
-    the one thing the netlist's authority rests on never inventing — a straight chord between two
-    pins no conductor joined is not slightly wrong, it is somewhere else, across circuits the wire
-    never touches. (A route *lifted from the PDF's own conductor strokes*, or traced by a person
-    along the printed conductor, is a different thing and is not in this schema yet; when it arrives
-    it will say which of the two it was. `derived` is a rejected value in that vocabulary as it is
-    in this one.) But the *text* — `BLUE 18AWG`, or a net number beside a conductor — is printed
-    somewhere specific on the sheet, and a reader following a citation wants to land on it. So
-    `label_point` is one of the two things either section can carry, and `labels` is the other.
+    A wire has no *place* of its own here, and never will. A route **synthesised from its two
+    endpoint terminals** is the one thing the netlist's authority rests on never inventing: a
+    straight chord between two pins no conductor joined is not slightly wrong, it is somewhere
+    else, across circuits the wire never touches. What arrived with schema 2 is the other thing —
+    a route **lifted from the PDF's own conductor strokes** or **traced by a person** along the
+    printed run, which says forever which of the two it was and refuses `derived` by name. See
+    `_paths`. The *text* — `BLUE 18AWG`, or a net number beside a conductor — is printed somewhere
+    specific and a reader following a citation wants to land on it, which is `label_point`;
+    `labels` is the side of each end's label. Four keys, three questions, one validator.
 
     **`label_point` is required only when there is nothing else.** A record with end-label
     overrides and no point is a complete, sensible thing to say — *this wire's ends face these
@@ -398,6 +492,8 @@ def _labels(
     """
     out: dict[str, Placed] = {}
     ends: dict[str, dict[str, EndLabel]] = {}
+    routes: dict[str, WirePath] = {}
+    nothing_to_trace: set[str] = set()
     seen: set[str] = set()
     for section in LABEL_SECTIONS:
         value = raw.get(section)
@@ -424,12 +520,28 @@ def _labels(
             overrides = _end_labels(where, body.get(END_LABELS_KEY), problems)
             if overrides:
                 ends[identifier] = overrides
-            # Only demanded when the record has no end labels to justify its existence.
-            if LABEL_KEY in body or END_LABELS_KEY not in body:
+
+            # A net has no route of its own: its highlight is the union of its wires' paths, so
+            # a path stored here would be authored, saved and never drawn. Named for the same
+            # reason `H14` is — the symptom would otherwise be nothing at all.
+            if section == "nets" and (PATH_KEY in body or NO_PATH_KEY in body):
+                problems.append(
+                    f"{where} carries a path; a net stores none of its own — its highlight is "
+                    "the union of its wires' paths"
+                )
+            elif section == "wires":
+                route = _paths(where, body.get(PATH_KEY), page, problems)
+                if route is not None:
+                    routes[identifier] = route
+                if _no_path(where, body.get(NO_PATH_KEY), problems):
+                    nothing_to_trace.add(identifier)
+
+            # Only demanded when the record has nothing else to justify its existence.
+            if LABEL_KEY in body or not any(key in body for key in OTHER_KEYS):
                 placed = _placed(where, body, problems, key=LABEL_KEY)
                 if placed is not None:
                     out[identifier] = placed
-    return out, ends
+    return out, ends, routes, frozenset(nothing_to_trace)
 
 
 def _end_labels(
@@ -473,6 +585,115 @@ def _end_labels(
             continue
         out[terminal] = EndLabel(dir=direction, hidden=bool(hidden))
     return out
+
+
+def _paths(
+    where: str, value: Any, page: tuple[float, float] | None, problems: list[str]
+) -> WirePath | None:
+    """One wire's route: the polylines, and the two axes saying how we know them.
+
+    **The unit of refusal is the whole path**, unlike everything else in this file, and that is
+    deliberate rather than an inconsistency. A bad `dir` costs one end label because the wire's
+    other end is a separate decision; half a route is not a decision at all — it is a line that
+    stops in the middle of the sheet and claims to be a wire, which is exactly the wrong thing to
+    draw. So a single unusable point takes the path with it and leaves everything else in the
+    record — the end labels, the printed name, every other wire — untouched.
+
+    Four ways to be refused, and each is a thing a hand edit does:
+
+    - `geometry` or `attribution` **`derived`**, named as such. This is the rejected tier of
+      invariant 3 in a third set of clothes: a route synthesised from a wire's endpoints is not a
+      worse path, it is a different claim, and the file must not be able to hold it.
+    - a polyline of fewer than two points. One point is not a run.
+    - a coordinate off the page the file itself declares. A path at (3000, 900) on a 1224 × 792 pt
+      sheet is not drawn *slightly* wrong, it is drawn nowhere the reader can see.
+    - `runs` empty, or not a list of lists. A path with no runs says nothing.
+
+    Coordinates are kept exactly as written. The editor rounds to a tenth of a point on the way
+    in — the precision this file records — but a hand edit carrying more decimals is not a mistake
+    worth reporting, and quietly rounding it here would make the published path disagree with the
+    file a person is reading.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        problems.append(f"{where}.{PATH_KEY} is not an object")
+        return None
+
+    axes: dict[str, str] = {}
+    for key, allowed in (("geometry", GEOMETRIES), ("attribution", ATTRIBUTIONS)):
+        word = value.get(key)
+        if word == DERIVED:
+            problems.append(
+                f"{where}.{PATH_KEY} has {key} {DERIVED!r}: a route is lifted from the ink or "
+                f"traced by a person, never derived from the wire's endpoints"
+            )
+            return None
+        if word not in allowed:
+            problems.append(f"{where}.{PATH_KEY} has {key} {word!r}, not one of {allowed}")
+            return None
+        axes[key] = word
+
+    raw_runs = value.get("runs")
+    if not isinstance(raw_runs, list) or not raw_runs:
+        problems.append(f"{where}.{PATH_KEY}.runs is not a list of at least one polyline")
+        return None
+
+    runs: list[tuple[tuple[float, float], ...]] = []
+    for index, raw_run in enumerate(raw_runs):
+        at = f"{where}.{PATH_KEY}.runs[{index}]"
+        if not isinstance(raw_run, list) or len(raw_run) < 2:
+            problems.append(f"{at} has fewer than two points: a run of one point is not a route")
+            return None
+        points: list[tuple[float, float]] = []
+        for point in raw_run:
+            pair = _floats(point, 2)
+            if pair is None:
+                problems.append(f"{at} has a point that is not two numbers: {point!r}")
+                return None
+            if page and not (0 <= pair[0] <= page[0] and 0 <= pair[1] <= page[1]):
+                problems.append(
+                    f"{at} has a point at ({pair[0]}, {pair[1]}), which is off a "
+                    f"{page[0]}×{page[1]} pt page"
+                )
+                return None
+            points.append((pair[0], pair[1]))
+        runs.append(tuple(points))
+
+    conductors = value.get("conductors")
+    if conductors is not None and not (
+        isinstance(conductors, list) and all(isinstance(c, str) for c in conductors)
+    ):
+        problems.append(f"{where}.{PATH_KEY}.conductors is not a list of extraction ids")
+        return None
+    # Absent on a hand trace, and that absence is the record: there was no conductor to lift.
+    return WirePath(
+        runs=tuple(runs),
+        geometry=axes["geometry"],
+        attribution=axes["attribution"],
+        conductors=tuple(conductors or ()),
+    )
+
+
+def _no_path(where: str, value: Any, problems: list[str]) -> bool:
+    """*There is nothing on this sheet to trace* — a decision, and only ever `true`.
+
+    `false` is refused for the same reason `hidden: false` is (invariant 10): it is the shape a
+    *Reset* that wrote instead of deleting would leave behind, and a file that cannot tell
+    *nobody has looked at this wire* from *somebody decided there is nothing here* has stopped
+    being a record of who said what.
+    """
+    if value is None:
+        return False
+    if value is True:
+        return True
+    if value is False:
+        problems.append(
+            f"{where}.{NO_PATH_KEY} is false, which says nothing: delete the key instead"
+        )
+        return False
+    problems.append(f"{where}.{NO_PATH_KEY} is {value!r}, which is not true")
+    return False
 
 
 def _placed(
@@ -649,6 +870,11 @@ class Geometry:
     #: terminal id → what a person decided. Absent means *the computed default*, which is the
     #: normal state of 269 of this drawing's end labels.
     end_labels: dict[str, dict[str, EndLabel]] = field(default_factory=dict)
+    #: Where each wire runs, for the wires the netlist has and somebody has traced. Nets are not
+    #: in here and never will be: a net's highlight is the union of its wires' paths.
+    paths: dict[str, WirePath] = field(default_factory=dict)
+    #: The wires somebody has said have nothing to trace on this sheet.
+    no_path: frozenset[str] = frozenset()
     #: Whether there is a `locations.json` at all. A fresh extraction has none, which is not a
     #: problem; a file that parsed to nothing is.
     present: bool = False
@@ -663,6 +889,11 @@ class Geometry:
 
     def label(self, identifier: str | None) -> Spot | None:
         return self.labels.get(identifier) if identifier else None
+
+    def path(self, identifier: str | None) -> WirePath | None:
+        """Where this wire runs, or None for *nobody has traced it*. Never ask a net: it has no
+        path of its own, and the answer is the union of its wires'."""
+        return self.paths.get(identifier) if identifier else None
 
     def end_label(self, identifier: str | None, terminal_id: str | None) -> EndLabel | None:
         """What a person decided about this one end of this one wire or net, or None for *nobody
@@ -706,10 +937,12 @@ def resolve_geometry(
     # its two endpoint terminals and a net's is its members; anything else is a label on a pin the
     # thing does not touch, which draws nothing and is invisible on screen.
     touches: dict[str, set[str]] = {}
+    known_wires: set[str] = set()
     for item in doc.get("wires") or []:
         if isinstance(item, dict) and isinstance(item.get("id"), str):
             pair = (item.get("from_terminal"), item.get("to_terminal"))
             touches[item["id"]] = {t for t in pair if isinstance(t, str)}
+            known_wires.add(item["id"])
     for item in doc.get("nets") or []:
         if isinstance(item, dict) and isinstance(item.get("id"), str):
             touches[item["id"]] = {
@@ -753,6 +986,20 @@ def resolve_geometry(
             kept[tid] = override
         if kept:
             resolved_end_labels[lid] = kept
+
+    # A path for a wire the netlist does not have. Named for the same reason as everything else
+    # here: it would be a highlight nothing can ever select, which on screen is silence.
+    for wid in stored.paths:
+        if wid not in known_wires:
+            problems.append(
+                f"{FILENAME} traces a path for {wid!r}, which is not a wire in the netlist"
+            )
+    for wid in stored.no_path:
+        if wid not in known_wires:
+            problems.append(
+                f"{FILENAME} says {wid!r} has no path on this sheet, and it is not a wire in "
+                "the netlist"
+            )
 
     resolved_components: dict[str, tuple[Spot, ...]] = {}
     for component in components:
@@ -815,6 +1062,8 @@ def resolve_geometry(
         counts=stored.counts(),
         labels={i: Spot.of(p, None) for i, p in stored.labels.items()},
         end_labels=resolved_end_labels,
+        paths={w: p for w, p in stored.paths.items() if w in known_wires},
+        no_path=frozenset(w for w in stored.no_path if w in known_wires),
         present=stored.present,
     )
 

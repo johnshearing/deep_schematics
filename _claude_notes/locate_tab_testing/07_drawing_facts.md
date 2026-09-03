@@ -212,16 +212,42 @@ registration step.*
 | `review_queue` | **278** items: **159** `low_confidence_label` (with `raw_ocr`, `text`, `confidence`, `bbox`) and **119** `incomplete_conductor` (with `endpoints` and which of `net_label`/`spec_label`/`unbound_endpoints` it lacks) |
 | text labels | **502** on the sheet, **431** read, **159** flagged low-confidence, **71** of those read as empty |
 
-**Net `120`, the worked example** — four conductors, four wires, specs matching exactly:
+**Net `120`, the worked example** — four conductors carrying its printed name, four wires, specs
+matching exactly:
 
-| Conductor | Run | Spec |
-|---|---|---|
-| `C0080` | (379.8, 663.7) → (301.8, 663.7) | BLUE 18AWG |
-| `C0081` | (301.8, 639.6) → (426.3, 639.6) | RED 16AWG |
-| `C0091` | (562.9, 563.4) → (301.9, 563.4) | RED 16AWG |
-| `C0109` | (232.6, 563.4) → (298.2, 563.4) | BLUE 18AWG |
+| Conductor | Run | Spec | Printed |
+|---|---|---|---|
+| `C0080` | (379.8, 663.7) → (301.8, 663.7) | BLUE 18AWG | `120` |
+| `C0081` | (301.8, 639.6) → (426.3, 639.6) | RED 16AWG | `120` |
+| `C0091` | (562.9, 563.4) → (301.9, 563.4) | RED 16AWG | `120` |
+| `C0109` | (232.6, 563.4) → (298.2, 563.4) | BLUE 18AWG | `120` |
 
 Net 120's four wires are `W052`/`W053` BLUE 18AWG and `W063`/`W068` RED 16AWG.
+
+### Which conductor belongs to which wire — **measured 2026-09-02, and it corrects the plan**
+
+Every earlier document pairs **`W052` with `C0080`**, including the plan's §3 and §6 and this
+manual's §8. **That is wrong.** It was written on 2026-08-23 from `CR2:14`'s *pre-placement*
+position — its parent relay's coil, 630 pt away — and the pairing has been read off the placed
+points since. Session 6's ranking should reproduce this table; if it does not, the ranking is what
+is wrong.
+
+| Wire | Its two placed ends | The ink, end to end | Note |
+|---|---|---|---|
+| `W052` | `CR2:14` (236.1, 563.4) → `TB-120:1` (300.1, 563.3) | **`C0109`** | one run; both ends within 4 pt |
+| `W053` | `TB-120:3` (300.1, 663.7) → `BYPASS-CB:1` (381.5, 663.8) | **`C0080`** | one run; both ends within 1.7 pt |
+| `W063` | `INFEED1:3` (563.6, 563.5) → `TB-120:2` (300.1, 639.6) | **`C0091` + `C0092`** | an L: west along the row, then 73 pt down the vertical `C0092` (300.1, 565.2) → (300.1, 637.9), which carries **no printed label** |
+| `W068` | `DISCHARGE1:3` (602.7, 563.6) → `TB-120:2` (300.1, 639.6) | **`C0081` + `C0057`** | **the crossover hop**: a 3.5 pt gap at x ≈ 428, and `C0057` is a 3-segment detour (429.8, 639.6) → (798, 639.6) → (798, 563.5) → (598.9, 563.5) |
+
+**`W068` is the example the whole plan should have used.** Its straight chord is 312 pt diagonally
+across the middle of the sheet; its ink is 644 pt of conductor going out to x = 798 and back, in two
+pieces with a hop between them. That is both halves of the argument at once — why a route may never
+be computed, and why `path.runs` is a **list**.
+
+Two things Session 6's matcher can learn from the same table: the second half of a real path is
+routinely a conductor with **no printed net label** (`C0092`, `C0057`), so ranking on the printed
+name alone finds one end of a wire and not the other; and endpoint proximity is decisive here — every
+pairing above is within 4 pt at both ends, against 16 pt rows.
 
 ### The 34 printed net labels, and the nine misreads
 
