@@ -28,7 +28,7 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { CircleCheck, CircleDashed, CircleSlash, Link2, Tag } from 'lucide-react'
+import { CircleCheck, CircleDashed, CircleSlash, Link2, Route, Tag } from 'lucide-react'
 
 import type { Designator } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
@@ -72,6 +72,22 @@ const STATE: Record<RowState, { label: string; tone: string; Icon: typeof Circle
     tone: 'text-[var(--color-success)]',
     Icon: Tag,
   },
+
+  // The two halves of *this wire has been dealt with*, and the only row states that can be
+  // finished: 71 wires, and a `Paths` count that reaches it. `traced` is a route somebody
+  // accepted or drew; `no path here` is a person saying the run is on another drawing, which is
+  // a **decision** and not a gap — without it the count would stop short for a reason nobody can
+  // act on, which is `K7` exactly.
+  traced: {
+    label: 'path traced',
+    tone: 'text-[var(--color-success)]',
+    Icon: Route,
+  },
+  'no-path': {
+    label: 'no path here',
+    tone: 'text-muted-foreground',
+    Icon: CircleSlash,
+  },
   none: {
     label: NOWHERE_LABEL,
     tone: 'text-muted-foreground',
@@ -85,6 +101,8 @@ export const STATE_LABEL: Record<RowState, string> = {
   parent: STATE.parent.label,
   computed: STATE.computed.label,
   labelled: STATE.labelled.label,
+  traced: STATE.traced.label,
+  'no-path': STATE['no-path'].label,
   none: STATE.none.label,
 }
 

@@ -86,6 +86,23 @@ describe('planEndLabels', () => {
     expect(planEndLabels([wire({ spec: undefined })])).toEqual([])
   })
 
+  it('draws the name the sheet prints, not the one the netlist renamed it to', () => {
+    /**
+     * **`K10`**, and this is one of its two symptoms. The extraction renamed the net printed
+     * `PB1` to `NET-PB1`, because the drawing also has a *push button* called `PB1` and two things
+     * may not share an id. The rename was right; the label was not, because an end label's whole
+     * job is to give a reader something to check against the paper in front of them.
+     *
+     * Two nets of 26, and the other symptom cost more: they were the only two whose wires had no
+     * printed conductor for the path matcher to match against. `printed` is published by
+     * `drawing.py` only where it differs from the id, so 24 of the 26 are unaffected.
+     */
+    const renamed = net({ id: 'NET-PB1', printed: 'PB1', on_sheet: false })
+    expect(planEndLabels([renamed]).map((label) => label.text)).toEqual(['PB1', 'PB1', 'PB1'])
+    // And a net the sheet prints under its own name is untouched.
+    expect(planEndLabels([net()])[0].text).toBe('120')
+  })
+
   it('faces a net terminal away from the rest of the net', () => {
     // Z:3 is 200 pt south of the other two, so its label goes south; X:1 and Y:2 face outward
     // from a centroid between and above them.

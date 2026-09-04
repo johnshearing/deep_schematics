@@ -54,14 +54,14 @@ import {
   ScanText,
 } from 'lucide-react'
 
-import type { ReviewItem } from '@/api/types'
+import type { ReviewItem, StoredCorrection } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
 import { useReviewStore } from '@/stores/reviewStore'
 import { REVIEW_TAB_ID } from '@/tabIds'
-import { pointToCss } from '@/features/drawing/paint'
+import { pointToCss, polylineToDevice } from '@/features/drawing/paint'
 import { TileSheet } from '@/features/drawing/TileSheet'
 import { useTileViewport } from '@/features/drawing/useTileViewport'
 import {
@@ -69,10 +69,12 @@ import {
   SCOPES,
   correctionOf,
   filterItems,
+  labelKind,
   orderItems,
   progress,
   rowState,
   setCorrection,
+  setNote,
   type Scope,
 } from './model'
 
@@ -186,6 +188,13 @@ export function ReviewTab() {
     (item: ReviewItem, text: string | null | undefined) =>
       edit((d) => setCorrection(d, item, text, stamp())),
     [edit, stamp],
+  )
+
+  /** A note *beside* a decision. Never a decision of its own — `setNote` refuses a row nobody has
+   * decided about rather than inventing the `text` the file requires. */
+  const annotate = useCallback(
+    (item: ReviewItem, note: string) => edit((d) => setNote(d, item, note)),
+    [edit],
   )
 
   if (!tiles) return null
@@ -322,6 +331,7 @@ export function ReviewTab() {
                     current={item.id === currentId}
                     onFocus={() => setCurrent(item.id)}
                     onDecide={(text) => decide(item, text)}
+                    onNote={(note) => annotate(item, note)}
                   />
                 ))}
               </ul>
@@ -404,12 +414,14 @@ function ReadingRow({
   current,
   onFocus,
   onDecide,
+  onNote,
 }: {
   item: ReviewItem
-  stored: { text: string | null; was?: string | null } | undefined
+  stored: StoredCorrection | undefined
   current: boolean
   onFocus: () => void
   onDecide: (text: string | null | undefined) => void
+  onNote: (note: string) => void
 }) {
   /**
    * What the box starts from: the draft's own answer if there is one, otherwise **the server's
@@ -429,6 +441,15 @@ function ReadingRow({
   }, [settled])
 
   const state = rowState(item)
+  /**
+   * What sort of string the row now says it is — recomputed where a person changed the text.
+   *
+   * The row used to print the *extraction-time* `kind`, so after `125,` → `125` the badge went on
+   * saying `text` where the classifier would say `net_number`, and a badge disagreeing with the box
+   * beside it reads as a field you are not allowed to correct. It was asked about three times in
+   * those words. There is nothing to author: `kind` is a pure function of the text.
+   */
+  const badge = labelKind(item, stored)
   const commit = () => {
     /**
      * **Unchanged from what the box already showed is not a decision.**
@@ -450,8 +471,21 @@ function ReadingRow({
     <li className={cn('px-2 py-1.5', current && 'bg-accent')} data-reading={item.id}>
       <div className="flex items-baseline gap-2 text-[11px]">
         <span className="font-mono text-foreground">{item.id}</span>
-        <Badge tone="default" title={item.kind === 'label' ? 'A string read off the sheet' : 'A run of ink; its reading is the net name printed beside it'}>
-          {item.kind === 'label' ? item.label_kind ?? 'text' : 'run'}
+        <Badge
+          tone="default"
+          title={
+            item.kind !== 'label'
+              ? 'A run of ink; its reading is the net name printed beside it'
+              : badge.recomputed
+                ? `What sort of string this is, worked out from the text you typed. The ` +
+                  `extraction called it ${item.label_kind ?? 'text'} before the correction. It is ` +
+                  `a hint for you and nothing here filters on it, so there is nothing to set.`
+                : 'What sort of string the extraction thinks this is. A hint for you; nothing ' +
+                  'here filters on it.'
+          }
+        >
+          {badge.kind}
+          {badge.recomputed && <span className="ml-0.5 opacity-60">·</span>}
         </Badge>
         {item.net_name && (
           <Badge
@@ -467,6 +501,17 @@ function ReadingRow({
             title="How sure the OCR pass was. This PDF has no embedded text, so every string here was read off stroked glyph outlines."
           >
             {Math.round(item.confidence * 100)}%
+          </span>
+        )}
+        {stored?.note && (
+          /* So a note can be found again. The `Not a label` scope is the other way back, and
+             between them they are what stops the ✖ being used as a bookmark. */
+          <span
+            className="shrink-0 text-[var(--color-ring)]"
+            title={`Noted: ${stored.note}`}
+            aria-label={`${item.id} has a note`}
+          >
+            ✎
           </span>
         )}
         <span className={cn('ml-auto shrink-0', TONE[state])}>{ROW_LABEL[state]}</span>
@@ -514,8 +559,33 @@ function ReadingRow({
         <Button
           variant="ghost"
           size="icon"
-          aria-label={`${item.id} is not a label`}
-          title="This is not a label at all. Seven of this sheet's printed net names are partial reads of things that were never names, and no string can say so — this writes null."
+          aria-label={
+            item.kind === 'conductor'
+              ? `No net name is printed on ${item.id}`
+              : `${item.id} is not a label`
+          }
+          /**
+           * **The wording that cost 34 net names.**
+           *
+           * On a *label* row this button is nearly free: it says the string was never a name, and
+           * seven of this sheet's printed net names are partial reads of things that never were.
+           * On a **run** row it is a claim about the paper — *no net name is printed on this run* —
+           * and `corrected_text()` drops a `null`, so the path matcher never sees that run again.
+           * Used as a bookmark on 2026-09-01 it gave up 34 usable net names, including the only run
+           * carrying net `125`. The code comment beside this button already said the right
+           * sentence; the tooltip a person actually reads did not. It does now, and the note box
+           * below is where a bookmark belongs.
+           */
+          title={
+            item.kind === 'conductor'
+              ? 'No net name is printed on this run. This is a claim about the paper, and the ' +
+                'path matcher acts on it by never offering this run for a wire again — so it is ' +
+                'not a bookmark. If the name is there but hard to read, type it; if the row is ' +
+                'just odd, say so in the note below. Reset (↺) takes this back.'
+              : "This is not a label at all. Seven of this sheet's printed net names are partial " +
+                'reads of things that were never names, and no string can say so — this writes ' +
+                'null.'
+          }
           onClick={() => onDecide(null)}
         >
           <Ban />
@@ -531,6 +601,8 @@ function ReadingRow({
           <RotateCcw />
         </Button>
       </div>
+
+      <NoteBox item={item} stored={stored} onNote={onNote} />
 
       {item.via && (
         <p className="mt-0.5 truncate text-[10px] text-[var(--color-success)]">
@@ -564,15 +636,109 @@ function ReadingRow({
 }
 
 /**
- * The ink of the current reading, ringed.
+ * Why this row is odd, in a person's own words — and **it rides on a decision.**
  *
- * A DOM rectangle rather than a canvas stroke, and that is a deliberate difference from
- * `MarkerLayer`'s dots being DOM and the tiles being canvas: there is exactly one of these, it is a
- * box rather than 149 polylines, and `test-setup.ts` forces `getContext('2d')` to null — so a
- * canvas ring could not be asserted at all, while this one is a node with a position a test can
- * read. Through `pointToCss` like everything else: **there is one projection in this application**,
- * and a ring that computed its own could disagree with the tile under it, which on a screen whose
- * whole job is *"read this exact piece of ink"* would be the only bug that matters.
+ * `note` has been in the schema, parsed and validated, since the day this screen was built, and
+ * until now the only way to write one was to stop the server and hand-edit the file. That gap had
+ * a cost that shows up in the data: asked how to describe a row that is strange, the honest answer
+ * was *there is nowhere*, so **not a label** got used as a bookmark — and on a run that button is
+ * a claim about the paper the path matcher acts on. Thirty-four net names went that way.
+ *
+ * **Disabled until the row has a decision**, and the reason is on the box. The file requires a
+ * `text` — an entry without one *says nothing* and is refused by name — so a note on an undecided
+ * row would have to invent one, and the only value available is the machine's reading. Writing
+ * that would record a *confirmation nobody made*, which is invariant 10 exactly. One press of ✓,
+ * or the name typed in, and the box lights up.
+ *
+ * Its own text, committed on `Enter` or blur, like every other input in this application that
+ * writes a document a pure function may refuse (`H4`), and with the same baseline rule as the
+ * reading above it (`H19`): unchanged is not a decision, so tabbing past a row writes nothing.
+ */
+function NoteBox({
+  item,
+  stored,
+  onNote,
+}: {
+  item: ReviewItem
+  stored: StoredCorrection | undefined
+  onNote: (note: string) => void
+}) {
+  const settled = stored?.note ?? ''
+  const [text, setText] = useState(settled)
+  const typed = useRef(settled)
+  typed.current = text
+
+  useEffect(() => {
+    setText(settled)
+  }, [settled])
+
+  const decided = Boolean(stored)
+
+  return (
+    <input
+      value={decided ? text : ''}
+      disabled={!decided}
+      aria-label={`Note about ${item.id}`}
+      placeholder={
+        decided
+          ? 'note — why this row is odd (optional)'
+          : 'decide first: a note rides on a decision'
+      }
+      onChange={(event) => setText(event.target.value)}
+      onBlur={() => {
+        if (typed.current.trim() === settled) return
+        onNote(typed.current)
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          event.currentTarget.blur()
+        }
+        if (event.key === 'Escape') {
+          setText(settled)
+          event.currentTarget.blur()
+        }
+      }}
+      title={
+        decided
+          ? 'Free text, kept beside the decision. This is where a bookmark belongs — the text ' +
+            'box above is a claim about the ink that the path matcher reads.'
+          : 'A note is stored beside a decision, and this row has none yet: the file requires a ' +
+            'reading, and writing the machine\u2019s one to hang a note off would record a ' +
+            'confirmation you did not make. Press \u2713, type the reading, or press \u2716 first.'
+      }
+      className={cn(
+        'mt-1 h-6 w-full rounded border bg-background px-2 text-[11px]',
+        'focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:outline-none',
+        !decided && 'cursor-not-allowed opacity-50',
+      )}
+    />
+  )
+}
+
+/**
+ * The ink of the current reading, marked — **a box for a string, the run itself for a run.**
+ *
+ * DOM rather than a canvas stroke, and that is a deliberate difference from the tiles being
+ * canvas: there is exactly one of these, and `test-setup.ts` forces `getContext('2d')` to null, so
+ * a canvas mark could not be asserted at all while this one is a node with a position a test can
+ * read. Through `pointToCss` and `polylineToDevice` like everything else: **there is one
+ * projection in this application**, and a mark that computed its own could disagree with the tile
+ * under it — which on a screen whose whole job is *read this exact piece of ink* would be the only
+ * bug that matters.
+ *
+ * ### Why a run is not a box
+ *
+ * It was one until 2026-09-03, because `ink.py` did not load the polylines. `C0002` is a
+ * three-segment L — (954.4, 298.7) → (763.2, 298.7) → (763.2, 83.7) → (748.4, 83.7) — and the
+ * rectangle round its two ends is **206 × 215 pt**, a quarter of the sheet, with a dozen unrelated
+ * runs inside it. Asked *which of these is `C0002`*, that ring cannot answer. Worse, for 19 of the
+ * 149 the box does not even contain the run: `C0057` goes out to x = 798 while its ends span
+ * x 429.8–598.9, so the ink was partly *outside* its own mark.
+ *
+ * So a run is drawn as an SVG polyline along its own corners. A label keeps the box, because a
+ * label **is** a box: the extraction's bbox is the claim, and framing it exactly is what lets a
+ * person see that the box itself is wrong — which is how `T0350` and `T0343` were diagnosed.
  */
 function InkRing({
   item,
@@ -590,18 +756,61 @@ function InkRing({
    * coordinate, and a zero-height ring is invisible. 2 pt of padding, in points, so it tracks the
    * zoom rather than growing into a blob when you zoom out. */
   const pad = 2 * viewport.scale + 2
+  const left = Math.min(start.left, end.left) - pad
+  const top = Math.min(start.top, end.top) - pad
+  const width = Math.abs(end.left - start.left) + pad * 2
+  const height = Math.abs(end.top - start.top) + pad * 2
+
+  /**
+   * The run's own shape, in this element's coordinates.
+   *
+   * `polylineToDevice` is the one projection and it answers in **device** pixels, so the `/ dpr`
+   * here is the same conversion `pointToCss` makes — and the box's own `left`/`top` are subtracted
+   * because the `<svg>` is positioned at the rectangle rather than at the sheet's origin.
+   */
+  const shape =
+    item.points && item.points.length > 1
+      ? polylineToDevice(item.points, viewport, dpr)
+          .map((point) => `${point.x / dpr - left},${point.y / dpr - top}`)
+          .join(' ')
+      : null
+
   return (
     <div
       aria-hidden
       data-ink-ring={item.id}
-      className="pointer-events-none absolute rounded-[2px] border-2 border-[var(--color-ring)] bg-[var(--color-ring)]/10"
-      style={{
-        left: Math.min(start.left, end.left) - pad,
-        top: Math.min(start.top, end.top) - pad,
-        width: Math.abs(end.left - start.left) + pad * 2,
-        height: Math.abs(end.top - start.top) + pad * 2,
-      }}
-    />
+      /* The polyline case keeps the rectangle as a faint frame and stops filling it: the fill is
+         what made a 206 × 215 pt box read as *this whole area is the thing*. */
+      className={cn(
+        'pointer-events-none absolute rounded-[2px]',
+        shape
+          ? 'border border-dashed border-[var(--color-ring)]/40'
+          : 'border-2 border-[var(--color-ring)] bg-[var(--color-ring)]/10',
+      )}
+      style={{ left, top, width, height }}
+    >
+      {shape && (
+        <svg
+          data-ink-shape={item.id}
+          className="absolute inset-0 overflow-visible"
+          width={width}
+          height={height}
+        >
+          <polyline
+            points={shape}
+            fill="none"
+            stroke="var(--color-ring)"
+            /* In points, so it tracks the zoom the way the highlighter's stroke does, with the
+               same 3 device-pixel floor so it survives the 11% fit. `HIGHLIGHT` is 5 pt and this
+               is thinner: it marks one run of ink rather than claiming a wire's whole route. */
+            strokeWidth={Math.max(3 / dpr, 3 * viewport.scale)}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.55}
+          />
+        </svg>
+      )}
+    </div>
   )
 }
 

@@ -44,9 +44,10 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **157 server, 251 web, ruff clean, tsc clean** *(2026-09-02, after Session 5 of
-the wires-and-nets plan; it was 141 and 232 after Session 4, 117 and 192 after Session 3, 117 and 185
-after Session 2, 111 and 155 after Session 1, and 106 and 127 before that)* — except
+Expected right now: **172 server, 318 web, ruff clean, tsc clean** *(2026-09-03, after Session 6 —
+the last session of the wires-and-nets plan; it was 157 and 251 after Session 5, 141 and 232 after
+Session 4, 117 and 192 after Session 3, 117 and 185 after Session 2, 111 and 155 after Session 1,
+and 106 and 127 before that)* — except
 that
 `test_the_committed_artifact_is_exactly_what_the_generator_writes` is red whenever `locations.json`
 has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a failure; re-run the
@@ -96,6 +97,7 @@ Read the index (this file) plus **only** what the symptom calls for.
 | `11_tests_drawing_list.md` | **T-600–T-650.** The Drawing tab's list of all 275 designators: the order, the four filter buttons, the search box, the collapse · **the list filters the list and the switches filter the sheet, and neither touches the other** · five switches · a net selected without spending a question (`K9`) · **and all of it with `SWUI_ALLOW_EDITS=false`**, which is the acceptance criterion. **Drawing tab, no password.** | Anything about finding a designator, about the list and the sheet disagreeing, or about a row doing something to the drawing you did not ask for. |
 | `12_tests_label_corrections.md` | **T-700–T-740.** The new **`Review`** tab: 664 readings the extraction lifted off the paper, the 278 it doubted itself, and the third authored file — `label_corrections.json`. Worst-read first · the ink ringed beside the row · `All readings` · `not a label` as `null` · **Reset deleting** · and **T-740, the netlist not moving**. **Needs the editor password and a restart.** | Anything about a misread label, a run with no net name, or a correction that did not stick — or the artifact test going red after a review run. |
 | `13_tests_paths_highlight.md` | **T-800–T-840.** A wire highlighted **along the PDF's own conductor strokes** rather than between its ends: `GET /api/paths`, the stroke on the canvas, a net as the union of its wires' runs, the highlight surviving its own layer switch, and the two triggers — an Ask-tab citation and an armed row on the Locate tab. **It begins with a hand edit**, because the path editor is Session 6 and without one there is nothing to look at; the document says so and says what to keep. **Both tabs; the highlight itself needs no password.** | Anything about a wire's route: nothing highlighted, the wrong conductor highlighted, a highlight that vanishes when a switch is pressed, or `locations.json` refusing a path you pasted. |
+| `14_tests_path_editor.md` | **T-900–T-960.** The path editor: the ranked candidate runs and what each row's tags mean, one click to accept, `Add a run` across a crossover hop, **Clear** and re-pick, the conversion an extracted run needs before a corner may be dragged, **Trace** with all four keys, *no path on this sheet*, the `Paths` filter and the count that reaches 71 — and **`K10`**, which was worth two nets. **T-910 is the acceptance criterion**: the ranking has to reproduce the four pairings measured by hand in `07_drawing_facts.md`. **Needs the editor password and a restart.** | Anything about a candidate list — nothing offered, the wrong run at the top, a route that will not clear, a corner that will not move, or the count and the filter disagreeing. |
 | `06_code_map.md` | Every behaviour → the file and function that owns it. The data flow end to end. The known hazards, with reasoning. | Always, when troubleshooting. Never needed to *run* a test. |
 | `07_drawing_facts.md` | The concrete ids and coordinates on `PS20115MLM4-2` the tests refer to — relay pin lists, the three `CR-BP` sites, `W048`, net `110`. | When a test names an id and you need to know what it is. |
 | `08_results_log.md` | Every test id in a table, blank, for the user to mark up. | **A troubleshooting session should read this first** — it says what is actually broken. |
@@ -482,6 +484,101 @@ restart needed**, and the client is a rebuilt bundle.
                       `appStore`, refreshed with the designators because one save
                       moves both. New hazard **H20**.
 
+### 5g. Session 6 of the wires-and-nets plan, 2026-09-03 — **the last one**
+
+**Phase E, preceded by the six-item small batch at the end of the plan's §13.** A new endpoint
+behind the editor password, a new pure module, a new panel, and the first screen whose whole job is
+to write a `path`. The plan is `_claude_notes/highlighting_wires_and_nets.md`, and **it is now
+built end to end** — Phases 0, A, B, C, D, E, F and G. **Server change — restart needed**, and the
+client is a rebuilt bundle.
+
+31. **The machine proposes a wire's route and a person accepts it.** Arm a wire and the panel offers
+    a short **ranked** list of runs of ink, each tagged with why it is there: `both ends`, `one end`,
+    `printed name`, `corrected name`, `spec`, `colour only`, `nearby`, `another net`, `suspect`.
+    Hover one and it lights on the sheet in its own colour — a proposal must never look like a
+    decision. Click to accept; `Add a run` continues a route across a **crossover hop**, which is
+    why `runs` is a list and why the gap is drawn as a gap. **Nothing is ever accepted
+    automatically**, not even for the 37 wires whose single candidate lands on both their pins, and
+    every route this screen writes says `attribution: human`. **T-900–T-960** in the new
+    `14_tests_path_editor.md`, none walked.
+
+32. **The geometry outranks the printed name, and that is the opposite of what the plan's prose
+    suggested.** A placed pin against a vector stroke is geometry against geometry with no reading
+    of the paper in between; a printed name is *read*, and 30 of this sheet's 70 came back at
+    confidence 0.4. The second reason is decisive on its own: **the second half of a real route
+    routinely carries no printed name at all** (`C0092`, `C0057`), so ranking on the name would find
+    one end of a wire and not the other. Measured against the real drawing, the ranking reproduces
+    all four pairings in `07_drawing_facts.md` — including `W052` → **`C0109`**, which every
+    document in the project had wrong for nine days.
+
+33. **The numbers came out better than the plan predicted, because of your review run.** §13 said to
+    expect 19 wires with one candidate, 33 with two or three and **19 with none**, and warned that
+    smaller numbers would mean a broken ranking. Measured 2026-09-03: **37** wires have exactly one
+    run whose two ends land on both their pins, **33** have a best candidate reaching one end (an L
+    or a hop — two pieces), and **0** have no candidate at all. Only **3** have no printed-name *and*
+    spec match, and two of those three (`W012`, `W015`) have no colour or gauge printed on them at
+    all. **26 of 26 nets** now match a printed conductor.
+
+34. **`K10` is struck, and it was worth two nets rather than two labels.** `drawing.py` publishes a
+    net's *printed* name beside its id where the two differ (`printed_net`), the end label draws it —
+    so `NET-PB1` reads **`PB1`** on the sheet, which is what a reader can check — and
+    `candidates()` compares against **both** forms. `NET-PB1` and `NET-PB2` were the only two nets
+    of 26 with no printed conductor for the matcher, while both of their printed names sat on a run.
+
+35. **`no_path_on_this_sheet` finally has a control, and the count reaches 71.** Session 5 built the
+    field and the validator; this is the screen that can say it. A wire leaves the new **`Paths`**
+    queue two ways — a route, or a person saying there is none here — and the toolbar reads
+    `n of 71 wire paths`. That is **`K7` avoided on purpose**, and it is worth holding beside `To do`,
+    which still has six rows in it that can never be finished.
+
+36. **An extracted run cannot be edited until it stops claiming to be the drawing's.**
+    `geometry: extracted` is a claim about the polyline, so there are no handles on one; **Make it
+    editable** converts it to `geometry: human` and drops the `conductors` list, because the run is
+    no longer the run it was lifted from. New hazard **H21**. **Trace** is offered last on purpose —
+    79 unlabelled conductors are real ink and beat a hand trace every time — and its four keys are
+    click, `Backspace`, `Esc`, `Enter`, with nothing written until the last of them. `Esc` takes the
+    **trace** before the armed row: new hazard **H22**.
+
+37. **The small batch, at the head of the session and before Phase E.** Six items out of the 23
+    questions you asked about the `Review` tab, and the same argument that put Phase 0 in front of
+    everything. The `kind` badge is recomputed from the text you typed; a third scope,
+    **`Not a label`**, lists all 279 of those decisions; the ✖ on a **run** row now says *no net name
+    is printed on this run* and that it is **not a bookmark** — that wording cost 34 net names; a
+    **note** box gives a bookmark somewhere honest to live, disabled until the row has a decision it
+    can ride on; a **run is ringed along its own polyline** instead of the 206 × 215 pt box round its
+    endpoints; and `build_kg.py` was re-run. **T-745–T-770** in `12_tests_label_corrections.md`,
+    none walked. **No schema change**, and no correction moved.
+
+    Two findings worth keeping. `custom_kg.json` **was never actually stale**: re-running the
+    generator produced a byte-identical file, because `build_kg.py` emits no coordinates at all — the
+    staleness was a timestamp. And **`points` left the *forbidden sections* list in `test_review.py`
+    and joined the pinned key set**, which is the honest place for it: a polyline is published on
+    purpose now, and what may not reach a browser is a section nobody narrowed. `H17` says so.
+
+    tests             172 server, 318 web, ruff and tsc clean. New:
+                      `tests/test_conductors.py` (13) and
+                      `webui/src/features/locate/paths.test.ts` (19 — four of
+                      them the measured pairings), plus 17 in
+                      locate/model.test.ts (45), 13 in LocateTab.test.tsx (51),
+                      12 in review/model.test.ts (33), five in
+                      ReviewTab.test.tsx (24), one each in test_api.py,
+                      test_review.py and endLabels.test.ts. New files:
+                      `webui/src/features/locate/paths.ts` (the ranking, pure),
+                      `PathPanel.tsx`, `PathHandles.tsx`, and
+                      `14_tests_path_editor.md`. What moved: `Conductor.points`,
+                      `Conductor.rect` (over every vertex now), `color`, `gauge`,
+                      `length` and a new `Binding` in `ink.py`; `_traceable` and
+                      `GET /api/conductors` in `main.py`; `printed_net` in
+                      `drawing.py`; `Reading.points` in `label_corrections.py`;
+                      `setPath`/`addRun`/`tracePath`/`convertPath`/
+                      `movePathVertex`/`clearPath`/`setNoPath` and a path-aware
+                      `rowState`/`coverage` in locate/model.ts; `classifyLabel`/
+                      `labelKind`/`setNote` and a third scope in
+                      review/model.ts; `CANDIDATE` in `paint.ts` and a
+                      `candidates` prop on `TileSheet`; two new `RowState`
+                      members, `traced` and `no-path`. New hazards **H21** and
+                      **H22**.
+
 ### 5a. What is in the files, 2026-08-24
 
 **The counts below replaced a stale block that still described 6 components and 18 terminals.**
@@ -498,15 +595,18 @@ against the files, not remembered:
                         at the default
                       multi-site components: CR-BP, CR-SW, CR-ON, CR1, CR2
                       **"wires": {} and "nets": {} — no label points, no
-                        end-label overrides, and (since Session 5) no paths.** Those
-                        two sections now hold three different things, and all of them
-                        being empty is the *normal* state: 265 end labels are drawn
-                        from the terminal points above and the file records only the
-                        ones somebody overruled, while a `path` is authored one wire
-                        at a time and the editor for it arrives in Session 6. Until
-                        then the only way to put one in is by hand, with the server
-                        stopped — `13_tests_paths_highlight.md` T-800 says exactly
-                        what to paste, and T-840 asks what to keep. **A net never
+                        end-label overrides, and no paths.** Those two sections hold
+                        three different things and all of them being empty is the
+                        *normal* state: 265 end labels are drawn from the terminal
+                        points above and the file records only the ones somebody
+                        overruled, while a `path` is authored one wire at a time.
+                        **Session 5's pasted scaffolding is gone** — T-840 asked what
+                        to keep and the answer was nothing, so `wires` is empty again
+                        and Session 6's ranking had no answers of its own to check
+                        against beyond the four measured in `07_drawing_facts.md`.
+                        **Since 2026-09-03 there is an editor**: arm a wire on the
+                        Locate tab, press `Paths`, and accept a run — no text editor,
+                        no stopped server (`14_tests_path_editor.md`). **A net never
                         gets a path**: its highlight is the union of its wires'.
                       Consequence worth stating out loud, because the whole
                       wires-and-nets plan turns on it: every one of the 71 wires now
@@ -547,14 +647,24 @@ against the files, not remembered:
                       **Nothing regenerates from it and nothing needs to** — T-740, in
                       bytes.
     custom_kg.json    generated from circuit_logic.json by
-                      schematic_skills/scripts/build_kg.py, and **behind it by a
-                      placement run** (2026-08-03 against 2026-08-25). K6 and the
-                      artifact test cover author_circuit_logic.py and say nothing
-                      about the second half of the recipe EXTRACTION_NOTES.md
-                      prescribes: "python author_circuit_logic.py, then build_kg.py".
-                      prompts.py ranks the file fourth and "never as the primary
-                      source", so the exposure is small — but it is real staleness
-                      that nothing tests. Item 6 of the small batch in the plan's §13.
+                      schematic_skills/scripts/build_kg.py, and **re-run 2026-09-03**
+                      (small-batch item 6). 693 chunks, 291 entities, 402
+                      relationships — and the interesting part is that the output was
+                      **byte-identical**: `git diff` showed nothing. It had looked a
+                      placement run behind (dated 2026-08-03 against a
+                      circuit_logic.json of 2026-08-25), and it was not, because
+                      **build_kg.py emits no coordinates at all** — 0 occurrences of
+                      `location` or `source: human` in 479 KB. It derives from the
+                      netlist's connectivity and descriptions, which the placement run
+                      did not touch. So the staleness was a timestamp rather than
+                      content and the exposure was never real.
+                      **The recipe is still two commands**, and this is the second:
+                      cd schematic_extraction/PS20115MLM4-2/extracted_docs && python
+                      ../../../schematic_skills/scripts/build_kg.py circuit_logic.json
+                      -o custom_kg.json --pretty --validate
+                      K6 and the artifact test cover only the first half, so run this
+                      one after a regeneration — "probably unchanged" is not the same
+                      as "checked", and it costs a second.
     server            not running; start it as in §1
     git               locations.json is tracked, and modified against its last commit
                       by exactly one point: BYPASS-CB:1 y 663.8 → 663.7, an accidental
@@ -604,7 +714,13 @@ The first column is what the user says. Use this to pick one leaf document, not 
 | `label_corrections.json` grew a line nobody asked for, or lost one | `12_tests_label_corrections.md` **T-730** | *Reset* **deletes**; `""` is refused. `features/review/model.ts` `setCorrection` |
 | The red strip on the Review tab names an id I do not recognise | `12_tests_label_corrections.md` — hand-editing | a correction keyed on something not in `geometry.json` is refused **by name**, because its symptom would otherwise be nothing at all. Same reasoning as `H14` |
 | The artifact test went red after a review run | `12_tests_label_corrections.md` **T-740** | **that is a bug, not `K6`.** Nothing this screen writes can make `circuit_logic.json` stale; the generator does not read the corrections and a test asserts it in bytes |
-| A run of ink is ringed with an enormous box covering unrelated conductors | `_claude_notes/review_tab_questions.md` **Q16, Q17** | **expected, and not until Phase E.** `ink.py` `Conductor.rect` is min/max over the run's two **endpoints** and `points` is deliberately not loaded — `C0002` is a three-segment L inside a 206 × 215 pt box. The polyline has always been in `geometry.json`, and `ink.py` loads it when `/api/conductors` needs it, which is **Phase E**. Phase D reads authored paths out of `locations.json` and never opens the ink loader, so Session 5 does not change this |
+| ~~A run of ink is ringed with an enormous box covering unrelated conductors~~ | `12_tests_label_corrections.md` **T-765** | **Fixed 2026-09-03** (small-batch item 5). A run is drawn along **its own polyline** now and a label keeps its exact bbox. It was min/max over the run's two *endpoints*, which for 19 of the 149 did not even contain the ink — `C0057` goes out to x = 798 while its ends span x 429.8–598.9. If a **run** is still a filled box, the bundle is stale: `npm run build` and restart |
+| No candidate runs are offered for an armed wire | `14_tests_path_editor.md` **T-900**, and the panel says which it is | *"The extracted ink did not load"* means `/api/conductors` failed — check `SWUI_ALLOW_EDITS=true` and that the tab is unlocked. An **empty list** is a real answer: no run is near either pin and none carries the net name. `Trace by hand` still works either way, and so does everything else on the screen |
+| The candidate at the top of the list is the wrong conductor | `14_tests_path_editor.md` **T-900**, **T-910** | worth a report, with the wire id and the run you expected. `features/locate/paths.ts` `candidates` is the whole ranking and `paths.test.ts` pins the four pairings measured in `07_drawing_facts.md`. **Note the order is geometry before printed name**, on purpose |
+| I cannot drag a corner of a highlighted route | `14_tests_path_editor.md` **T-925**, then `06_code_map.md` **§H21** | it is `from the ink`, and that badge is a claim about the polyline. Press **Make it editable** — which converts it to `geometry: human` and drops the conductor ids, because the run stops being the run it was lifted from |
+| `Esc` cleared the armed row when I meant to abandon a trace | `14_tests_path_editor.md` **T-930**, then `06_code_map.md` **§H22** | the trace had already ended. The **first** `Esc` takes the corners and leaves the wire armed; the second disarms. A text field still gets the first one of all |
+| The `Paths` count and the `Paths` list disagree | `14_tests_path_editor.md` **T-940** | they cannot: `coverage().settled` and the filter share one predicate, `model.ts` `pathSettled`. If they do, that is a real fault |
+| A net's end label says `NET-PB1` and the sheet says `PB1` | `14_tests_path_editor.md` **T-945** | that was **`K10`** and it is fixed: `drawing.py` `printed_net` publishes the printed form and `endLabels.ts` draws it. A stale bundle would show the old word |
 | A run stops where it crosses another wire, and the rest of it is a different id | `_claude_notes/review_tab_questions.md` **Q16** | **that is the ink, and it is deliberate.** The extractor splits a conductor at every crossover hop — 88 of them, `EXTRACTION_NOTES.md` correction 5 — which is why the plan's `path.runs` is a **list** of polylines and why Phase E offers multi-select across a hop. `C0001` and `C0002` are one physical run with a 20 pt gap at y = 83.67 |
 | The `kind` badge on a Review row disagrees with the text I just typed | `_claude_notes/review_tab_questions.md` **Fact 3**; plan §13 small batch item 1 | `kind` is `classify_label()` in `extract.py`, a **pure function of the text**, and `ink.py` calls it *"a hint for the reader, never a filter this server applies"*. The badge is just not recomputed after a correction. **There is nothing to author and no editor to build** |
 | I marked a run *not a label* and its net name vanished from the matcher | `_claude_notes/review_tab_questions.md` **§2** | **working as designed, and the wording is the bug.** On a **run** row that button means *no net name is printed on this run*, and `corrected_text()` drops a `null` so Phase E never sees it. 34 net names were lost this way on 2026-09-01 and 31 put back. *Reset* (↺) takes the decision back |
@@ -669,6 +785,11 @@ The first column is what the user says. Use this to pick one leaf document, not 
 These are things **I already know are wrong or rough**. Do not spend a report on them — but do say
 if one bites harder than described. Full reasoning is in `06_code_map.md`.
 
+*Five of the eleven are struck. What is left after Session 6 is `K2` (deferred, never observed),
+`K4` (narrowed to a component site with no point yet), `K5` (a design question), `K6` (not a bug),
+`K7` — the six rows in `To do` that can never be finished, and the only one of these the plan set
+out to avoid rather than fix — and `K11`, which is now a decision rather than a gap.*
+
 | # | What | Effect | Fix is |
 |---|---|---|---|
 | ~~**K1**~~ | ~~Picking the same row twice does not re-fly the sheet~~ | **Fixed 2026-08-19.** A flight is now something a call site *asks for* rather than something an effect infers from the row's id having changed, so asking twice flies twice — picking the row again, or pressing the `placing` button of the site you are on, brings you back after panning away. T-110 and T-215 test it. | done — `LocateTab.tsx` `flyTo`, `framing` |
@@ -677,8 +798,8 @@ if one bites harder than described. Full reasoning is in `06_code_map.md`.
 | **K4** | The eight-way label control does nothing until the point exists | Place first, then choose the side. **Narrowed 2026-08-24:** it no longer applies to a wire's or a net's **end** labels, which are anchored to terminal points that already exist and whose compasses are live the moment the row is armed (T-565). It stands for the old `label_point` and for a component site with no point yet. | small — create-on-set, on what is left of it |
 | **K5** | You cannot place a point *under* an existing dot by clicking it | The dot swallows the click and retargets instead. Zoom in, or drag the dot. | design question |
 | **K6** | `circuit_logic.json` goes stale after every save | Deliberate — the banner says so and `test_the_committed_artifact_is_exactly_what_the_generator_writes` goes red until you re-run the generator. | not a bug |
-| **K10** | An invented net id is printed on the sheet as its end label | `NET-PB1` and `NET-PB2` are prefixed names for nets the sheet prints as `PB1` and `PB2` (`INVENTED_NET_PREFIX`), so their end labels say a word that is not on the paper. Two nets of 26. Found while writing T-550 on 2026-08-24. **Still open after Session 4, and now with an answer in view:** Phase F turned out *not* to be the same question — a correction says what the **ink** says, and `PB2` is read correctly off the sheet (`T0269`, 0.9); what differs is the **netlist's** name for that net, which is a curated decision and belongs to `author_circuit_logic.py`. So the two answers were never going to collide. **And it has grown a second symptom, 2026-09-02:** now that the whole review queue has been worked, `NET-PB1` and `NET-PB2` are **the only two nets of 26 with no printed conductor to match against** — the other 24 have one. So `K10` is no longer only a wrong word on a label; it is the last thing standing between Phase E's matcher and every net on the sheet. Still not the `Review` tab's problem, and that half is now **finished**: `C0054` is recorded as reading `PB1` (`T0214`, 3.8 pt away; the extractor had bound it `PBL`) and `PB2` was already read correctly, so **both printed names are on a run and only the netlist's side is left.** | small, and unchanged — publish the printed form beside the id and label with that, and let the matcher compare against **both** forms. Nothing in Session 4 or 5 blocks it; **do it in Session 6**, where it is worth exactly two nets and takes the matcher to 26 of 26 |
-| **K11** | The Review tab records a run's **net name** and nothing else about a run | 40 of the 119 flagged conductors were flagged for a missing `spec_label` or an unbound endpoint rather than a missing net name, and this screen cannot record either. They can still be **decided** — the net name they do have gets confirmed, so `278 decided` is reachable and this is **not `K7`** — but a `spec` gap stays a gap, and Phase E's ranking uses the spec as its second signal. Chosen deliberately: the net name is the signal that unlocks the matcher, and a second field per run doubles the schema for the weaker one. | small — a `spec` key beside `text`, if Phase E turns out to want it. Decide after using the ranking, not before |
+| ~~**K10**~~ | ~~An invented net id is printed on the sheet as its end label~~ | **Fixed 2026-09-03**, in Session 6, and it turned out to be worth **two nets** rather than two labels. `NET-PB1` and `NET-PB2` are prefixed names for the nets the sheet prints as `PB1` and `PB2` — the rename was right, because the drawing also has a *push button* called `PB1` and two things may not share an id — and it cost two things. The visible one: an end label saying a word a reader holding the paper cannot find. The expensive one, which only appeared once the whole review queue had been worked: those two were **the only nets of 26 with no printed conductor for Phase E's matcher to compare against**, while both of their printed names sat on a run (`C0054` reads `PB1` after your correction; `PB2` was read correctly all along). So `drawing.py` `printed_net` publishes the printed form beside the id, `endLabels.ts` draws it, and `candidates()` compares against **both** forms. **26 of 26.** T-945 walks it. | done — `printed_net` (`drawing.py`), `printed` on a net entry, `netNames` (`features/locate/paths.ts`) |
+| **K11** | The Review tab records a run's **net name** and nothing else about a run | 40 of the 119 flagged conductors were flagged for a missing `spec_label` or an unbound endpoint rather than a missing net name, and this screen cannot record either. **Decided after using the ranking, 2026-09-03, and the answer is: leave it.** Phase E's ranking does use the spec as its second signal — `spec_label` whole, and `color`/`gauge` apart so a run whose colour matches while its gauge does not ranks below an exact match rather than dropping out of the list — but the measurement says it is not the binding constraint. Every one of the 71 wires comes back with at least one candidate, **37 of them with a single run whose two ends land on both their pins**, and the three wires with no name-and-spec match are two that have no colour or gauge printed at all plus `W049`. A `spec` key on a run would double this file's schema for the weaker signal, and the strongest one turned out to be neither: it is the **endpoint geometry**, which needs nothing from this screen. Kept as a known issue rather than struck, because the reasoning is *not needed*, not *impossible* — the day a drawing arrives where the geometry is ambiguous, this is the field to add. | **not doing it** — and now for a measured reason rather than a guess |
 | **K7** | Six rows in *To do* can never sensibly be finished | The two off-page machines and four referenced drawings say `nowhere` and have no position on this sheet, so "to do" cannot reach 0. Exactly the complaint that made wire labels a separate count — and I missed it here. **Unchanged on the Locate tab**, and worth knowing that on the Drawing tab's new list those same six rows are not a chore at all: there, `nowhere` is information — *this identifier is real and it is not on this sheet* (T-640). | small — exclude `nowhere` from the queue, or count them apart |
 | ~~**K8**~~ | ~~A marker moved by accident cannot be put back~~ | **Fixed 2026-08-24.** `Ctrl+Z` over the draft, fifty whole-document snapshots deep, announcing what it undid and arming the row it changed; `Ctrl+Shift+Z` redoes. Plus `Shift`+arrows to nudge an armed point by 1.0 pt and `Shift`+`Alt`+arrows by 0.1 pt, so a small move never needs a small drag. **A minimum-drag threshold stays rejected** — small moves are legitimate. **The stack is in memory and dies with the page:** cross-session recovery is still git, which is why a run of placement should end in a commit. T-470–T-490 test it. | done — `stores/locateStore.ts` `edit`/`undo`/`redo`, `LocateTab.tsx` `nudge` and the key effect, `model.ts` `draftPoint` |
 | ~~**K9**~~ | ~~A net cannot be selected from the sheet~~ | **Fixed 2026-08-25.** The Drawing tab has a list of all 275 designators down its left: type or scroll, click the row, and the net is selected and framed with its seven pins ringed — the same selection a citation raises, without the question. T-610 walks it against T-500, which is the same test at the price of one model answer. | done — `features/drawing/DrawingList.tsx`, `components/DesignatorList.tsx`, `DrawingTab.tsx` `onRow` |
@@ -712,9 +833,27 @@ A wire may carry a `path`: `runs`, `conductors`, and the two provenance axes
 (`geometry: extracted | human`, `attribution: printed | human`). **`derived` is a rejected value on
 both**, refused by name with a test per axis, and a net carries no path at all because its highlight
 is the union of its wires'. Nothing computes a run, nothing stretches one to meet the pins it stops
-short of, and where there is none the card says *no path yet* rather than drawing a chord. A row
-still reading `ends known, no path` is telling the literal truth about 70 of the 71 wires, and the
-editor that changes that is Session 6.
+short of, and where there is none the card says *no path yet* rather than drawing a chord.
+
+**And since Session 6, 2026-09-03, there is a screen that writes one — which is where the rule
+stopped being a restraint and started being the design.** The path editor's whole job is to *offer
+ink*: it ranks the runs of ink that might be a wire, lights one on the sheet when you hover it, and
+writes the polyline it already had when you accept. The only other thing it can do is record corners
+a person clicked. Three consequences worth stating, because each is a place the rule could have been
+broken quietly and was not:
+
+- **`attribution` is written `human` on every route**, including the 37 wires whose single candidate
+  lands on both their pins. `printed` is reserved for accepting a match with nobody looking, and
+  nothing in this application does that;
+- **`chordOf` is the one function that computes anything from a wire's two ends**, and it exists only
+  to be printed *beside* the ink's length for comparison. `W068`: 312 pt against 644. It is never
+  drawn;
+- **an extracted run cannot be edited in place.** `geometry: extracted` is a claim about the
+  polyline, so moving a corner takes an explicit conversion to `geometry: human` first, and the
+  conductor ids go with it. Hazard `H21`.
+
+A row reading `ends known, no path` is now a wire nobody has got to yet, and the `Paths` filter is
+the list of them.
 
 **The worked example above has been corrected.** `W052`'s two pins were placed on 2026-08-20 at
 (236.1, 563.4) and (300.1, 563.3), which puts its run at **`C0109`**; `C0080` — the y = 663.7 run
@@ -741,17 +880,20 @@ Nine files in _claude_notes/locate_tab_testing/, with the one you named as the i
 | `07_drawing_facts.md` | The real ids and coordinates, so nobody reads geometry.json (150k tokens) | 1.7k |
 | `08_results_log.md` | All 28 tests as a blank table for you to mark up | 0.9k |
 
-*(**Fourteen** files now. `09_tests_net_membership.md` came with Session 1 on 2026-08-24,
-`10_tests_end_labels.md` with Session 2 the same day, `11_tests_drawing_list.md` with Session 3 on
-2026-08-25, `12_tests_label_corrections.md` with Session 4 the same day and
-`13_tests_paths_highlight.md` with Session 5 on 2026-09-02; `14` comes with the last session. §3
-above is the current map; this table is kept as written.)*
+*(**Fifteen** files now, and that is all of them: `09_tests_net_membership.md` came with Session 1
+on 2026-08-24, `10_tests_end_labels.md` with Session 2 the same day, `11_tests_drawing_list.md` with
+Session 3 on 2026-08-25, `12_tests_label_corrections.md` with Session 4 the same day,
+`13_tests_paths_highlight.md` with Session 5 on 2026-09-02 and **`14_tests_path_editor.md` with
+Session 6 on 2026-09-03 — the last session of the plan.** §3 above is the current map; this table is
+kept as written.)*
 
 *(**38** now — T-425 was added with the `F2` work, T-190 and T-360 with the Drawing tab's layer
 switches, and T-115 and T-335 with changes 11–13, all on 2026-08-19; **T-470–T-490 and T-500–T-520
 came with Session 1 of the wires-and-nets plan on 2026-08-24, T-550–T-590 with Session 2 the same day,
-T-600–T-650 with Session 3 on 2026-08-25, T-700–T-740 with Session 4 the same day, and T-800–T-840
-with Session 5 on 2026-09-02**. §5 above is the current count; this section is kept as written.)*
+T-600–T-650 with Session 3 on 2026-08-25, T-700–T-740 with Session 4 the same day, T-800–T-840
+with Session 5 on 2026-09-02, and T-745–T-770 plus T-900–T-960 with Session 6 on 2026-09-03** —
+**about 90 numbered lessons in all.** §5 above is the current count; this section is kept as
+written.)*
 
 28 numbered tests. Each one doubles as a lesson — what to click, what should happen, and why it matters — so working through them in order teaches the whole screen. Each also says where to look if it fails, so a report of "T-142 failed, the dot landed half an inch left" points straight at paint.ts cssToPoint.
 

@@ -8,6 +8,7 @@
  */
 
 import type {
+  ConductorIndex,
   CorrectionsDocument,
   DesignatorIndex,
   DrawingSummary,
@@ -131,6 +132,23 @@ export async function putReview(document: CorrectionsDocument): Promise<SaveRevi
   })
   if (!response.ok) throw new ApiError(response.status, await detail(response))
   return (await response.json()) as SaveReviewResponse
+}
+
+/**
+ * The 149 runs of ink, reduced to what tracing a wire needs.
+ *
+ * Behind the editor password, and **`getPaths` deliberately is not** — they look like a pair and
+ * they are opposites. A path is authored display geometry and a reader is exactly who wants it;
+ * this is the raw ink out of `geometry.json`, and it is no use to somebody who cannot accept one
+ * of these runs into an authored file. Throws 404 when the server was started without
+ * `SWUI_ALLOW_EDITS=true` — the route does not exist.
+ */
+export async function getConductors(): Promise<ConductorIndex> {
+  const response = await fetch(`${API}/conductors`, {
+    headers: { Accept: 'application/json', ...editorHeader() },
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  return (await response.json()) as ConductorIndex
 }
 
 function editorHeader(): Record<string, string> {

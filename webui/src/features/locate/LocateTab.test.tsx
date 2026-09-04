@@ -89,6 +89,50 @@ const INDEX: DesignatorIndex = {
   entries: ENTRIES,
 }
 
+/**
+ * Three runs of ink, as `/api/conductors` publishes them, and each is a case the ranking has to
+ * get right.
+ *
+ * `C0001` spans **both** of `W047`'s pins — the shape 37 of the real 71 wires are in, and one
+ * glance and one click. `C0002` reaches one of them, which is what half a route looks like across
+ * a crossover hop. `C0003` carries the same printed net name and is somewhere else entirely.
+ */
+const CONDUCTORS = {
+  counts: { conductors: 3, named: 3 },
+  problems: [] as string[],
+  conductors: [
+    {
+      id: 'C0001',
+      points: [[700, 679], [861, 679]] as [number, number][],
+      ends: [{ point: [700, 679] as [number, number] }, { point: [861, 679] as [number, number] }],
+      net_label: '110',
+      spec_label: 'BLUE 18AWG',
+      color: 'BLUE',
+      gauge: '18AWG',
+      length: 161,
+    },
+    {
+      id: 'C0002',
+      points: [[861, 679], [861, 600]] as [number, number][],
+      ends: [{ point: [861, 679] as [number, number] }, { point: [861, 600] as [number, number] }],
+      length: 79,
+    },
+    {
+      id: 'C0003',
+      points: [[100, 100], [300, 100]] as [number, number][],
+      ends: [{ point: [100, 100] as [number, number] }, { point: [300, 100] as [number, number] }],
+      net_label: '110',
+      spec_label: 'BLUE 18AWG',
+      color: 'BLUE',
+      gauge: '18AWG',
+      length: 200,
+    },
+  ],
+}
+
+/** `W047` is on net `110`, which is the one place that fact is published — see `netOf`. */
+const PATHS = { wires: {}, nets: { '110': ['W047'] } }
+
 const EMPTY_REPORT = {
   file: false, components: 0, sites: 0, confirmed_sites: 0, terminals: 0,
   confirmed_terminals: 0, problems: [] as string[],
@@ -105,7 +149,15 @@ let saved: Record<string, unknown>[] = []
  * layout and so no implementation of its own — the list calls it optionally for that reason. */
 let scrolled: ReturnType<typeof vi.fn>
 
-function stubServer(options: { unlockOk?: boolean; report?: typeof EMPTY_REPORT } = {}) {
+function stubServer(
+  options: {
+    unlockOk?: boolean
+    report?: typeof EMPTY_REPORT
+    /** `null` makes `/api/conductors` fail, which is the *the ink did not load* state — the panel
+     * must say so and everything else on the screen must go on working. */
+    ink?: null
+  } = {},
+) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
@@ -136,6 +188,9 @@ function stubServer(options: { unlockOk?: boolean; report?: typeof EMPTY_REPORT 
         })
       }
       if (url.endsWith('/api/designators')) return json(INDEX)
+      if (url.endsWith('/api/conductors')) {
+        return options.ink === null ? json({ detail: 'no ink' }, 404) : json(CONDUCTORS)
+      }
       throw new Error(`unexpected fetch: ${url}`)
     }),
   )
@@ -177,6 +232,7 @@ beforeEach(() => {
     drawing: DRAWING,
     health: HEALTH,
     designators: INDEX,
+    paths: PATHS,
     byToken: buildLookup(INDEX),
     activeTabId: LOCATE_TAB_ID,
   })
@@ -184,7 +240,7 @@ beforeEach(() => {
   // the advance is opt-in, and a test that silently arranged for it to be on would be testing a
   // screen nobody is handed.
   useLocateStore.setState({
-    document: null, report: null, unlocked: false, loading: false, error: null,
+    document: null, report: null, conductors: null, unlocked: false, loading: false, error: null,
     target: null, advance: false, saveState: 'clean', saveError: null, stale: null,
     undoStack: [], redoStack: [], undoNote: null,
   })
@@ -340,7 +396,7 @@ describe('LocateTab', () => {
     // The wires are counted as things in the index, not as labels waiting to be placed. There is
     // no "0 of 71" here on purpose: every wire end already has a label, so a progress number over
     // them would be `K7` — a count that can never be finished — on four times the scale.
-    expect(screen.getByText(/1 wires · 0 nets · 0 end labels moved by hand/)).toBeTruthy()
+    expect(screen.getByText(/0 of 1 wire paths · 0 nets · 0 end labels moved by hand/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
     // Not "route from its terminals" any more: a route is lifted from the sheet's own conductor
@@ -1071,4 +1127,253 @@ describe('LocateTab', () => {
     // available here, so nothing is refused quietly.
     expect(screen.getByText(/CR-GHOST is not in circuit_logic\.json/)).toBeTruthy()
   })
+
+  // -- Phase E: where the wire runs ---------------------------------------------------------
+
+  it('offers the ranked runs of ink for an armed wire, best first', async () => {
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    const list = await screen.findByRole('list', { name: 'Candidate runs for W047' })
+    // `C0001` spans both of this wire's pins; `C0002` reaches one; `C0003` carries the same
+    // printed net name and is 700 pt away. **The geometry outranks the name**, which is the whole
+    // order — the second piece of a real route routinely carries no printed name at all.
+    expect([...list.querySelectorAll('[data-candidate]')].map((li) =>
+      li.getAttribute('data-candidate'),
+    )).toEqual(['C0001', 'C0002', 'C0003'])
+    expect(within(list).getByText('both ends')).toBeTruthy()
+  })
+
+  it('lights one candidate on the sheet while the pointer is over it', async () => {
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    const candidates = () =>
+      Number(sheet().querySelector('canvas')?.dataset.candidates ?? -1)
+    await waitFor(() => expect(candidates()).toBe(0))
+
+    const row1 = document.querySelector('[data-candidate="C0001"] button') as HTMLElement
+    fireEvent.mouseEnter(row1)
+    // A proposal, painted in its own colour under the accepted stripe: a person is comparing it
+    // against the ink underneath, and a proposal that looked like a decision on a 16 pt pitch is
+    // how the wrong conductor gets accepted.
+    await waitFor(() => expect(candidates()).toBe(1))
+    fireEvent.mouseLeave(row1)
+    await waitFor(() => expect(candidates()).toBe(0))
+  })
+
+  it('writes path.runs and its conductor, and nothing that looks like a point', async () => {
+    /**
+     * **The assertion §10 of the plan asks for by name.** A `point` on a wire would be a route
+     * synthesised from the centre of a bounding box, which is usually blank paper, and the
+     * netlist's authority rests on never having invented one. `derived` is refused by name at both
+     * ends and must not appear anywhere in the document either.
+     */
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(document.querySelector('[data-candidate="C0001"] button') as HTMLElement)
+
+    await waitFor(() => expect(saved).toHaveLength(1))
+    const record = (saved[0].wires as Record<string, Record<string, unknown>>).W047
+    expect(record.path).toMatchObject({
+      runs: [[[700, 679], [861, 679]]],
+      geometry: 'extracted',
+      attribution: 'human',
+      conductors: ['C0001'],
+      by: 'js',
+    })
+    expect(record).not.toHaveProperty('point')
+    expect(JSON.stringify(saved[0])).not.toContain('derived')
+    // And a single candidate still needed a click. There is no *accept all* and no auto-accept
+    // for an exact match: at 16 pt row spacing a confident proposal one row out is a different
+    // circuit, and it looks right.
+    expect(screen.queryByRole('button', { name: /accept all/i })).toBeNull()
+  })
+
+  it('paints the accepted route immediately, before the save has landed', async () => {
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    const runs = () => Number(sheet().querySelector('canvas')?.dataset.runs ?? -1)
+    await waitFor(() => expect(runs()).toBe(0))
+    fireEvent.click(document.querySelector('[data-candidate="C0001"] button') as HTMLElement)
+    // Off the **draft**, not off `/api/paths`: a highlight that waited 900 ms for the debounce
+    // would make every acceptance feel like it had not registered.
+    await waitFor(() => expect(runs()).toBe(1))
+  })
+
+  it('assembles a route across a crossover hop from two runs, and keeps the gap', async () => {
+    // `runs` is a list because the gap is real: where a horizontal run crosses a vertical trunk
+    // the drawing puts a hop arc meaning *no connection*, and this sheet has 88 of them.
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(document.querySelector('[data-candidate="C0001"] button') as HTMLElement)
+    await waitFor(() => expect(saved).toHaveLength(1))
+
+    fireEvent.click(screen.getByRole('button', { name: /Add a run/ }))
+    fireEvent.click(document.querySelector('[data-add-run="C0002"] button') as HTMLElement)
+    await waitFor(() => {
+      const record = (saved[saved.length - 1].wires as Record<string, Record<string, unknown>>).W047
+      expect((record.path as { runs: unknown[] }).runs).toHaveLength(2)
+      expect((record.path as { conductors: string[] }).conductors).toEqual(['C0001', 'C0002'])
+    })
+  })
+
+  it('will not let a lifted run be dragged until it has been made hand-drawn', async () => {
+    /**
+     * **The price of moving a corner, and it is stated on screen before it is paid.**
+     * `geometry: extracted` is a claim about the polyline — *these corners are the drawing's, not
+     * mine* — and a dragged vertex would leave that claim standing over an altered line. Same
+     * class of lie as storing a computed label side as though somebody had chosen it.
+     */
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(document.querySelector('[data-candidate="C0001"] button') as HTMLElement)
+    await waitFor(() => expect(saved).toHaveLength(1))
+
+    expect(screen.getByText('from the ink')).toBeTruthy()
+    expect(document.querySelector('[data-path-handle]')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /Make it editable/ }))
+    await waitFor(() => expect(screen.getByText('hand-drawn')).toBeTruthy())
+    // Now there are corners to drag — one per vertex — and the conductor id has gone with the
+    // claim, because the run is no longer the run it was lifted from.
+    expect(document.querySelectorAll('[data-path-handle]')).toHaveLength(2)
+    await waitFor(() => {
+      const record = (saved[saved.length - 1].wires as Record<string, Record<string, unknown>>).W047
+      expect(record.path).not.toHaveProperty('conductors')
+      expect((record.path as { geometry: string }).geometry).toBe('human')
+    })
+  })
+
+  it('traces a route by hand with all four keys, and writes nothing until Enter', async () => {
+    landsAtOnce()
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(screen.getByRole('button', { name: /Trace by hand/ }))
+    expect(document.querySelector('[data-tracing]')).toBeTruthy()
+
+    clickSheet(100, 100)
+    clickSheet(200, 100)
+    clickSheet(200, 200)
+    expect(screen.getByText(/3 corners so far/)).toBeTruthy()
+    // Backspace takes one back, and nothing has been written yet — the file is untouched until
+    // Enter, which is what makes Esc safe to press.
+    fireEvent.keyDown(window, { key: 'Backspace' })
+    expect(screen.getByText(/2 corners so far/)).toBeTruthy()
+    expect(saved).toHaveLength(0)
+
+    fireEvent.keyDown(window, { key: 'Enter' })
+    await waitFor(() => expect(saved).toHaveLength(1))
+    const record = (saved[0].wires as Record<string, Record<string, unknown>>).W047
+    expect(record.path).toMatchObject({ geometry: 'human', attribution: 'human' })
+    // No conductor named, and that absence **is** the record: there was no run to lift.
+    expect(record.path).not.toHaveProperty('conductors')
+    expect(((record.path as { runs: number[][][] }).runs)[0]).toHaveLength(2)
+  })
+
+  it('abandons a trace on Escape and leaves the wire armed', async () => {
+    /**
+     * Two things want this key and the order is not arbitrary: a half-drawn route is the more
+     * recent, more fragile thing, and one press taking away both it *and* the armed row would mean
+     * losing your place as the price of abandoning a line. So the first Escape drops the corners;
+     * the second disarms.
+     */
+    landsAtOnce()
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(screen.getByRole('button', { name: /Trace by hand/ }))
+    clickSheet(100, 100)
+    clickSheet(200, 100)
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(document.querySelector('[data-tracing]')).toBeNull()
+    expect(saved).toHaveLength(0)
+    // Still armed: the panel is still showing W047.
+    expect(document.querySelector('[data-path-panel="W047"]')).toBeTruthy()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(document.querySelector('[data-path-panel="W047"]')).toBeNull()
+  })
+
+  it('counts the wires dealt with, and lets *no path here* finish the count', async () => {
+    /**
+     * **The `K7` defence, demonstrated.** Some wires run to a connector whose other end is on
+     * another drawing, so a count of only the traced ones could never reach its own total — and a
+     * progress number that stops short for a reason nobody can act on is worse than no number.
+     * This screen made that mistake once already, with the six `nowhere` rows in *To do*.
+     */
+    await open()
+    expect(screen.getByText(/0 of 1 wire paths/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Paths' }))
+    expect(ids()).toEqual(['W047'])
+
+    fireEvent.click(row('W047'))
+    fireEvent.click(screen.getByRole('button', { name: /No path on this sheet/ }))
+    await waitFor(() => expect(screen.getByText(/1 of 1 wire paths/)).toBeTruthy())
+    // And the queue is empty, which is the point: this one can reach zero.
+    expect(screen.queryAllByRole('option')).toHaveLength(0)
+    await waitFor(() => expect(saved).toHaveLength(1))
+    const record = (saved[0].wires as Record<string, Record<string, unknown>>).W047
+    expect(record).toEqual({ no_path_on_this_sheet: true })
+  })
+
+  it('never writes `no_path_on_this_sheet: false`, and deletes it instead', async () => {
+    // Invariant 10 in a fourth set of clothes, and the server refuses `false` by name from the
+    // other side. A file that cannot tell *nobody has looked* from *somebody decided* has stopped
+    // being a record of who said what.
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(screen.getByRole('button', { name: /No path on this sheet/ }))
+    await waitFor(() => expect(saved).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: /No path on this sheet/ }))
+    await waitFor(() => expect(saved).toHaveLength(2))
+    expect(JSON.stringify(saved[1])).not.toContain('no_path_on_this_sheet')
+  })
+
+  it('says the ink did not load rather than offering nothing without explanation', async () => {
+    // The panel loses its candidates and the screen loses nothing else: `Trace` still works and
+    // every point is still placeable. A 32 KB read of `geometry.json` must not be able to stop
+    // somebody placing a terminal.
+    stubServer({ ink: null })
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    expect(await screen.findByText(/extracted ink did not load/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Trace by hand/ })).toBeTruthy()
+  })
+
+  it('offers no path controls on a net, which stores none of its own', async () => {
+    // A net's highlight is the union of its wires' routes, so there is nothing on it to author —
+    // and the server refuses a path under `nets` by name for the same reason.
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'All' }))
+    fireEvent.click(row('W047'))
+    expect(document.querySelector('[data-path-panel="W047"]')).toBeTruthy()
+    fireEvent.click(row('CR-BP:A1'))
+    expect(document.querySelector('[data-path-panel]')).toBeNull()
+  })
+
+  it('shows the route’s length beside the straight line it is not', async () => {
+    // Published only to be compared against, and never drawn: `W068`'s chord is 312 pt across the
+    // middle of the sheet while its ink is 644 pt the long way round.
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(document.querySelector('[data-candidate="C0001"] button') as HTMLElement)
+    const note = await screen.findByText(/pt of ink/)
+    // 161 pt of ink along `C0001`, against the 161 pt straight line between `W047`'s two pins —
+    // they agree here because this fixture's run *is* horizontal between them. On the real sheet
+    // `W068` is 644 pt of ink against a 312 pt chord, and that difference is the argument.
+    expect(note.closest('p')?.textContent).toContain('161')
+    expect(note.closest('p')?.textContent).toContain('chord')
+  })
 })
+

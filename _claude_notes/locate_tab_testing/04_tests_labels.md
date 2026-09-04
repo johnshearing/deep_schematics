@@ -14,6 +14,13 @@ file:
 
 ## The one thing that cannot be placed, and why it is not a missing feature
 
+> **Superseded 2026-08-24 and again 2026-09-03, and kept because what it was guarding is exactly
+> what the new rule still forbids.** A wire's route may now be authored — but only by being
+> **lifted from the PDF's own conductor strokes** or **traced by a person** along the printed run,
+> never *synthesised from its endpoints*. The current wording is the index's §8; the editor is
+> `14_tests_path_editor.md`, and `locations.json` says forever which of the two ways it was. The
+> paragraphs below are the 2026-08-18 version.
+
 A wire's **route** is its two endpoint terminals. That is not a simplification — it is the claim the
 whole netlist rests on. If a human could author a path, the system would be able to draw a line
 between two terminals that no conductor on the sheet actually joins, and every route it displayed
@@ -34,6 +41,16 @@ on their own line and never as "to do".
 **Amended 2026-08-24 (Session 2).** Three things in this test changed and the point of it did not:
 wires and nets are still not work. `10_tests_end_labels.md` T-560 is the current version of the
 first two steps and is the one to walk; this is kept because the *reason* is still the reason.
+
+**Amended again 2026-09-03 (Session 6), and this time the point does change — in one specific
+way.** A wire's **route** is work now: 71 of them, counted as `n of 71 wire paths` in the toolbar
+and queued under a new `Paths` filter. Its **labels** are still not, and the distinction is the same
+one this test was always about — an end label's side is *computed* from points that already exist,
+so there is nothing missing until somebody overrules one, while a route has to be **chosen** from
+the ink one wire at a time. The plan predicted this reversal by name and dealt with the obvious
+objection first: the count can only be work because *there is nothing on this sheet to trace* is a
+decision a person can take, so unlike `To do` it reaches its own total. `14_tests_path_editor.md`
+T-935 and T-940.
 
 **Do.** Filter **To do**. Look for `W047`.
 

@@ -30,7 +30,11 @@
  * A wire's is its **spec** — `BLUE 18AWG` — because every `W###` is an id the extraction invented
  * and a reader holding the sheet cannot find one printed anywhere. A wire with no colour and no
  * gauge (two of 71) gets no end label at all rather than one naming an id that is not on the paper.
- * A net's is its own id, which mostly is printed beside the conductor.
+ * A net's is **the name the sheet prints** — its id for 24 of the 26, and `PB1`/`PB2` for the two
+ * the extraction renamed to `NET-PB1`/`NET-PB2` because the drawing also has a push button called
+ * `PB1`. That is `K10`, and the fix belongs here rather than in the netlist: the rename was right,
+ * and an end label's whole job is to give a reader something to check against the paper in front of
+ * them. A label saying a word that is printed nowhere is worse than no label.
  */
 
 import type { Compass, Designator, EntryTerminal, StoredEndLabel } from '@/api/types'
@@ -165,7 +169,9 @@ export function planEndLabels(
   const planned: PlannedLabel[] = []
   for (const entry of owners) {
     const kind = entry.kind as 'wire' | 'net'
-    const text = kind === 'wire' ? entry.spec : entry.id
+    // `printed` is published by `drawing.py` only where it differs from the id — see `printed_net`
+    // there for why the rule lives on the server. `K10`.
+    const text = kind === 'wire' ? entry.spec : (entry.printed ?? entry.id)
     // A wire with no colour and no gauge has nothing printed to show. Two of 71.
     if (!text) continue
     const members = entry.terminals ?? []

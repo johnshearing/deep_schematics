@@ -38,7 +38,7 @@ import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { tileUrl } from '@/api/client'
 import type { Tile } from '@/api/types'
-import { paintRuns, paintSheet, type Polyline } from './paint'
+import { CANDIDATE, paintRuns, paintSheet, type Polyline } from './paint'
 import type { Viewport } from './useTileViewport'
 
 interface Props {
@@ -60,6 +60,16 @@ interface Props {
    * state — nothing is highlighted until somebody selects a wire or a net that has a path.
    */
   runs?: readonly Polyline[]
+  /**
+   * Runs being *considered* rather than accepted — the Locate tab's hovered candidate, or a hand
+   * trace as it is being drawn.
+   *
+   * Painted **under** `runs` and in `CANDIDATE`'s own colour, so a proposal can never be mistaken
+   * for a decision on a sheet where accepting the wrong conductor is the failure that matters.
+   * One layer serves both because the two cannot happen at once: you are either comparing
+   * proposals or drawing one.
+   */
+  candidates?: readonly Polyline[]
   onTileSettled: (file: string, ok: boolean) => void
 }
 
@@ -76,6 +86,7 @@ export const TileSheet = memo(function TileSheet({
   size,
   dpr,
   runs,
+  candidates,
   onTileSettled,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -124,10 +135,13 @@ export const TileSheet = memo(function TileSheet({
       })
       // After the tiles, so the highlight lies over the ink it follows, and before the DOM
       // markers, which are a layer above this canvas entirely.
+      if (candidates?.length) {
+        paintRuns({ ctx, dpr, viewport, runs: candidates, style: CANDIDATE })
+      }
       if (runs?.length) paintRuns({ ctx, dpr, viewport, runs })
     })
     return () => cancelAnimationFrame(frame.current)
-  }, [tiles, width, height, viewport, size.width, size.height, dpr, runs, arrivals])
+  }, [tiles, width, height, viewport, size.width, size.height, dpr, runs, candidates, arrivals])
 
   return (
     <>
@@ -139,6 +153,9 @@ export const TileSheet = memo(function TileSheet({
            directly in `paint.test.ts`, and this is how a screen test knows the right runs reached
            the sheet. The same idiom as `data-end-label` and `data-ink-ring`. */
         data-runs={runs?.length ?? 0}
+        /* And how many were offered rather than accepted, read the same way and for the same
+           reason: nothing painted on this canvas can be read back through the DOM. */
+        data-candidates={candidates?.length ?? 0}
         className="pointer-events-none absolute inset-0 block h-full w-full"
       />
 

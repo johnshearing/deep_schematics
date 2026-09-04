@@ -41,13 +41,18 @@ export function placementLabel(placement: Placement | null | undefined): string 
  * has not been placed**. `labelled` is the same thing once somebody has said where that name is
  * written. Neither is ever `parent` or `seed`: nothing estimates a label.
  *
+ * `traced` and `no path here` are the two halves of *this wire has been dealt with*, added with
+ * Phase E on 2026-09-03. They are what the editor's `Paths` count counts, and the second is a
+ * **decision** rather than a gap — without it the count could never reach 71, because six of this
+ * drawing's rows are not on this sheet at all.
+ *
  * **It lives here, in a leaf module, because two lists now read it.** The editor's list computes
  * it from the draft (`model.ts` `rowState`, which is draft-aware and re-exports this type) and the
  * Drawing tab's list computes it from the index alone (`readerRowState` below). The words on the
  * row come from one table either way — `components/DesignatorList.tsx` — so a reader who learns
  * *on its component* in the editor meets the same phrase as a reader with no password at all.
  */
-export type RowState = Placement | 'computed' | 'labelled' | 'none'
+export type RowState = Placement | 'computed' | 'labelled' | 'traced' | 'no-path' | 'none'
 
 /**
  * The row state a **reader** sees, from the published index and nothing else.
@@ -57,6 +62,14 @@ export type RowState = Placement | 'computed' | 'labelled' | 'none'
  * The Drawing tab's list must work for somebody who has no editor password at all, so it reads
  * only what `/api/designators` publishes — which after a save is the same answer, because the
  * store re-reads the index (`refreshDesignators`).
+ *
+ * **So it never says `traced` or `no path here`, and that divergence is chosen rather than
+ * overlooked.** A path is not in the designator index at all: it is published by `/api/paths`,
+ * which is a separate endpoint on purpose (`H20`) and one this list would then have to be handed.
+ * The reader's way to *this wire's route* is to select it — the sheet paints the run and the
+ * selection card says `no path yet` or names the conductors it was lifted from, which is more than
+ * a word on a row could carry. The editor's list says it because the editor is working a queue of
+ * 71 and needs to see the queue shrink.
  */
 export function readerRowState(entry: Designator): RowState {
   if (entry.kind === 'wire' || entry.kind === 'net') {

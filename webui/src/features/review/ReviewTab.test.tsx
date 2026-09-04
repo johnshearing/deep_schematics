@@ -79,7 +79,10 @@ const ITEMS: ReviewItem[] = [
   { id: 'T0200', kind: 'label', read: null, text: null, confidence: 0, flagged: true,
     net_name: false, rect: [600, 400, 610, 410], label_kind: 'empty' },
   { id: 'C0030', kind: 'conductor', read: 'LI-A', text: 'LI-A', confidence: null, flagged: false,
-    net_name: true, rect: [300, 46, 420, 90] },
+    net_name: true, rect: [300, 46, 420, 90],
+    // A bend, as 50 of the real 149 have. Its rect is the box its polyline fits in, and the ink
+    // only touches two corners of that box.
+    points: [[300, 46], [420, 46], [420, 90]] },
   { id: 'C0008', kind: 'conductor', read: null, text: null, confidence: null, flagged: true,
     net_name: true, rect: [468.12, 215.97, 761.5, 232.51], missing: ['net_label', 'spec_label'] },
 ]
@@ -112,21 +115,38 @@ function stubServer(
         return json({ saved: true, report: { ...REPORT, file: true } })
       }
       if (url.endsWith('/api/review')) {
+        const document =
+          options.document ?? { drawing_number: 'PS20115MLM4-2', schema: 1, labels: {} }
         return json({
           present: Boolean(options.document),
           // The screen sends this straight back, so what the stub hands over is what a save must
           // contain: an unknown key here would prove the round trip does not normalise it away.
-          document:
-            options.document ??
-            { drawing_number: 'PS20115MLM4-2', schema: 1, labels: {} },
+          document,
           report: REPORT,
           counts: COUNTS,
-          items: options.items ?? ITEMS,
+          /**
+           * **The corrections folded back onto the readings, the way the server does it.**
+           *
+           * `resolve_corrections` lays the authored file over the ink on every request, so
+           * `item.correction` on a re-read is the decision the last save wrote. The store's
+           * `save` calls `refresh` for exactly that reason, and anything that reads `correction`
+           * — the `decided` count, and the `Not a label` scope — is a save behind until it lands.
+           * A stub that always answered with the pristine readings would hide that.
+           */
+          items: (options.items ?? ITEMS).map((item) => {
+            const stored = last(saved)?.labels?.[item.id]
+            return stored ? { ...item, correction: stored } : item
+          }),
         })
       }
       throw new Error(`unexpected fetch: ${url}`)
     }),
   )
+}
+
+/** The most recent document the screen wrote, for the stub to answer subsequent reads with. */
+function last(documents: CorrectionsDocument[]): CorrectionsDocument | undefined {
+  return documents[documents.length - 1]
 }
 
 /** Every URL the page has fetched, so a test can assert on what was *not* asked for. */
@@ -446,6 +466,99 @@ describe('ReviewTab', () => {
     fireEvent.change(screen.getByLabelText('Editor password'), { target: { value: 'secret' } })
     fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
     expect(await screen.findByText(/no extracted ink to review/)).toBeTruthy()
+  })
+
+  // -- the small batch, 2026-09-03 ---------------------------------------------------------
+
+  it('recomputes the kind badge from the text you typed, and leaves untouched rows alone', async () => {
+    await open()
+    const rowOf = (id: string) => within(screen.getByText(id).closest('li') as HTMLElement)
+    // The extraction called `LI-A` a `text`, and it still does — nobody has corrected this row.
+    expect(
+      rowOf('T0012').getByTitle(/What sort of string the extraction thinks/).textContent,
+    ).toContain('text')
+    // Trailing punctuation is the whole of the difference here, and it is what the badge was
+    // reported for three times: after `125,` → `125` it went on saying `text`.
+    type('T0012', '125')
+    await settle()
+    expect(rowOf('T0012').getByTitle(/worked out from the text you typed/).textContent).toContain(
+      'net_number',
+    )
+    // A run has no string to be a kind of, and says what it is instead.
+    expect(rowOf('C0008').getByTitle(/A run of ink/).textContent).toContain('run')
+  })
+
+  it('lists every not-a-label decision, which is the only way back to one', async () => {
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'No net name is printed on C0008' }))
+    await settle()
+    fireEvent.click(control('Not a label'))
+    // Over every reading rather than only the flagged ones, and it finds the run whose net name
+    // was given up. Thirty-four went that way on 2026-09-01 and took a database query to find.
+    expect(rows()).toEqual(['C0008'])
+    fireEvent.click(control('Flagged'))
+    expect(rows()).toEqual(['T0012', 'T0200', 'C0008'])
+  })
+
+  it('tells a run that no net name is printed on it, rather than talking about labels', async () => {
+    await open()
+    // **The wording that cost 34 net names.** On a run this button is a claim about the paper that
+    // the matcher acts on by never offering the run again; on a label it is nearly free.
+    const run = screen.getByRole('button', { name: 'No net name is printed on C0008' })
+    expect(run.getAttribute('title')).toContain('not a bookmark')
+    const label = screen.getByRole('button', { name: 'T0012 is not a label' })
+    expect(label.getAttribute('title')).toContain('never names')
+  })
+
+  it('writes a note beside a decision, and will not write one without a decision', async () => {
+    await open()
+    const note = () => screen.getByLabelText('Note about T0012') as HTMLInputElement
+    // Nothing decided: disabled, and the placeholder says why rather than leaving somebody typing
+    // into a box that swallows it. A note needs a `text` to ride on, and inventing the machine's
+    // reading to hang one off would record a confirmation nobody made (invariant 10).
+    expect(note().disabled).toBe(true)
+    expect(note().placeholder).toContain('decide first')
+
+    type('T0012', 'L1-A')
+    await settle()
+    expect(note().disabled).toBe(false)
+
+    fireEvent.change(note(), { target: { value: 'box is short of the ink' } })
+    fireEvent.blur(note())
+    await settle()
+    const last = saved[saved.length - 1]
+    expect(last.labels.T0012).toMatchObject({
+      text: 'L1-A',
+      was: 'LI-A',
+      note: 'box is short of the ink',
+    })
+    // And it is findable again without a scope: the row carries a mark.
+    expect(screen.getByLabelText('T0012 has a note')).toBeTruthy()
+  })
+
+  it('rings a run along its own polyline and a label with its box', async () => {
+    /**
+     * Small-batch item 5, and it was a wrong ring rather than a wrong reading. `C0002` on the real
+     * sheet is a three-segment L inside a 206 × 215 pt rectangle with a dozen unrelated runs
+     * crossing it, and for 19 of the 149 the box round the endpoints does not even contain the
+     * ink. Drawn through `polylineToDevice`, which is the one projection — a mark that computed
+     * its own could disagree with the tile under it.
+     */
+    reduceMotion()
+    await open()
+    fireEvent.click(control('All readings'))
+    fireEvent.focus(box('C0030'))
+    const svg = document.querySelector('[data-ink-shape="C0030"]')
+    expect(svg).toBeTruthy()
+    // Three vertices, so the corner is drawn rather than cut across.
+    const drawn = svg?.querySelector('polyline')?.getAttribute('points') ?? ''
+    expect(drawn.trim().split(/\s+/)).toHaveLength(3)
+
+    // A label is a box, and framing it exactly is how a person sees that the *box* is wrong —
+    // which is how `T0350` and `T0343` were diagnosed. So no polyline there.
+    fireEvent.focus(box('T0012'))
+    expect(document.querySelector('[data-ink-shape="T0012"]')).toBeNull()
+    expect(document.querySelector('[data-ink-ring="T0012"]')).toBeTruthy()
   })
 })
 

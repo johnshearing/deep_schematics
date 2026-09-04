@@ -12,6 +12,18 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 
 ---
 
+> **Reported by John in `claude.md`, 2026-09-03, and recorded here because an unmarked table
+> otherwise reads as *nobody has run this*:**
+>
+> > *"I have gone through all the lessons/tests and everything worked as expected."*
+>
+> That covers **T-800–T-840** (Session 5, the first walk of the highlighter) and everything before
+> them. The columns below are left blank because they are yours to mark and marking them on your
+> behalf would put a claim in this file that nobody made row by row — but the sentence above is the
+> answer to *what is broken*, and the answer is nothing so far.
+
+---
+
 ## T-1xx — picking, placing, advancing, dragging — `02_tests_place_and_drag.md`
 
 | Test | What it checks | Result | Notes if not P |
@@ -166,6 +178,46 @@ paste, with the server stopped. It is scaffolding, and T-840 asks you to decide 
 | T-830 | The stroke is in **points**: visible at the 11% fit, thickened at 200%, and never reaching the rows 16 pt away | | |
 | T-835 | An Ask-tab citation of `120` lands on the net and paints it — same `select()` as a list row | | |
 | T-840 | Arming a wire on the **Locate** tab highlights it · a terminal clears it · **the pasted `path` survives an end-label edit on the same wire** · the cleanup, and the four checks | | |
+
+## T-74x–T-77x — the small batch — `12_tests_label_corrections.md`
+
+*Added 2026-09-03 at the head of Session 6, **before** Phase E. Four things that change what you
+see while making 71 judgements about conductors, plus the polyline the path editor needed anyway and
+one generated file that looked behind. None walked. No schema change and no correction moves.*
+
+| Test | What it checks | Result | Notes if not P |
+|---|---|:--:|---|
+| T-745 | The `kind` badge is recomputed from the text you typed · `125,` → `125` becomes `net_number` · an **uncorrected** row still shows the extraction's own word verbatim | | |
+| T-750 | A third scope, **`Not a label`** — 276 decisions, flagged or not · narrows with `Net names` to the runs the matcher acts on · `Reset` takes one back | | |
+| T-755 | The ✖ tooltip on a **run** says *no net name is printed on this run*, and that it is **not a bookmark** · a label row keeps its own wording | | |
+| T-760 | A **note** box beside each decision · **disabled until the row is decided**, and it says why · survives a retyped reading · an empty one **deletes** rather than storing `""` · the row grows a ✎ mark | | |
+| T-765 | A **run** is ringed along its own polyline; a **label** keeps its exact bbox · `C0002` is an L rather than a 206 × 215 pt box | | |
+| T-770 | `build_kg.py` re-run · 693 chunks / 291 entities / 402 relationships · **`git diff` empty** — it emits no coordinates, so the staleness was a timestamp | | |
+
+## T-90x–T-96x — the path editor — `14_tests_path_editor.md`
+
+**The last session of the plan.** Needs the editor password and a restart. **The hand edit is over**
+— T-800's pasted block was scaffolding and this is the screen that replaces it. Nothing here changes
+`locations.json`'s schema: Session 5 built `path` and `no_path_on_this_sheet`, and this writes them.
+
+**T-910 is the acceptance criterion**: the ranking has to reproduce the four pairings measured off
+the sheet by hand in `07_drawing_facts.md`, and `W052` has to come back **`C0109`** and not `C0080`.
+
+| Test | What it checks | Result | Notes if not P |
+|---|---|:--:|---|
+| T-900 | The **Where it runs** panel · a ranked list with its reasons tagged on every row · **the geometry outranks the printed name** · hovering lights one run on the sheet, in its own colour | | |
+| T-905 | Accept one click · what is written: `runs`, `conductors`, `geometry: extracted`, `attribution: **human**` · **no `point` and no `derived` anywhere** · the ink's own coordinates, unrounded | | |
+| T-910 | **The four measured pairings** — `W052`→`C0109`, `W053`→`C0080`, `W063`→`C0091`+`C0092`, `W068`→`C0081`+`C0057` | | |
+| T-915 | The **crossover hop**: `Add a run`, `W068` as 644 pt of ink against a 312 pt chord, **the gap left open** · `C0092` has no printed name and is still found | | |
+| T-920 | **Clear** · the wire leaves the file entirely when the route was all it had · the end labels in the same record survive · clicking another candidate **replaces** rather than adds | | |
+| T-925 | **No handles on a lifted run** · `Make it editable` converts to `geometry: human` and **drops `conductors`** · a dragged corner rounds to a tenth and undoes in one press | | |
+| T-930 | **Trace**, all four keys — click, `Backspace`, `Esc`, `Enter` · nothing written until `Enter` · `Esc` abandons the trace and **leaves the wire armed** · one corner is refused · no `conductors` key | | |
+| T-935 | **No path on this sheet** · the count goes up · pressing it again **deletes** the key rather than writing `false` · it and a route retract each other | | |
+| T-940 | The **`Paths`** filter and `n of 71 wire paths` · the row leaves the queue before the save lands · held against `To do`, which still cannot reach zero (`K7`) | | |
+| T-945 | **`K10`** — `NET-PB1`'s end labels read **`PB1`** · its wire's top candidate is `C0054`, tagged `corrected name` · **26 of 26 nets** | | |
+| T-950 | The Review tab's ring on a **run** follows the ink; on a **label** it is still the exact bbox | | |
+| T-955 | With `SWUI_ALLOW_EDITS=false`: the highlight still works and `/api/conductors` is **404, not 401** | | |
+| T-960 | **172 server · 318 web · ruff clean · tsc clean**, artifact test **green** after authoring paths · only `locations.json` changed under `schematic_extraction/` | | |
 
 ---
 

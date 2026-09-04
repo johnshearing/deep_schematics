@@ -22,13 +22,22 @@ The file's own `text_source` field says why there are so many:
 module. `prompts.py` §3 forbids the model from reading it. And nothing has ever sent it to a
 browser. Both would be broken by a loader that handed back the raw parse and let each caller take
 what it liked, so this one **keeps only the fields a caller has a use for** and drops the rest at
-the boundary: `symbols`, `boxes`, `rects`, `junctions`, the conductor `points` polylines, the
-per-endpoint `endpoint_bindings`, `stats`, `params`. What is left is 664 small records.
+the boundary: `symbols`, `boxes`, `rects`, `junctions`, `stats`, `params`. What is left is 664
+small records.
 
 That is hazard **H17** in `06_code_map.md`, and it is structural rather than a rule to remember:
-there is no code path from here to the whole file, so no route can leak it by accident. When Phase
-E needs the conductor polylines for `/api/conductors` it adds them **here**, named, behind the same
-cache, and that route decides what to publish — the loader still never returns the file.
+there is no code path from here to the whole file, so no route can leak it by accident.
+
+**Two fields arrived on 2026-09-03, with Phase E, exactly as that paragraph said they would.**
+The conductor `points` polylines and the per-endpoint `endpoint_bindings` were dropped here while
+nothing had a use for them; `/api/conductors` needs both to rank candidate runs for a wire, and
+the review screen needs the polyline to ring a three-segment L with its own shape instead of the
+206 × 215 pt box round its two ends. So they are read **here**, named, behind the same cache, and
+the routes decide what to publish. The cost is measured rather than guessed: 393 vertices over
+149 runs is **7 KB** of JSON and the narrowed bindings are **18 KB**, against the 608 KB the
+loader still never returns. `endpoint_bindings` is narrowed as it is read — the bound symbol and
+its distance, and not the `label_*` fields, which say which *text* sits near an end and are
+`net_label`'s business rather than tracing's.
 
 ### The two things a reading can be about
 
@@ -86,13 +95,47 @@ class Label:
 
 
 @dataclass(frozen=True)
-class Conductor:
-    """One run of ink, and the names printed beside it.
+class Binding:
+    """What one end of a run lands on, if anything.
 
-    `points` is deliberately **absent**. It is the polyline Phase E will lift a wire's path from,
-    it is half the weight of `geometry.json`, and nothing in Phase F draws a route — so it is not
-    read here yet. `endpoints` is enough to frame the run on screen, which is all the review screen
-    needs in order to show you the ink you are naming.
+    A `terminal_point` symbol is one of the 88 small circles the sheet draws where a conductor
+    meets a pin — **not** one of the netlist's terminals, and the hardest-won lesson of the
+    extraction was not to confuse the two. So this says *this end of the ink stops on a dot*, and
+    `distance` says how convincingly. That is a signal for ranking a candidate, never an identity:
+    `symbol` is `S0070`, which names nothing a person can look up.
+
+    The `label_id`/`label_text`/`label_distance` fields of the same record are deliberately not
+    read. Which *text* sits near an end is how `net_label` was bound in the first place, and
+    re-deriving it here would be a second opinion about a question `net_label` has already
+    answered.
+    """
+
+    #: Where the end is, as the binding records it. Normally the polyline's first or last vertex.
+    point: tuple[float, float] | None
+    symbol: str | None = None
+    symbol_kind: str | None = None
+    distance: float | None = None
+
+    @property
+    def on_terminal_point(self) -> bool:
+        return self.symbol_kind == "terminal_point"
+
+
+@dataclass(frozen=True)
+class Conductor:
+    """One run of ink, the names printed beside it, and its shape.
+
+    **`points` is the whole polyline** — 50 of this sheet's 149 runs are multi-segment, up to five
+    segments, and `C0008` is a real four-corner orthogonal route. It arrived on 2026-09-03 with
+    Phase E, which lifts a wire's path from it, and it fixed something on the review screen at the
+    same time: `rect` is now min/max over **every** vertex rather than over the two endpoints, and
+    for 19 of the 149 runs those are different rectangles. `C0057` is the case that matters —
+    (429.8, 639.6) → (798, 639.6) → (798, 563.5) → (598.9, 563.5) — whose endpoints span
+    x 429.8–598.9 while the ink goes out to x = 798. A rectangle that does not contain the ink it
+    claims to frame is worse than a loose one.
+
+    `endpoints` is kept beside it rather than derived, because the extraction's own idea of where
+    a run ends is what its `endpoint_bindings` are indexed by, and the two must not drift.
     """
 
     id: str
@@ -103,13 +146,29 @@ class Conductor:
     #: happened to sit beside it. Every one of this sheet's 70 net names is the `text` of one of
     #: them, which is what lets a correction to a *label* fix every conductor that reads it.
     label_ids: tuple[str, ...] = ()
+    #: The polyline, corner by corner, in PDF points — the same space as the tiles and every
+    #: marker. Two or more vertices for a real run; a degenerate one is kept as it was read,
+    #: because dropping it here would hide it from the screen that exists to look at it.
+    points: tuple[tuple[float, float], ...] = ()
+    #: The colour and gauge apart, as well as together in `spec_label`. Phase E's ranking wants
+    #: both: `BLUE 18AWG` against a wire's spec is the strong test, and a colour that matches
+    #: while the gauge does not is a candidate worth showing and ranking below it.
+    color: str | None = None
+    gauge: str | None = None
+    #: The run's own length in points, as the extractor measured it along the polyline. 46 of the
+    #: 149 are under 15 pt and are symbol strokes rather than wiring.
+    length: float | None = None
+    #: One per endpoint, in endpoint order.
+    bindings: tuple[Binding, ...] = ()
 
     @property
     def rect(self) -> tuple[float, float, float, float] | None:
-        if not self.endpoints:
+        """The box the whole run fits in — over every vertex, not just the two ends."""
+        shape = self.points or self.endpoints
+        if not shape:
             return None
-        xs = [x for x, _ in self.endpoints]
-        ys = [y for _, y in self.endpoints]
+        xs = [x for x, _ in shape]
+        ys = [y for _, y in shape]
         return (min(xs), min(ys), max(xs), max(ys))
 
 
@@ -316,12 +375,34 @@ def _conductor(entry: Any, problems: list[str]) -> Conductor | None:
         for point in (_point(p) for p in (entry.get("endpoints") or []))
         if point is not None
     )
+    shape = tuple(
+        point
+        for point in (_point(p) for p in (entry.get("points") or []))
+        if point is not None
+    )
     return Conductor(
         id=entry["id"],
         endpoints=ends,
         net_label=_optional_text(entry.get("net_label")),
         spec_label=_optional_text(entry.get("spec_label")),
         label_ids=tuple(i for i in (entry.get("label_ids") or []) if isinstance(i, str)),
+        points=shape,
+        color=_optional_text(entry.get("color")),
+        gauge=_optional_text(entry.get("gauge")),
+        length=_number(entry.get("length")),
+        bindings=tuple(_binding(b) for b in (entry.get("endpoint_bindings") or [])),
+    )
+
+
+def _binding(entry: Any) -> Binding:
+    """One endpoint binding, narrowed as it is read — see `Binding`."""
+    if not isinstance(entry, dict):
+        return Binding(point=None)
+    return Binding(
+        point=_point(entry.get("point")),
+        symbol=_optional_text(entry.get("symbol_id")),
+        symbol_kind=_optional_text(entry.get("symbol_kind")),
+        distance=_number(entry.get("symbol_distance")),
     )
 
 

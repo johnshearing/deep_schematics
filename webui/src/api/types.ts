@@ -211,6 +211,19 @@ export interface Designator {
    * conductor, and it is what a technician checks with their eyes.
    */
   spec?: string
+  /**
+   * A net's name **as the sheet prints it** — `PB1` for `NET-PB1`. Nets only, and absent for the
+   * 24 of 26 whose id is what is printed.
+   *
+   * The net-side twin of `spec`, and it exists for the same reason: the id we index by is not
+   * always a word the reader can find on the paper. `NET-PB1` and `NET-PB2` were renamed during
+   * extraction because the sheet also has a *push button* called `PB1`, and the rename was right —
+   * two things may not share an id. That is `K10`, and it costs two things: an end label saying a
+   * word nobody can find, and — until this field existed — two nets of 26 that Phase E's
+   * `candidates()` could never match to a printed conductor, because it compares against the net's
+   * name and theirs is not the one on the ink. It compares against **both** forms now.
+   */
+  printed?: string
   /** Other names for the same thing, components only. */
   aliases?: string[]
 }
@@ -290,6 +303,73 @@ export interface WirePath {
 export interface PathIndex {
   wires: Record<string, WirePath>
   nets: Record<string, string[]>
+}
+
+/**
+ * One end of a run of ink, and what the extraction bound it to.
+ *
+ * `symbol` is one of the sheet's 88 `terminal_point` circles — where ink meets a pin — and it is
+ * **not** one of the netlist's terminals. Mistaking the two was the hardest-won lesson of the
+ * extraction, so the id is published only so that two runs meeting at one dot can be recognised
+ * as meeting; it names nothing a person can look up. Absent where the end lands on nothing, or on
+ * a device circle, which is a symbol and not a junction.
+ */
+export interface ConductorEnd {
+  /** Where the extraction thought the run ends. Published rather than inferred from the first or
+   * last vertex: they agree for all 149 runs on this sheet, and assuming that would be assuming
+   * one drawing. */
+  point: [number, number] | null
+  symbol?: string
+  /** How far the end is from that symbol, in points. Every measured pairing in
+   * `07_drawing_facts.md` is within 4 pt at both ends, against conductor rows 16 pt apart — which
+   * is why this is the strongest signal `candidates()` has. */
+  distance?: number
+}
+
+/**
+ * One candidate run of ink, reduced to what tracing a wire needs — `GET /api/conductors`.
+ *
+ * **Behind the editor password, and `GET /api/paths` deliberately is not.** They look like a pair
+ * and they are opposites: a path is *authored display geometry* and a reader is exactly who wants
+ * it, while this is the raw ink — 149 polylines out of a 608 KB file — and it is no use to
+ * somebody who cannot accept one of them into an authored file. Hazard `H20`.
+ */
+export interface Conductor {
+  id: string
+  /** The shape, corner by corner. **This is the field the route exists for**: it is what gets
+   * accepted into `path.runs`, and a candidate offering only its two ends would let a wire be
+   * highlighted along a chord between two corners — the invented route §3 forbids. */
+  points: Polyline
+  /** One per endpoint, in endpoint order. */
+  ends: ConductorEnd[]
+  /**
+   * What the run reads **now**, with every Phase F correction applied — the string a wire's net id
+   * is compared against.
+   *
+   * Absent where it reads nothing: 79 runs never had a name bound, and a reading somebody called
+   * *not a label* is dropped rather than published, because a matcher must not compare against a
+   * string a person said was not a name.
+   */
+  net_label?: string
+  /** The extraction's own binding, **only where a person changed it**, so the panel can say
+   * *corrected* rather than *printed*. It is also the thing a re-extraction destroys. */
+  was?: string
+  /** `BLUE 18AWG`, as printed. The strong form of the second signal: a wire's `spec` is the same
+   * string. */
+  spec_label?: string
+  /** The halves, so a run whose colour matches while its gauge does not can be ranked **below** an
+   * exact match rather than dropped out of the list. */
+  color?: string
+  gauge?: string
+  /** Length along the polyline, in points. What keeps the 46 strokes under 15 pt — slanted bars of
+   * contact symbols the tracer collected — from out-ranking real wiring. */
+  length?: number
+}
+
+export interface ConductorIndex {
+  counts: { conductors: number; named: number }
+  conductors: Conductor[]
+  problems: string[]
 }
 
 /**
@@ -412,9 +492,20 @@ export interface ReviewItem {
    * the 70 labels a run's net name is lifted from. This is the set that unlocks the path matcher,
    * and so what the `Net labels` filter shows. */
   net_name: boolean
-  /** What to frame on the sheet, in PDF points: a label's bbox, or the span of a run's endpoints.
-   * The same coordinate space as every marker and every tile — no registration step. */
+  /** What to frame on the sheet, in PDF points: a label's bbox, or the box a run's whole polyline
+   * fits in. The same coordinate space as every marker and every tile — no registration step. */
   rect: [number, number, number, number] | null
+  /**
+   * A run only: its **polyline**, so the ring on the sheet follows the ink instead of the
+   * rectangle the ink fits inside.
+   *
+   * 50 of this sheet's 149 runs bend, up to five segments, and the box round the two ends of a
+   * three-segment L is a rectangle over a quarter of the drawing with a dozen unrelated
+   * conductors crossing it — `C0002` exactly. Worse, for 19 of the 149 the box round the
+   * endpoints does not even *contain* the run: `C0057` goes out to x = 798 while its ends span
+   * x 429.8–598.9. Absent on a label, which is a box and has no shape of its own.
+   */
+  points?: Polyline
   /** The extractor's guess at what sort of string a label is — `net_number`, `wire_spec`,
    * `terminal_number`, `designator`, `voltage`, `text`, `note`, `empty`. A hint, never a filter. */
   label_kind?: string

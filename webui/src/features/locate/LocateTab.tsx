@@ -37,7 +37,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Crosshair, Lock, Map, Maximize2, Minus, Plus, Save } from 'lucide-react'
 
-import type { Designator, LocationsDocument, Place } from '@/api/types'
+import type { Designator, LocationsDocument, Place, Polyline } from '@/api/types'
 import { DesignatorList } from '@/components/DesignatorList'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -52,7 +52,8 @@ import {
   type Viewport,
 } from '@/features/drawing/useTileViewport'
 import { isTextField } from '@/lib/keys'
-import { pathsFor } from '@/lib/paths'
+import { PathHandles } from './PathHandles'
+import { draftRuns, netOf } from './paths'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
 import { useLocateStore } from '@/stores/locateStore'
@@ -65,9 +66,13 @@ import {
   LABELLABLE,
   nextSiteId,
   nextUnplaced,
+  pathSettled,
   PLACEABLE,
+  movePathVertex,
+  pathOf,
   place as placeInto,
   rowState,
+  tracePath as tracePathInto,
   splitTerminal,
   type Target,
 } from './model'
@@ -84,10 +89,28 @@ export { LOCATE_TAB_ID }
  * pair of compasses, while a net has up to nine members and its panel is a list — different work,
  * done in different sittings, and finding one among the other 96 rows was the cost of the merge.
  */
-type Filter = 'todo' | 'components' | 'terminals' | 'wires' | 'nets' | 'all'
+type Filter = 'todo' | 'paths' | 'components' | 'terminals' | 'wires' | 'nets' | 'all'
 
 const FILTERS: { id: Filter; label: string; title: string }[] = [
   { id: 'todo', label: 'To do', title: 'Components and terminals nobody has placed yet' },
+  {
+    /**
+     * **The 71 wires still waiting for a route** — the one queue on this screen that can be
+     * finished.
+     *
+     * A wire leaves it two ways: a route accepted or drawn, or a person saying there is nothing on
+     * this sheet to trace. Both, because they are two claims and a queue counting only the first
+     * could never empty — some wires run to a connector whose other end is on another drawing. A
+     * progress number that stops short for a reason nobody can act on is `K7`, and this screen
+     * already made that mistake once with the six `nowhere` rows in *To do*.
+     */
+    id: 'paths',
+    label: 'Paths',
+    title:
+      'Wires with no route yet. A wire leaves this list when you accept a run of ink for it, ' +
+      'draw one by hand, or say there is nothing on this sheet to trace — so unlike To do, this ' +
+      'one can reach zero.',
+  },
   { id: 'components', label: 'Components', title: 'All components' },
   { id: 'terminals', label: 'Terminals', title: 'All terminals' },
   {
@@ -159,6 +182,7 @@ export function LocateTab() {
   const {
     document,
     report,
+    conductors,
     unlocked,
     loading,
     error,
@@ -185,6 +209,17 @@ export function LocateTab() {
   const [width, height] = tiles?.page_size_pt ?? [1, 1]
   const viewer = useTileViewport({ width, height, dpi: tiles?.dpi ?? 400 })
   const [filter, setFilter] = useState<Filter>('todo')
+  /**
+   * A hand trace in progress: the corners so far, or `null` for *not tracing*.
+   *
+   * **Here rather than in the panel**, because the clicks that add corners land on the *sheet* and
+   * the sheet is this component's. It is deliberately not in the store either: it is a gesture, it
+   * dies with the page, and nothing is written until `Enter` — so an abandoned trace leaves no
+   * trace, which is the whole point of `Esc`.
+   */
+  const [tracing, setTracing] = useState<[number, number][] | null>(null)
+  /** One proposal, lit on the sheet while the pointer is over its row. Never written anywhere. */
+  const [preview, setPreview] = useState<Polyline[] | null>(null)
   const [settled, setSettled] = useState<Record<string, boolean>>({})
   const onTileSettled = useCallback(
     (file: string, ok: boolean) => setSettled((current) => ({ ...current, [file]: ok })),
@@ -229,6 +264,10 @@ export function LocateTab() {
     switch (filter) {
       case 'todo':
         return entries.filter((e) => PLACEABLE.has(e.kind) && stateOf(e) !== 'confirmed')
+      case 'paths':
+        // Read off the **draft**, so a wire leaves the queue under the click that settles it
+        // rather than after the save.
+        return entries.filter((e) => e.kind === 'wire' && !pathSettled(document, e.id))
       case 'components':
         return entries.filter((e) => e.kind === 'component')
       case 'terminals':
@@ -318,9 +357,40 @@ export function LocateTab() {
    * unsaved one to prefer.
    */
   const runs = useMemo(
-    () => pathsFor(paths, targetEntry?.kind, targetEntry?.id)?.runs,
+    () => (document ? draftRuns(document, paths, targetEntry) : undefined),
+    [document, paths, targetEntry],
+  )
+
+  /**
+   * Which net the armed wire is on, and what the sheet prints for that net — the two inputs
+   * `candidates()` compares a run's printed name against.
+   *
+   * The net comes from `/api/paths`'s membership map, which is the one place it is published: it
+   * is computed from `wire.net` in the netlist for the highlight's sake, and reading it from there
+   * is what stops a second answer to *which net is this wire on* existing. The printed form is
+   * `K10`, and it is worth exactly two nets — `NET-PB1` and `NET-PB2` are printed `PB1` and `PB2`,
+   * and with both forms compared the matcher reaches 26 of 26 nets rather than 24.
+   */
+  const net = useMemo(
+    () => (targetEntry?.kind === 'wire' ? netOf(paths, targetEntry.id) : null),
     [paths, targetEntry],
   )
+  const printedNet = useMemo(
+    () => (net ? (entries.find((e) => e.kind === 'net' && e.id === net)?.printed ?? null) : null),
+    [entries, net],
+  )
+
+  /**
+   * The corners a person may move: a hand-traced route's, and nothing else.
+   *
+   * Null while an extracted route is armed, which is what makes *Make it editable* a real step
+   * rather than a formality — see `model.convertPath`.
+   */
+  const handles = useMemo(() => {
+    if (!document || targetEntry?.kind !== 'wire' || tracing) return null
+    const path = pathOf(document, targetEntry.id)
+    return path?.geometry === 'human' ? path.runs : null
+  }, [document, targetEntry, tracing])
 
   const marked = useMemo(() => {
     if (!document || !targetEntry) return null
@@ -429,6 +499,20 @@ export function LocateTab() {
         event.target.blur()
         return
       }
+      /**
+       * **A trace in progress is what Escape abandons, before the target.**
+       *
+       * Two things want this key and the order is not arbitrary: a half-drawn route is the more
+       * recent, more fragile thing, and one press taking away *both* it and the armed row would
+       * mean losing your place as the price of abandoning a line. So the first Escape drops the
+       * corners and leaves the wire armed, ready to try again; the second disarms. Same
+       * escalation as a text field getting the first one.
+       */
+      if (traceRef.current) {
+        event.preventDefault()
+        keys.current.trace('abandon')
+        return
+      }
       if (!useLocateStore.getState().target) return
       event.preventDefault()
       setTarget(null)
@@ -437,9 +521,47 @@ export function LocateTab() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [activeTabId, setTarget])
 
+  /** Whether a trace is running, for the two `window` listeners — which are bound once and must
+   * not be re-bound on every corner. */
+  const traceRef = useRef(false)
+  traceRef.current = tracing !== null
+
   const stamp = useCallback(
     () => ({ by: health?.editing?.by ?? null, at: new Date().toISOString() }),
     [health?.editing?.by],
+  )
+
+  /**
+   * Start, finish or abandon a hand trace.
+   *
+   * Nothing is written until it finishes, and finishing needs **two** corners: one point is not a
+   * run, and `locations.py` refuses one by name from the other side. Abandoning writes nothing at
+   * all, which is what makes `Esc` safe to press.
+   */
+  const trace = useCallback(
+    (action: 'start' | 'finish' | 'abandon' | 'back') => {
+      if (action === 'start') {
+        setPreview(null)
+        setTracing([])
+        return
+      }
+      if (action === 'abandon') {
+        setTracing(null)
+        return
+      }
+      if (action === 'back') {
+        setTracing((corners) => (corners ? corners.slice(0, -1) : corners))
+        return
+      }
+      const corners = tracing
+      setTracing(null)
+      if (!corners || corners.length < 2 || !targetEntry) return
+      edit(
+        (d) => tracePathInto(d, targetEntry.id, corners, stamp()),
+        `traced ${targetEntry.id} by hand, ${corners.length} corners`,
+      )
+    },
+    [tracing, targetEntry, edit, stamp],
   )
 
   /**
@@ -491,12 +613,34 @@ export function LocateTab() {
    * armed target, both of which change constantly, and re-binding a `window` listener on every
    * keystroke of a placement run is a cost with no benefit.
    */
-  const keys = useRef({ nudge, undo, redo })
-  keys.current = { nudge, undo, redo }
+  const keys = useRef({ nudge, undo, redo, trace })
+  keys.current = { nudge, undo, redo, trace }
   useEffect(() => {
     if (activeTabId !== LOCATE_TAB_ID) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || isTextField(event.target)) return
+
+      /**
+       * **While a trace is running these two keys are the trace's, and nothing else's.**
+       *
+       * `Enter` finishes and `Backspace` takes back the last corner — the other half of the four
+       * keys the phase asks for, `Esc` being in the effect above and the clicks being on the
+       * sheet. Handled before undo, because `Ctrl+Z` during a trace should still be undo: the
+       * corners are not in the document, so there is nothing there for it to walk back and the
+       * two never compete.
+       */
+      if (traceRef.current) {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          keys.current.trace('finish')
+          return
+        }
+        if (event.key === 'Backspace') {
+          event.preventDefault()
+          keys.current.trace('back')
+          return
+        }
+      }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault()
@@ -580,14 +724,20 @@ export function LocateTab() {
           <span
             className="text-muted-foreground tabular-nums"
             title={
-              'Components and terminals need a point, and that is the only work here. Every wire ' +
-              'end and every net terminal already has a label — the side is computed from points ' +
-              'you have already placed — so the last number is how many of those you have moved ' +
-              'or hidden by hand, not how many are missing. There is nothing to finish.'
+              'Components and terminals need a point. End labels are not work — the side is ' +
+              'computed from points you have already placed, so that number is how many you have ' +
+              'moved or hidden by hand rather than how many are missing. Wire paths **are** work, ' +
+              'and unlike the rest of this screen that count can be finished: a wire is done when ' +
+              'it has a route or when you have said there is none on this sheet.'
             }
           >
             {`${done.confirmed} of ${done.placeable} placed · ${done.remaining} to do · `}
-            {`${done.wires} wires · ${done.nets} nets · `}
+            {/* **The one count on this screen that reaches its own total.** It says `of 71`
+                because the *no path on this sheet* decision exists — without it this would stop
+                short at the wires whose run is on another drawing, which is `K7` and is the
+                mistake this plan says three times it is avoiding on purpose. */}
+            {`${done.settled} of ${done.wires} wire paths · `}
+            {`${done.nets} nets · `}
             {`${done.authored} end label${done.authored === 1 ? '' : 's'} moved by hand`}
           </span>
         )}
@@ -690,6 +840,13 @@ export function LocateTab() {
                 target={target}
                 pinsOf={pinsOf}
                 endLabels={endLabels}
+                conductors={conductors}
+                net={net}
+                printedNet={printedNet}
+                tracing={tracing}
+                stamp={stamp}
+                onPreview={setPreview}
+                onTrace={(start) => trace(start ? 'start' : 'abandon')}
                 /* `fly` is set by the site buttons and by nothing else. Retargeting also happens
                    after a rename and when a new site is started, and neither is a request to be
                    taken anywhere — one has not moved and the other has nowhere to go yet. */
@@ -737,12 +894,14 @@ export function LocateTab() {
             const now = current.current
             if (from.x !== now.x || from.y !== now.y || from.scale !== now.scale) return
             const box = event.currentTarget.getBoundingClientRect()
-            put(
-              cssToPoint(
-                { left: event.clientX - box.left, top: event.clientY - box.top },
-                viewer.viewport,
-              ),
+            const at = cssToPoint(
+              { left: event.clientX - box.left, top: event.clientY - box.top },
+              viewer.viewport,
             )
+            /* While tracing, a click is a **corner** and not a placement. Nothing is written
+               until Enter, so an abandoned trace leaves the file exactly as it was. */
+            if (tracing) setTracing([...tracing, at])
+            else put(at)
           }}
         >
           {armed && viewer.viewport.scale > 0 && (
@@ -754,6 +913,10 @@ export function LocateTab() {
               size={viewer.size}
               dpr={viewer.dpr}
               runs={runs}
+              /* A hovered proposal, or the trace as it is being drawn — one layer, because the
+                 two cannot happen at once. Painted under `runs` in its own colour, so a
+                 proposal is never mistaken for a decision. */
+              candidates={tracing && tracing.length > 1 ? [tracing] : (preview ?? undefined)}
               onTileSettled={onTileSettled}
             />
           )}
@@ -804,6 +967,31 @@ export function LocateTab() {
               onDragEnd={endRun}
             />
           )}
+
+          {/**
+            * The corners of a **hand-traced** route, draggable — and only ever a hand-traced one.
+            *
+            * `geometry: extracted` is a claim about the polyline: *these corners are the
+            * drawing's, not mine*. There are no handles on one, and the panel offers an explicit
+            * conversion instead; `model.movePathVertex` refuses it from the other side too.
+            */}
+          {armed && document && handles && (
+            <PathHandles
+              runs={handles}
+              viewport={viewer.viewport}
+              dpr={viewer.dpr}
+              onMove={(run, vertex, point) =>
+                edit(
+                  (d) => movePathVertex(d, targetEntry!.id, run, vertex, point, stamp()),
+                  `moved a corner of ${targetEntry!.id}'s path`,
+                  /* One undo step per gesture, not per frame — the same coalescing key idiom a
+                     marker drag uses, and for the same reason. */
+                  `vertex:${targetEntry!.id}:${run}:${vertex}`,
+                )
+              }
+              onDragEnd={endRun}
+            />
+          )}
         </div>
       </div>
 
@@ -813,8 +1001,11 @@ export function LocateTab() {
         <Key>Shift</Key>+<Key>Alt</Key>+arrows by {FINE_NUDGE_PT} pt, at any zoom — bare arrows
         still pan · <Key>Ctrl</Key>+<Key>Z</Key> undoes the last change and{' '}
         <Key>Ctrl</Key>+<Key>Shift</Key>+<Key>Z</Key> puts it back ·{' '}
-        <Key>Esc</Key> selects nothing and gives the hand back · arming a wire or a net
-        highlights whatever run somebody has traced for it · past {FLY_CEILING_PERCENT}% zoom,
+        <Key>Esc</Key> selects nothing and gives the hand back · arming a wire shows its route and
+        the runs of ink that might be it — hover one to see it, click to accept ·{' '}
+        <span className="font-medium">Trace by hand</span> then click each corner,{' '}
+        <Key>Enter</Key> to finish, <Key>Backspace</Key> to take one back, <Key>Esc</Key> to
+        abandon · past {FLY_CEILING_PERCENT}% zoom,
         picking a row leaves the sheet exactly where it is · filled dots
         were placed by hand, hollow ones are the indexing pass&apos;s estimate. Saved to{' '}
         <span className="font-mono">locations.json</span>, which is authored and belongs in git

@@ -429,6 +429,171 @@ status` in this document rather than an argument in a comment.
 
 ---
 
+# T-74x–T-76x — the four things Session 6 sharpened first
+
+*Added **2026-09-03**, at the head of Session 6 and **before** Phase E — the same argument that put
+Phase 0 in front of everything: a tool you are about to spend a long authoring run inside is worth
+sharpening first. All four came out of you working this whole queue on 2026-09-01 and asking 23
+questions about it; `_claude_notes/review_tab_questions.md` is the reasoning for every one, and four
+further ideas are **rejected** there with their reasons.*
+
+**Nothing here changes the schema.** `label_corrections.json` is still schema 1, `note` was always
+in it, and no correction you have made moves.
+
+---
+
+## T-745 · The `kind` badge now agrees with what you typed
+
+**Do.** Switch to **`All readings`** and find **`T0463`** — the second printed `125` at the far
+right of that run. Its badge says `text`, because `125,` with a trailing comma matches no rule the
+extractor has.
+
+**Do.** Type `125` and press `Enter`.
+
+**Expected.** The badge changes to **`net_number`**, with a small `·` after it, and its tooltip says
+the word was worked out from the text you typed and what the extraction had called it before.
+
+**Do.** Hover the badge on a row you have **not** corrected.
+
+**Expected.** It reads exactly what the extraction said, and its tooltip says so.
+
+**Why this is the whole of that problem, and there is nothing to author.** `kind` is a **pure
+function of the text** — `classify_label()` in `schematic_skills/scripts/extract.py` — and nothing
+on the server or the client branches on it; `ink.py` calls it *"a hint for the reader, never a
+filter this server applies"*. You asked three separate times for a way to edit that field. The
+honest answer is that there is no field: the badge was simply not being recomputed, so it went on
+describing a string you had already replaced. A badge that disagrees with the box beside it reads as
+a field you are not allowed to correct, which is exactly how it was reported.
+
+**The one thing worth knowing about the fix.** The classifier is mirrored in TypeScript, because the
+original imports PyMuPDF and exits without it, so neither the server nor the browser can import it.
+Two copies of a rule can drift — so an **uncorrected** row shows the extraction's own answer,
+verbatim, which cannot drift because it *is* the extraction's answer, and the mirror is consulted
+only where you have changed the text. `review/model.test.ts` pins it against a table of 45 strings
+generated from the Python, which is what will say so if `classify_label` ever changes.
+
+---
+
+## T-750 · `Not a label` — a third scope, and the way back to 276 decisions
+
+**Do.** Press the new **`Not a label`** scope, beside `Flagged` and `All readings`.
+
+**Expected.** Every reading anybody has said is not a label at all — on this drawing, **276 of
+them** — flagged or not.
+
+**Do.** Press **`Net names`** as well.
+
+**Expected.** Narrowed to the ones the path matcher acts on: every *run* in that state.
+
+**Why this needed to exist.** On a **label** row that button is nearly free. On a **run** row it is
+a claim about the paper — *no net name is printed on this run* — and `corrected_text()` drops a
+`null`, so the matcher never sees that run again. On 2026-09-01 it was used as a bookmark on 34 runs
+that had a correctly-bound net name, including **the only run carrying net `125`**, and finding them
+again took a database query rather than a click. This is the click. **`Reset` (↺) takes the decision
+back.**
+
+---
+
+## T-755 · The ✖ says what it means on a run
+
+**Do.** Hover the ✖ on a **label** row, then on a **run** row.
+
+**Expected.** Two different sentences. On a label: *"this is not a label at all"*. On a run:
+**"No net name is printed on this run"**, and it says outright that the path matcher acts on it by
+never offering the run again, and that it is **not a bookmark**.
+
+**Why one tooltip is worth a test.** That wording cost 34 net names. The code comment beside the
+button had the right sentence in it all along; the tooltip a person actually reads did not.
+
+---
+
+## T-760 · A note, and where a bookmark belongs
+
+**Do.** Find a row you have not decided about and look at the second, wider box under the reading.
+
+**Expected.** **Disabled**, with the placeholder *"decide first: a note rides on a decision"* and a
+tooltip explaining it.
+
+**Why it is disabled rather than accepting a note.** The file requires a `text` — an entry without
+one *says nothing* and is refused by name — so a note on an undecided row would have to invent one,
+and the only value available is the machine's reading. Writing that would record **a confirmation
+you did not make**, which is invariant 10 exactly: a file that cannot tell *nobody looked* from
+*somebody decided* has stopped being a record of who said what. One press of ✓, or the reading
+typed in, and the box lights up.
+
+**Do.** Press **✓** on the row, then type something in the note box and press `Enter`.
+
+**Expected.** The row grows a **✎** mark beside its state word, and the file holds
+
+```json
+"T0xxx": { "text": "…", "was": "…", "note": "what you typed", "by": "js", "at": "…" }
+```
+
+**Do.** Retype the reading itself and press `Enter`.
+
+**Expected.** The note **survives**. It always has — the client has carried a `note` through an edit
+since the day this screen was written; what did not exist was any way to write one except stopping
+the server and hand-editing the file.
+
+**Do.** Empty the note box and press `Enter`.
+
+**Expected.** The `note` key is **deleted** rather than stored as `""`. The decision itself stays.
+
+**Why this is the answer to *"could I put an asterisk in the text box and describe the problem
+there?"*.** No — the text box is a claim about the ink that Phase E's matcher reads, and
+`* box is wrong` would go into the ranking as a printed net name. The note is the honest home for a
+bookmark, and giving it one is what lets ✖ go back to meaning what it says.
+
+---
+
+## T-765 · The ring follows the ink
+
+**Do.** On **`All readings`**, put the caret in **`C0002`**.
+
+**Expected.** The mark on the sheet is the **run itself** — a three-segment L drawn along its
+corners — inside a faint dashed rectangle, rather than a filled box.
+
+**What it was, and why it mattered.** A filled **206 × 215 pt** rectangle, a quarter of the sheet,
+with a dozen unrelated conductors inside it: the box round the run's two *endpoints*, because
+`ink.py` deliberately did not load the polylines while nothing drew a route. Worse, for **19 of the
+149** runs that box does not even *contain* the ink — `C0057` goes out to x = 798 while its
+endpoints span x 429.8–598.9. Asked *which of these is `C0002`*, the old ring could not answer.
+
+**Do.** Put the caret in a **label** row.
+
+**Expected.** Still a filled box, exactly the extraction's `bbox`, unchanged. A label **is** a box:
+framing it exactly is how a person sees that the box itself is wrong, which is how `T0350` and
+`T0343` were diagnosed.
+
+**Why this waited for Session 6.** `ink.py` gains the conductor polylines when `/api/conductors`
+needs them, and that is Phase E. Phase D read authored paths out of `locations.json` and never
+opened the ink loader at all, so there was nothing to reuse in Session 5 — which is why this is item
+5 of the small batch rather than part of the previous session.
+
+---
+
+## T-770 · And the generated file that was behind
+
+**Do.** Nothing on screen. This is the sixth item and it is a command:
+
+    cd /home/js/schematics/schematic_extraction/PS20115MLM4-2/extracted_docs
+    python ../../../schematic_skills/scripts/build_kg.py circuit_logic.json \
+      -o custom_kg.json --pretty --validate
+
+**Expected.** *"693 chunks, 291 entities, 402 relationships"*, and — run on 2026-09-03 —
+**`git diff` shows no change at all.**
+
+**Which is the interesting part.** `custom_kg.json` was dated 2026-08-03 against a
+`circuit_logic.json` of 2026-08-25, so it *looked* a placement run behind, and `K6` and the artifact
+test cover only the first half of the recipe `EXTRACTION_NOTES.md` prescribes. Re-running the second
+half produced a byte-identical file: **`build_kg.py` derives from the netlist's connectivity and
+descriptions and emits no coordinates at all** — 0 occurrences of `location` or `source: human` in
+479 KB. So the staleness was a timestamp rather than content, and the exposure was never real.
+Worth knowing, and worth the one command: `prompts.py` ranks that file fourth and *"never as the
+primary source"*, but "probably fine" is not the same as "checked".
+
+---
+
 ## Hand-editing, and what happens if you get it wrong
 
 The file is a text file and being readable by a person is the point. Two cautions, both the same

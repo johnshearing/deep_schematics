@@ -50,9 +50,11 @@ from .drawing import (
     tile_file,
     tile_manifest,
 )
+from .ink import Conductor
 from .label_corrections import (
     CorrectionsRefused,
     Reading,
+    corrected_text,
     corrections_path,
     resolve_corrections,
     save_corrections,
@@ -488,6 +490,46 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ink, corrections, _ = resolve_corrections(settings.drawing_dir)
             return {"saved": True, "report": _review_report(corrections, ink.problems)}
 
+        @app.get("/api/conductors")
+        async def conductors(
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """The 149 runs of ink, reduced to what tracing a wire needs.
+
+            **Behind `allow_edits`, and `/api/paths` deliberately is not** — the two are the
+            opposite case and hazard `H20` is the reasoning. A path is *authored display
+            geometry* out of `locations.json`, and *which of these lines is the one I care about*
+            is a reader's question. This is the raw ink: 149 candidate polylines out of
+            `geometry.json`, useful only to somebody who is about to accept one of them into an
+            authored file. Nobody without an editor has any use for it, and the two must not be
+            merged for convenience.
+
+            **`geometry.json` still never leaves this process.** `ink.load_ink` narrows it to
+            named fields behind an `lru_cache` — the polylines and the endpoint bindings joined
+            that set on 2026-09-03, named, for this route — and `_traceable` below narrows it
+            again, key by key, with no `**rest`. `H17`.
+
+            `net_label` is **what the run reads now**, with every Phase F correction applied,
+            which is the whole reason Phase F came first: 30 of this sheet's 70 printed net names
+            were read at confidence 0.4 and nine were wrong. `was` appears only where a person
+            changed it, so the panel can say a name was corrected rather than printed.
+            """
+            _require_editor(app.state.settings, x_editor_password)
+            ink, _, readings = resolve_corrections(settings.drawing_dir)
+            settled = corrected_text(readings)
+            runs = [
+                _traceable(conductor, settled.get(conductor.id))
+                for conductor in ink.conductors.values()
+            ]
+            return {
+                "counts": {
+                    "conductors": len(runs),
+                    "named": sum(1 for run in runs if run.get("net_label")),
+                },
+                "conductors": runs,
+                "problems": list(ink.problems),
+            }
+
     # -- the one endpoint that spends money -----------------------------------------------
 
     @app.post("/api/ask")
@@ -730,6 +772,11 @@ def _reading(reading: Reading) -> dict[str, Any]:
         # Only where it differs from what the extraction settled on. It agrees for 485 of the 515
         # labels, and a field repeating its neighbour is a field a reader stops reading.
         item["raw_ocr"] = reading.raw_ocr
+    if reading.points:
+        # A run's own shape, so the ring on the sheet follows the ink. 50 of the 149 runs on this
+        # sheet bend, and the box round the two ends of a three-segment L is a rectangle over a
+        # quarter of the drawing with a dozen unrelated conductors inside it. 7 KB for all 149.
+        item["points"] = [[x, y] for x, y in reading.points]
     if reading.missing:
         item["missing"] = list(reading.missing)
     if reading.conductors:
@@ -750,6 +797,71 @@ def _reading(reading: Reading) -> dict[str, Any]:
             # would turn it into an entry that says nothing.
             if key == "text" or value is not None
         }
+    return item
+
+
+def _traceable(conductor: Conductor, settled: str | None) -> dict[str, Any]:
+    """One candidate run, and **this is the boundary for `/api/conductors`** — `ink.py` is the
+    first half, exactly as it is for `_reading`.
+
+    Every key is here on purpose and there is no `**rest`, so the 608 KB file cannot reach a
+    browser through a careless spread (`H17`). `test_a_conductor_carries_only_what_tracing_needs`
+    pins the set.
+
+    What a ranking wants, and nothing else:
+
+    - **`points`** — the shape, which is what gets accepted into `path.runs`. This is the field
+      the whole route exists for.
+    - **`net_label`** — what the run reads *now*, corrections applied, against which a wire's net
+      id is compared. Absent where the run reads nothing: 79 runs never had a name bound and 276
+      readings were called *not a label*, and a matcher must not compare against a blank.
+    - **`was`** — only where a person changed the reading, so the panel can say *corrected* rather
+      than *printed*. Absent otherwise, which is the ordinary case.
+    - **`color`, `gauge`, `spec_label`** — the second signal, and the three are published together
+      because a run whose colour matches while its gauge does not is a real candidate that belongs
+      **below** an exact one rather than out of the list.
+    - **`length`** — the fourth signal, and the thing that keeps 46 symbol strokes under 15 pt from
+      out-ranking a conductor.
+    - **`ends`** — one per endpoint, in endpoint order, each carrying the `terminal_point` symbol
+      the extraction bound it to and how far away. That is the *third* and by far the strongest
+      signal on this drawing: every measured pairing in `07_drawing_facts.md` is within 4 pt at
+      both ends, against conductor rows 16 pt apart. `symbol` names nothing a person can look up
+      and is published only so two runs meeting at one dot can be recognised as meeting.
+
+    The endpoint's own `point` is published beside the binding rather than left to be read off
+    `points[0]` and `points[-1]`. They agree for all 149 runs on this sheet, and relying on that
+    would be relying on one drawing: the binding records where the *extraction* thought the run
+    ended, and a client should not have to assume that is a vertex.
+    """
+    item: dict[str, Any] = {
+        "id": conductor.id,
+        "points": [[x, y] for x, y in conductor.points],
+        "ends": [
+            {
+                "point": [binding.point[0], binding.point[1]] if binding.point else None,
+                **(
+                    {"symbol": binding.symbol, "distance": binding.distance}
+                    if binding.on_terminal_point
+                    else {}
+                ),
+            }
+            for binding in conductor.bindings
+        ],
+    }
+    if settled:
+        item["net_label"] = settled
+    # Only where a person changed it. The extraction's own binding is what `was` means everywhere
+    # else in this project, and it is the thing a re-extraction destroys.
+    if conductor.net_label and conductor.net_label != settled:
+        item["was"] = conductor.net_label
+    for key, value in (
+        ("spec_label", conductor.spec_label),
+        ("color", conductor.color),
+        ("gauge", conductor.gauge),
+        ("length", conductor.length),
+    ):
+        if value is not None:
+            item[key] = value
     return item
 
 

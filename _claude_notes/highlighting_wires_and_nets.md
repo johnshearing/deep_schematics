@@ -10,9 +10,15 @@ report to argue with; this is the plan to execute.
 > **`Review`** tab over the 664 readings the extraction lifted off the paper — with
 > `label_corrections.json` as the third authored file. **Session 5 landed 2026-09-02** — Phases
 > **D** and **G**: `path` in `locations.json` with both provenance axes, `GET /api/paths`, and a
-> wire highlighted along the PDF's own conductor strokes from either tab. **The next session is 6,
-> Phase E** — the path editor, preceded by the small batch at the end of §13.
-> `change_history.md` has the five dated entries; `08_results_log.md` says what the user has walked. Everything below is as written on
+> wire highlighted along the PDF's own conductor strokes from either tab.
+>
+> **Session 6 landed 2026-09-03, and this plan is finished.** Phase **E** — `GET /api/conductors`,
+> the ranked candidate runs, accept, `Add a run` across a crossover hop, the conversion an extracted
+> run needs before a corner may be dragged, `Trace`, *no path on this sheet*, the `Paths` filter and
+> a count that reaches 71 — **plus the six-item small batch at the end of §13 and `K10`**. All eight
+> phases are built. **172 server / 318 web, ruff and tsc clean.**
+> `change_history.md` has the six dated entries and its **NEXT UP** now points beyond this plan;
+> `08_results_log.md` says what the user has walked. Everything below is as written on
 > 2026-08-23 except the per-session notes in §13 and the amendments recorded there.
 >
 > **The `Review` queue has been worked end to end, 2026-09-01/02.** `label_corrections.json` holds
@@ -1198,6 +1204,14 @@ changes your day-to-day most.
 | **The proof to look for** | after saving a path, `circuit_logic.json` stays current and the artifact test stays green. That is paths being display geometry, demonstrated rather than asserted |
 
 ### Between Sessions 5 and 6 — the small batch
+> **All six done 2026-09-03**, at the head of Session 6 and before Phase E, exactly as this block
+> asks. **T-745–T-770** in `12_tests_label_corrections.md` walk them. No schema change, no
+> correction moved, and two findings worth keeping: **`custom_kg.json` (item 6) was never actually
+> stale** — re-running `build_kg.py` produced a byte-identical file, because it emits no
+> coordinates at all — and **item 3's `note` box is disabled until a row has a decision to ride
+> on**, because `text` is required by the file and inventing the machine's reading to hang a note
+> off would record a confirmation nobody made. The four rejected ideas below stayed rejected.
+
 **Not a phase, and not a session of its own.** Six items that came out of the user working the whole
 `Review` queue on 2026-09-01 and asking 23 questions about it; the answers are in
 `_claude_notes/review_tab_questions.md`, which is the reasoning for every line below and should be
@@ -1243,6 +1257,53 @@ argument that put Phase 0 in front of everything.
 
 ### Session 6 — the path editor
 **Phase E.** The last one, and the one that spends your judgement rather than your patience.
+
+> **Landed 2026-09-03, with the small batch at the head of it and `K10` struck.** `GET
+> /api/conductors` behind `allow_edits`, a pure `features/locate/paths.ts`, the wire panel with
+> hover-to-compare and one click to accept, `Add a run`, the `geometry: human` conversion,
+> `Trace` with all four keys, the `Paths` filter and `n of 71 wire paths`. **172 server / 318 web,
+> ruff and tsc clean.** Six things went differently from the plan and are worth knowing:
+>
+> - **the geometry outranks the printed name, which is the opposite of what §Phase E's prose
+>   implies.** It lists the signals *"printed `net_label` equals the wire's net → `spec_label`
+>   equals its colour and gauge → endpoint bindings closest to the wire's two resolved terminal
+>   points"*, and the measured drawing says that order is wrong twice over: a placed pin against a
+>   vector stroke is geometry against geometry with no reading of the paper in between, and — the
+>   decisive half — **the second half of a real route routinely carries no printed name at all**
+>   (`C0092`, `C0057`), so ranking on the name finds one end of a wire and not the other.
+>   `07_drawing_facts.md` had already drawn that conclusion out of its own table.
+> - **the expected 19 / 33 / 19 came out 37 / 33 / 0**, and the reason is the review run. Those
+>   numbers were measured on 2026-08-23, before Phase F; §13 warned that *smaller* numbers would
+>   mean a broken ranking, and they are larger. **37** wires have exactly one run whose two ends
+>   land on both their pins, **33** have a best candidate reaching one end (two pieces), **0** have
+>   no candidate at all, and only **3** have no printed-name-and-spec match — two of which have no
+>   colour or gauge printed at all. **26 of 26** nets match a printed conductor, which is `K10`.
+> - **`attribution` is written `human` on every route, and `printed` is never written at all.** §3
+>   defines `printed` as *"the net name printed beside that conductor matches this wire's net"*,
+>   which is true of most of what gets accepted — but the axis answers *who says this run is this
+>   wire's*, and the answer is always the person who clicked. Writing `printed` would make the file
+>   say a ranking had been trusted. It stays a legal value for the day something accepts without a
+>   human in the loop, which is nothing today.
+> - **the editor's list gained two row states and the reader's did not.** `traced` and `no path
+>   here` are read off the **draft**, so a row changes under the click. `readerRowState` cannot
+>   answer them without being handed `/api/paths` as well, and the Drawing tab's list must work
+>   with no editor at all — so a reader's way to a route stays *select the wire*, where the card
+>   says more than a row could. Written down in `lib/designators.ts` rather than left as a
+>   discrepancy.
+> - **`points` stopped being a forbidden section and became a published field.** `H17`'s list had
+>   it among the things `ink.py` drops; it is now read there, named, behind the same cache, and
+>   `test_review.py` moved it out of the *dropped sections* check and into the pinned key set. The
+>   rule did not change — what may not reach a browser is a section nobody narrowed — and
+>   `node_ids` is the tell now.
+> - **`custom_kg.json` was never actually stale.** Small-batch item 6 called it *"behind by a
+>   placement run"*; re-running `build_kg.py` produced a **byte-identical** file, because it emits
+>   no coordinates at all. The staleness was a timestamp, and the item was still worth doing —
+>   *probably unchanged* is not *checked*.
+>
+> **`K11` was decided rather than struck.** A `spec` key on a run would double the corrections
+> file's schema for the ranking's *second* signal, and the measurement says the binding constraint
+> is neither the spec nor the name — it is the endpoint geometry, which needs nothing from the
+> Review tab. Recorded in the manual's §7 with the numbers.
 
 | | |
 |---|---|

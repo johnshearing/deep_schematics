@@ -183,7 +183,7 @@ def test_reviewing_without_the_password_is_refused_and_writes_nothing(
 #: browser, and nothing on screen would look any different.
 ITEM_KEYS = {
     "id", "kind", "read", "text", "confidence", "flagged", "net_name", "rect",
-    "label_kind", "raw_ocr", "missing", "conductors", "correction", "via",
+    "label_kind", "raw_ocr", "missing", "conductors", "correction", "via", "points",
 }
 
 
@@ -192,8 +192,13 @@ def test_a_review_item_carries_only_the_fields_the_screen_draws(reviewer) -> Non
     for item in body["items"]:
         assert set(item) <= ITEM_KEYS, f"{item['id']} carries {set(item) - ITEM_KEYS}"
     # And the response as a whole holds none of the sections the loader drops on the way in.
+    #
+    # `points` left this list on 2026-09-03 and is now in `ITEM_KEYS` instead, which is the honest
+    # place for it: a run's polyline is *published on purpose* so the ring follows the ink, and it
+    # is 7 KB for all 149. The rule the list is defending has not changed — what may not reach a
+    # browser is a **section of the file nobody narrowed**, and `node_ids` is still the tell.
     text = json.dumps(body)
-    for dropped in ("symbols", "boxes", "junctions", "rects", "stats", "points", "node_ids"):
+    for dropped in ("symbols", "boxes", "junctions", "rects", "stats", "node_ids", "params"):
         assert f'"{dropped}"' not in text
 
 
@@ -253,11 +258,32 @@ def test_a_conductor_has_no_confidence_because_its_net_name_was_bound_not_read(r
     assert found["C0030"]["read"] == "LI-A"
     assert found["C0008"]["read"] is None
     assert found["C0008"]["missing"] == ["net_label", "spec_label"]
-    # Its endpoints frame the run, so the screen can fly to the ink rather than to a transcription.
-    assert found["C0008"]["rect"] == [468.12, 215.97, 761.5, 232.51]
+    # Its own polyline frames the run, so the screen can fly to the ink rather than to a
+    # transcription — see the next test for why that is not the box round its two ends.
+    assert found["C0008"]["rect"] == [468, 216, 761, 216]
     # Every conductor is on the net-name filter, including the ones with nothing bound: those are
     # the ones a person can most usefully supply.
     assert found["C0008"]["net_name"] is True
+
+
+def test_a_run_is_framed_by_its_own_polyline_and_not_by_the_box_round_its_ends(reviewer) -> None:
+    """Small-batch item 5, and it is a wrong ring rather than a wrong reading.
+
+    `C0030` in this fixture bends: (300, 46) → (420, 46) → (420, 90), so its two *endpoints* are
+    (300, 46) and (420, 90) and a rectangle over those two is a box the ink only touches the
+    corners of. On the real sheet `C0002` is a three-segment L inside a 206 × 215 pt rectangle
+    with a dozen unrelated runs crossing it, and 19 of the 149 have a rectangle that does not even
+    *contain* the ink — `C0057`'s ends span x 429.8–598.9 while the run goes out to x = 798.
+
+    So the polyline is published and the rectangle is taken over every vertex. A ring round the
+    wrong ink on the one screen whose whole job is *read this exact piece of ink* is the only
+    defect that screen can have.
+    """
+    run = items(reviewer)["C0030"]
+    assert run["points"] == [[300, 46], [420, 46], [420, 90]]
+    assert run["rect"] == [300, 46, 420, 90]
+    # A label is a box and has no shape of its own to publish.
+    assert "points" not in items(reviewer)["T0012"]
 
 
 def test_correcting_one_label_names_every_run_that_reads_its_net_name(reviewer) -> None:

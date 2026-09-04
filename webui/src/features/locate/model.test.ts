@@ -10,7 +10,10 @@ import { describe, expect, it } from 'vitest'
 
 import type { Designator, LocationsDocument } from '@/api/types'
 import {
+  addRun,
   clear,
+  clearPath,
+  convertPath,
   coverage,
   assignTerminal,
   canRenameSite,
@@ -19,14 +22,20 @@ import {
   editorPlaces,
   emptyDocument,
   endLabelsOf,
+  movePathVertex,
   nextSiteId,
   nextUnplaced,
+  pathOf,
+  pathSettled,
   place,
   renameSite,
   rowState,
   setEndLabel,
   setLabelDir,
+  setNoPath,
+  setPath,
   siteClaiming,
+  tracePath,
 } from './model'
 
 const STAMP = { by: 'js', at: '2026-08-16T12:00:00Z' }
@@ -179,6 +188,11 @@ describe('what a row shows', () => {
     // something optional — the shape of K7, the filter that can never reach zero. Every wire end
     // and net terminal has a label already, at a side computed from points somebody placed; the
     // only authored number is how many of those a person overruled.
+    //
+    // `settled` is the deliberate exception, added with Phase E: a wire **path** is real work, and
+    // that count *can* be finished, because *there is nothing on this sheet to trace* is a
+    // decision a person can take. K7's shape is a count with no way to reach its total, not a
+    // count over something optional.
     expect(coverage([CR_BP, A1, WIRE], fresh())).toEqual({
       placeable: 2,
       confirmed: 0,
@@ -186,6 +200,7 @@ describe('what a row shows', () => {
       wires: 1,
       nets: 0,
       authored: 0,
+      settled: 0,
     })
 
     const doc = setEndLabel(fresh(), 'W047', 'wire', 'CR-BP:A1', { dir: 'ne' })
@@ -380,5 +395,227 @@ describe('draftPoint', () => {
     doc = place(doc, { id: 'W047', site: null, label: true }, [500.1, 400.2], STAMP, 'wire')
     expect(draftPoint(doc, { id: 'W047', site: null, label: true })).toEqual([500.1, 400.2])
     expect(draftPoint(doc, { id: 'W048', site: null, label: true })).toBeNull()
+  })
+})
+
+// -- where a wire runs, Phase E -------------------------------------------------------------
+
+/**
+ * The route, and **what may never be written into the file.**
+ *
+ * These are the assertions the whole plan turns on. §3's amendment lets a wire carry a path in
+ * exactly two ways — lifted from the PDF's own conductor strokes, or traced by a person along the
+ * printed run — and forbids the third forever: a route **synthesised from its endpoints**. So what
+ * is tested here is as much what is absent as what is present.
+ */
+describe('a wire’s path', () => {
+  /** A hand trace of `W049`, which is one of the wires with no labelled candidate on the sheet. */
+  const tracePathHelper = (corners: [number, number][]) =>
+    tracePath(fresh(), 'W049', corners, STAMP)
+
+  /** `C0109`, which is `W052`'s run: both of its pins are within 4 pt of these two ends. */
+  const RUN: [number, number][] = [
+    [232.6, 563.4],
+    [298.2, 563.4],
+  ]
+  /** `C0092`, the unlabelled vertical piece that makes `W063` an L. */
+  const SECOND: [number, number][] = [
+    [300.1, 565.2],
+    [300.1, 637.9],
+  ]
+
+  it('writes the runs it was lifted from and nothing that looks like a point', () => {
+    /**
+     * **The assertion §10 asks for by name.** A `point` on a wire would be a route synthesised
+     * from a bounding box's centre, which is usually blank paper, and the netlist's authority
+     * rests on never having invented one.
+     */
+    const doc = setPath(fresh(), 'W052', [RUN], ['C0109'], STAMP)
+    const record = doc.wires!.W052
+    expect(record.path).toEqual({
+      runs: [RUN],
+      geometry: 'extracted',
+      attribution: 'human',
+      conductors: ['C0109'],
+      by: 'js',
+      at: STAMP.at,
+    })
+    expect(record).not.toHaveProperty('point')
+    expect(record).not.toHaveProperty('label_point')
+    expect(JSON.stringify(doc)).not.toContain('"derived"')
+  })
+
+  it('says a **person** attributed it, even when the printed name is what proposed it', () => {
+    /**
+     * The two axes answer different questions: `geometry` is *where did this line come from* and
+     * `attribution` is *who says it is this wire's*. The answer to the second is always the person
+     * who clicked. `printed` is reserved for something nothing in this application does — accepting
+     * a match with no human in the loop — and writing it here would make the file say a ranking had
+     * been trusted, which is the one thing this editor exists not to do.
+     */
+    const doc = setPath(fresh(), 'W052', [RUN], ['C0109'], STAMP)
+    expect(doc.wires!.W052.path!.attribution).toBe('human')
+    expect(doc.wires!.W052.path!.geometry).toBe('extracted')
+  })
+
+  it('keeps the ink’s own coordinates rather than rounding them like a placed point', () => {
+    // A placed point is a person's judgement and a tenth is finer than anything on the drawing. A
+    // lifted polyline is a copy of the PDF's vector data, and rounding it would make the highlight
+    // disagree with the stroke it is tracing for no gain at all.
+    const exact: [number, number][] = [
+      [232.62345, 563.4],
+      [298.21, 563.4],
+    ]
+    expect(setPath(fresh(), 'W052', [exact], ['C0109'], STAMP).wires!.W052.path!.runs[0][0]).toEqual(
+      [232.62345, 563.4],
+    )
+  })
+
+  it('adds a second run for a crossover hop, and shows the gap rather than closing it', () => {
+    /**
+     * `runs` is a **list** because the gap is real: where a horizontal run crosses a vertical
+     * trunk the drawing puts a hop arc meaning *no connection*, this sheet has 88 of them, and the
+     * extractor splits a conductor at every one. Closing the gap would draw a join nobody drew.
+     */
+    let doc = setPath(fresh(), 'W063', [RUN], ['C0091'], STAMP)
+    doc = addRun(doc, 'W063', SECOND, 'C0092', STAMP)
+    const path = pathOf(doc, 'W063')!
+    expect(path.runs).toEqual([RUN, SECOND])
+    expect(path.conductors).toEqual(['C0091', 'C0092'])
+    // Nothing joins them: two polylines, and no segment between the end of one and the start of
+    // the next.
+    expect(path.runs).toHaveLength(2)
+  })
+
+  it('will not add the same run twice', () => {
+    let doc = setPath(fresh(), 'W063', [RUN], ['C0091'], STAMP)
+    doc = addRun(doc, 'W063', RUN, 'C0091', STAMP)
+    expect(pathOf(doc, 'W063')!.runs).toHaveLength(1)
+  })
+
+  it('starts a path when there is none, rather than needing one first', () => {
+    const doc = addRun(fresh(), 'W063', RUN, 'C0091', STAMP)
+    expect(pathOf(doc, 'W063')!.conductors).toEqual(['C0091'])
+  })
+
+  it('names no conductor on a hand trace, and that absence is the record', () => {
+    // Offered *after* the proximity-ranked unlabelled runs, because 79 unlabelled conductors are
+    // real ink and beat a hand trace every time. There was no run to lift, so there is nothing to
+    // record — an empty list would say something different.
+    const corners: [number, number][] = [
+      [100, 100],
+      [100, 140],
+      [220.04, 140],
+    ]
+    const doc = tracePathHelper(corners)
+    const path = pathOf(doc, 'W049')!
+    expect(path.geometry).toBe('human')
+    expect(path.attribution).toBe('human')
+    expect(path).not.toHaveProperty('conductors')
+    // A corner a person clicked **is** rounded, like every other coordinate a person chooses.
+    expect(path.runs[0][2]).toEqual([220, 140])
+  })
+
+  it('refuses a hand trace of one corner, because one point is not a run', () => {
+    expect(tracePathHelper([[100, 100]]).wires).toEqual({})
+  })
+
+  it('converts a lifted run to hand-drawn before it may be edited, and drops the conductor ids', () => {
+    /**
+     * **The price of moving a corner.** `geometry: extracted` is a claim about the polyline —
+     * *these corners are the drawing's, not mine* — and dragging a vertex would leave that claim
+     * standing over a line a person had altered. The conductor ids go with it: the run is no longer
+     * the run it was lifted from.
+     */
+    const lifted = setPath(fresh(), 'W052', [RUN], ['C0109'], STAMP)
+    expect(movePathVertex(lifted, 'W052', 0, 0, [240, 563.4], STAMP)).toBe(lifted)
+
+    const editable = convertPath(lifted, 'W052', STAMP)
+    expect(editable.wires!.W052.path!.geometry).toBe('human')
+    expect(editable.wires!.W052.path).not.toHaveProperty('conductors')
+    const moved = movePathVertex(editable, 'W052', 0, 0, [240.04, 563.44], STAMP)
+    expect(moved.wires!.W052.path!.runs[0][0]).toEqual([240, 563.4])
+    // The other corner is untouched, and so is the other run.
+    expect(moved.wires!.W052.path!.runs[0][1]).toEqual(RUN[1])
+  })
+
+  it('converts nothing twice, and nothing that is not there', () => {
+    const traced = tracePathHelper([[1, 1], [2, 2]])
+    expect(convertPath(traced, 'W049', STAMP)).toBe(traced)
+    const empty = fresh()
+    expect(convertPath(empty, 'W052', STAMP)).toBe(empty)
+  })
+
+  it('leaves the end labels and the printed name alone when the route is cleared', () => {
+    // The same rule `clear` follows for a label point: the other keys in the record are answers to
+    // different questions, and taking them away as a side effect of *Clear* would silently undo
+    // work nobody asked about.
+    let doc = setEndLabel(fresh(), 'W052', 'wire', 'CR2:14', { dir: 'ne' })
+    doc = place(doc, { id: 'W052', site: null, label: true }, [340, 655], STAMP, 'wire')
+    doc = setPath(doc, 'W052', [RUN], ['C0109'], STAMP)
+    const cleared = clearPath(doc, 'W052')
+    expect(pathOf(cleared, 'W052')).toBeNull()
+    expect(endLabelsOf(cleared, 'W052')).toEqual({ 'CR2:14': { dir: 'ne' } })
+    expect(cleared.wires!.W052.label_point).toEqual([340, 655])
+  })
+
+  it('drops the wire from the file entirely when the route was all it had', () => {
+    // What keeps `"wires": {}` empty on an untouched drawing rather than filling it with `{}` for
+    // every wire anybody armed and changed their mind about.
+    const doc = setPath(fresh(), 'W052', [RUN], ['C0109'], STAMP)
+    expect(clearPath(doc, 'W052').wires).toEqual({})
+  })
+
+  it('never writes `no_path_on_this_sheet: false`, and deletes it instead', () => {
+    /**
+     * Invariant 10 in a fourth set of clothes, and the server refuses `false` by name from the
+     * other side. A file that cannot tell *nobody has looked at this wire* from *somebody decided
+     * there is nothing here* has stopped being a record of who said what.
+     */
+    const said = setNoPath(fresh(), 'W049', true)
+    expect(said.wires!.W049).toEqual({ no_path_on_this_sheet: true })
+    expect(JSON.stringify(setNoPath(said, 'W049', false))).not.toContain('no_path_on_this_sheet')
+    expect(setNoPath(said, 'W049', false).wires).toEqual({})
+  })
+
+  it('will not hold a route and *there is no route here* at the same time', () => {
+    // Two contradictory claims, so each retracts the other rather than the file holding both.
+    const said = setNoPath(fresh(), 'W052', true)
+    const routed = setPath(said, 'W052', [RUN], ['C0109'], STAMP)
+    expect(routed.wires!.W052).not.toHaveProperty('no_path_on_this_sheet')
+    expect(setNoPath(routed, 'W052', true).wires!.W052).not.toHaveProperty('path')
+  })
+
+  it('counts a wire as settled either way, which is what lets the count reach 71', () => {
+    /**
+     * The `K7` defence, and it is the reason the *no path on this sheet* state was designed in
+     * rather than discovered. Some wires run to a connector whose other end is on another drawing:
+     * a count of only the traced ones could never reach its own total, and a progress bar that
+     * stops short for a reason nobody can act on is worse than no progress bar.
+     */
+    const wires = [entry('W052', 'wire'), entry('W049', 'wire')]
+    expect(coverage(wires, fresh()).settled).toBe(0)
+    const doc = setNoPath(setPath(fresh(), 'W052', [RUN], ['C0109'], STAMP), 'W049', true)
+    expect(coverage(wires, doc).settled).toBe(2)
+    expect(pathSettled(doc, 'W052')).toBe(true)
+    expect(pathSettled(doc, 'W049')).toBe(true)
+    expect(pathSettled(doc, 'W068')).toBe(false)
+  })
+
+  it('says on the row which of the two it is', () => {
+    // Phase B promised this: the `computed` state read *"route from its terminals"* until §3's
+    // amendment made that sentence false, and it was always going to report the path state once
+    // there was one to report.
+    const w052 = entry('W052', 'wire', { point: [500, 400] })
+    expect(rowState(fresh(), w052)).toBe('computed')
+    expect(rowState(setPath(fresh(), 'W052', [RUN], ['C0109'], STAMP), w052)).toBe('traced')
+    expect(rowState(setNoPath(fresh(), 'W052', true), w052)).toBe('no-path')
+  })
+
+  it('leaves a hand-edited path alone while the same wire’s labels change', () => {
+    // Session 5's scaffolding, still guarded: every mutation rewrites the record it found.
+    let doc = setPath(fresh(), 'W052', [RUN], ['C0109'], STAMP)
+    doc = setEndLabel(doc, 'W052', 'wire', 'CR2:14', { dir: 'ne' })
+    expect(pathOf(doc, 'W052')!.conductors).toEqual(['C0109'])
   })
 })

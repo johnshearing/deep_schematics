@@ -18,14 +18,17 @@ import { Crosshair, Eye, EyeOff, Plus, RotateCcw, Trash2, X } from 'lucide-react
 
 import type {
   Compass,
+  Conductor,
   Designator,
   EntryTerminal,
   LocationsDocument,
+  Polyline,
   StoredSite,
 } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { PlannedLabel } from '@/features/drawing/endLabels'
+import { PathPanel } from './PathPanel'
 import { cn } from '@/lib/utils'
 import {
   assignTerminal,
@@ -39,6 +42,7 @@ import {
   sitesOf,
   splitTerminal,
   storedLabel,
+  type Stamp,
   type Target,
 } from './model'
 
@@ -61,6 +65,26 @@ interface Props {
    * two copies of "which side does this face" would eventually disagree by construction.
    */
   endLabels?: PlannedLabel[]
+  /**
+   * The path editor's inputs, and they are all a **wire's** — see `PathPanel`.
+   *
+   * Threaded through here rather than read from the store inside `PathPanel` for the reason
+   * everything else in this feature is pure: the ranking is the part that can be quietly wrong, and
+   * a component that fetched its own inputs could not be handed a fixture. `conductors` is null
+   * until the ink has arrived and null again if it could not be read — two different states from
+   * `[]`, which is a drawing with no vector extraction at all.
+   */
+  conductors?: Conductor[] | null
+  /** The armed wire's net, and the name the sheet prints for it where the two differ (`K10`). */
+  net?: string | null
+  printedNet?: string | null
+  /** Corners so far, when a hand trace is in progress — owned by the tab, because the clicks that
+   * add them land on the sheet. */
+  tracing?: [number, number][] | null
+  stamp?: () => Stamp
+  /** Light one proposal on the sheet while the pointer is over it. `null` puts the sheet back. */
+  onPreview?: (runs: Polyline[] | null) => void
+  onTrace?: (start: boolean) => void
   /**
    * Arm something else. `fly` asks the sheet to come too, and only the site buttons set it: a
    * rename has not moved anything, and a site that does not exist yet has nowhere to go.
@@ -87,16 +111,26 @@ export function TargetPanel({
   target,
   pinsOf,
   endLabels,
+  conductors,
+  net,
+  printedNet,
+  tracing,
+  stamp,
   onTarget,
   onEdit,
   onLabelDir,
   onClear,
   onClose,
+  onPreview,
+  onTrace,
 }: Props) {
   if (LABELLABLE.has(entry.kind)) {
     return (
       <LabelPanel
-        {...{ entry, document, target, endLabels, onEdit, onLabelDir, onClear, onClose }}
+        {...{
+          entry, document, target, endLabels, conductors, net, printedNet, tracing, stamp,
+          onEdit, onLabelDir, onClear, onClose, onPreview, onTrace,
+        }}
       />
     )
   }
@@ -119,23 +153,45 @@ export function TargetPanel({
  * back in. `label_point` is the other thing: where `BLUE 18AWG` is actually printed mid-run, which
  * is optional and is not work.
  *
- * There is still no route to place here, and the panel still says so. A wire's path is either
- * lifted from the PDF's own conductor strokes or traced by a person along the printed conductor;
- * a line drawn between two terminals because no conductor joined them would be an invented route,
- * and the netlist's authority rests on never having invented one.
+ * **And, since 2026-09-03, where the wire runs** — `PathPanel`, below the end labels. Still no
+ * route to *place*: a wire's path is lifted from the PDF's own conductor strokes or traced by a
+ * person along the printed conductor, and a line drawn between two terminals because no conductor
+ * joined them would be an invented route. The netlist's authority rests on never having invented
+ * one, so the panel offers ink and a pencil and nothing else.
  */
 function LabelPanel({
   entry,
   document,
   target,
   endLabels,
+  conductors,
+  net,
+  printedNet,
+  tracing,
+  stamp,
   onEdit,
   onLabelDir,
   onClear,
   onClose,
+  onPreview,
+  onTrace,
 }: Pick<
   Props,
-  'entry' | 'document' | 'target' | 'endLabels' | 'onEdit' | 'onLabelDir' | 'onClear' | 'onClose'
+  | 'entry'
+  | 'document'
+  | 'target'
+  | 'endLabels'
+  | 'conductors'
+  | 'net'
+  | 'printedNet'
+  | 'tracing'
+  | 'stamp'
+  | 'onEdit'
+  | 'onLabelDir'
+  | 'onClear'
+  | 'onClose'
+  | 'onPreview'
+  | 'onTrace'
 >) {
   const stored = storedLabel(document, entry.id)
   const point = stored?.label_point ?? entry.label_point ?? null
@@ -190,6 +246,26 @@ function LabelPanel({
           ends with — and its <span className="font-mono">{entry.id}</span> is an id we invented,
           which is not on the sheet for anybody to check.
         </p>
+      )}
+
+      {/* **Where the wire runs**, above the printed name and below the end labels — three
+          different questions about one wire, in the order a person works them: which ends face
+          which way, where the route is, and (optional, and never work) where the printed name
+          sits. A net gets no path section at all: its highlight is the union of its wires' and
+          there is nothing on it to author. */}
+      {entry.kind === 'wire' && stamp && onPreview && onTrace && (
+        <PathPanel
+          entry={entry}
+          document={document}
+          conductors={conductors ?? null}
+          net={net ?? null}
+          printedNet={printedNet ?? null}
+          tracing={tracing ?? null}
+          stamp={stamp}
+          onEdit={onEdit}
+          onPreview={onPreview}
+          onTrace={onTrace}
+        />
       )}
 
       <div className="border-t pt-1.5">

@@ -8,48 +8,95 @@ Scope is the whole repository: the extraction skill, the server, the WebUI and t
 `webui_ideas.md` is the road map (where we are going), `webui_v1_plan.md` is the v1 design
 (why the server looks the way it does), and this file is the record of what actually landed.
 
-**One exception to "newest first": the very first section is forward-looking.** `NEXT UP — Job
-B, attempt 2` is the plan for the work in progress, written to stand alone so a new session can
-start from it and nothing else. Everything after it is history. When that work lands, it becomes
-a dated entry like the rest and the section goes.
+**One exception to "newest first": the very first section is forward-looking.** **`NEXT UP`** is
+what is in front of the project, written to stand alone so a new session can start from it and
+nothing else. Everything after it is history. When a piece of that work lands it becomes a dated
+entry like the rest, and `NEXT UP` is rewritten around what is left.
+
+*It has held a plan for the work in progress for most of this file's life — Job B attempt 2, then
+Job E, then a session of the wires-and-nets plan. **Since 2026-09-03 it does not, because that plan
+is finished**, and it is a list of candidates in priority order instead. That is a real difference:
+the first item on it is not code.*
 
 ---
 
-## NEXT UP — Session 6 of the wires-and-nets plan
+## NEXT UP — the plan is finished; what comes after it
 
-**The work in progress is `_claude_notes/highlighting_wires_and_nets.md`** — a six-session plan whose
-§0 says what to read and whose §13 is the schedule. **Sessions 1 (Phases 0 + A) and 2 (Phase B)
-landed 2026-08-24, Sessions 3 (Phase C) and 4 (Phase F) on 2026-08-25, and Session 5 (Phases D + G)
-on 2026-09-02**; see the five dated entries below. **The next session is the last: Session 6, Phase
-E** — the path editor — and it should begin by reading `08_results_log.md` for how the user got on
-with T-800–T-840, which is the first walk of the highlighter.
+**`_claude_notes/highlighting_wires_and_nets.md` is built end to end.** Six sessions, eight phases
+— **0, A, B, C, D, E, F, G** — landing 2026-08-24, 2026-08-24, 2026-08-25, 2026-08-25, 2026-09-02
+and **2026-09-03**; the six dated entries below are the record and the plan's §13 carries a landing
+note per session saying what went differently. **172 server / 318 web tests, ruff and tsc clean.**
 
-What Session 6 inherits, and six things to carry into it:
+**There is no seventh session of that plan, and this section is not a plan.** It is the honest list
+of what is in front of the project, in the order I would take it — and the first item is not code.
 
-- **The small batch at the end of the plan's §13 goes first**, before Phase E. Six items out of the
-  23 `Review`-tab questions of 2026-09-01, four of which change what a person sees while making 71
-  judgements about conductors. `_claude_notes/review_tab_questions.md` is the reasoning.
-- **`locations.json` can hold a path now** — `runs`, `conductors`, `geometry`, `attribution` — and
-  `no_path_on_this_sheet` is validated and counted but **nothing on screen can write either**. That
-  is the whole of Phase E: `GET /api/conductors`, a ranked `candidates()`, the wire panel, **Trace**,
-  and the `Paths` count that can only reach 71 because the *no path* state exists.
-- **The conductor polylines are still not loaded.** `server/app/ink.py` drops `points` and
-  `endpoint_bindings` at the parse boundary and Phase D never opened it —
-  `test_nothing_here_opens_the_ink` asserts as much. Session 6 adds them **there**, named, behind the
-  same `lru_cache`, and `/api/conductors` decides what to publish. That is hazard `H17`, and `H20`
-  is its new neighbour: `/api/paths` is free precisely because it does *not* read the ink, so the two
-  routes must not be merged.
-- **`K10` is worth two nets now**, and it is Session 6's: publish each net's *printed* form beside
-  its id and compare against both. `NET-PB1` and `NET-PB2` are the only two of 26 with no printed
-  conductor to match against, and since 2026-09-02 both printed names are on a run.
-- **The ranking has four answers to check itself against.** `07_drawing_facts.md` now carries the
-  measured wire-to-conductor pairings for all four of net 120's wires, including the two-conductor
-  ones. If `candidates()` does not reproduce that table, the ranking is what is wrong. Note what the
-  table shows: the second half of a real path is routinely a conductor with **no printed label**
-  (`C0092`, `C0057`), so a matcher that ranks on the printed name alone finds one end of a wire and
-  not the other.
-- **The plan's own worked example was corrected on 2026-09-02.** `W052` pairs with `C0109`, not with
-  `C0080` — that one is `W053`'s. The plan was written before `CR2:14` was placed.
+### 1. Walk `14_tests_path_editor.md`, and author the 71 paths
+
+**T-900–T-960**, and **T-910 is the acceptance criterion**: the ranking has to reproduce the four
+wire-to-conductor pairings measured by hand in `07_drawing_facts.md`. It does, in `paths.test.ts` —
+but the point of the lesson document is that *you* look at the sheet, because `attribution: human`
+names a person and this is where that becomes true rather than merely stored.
+
+Then the authoring run itself. What to expect, measured 2026-09-03 against the shipped ranking:
+**37** of the 71 wires have a single run whose two ends land on both their placed pins — a glance
+and a click. **33** have a best candidate that reaches one end, which means two runs and `Add a
+run`. **0** have no candidate at all. `locations.json` is authored content git cannot regenerate, so
+that run should end in a commit.
+
+### 2. The two authored files want committing
+
+`locations.json` and `label_corrections.json` are the two things in this repository nothing can
+rebuild. The second holds **654** decisions in the working tree against **90** in git, and has since
+2026-09-02. That is the largest single piece of unbacked work in the project.
+
+### 3. `K7`, which is the last of the small known issues
+
+Six rows in the Locate tab's *To do* filter can never be finished — the two off-page machines and
+the four referenced drawings, which have no position on this sheet at all. `Paths` was built the
+right way round in Session 6 (a count that reaches its own total, because *no path on this sheet* is
+a decision a person can take), and holding the two filters side by side is the clearest possible
+statement of what the difference costs. The fix is small: exclude `nowhere` from the queue, or count
+those six apart. Manual §7.
+
+### 4. Then the road map, which is `webui_ideas.md`
+
+Nothing in it is blocked any more. Two entries there are now the interesting ones and both are
+**gated on drawing number two**, which is the honest gate — one sheet cannot tell a systematic
+failure from this sheet's handwriting:
+
+- **feed the corrections back into the extractor's lexicon** (`webui_ideas.md` §6). The data exists:
+  654 `was → text` pairs a person produced, and `correct_token()`'s last line is `return t, 0.4`,
+  which is why so much of the queue sat at exactly that confidence. It means *no rule of mine
+  recognised this*, not *I am unsure*. A script that reports the pairs by frequency, and a **human**
+  editing `LEXICON` — an auto-grown lexicon is a guesser, and this project's whole position is that
+  a guesser gets one chance and then a person owns it;
+- **a symbol library**, so the vision pass gets cheaper each sheet.
+
+And the simulator (§3) is the biggest thing in the road map and is now unblocked in a way it was
+not before: the boolean network is solved from the netlist, and **the paths are what let you
+watch it** — net 121 going dead, then 120, then CR-BP picking up, each drawn on conductors a
+technician can see. That was the argument for building paths as display geometry in the first place
+(plan §5), and it is worth re-reading before starting it.
+
+### What a session picking this up should read
+
+Not this whole file. **`locate_tab_testing/locate_tab_instruction_and_test_manual.md`** is the index
+over fifteen leaf documents — §3 is the map, §5a is what is actually in the files, §7 is the known
+issues, and `08_results_log.md` says what the user has walked and what broke. About 8 k tokens for
+one symptom instead of the whole feature.
+
+Two facts that have each cost a session, and neither has stopped being true:
+
+1. **No `SWUI_ALLOW_EDITS=true`, no Locate tab and no Review tab.** The routes are registered inside
+   an `if`, so with it false there is nothing there to be wrong about — deliberate, not a bug.
+2. **`python -m app` has no reloader and the client is a built bundle.** A change under
+   `server/app/` needs a restart; one under `webui/src/` needs `npm run build`; a rebuilt bundle
+   against an unrestarted server is the dangerous combination, because the new client can send
+   fields the old validator ignores.
+
+**Do not read `geometry.json` (620 KB, ~150,000 tokens) or `circuit_logic.json` in full.**
+`07_drawing_facts.md` exists so that never becomes necessary; when a number is needed, get it with a
+`python3 -c` one-liner that prints a summary.
 
 Job E below is done — the placement run finished on 2026-08-20 and all 131 terminals are placed. Job
 F is still the runner-up and still worth doing as its own piece of work. **The rest of this section
@@ -159,6 +206,147 @@ a specific question needs them.
 
 Semicolons, not `&&`, so one failure does not hide the state of the other three. Run
 `npm run build` **and restart the server** at the end; see the state block above for why both.
+
+---
+
+## 2026-09-03 — Session 6 of the wires-and-nets plan: the machine proposes, a person accepts
+
+**Phase E, and the six-item small batch at the head of it. This finishes the plan** — Phases 0, A,
+B, C, D, E, F and G, over six sessions. **172 server / 318 web tests, ruff and tsc clean.** The
+lesson document is the new `locate_tab_testing/14_tests_path_editor.md`, T-900–T-960, and the small
+batch is T-745–T-770 in `12_tests_label_corrections.md`. Neither has been walked.
+
+### What landed
+
+**`GET /api/conductors`**, behind `settings.allow_edits` — the 149 runs of ink reduced to what
+tracing needs: the polyline, each endpoint's bound `terminal_point` symbol and its distance, the
+colour and gauge apart and together, the length, and **the net name with every one of the user's
+Phase F corrections applied**. 32 KB. `server/app/ink.py` gained `points` and a narrowed
+`endpoint_bindings` at last — exactly where its own docstring said they would arrive — and
+`Conductor.rect` is now min/max over **every** vertex rather than the two endpoints.
+
+**`webui/src/features/locate/paths.ts`** — the ranking, pure, 19 unit tests. And **the wire panel**:
+a short ranked list with every row's reasons tagged on it, hover to light one run on the sheet in
+its own colour, one click to accept, `Add a run` to continue a route across a crossover hop, both
+provenance badges, `Clear`, re-pick, `Make it editable` before a corner may be dragged, `Trace by
+hand` with all four keys, and `No path on this sheet`. Plus the **`Paths`** filter and
+`n of 71 wire paths` in the toolbar.
+
+**`K10` is struck**, and it was worth two nets rather than two labels. **`K11` is decided rather
+than struck** — see below.
+
+### The six things that went differently from the plan, and why each matters
+
+**1. The geometry outranks the printed name.** §Phase E lists the signals *printed name → spec →
+endpoint proximity → length*, and measured against the drawing that order is wrong twice over. A
+placed pin against a vector stroke is geometry against geometry with no reading of the paper in
+between, while a printed name is *read* — 30 of this sheet's 70 came back at confidence 0.4 and nine
+were wrong. And the decisive half: **the second half of a real route routinely carries no printed
+name at all.** `C0092` is 73 pt of `W063`'s L with nothing printed beside it; `C0057` is the far
+side of `W068`'s crossover hop, likewise. A matcher ranking on the name finds one end of a wire and
+not the other, and `07_drawing_facts.md` had already drawn that conclusion out of its own table.
+
+**2. The expected 19 / 33 / 19 came out 37 / 33 / 0.** Those numbers were measured 2026-08-23,
+before Phase F, and §13 warned that *smaller* numbers would mean a broken ranking. They are larger,
+which is the direction the review run was supposed to move them and the clearest measurement of what
+that session was worth: **26 of 26 nets** now match a printed conductor, **37** wires have exactly
+one run whose two ends land on both their pins (and never two, so the top of the list is
+unambiguous), **33** have a best candidate reaching one end, **0** have nothing, and only **3** have
+no name-and-spec match — two of which have no colour or gauge printed on them at all.
+
+**3. `attribution` is written `human` on every route, and `printed` is never written at all.** §3
+defines `printed` as *the net name printed beside that conductor matches this wire's net*, which is
+true of most of what gets accepted. But the axis answers *who says this run is this wire's*, and the
+answer is always the person who clicked. Writing `printed` would make the file record that a ranking
+had been trusted, which is the one thing this editor exists not to do. It stays a legal value for the
+day something accepts with nobody looking — which is nothing, today, including for the 37 wires
+whose single candidate is exact.
+
+**4. The editor's list gained two row states and the reader's did not.** `traced` and `no path here`
+are read off the **draft**, so a row changes under the click rather than after the save.
+`readerRowState` cannot answer them without being handed `/api/paths` as well, and the Drawing tab's
+list must go on working with no editor at all — so a reader's way to a wire's route stays *select
+it*, where the card says `no path yet` or names the conductors, which is more than a word on a row
+could carry. Written into `lib/designators.ts` as a decision rather than left as a discrepancy.
+
+**5. `points` stopped being a forbidden section and became a published field.** `H17`'s list had it
+among the things `ink.py` drops. It is read there now, named, behind the same cache, and
+`test_review.py` moved it out of the *dropped sections* assertion and into the pinned key set.
+**The rule has not changed** — what may not reach a browser is a section of a 620 KB file that
+nobody narrowed — and `node_ids` is the tell now. Worth being precise about, because the loose
+version of that rule ("`points` must not appear in a response") would have been broken by the fix
+to the review screen's ring, which is the opposite of what the rule is for.
+
+**6. `custom_kg.json` was never actually stale.** Small-batch item 6 called it *behind by a
+placement run* (dated 2026-08-03 against a `circuit_logic.json` of 2026-08-25). Re-running
+`build_kg.py` produced a **byte-identical** file: it emits no coordinates at all — 0 occurrences of
+`location` or `source: human` in 479 KB — because it derives from the netlist's connectivity and
+descriptions, which the placement run did not touch. The staleness was a timestamp. The item was
+still worth doing: *probably unchanged* is not *checked*, and it cost one command.
+
+### The small batch, and the one design question in it
+
+Four of the six change what a person sees while making 71 judgements about conductors:
+
+- **the `kind` badge is recomputed from the settled text.** It was printing the extraction-time
+  value, so after `125,` → `125` it went on saying `text` where the classifier would say
+  `net_number` — and it was reported three times as a request for a way to *edit* a field that
+  must not exist. `kind` is a pure function of the text. The classifier is **mirrored** in
+  TypeScript because the original imports PyMuPDF and exits without it, and the drift is bounded by
+  only consulting the mirror on a row a person has changed: an uncorrected row shows the
+  extraction's own answer, verbatim, which cannot drift. `review/model.test.ts` pins the mirror
+  against 45 strings generated from the Python;
+- **a third scope, `Not a label`** — 276 decisions with no way back to them until now;
+- **the ✖ on a run row says what it means.** *No net name is printed on this run*, and that it is
+  **not a bookmark**. That wording cost 34 net names on 2026-09-01, including the only run carrying
+  net `125`;
+- **a `note` box**, which is where a bookmark belongs. **And it is disabled until the row has a
+  decision to ride on** — that is the design question, and the answer follows from invariant 10:
+  `text` is required by the file, so a note on an undecided row would have to invent one, and the
+  only value available is the machine's reading. Writing that would record *a person checked this*
+  about a row nobody checked. So the box says why it is disabled, and one press of ✓ lights it up.
+
+The fifth is **the ring on a run following the ink**, which is why the batch belonged to this session:
+`ink.py` loads the polylines when `/api/conductors` needs them, and that is Phase E. `C0002` was a
+filled 206 × 215 pt box — a quarter of the sheet, a dozen unrelated runs inside it — and for 19 of
+the 149 runs the box round the endpoints did not even *contain* the ink.
+
+### What was not built, and both are recorded rather than forgotten
+
+**`K11` — a `spec` field on a run in the corrections file.** Decided against, and now for a measured
+reason rather than a guess: the ranking's binding constraint turned out to be neither the name nor
+the spec but the **endpoint geometry**, which needs nothing from the Review tab. Every wire comes
+back with a candidate and 37 come back unambiguous. Kept as a known issue because the answer is *not
+needed*, not *impossible*.
+
+**Auto-accepting anything.** The plan rules it out (§*Not in this plan*) and so does the code: there
+is no *accept all* and no shortcut for an exact match. 19 of 71 came back with a single candidate
+when the plan was written and 37 do now, and every one of them still takes a click. That is the
+rejected guesser's lesson, and it is the whole reason this application is worth trusting.
+
+### Two new hazards
+
+**`H21` — an extracted run may not be edited in place.** `geometry: extracted` is a claim about the
+polyline (*these corners are the drawing's, not mine*), so `PathHandles` renders only for
+`geometry: human`, `movePathVertex` refuses a lifted run from the other side as well, and
+`convertPath` is the one way across — an explicit press that drops the `conductors` list, because
+the run stops being the run it was lifted from.
+
+**`H22` — two things want `Escape`.** Abandoning a trace and clearing the armed row are both live at
+the same moment, and the trace wins the first press: a half-drawn route is the more fragile of the
+two, and one press taking both would mean losing your place as the price of abandoning a line. Text
+field → trace → target, which is the same escalation the text field already had.
+
+### Files
+
+| | |
+|---|---|
+| New | `server/tests/test_conductors.py`, `webui/src/features/locate/paths.ts`, `PathPanel.tsx`, `PathHandles.tsx`, `paths.test.ts`, `_claude_notes/locate_tab_testing/14_tests_path_editor.md` |
+| Server | `ink.py` (`points`, `Binding`, `color`/`gauge`/`length`, `rect` over every vertex), `main.py` (`GET /api/conductors`, `_traceable`, `points` on a review item), `drawing.py` (`printed_net`, `printed` on a net entry), `label_corrections.py` (`Reading.points`) |
+| Client | `features/locate/{paths.ts,PathPanel.tsx,PathHandles.tsx,model.ts,LocateTab.tsx,TargetPanel.tsx}`, `features/review/{model.ts,ReviewTab.tsx}`, `features/drawing/{paint.ts,TileSheet.tsx,endLabels.ts}`, `components/DesignatorList.tsx`, `lib/designators.ts`, `stores/locateStore.ts`, `api/{client.ts,types.ts}` |
+| Authored content | **none changed.** `locations.json` and `label_corrections.json` are untouched by this session — the editor that writes paths now exists and nobody has used it yet |
+| Generated | `custom_kg.json` re-run, byte-identical |
+| Notes | the plan (landing note + small batch marked done), the manual (§1, §3, §5a, **new §5g**, §6, §7 with `K10` struck and `K11` answered, §8, §9), `06_code_map.md`, `07_drawing_facts.md`, `08_results_log.md`, `01_screen_and_vocabulary.md`, `04_tests_labels.md`, `12_tests_label_corrections.md` |
 
 ---
 

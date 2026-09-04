@@ -318,8 +318,14 @@ class Reading:
     flagged: bool
     #: The correction, when there is one. Its `was` is what makes the original auditable.
     correction: Correction | None
-    #: What to frame on the sheet: a label's bbox, or the span of a conductor's endpoints.
+    #: What to frame on the sheet: a label's bbox, or the box the whole of a conductor's polyline
+    #: fits in.
     rect: tuple[float, float, float, float] | None
+    #: A run only: its polyline, so the screen can ring the **ink** rather than the rectangle the
+    #: ink fits inside. `C0002` is a three-segment L in a 206 × 215 pt box with a dozen unrelated
+    #: runs crossing it, and a ring round the box is a ring round the wrong thing. Empty on a
+    #: label, which is a box and nothing else.
+    points: tuple[tuple[float, float], ...] = ()
     #: A label's own guess at what sort of string it is, or a conductor's `missing` list.
     label_kind: str | None = None
     missing: tuple[str, ...] = ()
@@ -413,6 +419,7 @@ def resolve_corrections(drawing_dir: Path) -> tuple[Ink, Corrections, list[Readi
                 flagged=conductor.id in flagged,
                 correction=correction,
                 rect=conductor.rect,
+                points=conductor.points,
                 missing=missing.get(conductor.id, ()),
                 # A conductor's reading *is* its net name, so every one of them is on the filter
                 # that matters to Phase E — including the 79 that have no name bound at all, which

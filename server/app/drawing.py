@@ -111,6 +111,34 @@ INVENTED_TERMINAL_PARENTS = ("RECEPT1", "INFEED1", "DISCHARGE1")
 INVENTED_NET_PREFIX = "NET-"
 
 
+def printed_net(net_id: str) -> str | None:
+    """What the **sheet** calls this net, where that is not what the netlist calls it.
+
+    Two of this drawing's 26 nets: `NET-PB1` and `NET-PB2` are printed `PB1` and `PB2`, and the
+    prefix was added during extraction because the sheet also has a *push button* called `PB1`.
+    The rename was right — two different things may not share an id — and it left the label on the
+    sheet saying a word a reader cannot find on the paper. That is `K10`.
+
+    It is published rather than derived on the client because the rule is *this* module's: the
+    prefix is declared here beside the three other invented-id shapes, and a viewer stripping
+    `NET-` for itself would be a second copy of a rule that changes when the extraction's naming
+    changes.
+
+    **Phase E is the reason it is worth more than a word.** `candidates()` compares a conductor's
+    printed net name against the wire's net, and after the whole review queue was worked these two
+    were the only nets of 26 with no printed run to match against — while both of their printed
+    names sit on a run (`C0054` reads `PB1`, and `PB2` was read correctly all along). So the
+    matcher compares against **both** forms, and two nets stop being unreachable.
+
+    `None` where the id is what is printed, which is 24 of the 26: absent means *no second name*,
+    and publishing the id twice would invite a comparison that always matches.
+    """
+    if not net_id.startswith(INVENTED_NET_PREFIX):
+        return None
+    printed = net_id[len(INVENTED_NET_PREFIX) :]
+    return printed or None
+
+
 def designator_index(drawing_dir: Path) -> dict[str, Any]:
     """Every identifier an answer can cite, with somewhere on the sheet to point at.
 
@@ -217,6 +245,7 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
                 label_at=geometry.label(nid),
                 terminal_ids=pins,
                 end_labels=geometry.end_labels.get(nid, {}),
+                printed=printed_net(nid),
             )
         )
 
@@ -314,6 +343,7 @@ def _entry(
     terminal_ids: list[Any] | None = None,
     end_labels: dict[str, EndLabel] | None = None,
     spec: str | None = None,
+    printed: str | None = None,
 ) -> dict[str, Any]:
     """One row of the index.
 
@@ -344,6 +374,11 @@ def _entry(
     key is a member at the default. Publishing it at all is the lesson of the label-side fault of
     2026-08-19 restated: a side that is not in the payload is a side the reader cannot see, and
     `label_dir` lives nowhere else.
+
+    `printed` is a net's name **as the sheet prints it**, and only where that differs from its id
+    — `PB1` for `NET-PB1`. See `printed_net` for why it is published and why 24 of the 26 do not
+    have one. It is the net-side twin of `spec`: both exist because the id we index by is not
+    always the word a reader can find on the paper.
 
     `spec` is the wire's colour and gauge, together, as printed — `BLUE 18AWG`. Wires are the one
     kind whose id is **ours** (`WIRE_IDS_ARE_OURS`), so `W052` appears nowhere on the sheet and an
@@ -411,6 +446,8 @@ def _entry(
         ]
     if spec:
         entry["spec"] = spec
+    if printed:
+        entry["printed"] = printed
     if label_at is not None:
         entry["label_point"] = [label_at.point[0], label_at.point[1]]
         if label_at.label_dir:

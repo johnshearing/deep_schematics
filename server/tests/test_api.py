@@ -292,6 +292,33 @@ def test_ids_the_extraction_invented_are_marked_as_ours(client) -> None:
     assert index["110"]["on_sheet"] is True
 
 
+def test_a_renamed_net_publishes_the_name_the_sheet_actually_prints(
+    settings: Settings, drawing_dir, fake_mode
+) -> None:
+    """`K10`, and it is worth two nets rather than two labels.
+
+    `NET-PB1` is printed **`PB1`**. The prefix was added during extraction because the sheet also
+    has a push button called `PB1`, and the rename was right — two things may not share an id. It
+    left the end label on the sheet saying a word nobody can find on the paper, and after the
+    whole review queue was worked it left something worse: `NET-PB1` and `NET-PB2` were the only
+    two nets of 26 with no printed conductor to match against, while both of their printed names
+    sit on a run.
+
+    So the printed form is published beside the id, the label draws it, and Phase E's
+    `candidates()` compares against **both** forms. `None` where the id is what is printed, which
+    is 24 of the real 26: publishing the id twice would invite a comparison that always matches.
+    """
+    path = drawing_dir / "circuit_logic.json"
+    doc = json.loads(path.read_text("utf-8"))
+    doc["nets"].append({"id": "NET-PB1", "member_terminals": ["CR1:A1"]})
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    with TestClient(create_app(settings)) as c:
+        index = designators(c)
+    assert index["NET-PB1"]["printed"] == "PB1"
+    assert index["NET-PB1"]["on_sheet"] is False
+    assert "printed" not in index["110"]
+
+
 def test_an_id_with_nowhere_to_point_is_still_in_the_index(client) -> None:
     """Six components in the real extraction have no location — the two off-page machines and
     the four referenced drawings. Dropping them would make a legitimate citation unresolvable;

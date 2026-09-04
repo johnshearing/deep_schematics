@@ -176,6 +176,25 @@ export const HIGHLIGHT: RunStyle = {
 }
 
 /**
+ * A run being *considered* rather than one that has been accepted — the Locate tab's proposals.
+ *
+ * A different colour, narrower, and more transparent than `HIGHLIGHT`, and every one of those is
+ * doing a job. **Different**, because a proposal and a decision must never look alike on a sheet
+ * where accepting the wrong conductor is the failure that matters. **Narrower**, so that a
+ * candidate under the accepted stripe can still be seen. **More transparent**, because a person is
+ * comparing it against the ink underneath, which is the whole act.
+ *
+ * Used for one hovered candidate at a time, and for a hand trace in progress. Those two cannot
+ * happen at once — you are either comparing proposals or drawing one — which is why there is one
+ * layer for both rather than two.
+ */
+export const CANDIDATE: RunStyle = {
+  widthPt: 3.5,
+  minDevicePx: 2,
+  stroke: 'rgba(37, 99, 235, 0.55)',
+}
+
+/**
  * A polyline in PDF points, projected onto the backing store in **device pixels**.
  *
  * Every vertex goes through `tileDestRect`, exactly as `pointToCss` does, and that is the whole

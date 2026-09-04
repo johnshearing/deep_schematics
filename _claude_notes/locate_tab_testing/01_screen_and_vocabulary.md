@@ -130,13 +130,19 @@ coordinate. That was built once and rejected.
 
 ### Toolbar
 
-**The counts**, as of 2026-08-24:
+**The counts**, as of 2026-09-03:
 
-    41 of 47 placed · 6 to do · 71 wires · 26 nets · 0 end labels moved by hand
+    41 of 47 placed · 6 to do · 0 of 71 wire paths · 26 nets · 0 end labels moved by hand
 
 `47` here is the placeable rows still outstanding plus the placed ones — components and terminals,
-the things that **need** a point, and the only work on this screen. The wires and nets are counted as
-what they are: things in the index.
+the things that **need** a point.
+
+**`0 of 71 wire paths` is the one count on this screen that reaches its own total** *(added
+2026-09-03)*. A wire is dealt with when it has a route or when you have said there is none on this
+sheet, and both are decisions a person can take — which is the whole reason the second one exists.
+Without it the number would stop short at the wires whose run is on another drawing, for a reason
+nobody could act on, and that is `K7`'s exact shape. Hold it beside **To do**, which still cannot
+reach zero.
 
 **The last number counts decisions, not gaps.** All 265 end labels already exist; this says how many
 of them you have moved or hidden by hand. It starts at 0 and there is nothing to finish.
@@ -186,10 +192,11 @@ a coordinate you typed and the server silently ignored is the worst outcome avai
 
 | Filter | Shows |
 |---|---|
-| **To do** *(default)* | Components and terminals nobody has placed. This is the work queue. |
+| **To do** *(default)* | Components and terminals nobody has placed. This is the work queue, and six rows in it can never be finished (`K7`). |
+| **Paths** *(added 2026-09-03)* | Wires with no route yet — **the one queue here that can reach zero**, because *no path on this sheet* is a decision. |
 | **Components** | All 47, placed or not. |
 | **Terminals** | All 131. |
-| **Wires** | All 71. Two ends each, each with a label already; a compass per end. |
+| **Wires** | All 71. Two ends each, each with a label already; a compass per end, and the route below them. |
 | **Nets** | All 26. One label per member terminal, up to nine of them. |
 | **All** | All 275 entries. |
 
@@ -224,9 +231,17 @@ down the list you are reading.
 | `placed` | ✓ green | confirmed — you put it there |
 | `estimate` | ⃝ amber | seed — the vision pass's guess |
 | `on its component` | ⃝ amber | parent — the pin has no point of its own |
-| `route from its terminals` | 🔗 grey | a wire or net, route known, **label not placed** |
+| `ends known, no path` | 🔗 grey | a wire or net whose ends are known and whose **route nobody has chosen** yet. It read `route from its terminals` until 2026-08-24, and that sentence is the one thing a route may never be |
+| `path traced` | ⤳ green | *(2026-09-03)* a wire with a route — lifted from the ink or drawn by hand |
+| `no path here` | ⊘ grey | *(2026-09-03)* a wire you have said has no run on this sheet. A **decision**, and the reason the `Paths` count can be finished |
 | `label placed` | 🏷 green | a wire or net whose name you have placed |
 | `nowhere` | ⊘ grey | no position at all — the two off-page machines and the four referenced drawings |
+
+**The two path states are the editor's list only.** The Drawing tab's list says `ends known, no
+path` either way, because a route is published by `/api/paths` rather than by the designator index
+(`H20`) and that list must go on working with no editor at all. A reader's way to a wire's route is
+to select it: the sheet paints it and the card names the conductors, which is more than a word on a
+row could carry.
 
 **`our id`** means the extraction invented that identifier and you will not find it printed on the
 sheet: every `W###`, the `TB-…:<n>` point numbers, and the `RECEPT1`/`INFEED1`/`DISCHARGE1` pin
@@ -268,9 +283,59 @@ is a mode, and this is the way out of it; see T-165.
 **For a terminal** — says where it currently sits (`its own point`, `site <id>`, or `unplaced`),
 the eight sides, and **Unplace** once it has a point of its own.
 
-**For a wire or a net** — says `label placed` or `label not placed`, the eight sides, **Remove the
-label point**, and one sentence you should read once: its route is not placed here **and never will
-be**. That is not a missing feature. See `04_tests_labels.md`.
+**For a wire or a net** — three sections, and they are three different questions about one wire in
+the order a person works them:
+
+1. **A compass per end** (a wire has two, a net one per member terminal, scrollable). Every one of
+   them already has a label at a computed side, so everything here **overrules a default**: the
+   eye hides one, and ↺ *deletes* the override rather than writing the computed side back in.
+   `10_tests_end_labels.md`.
+2. **Where it runs** *(added 2026-09-03, wires only — a net stores no route of its own)*. See
+   below.
+3. **The printed name** — `label placed` or not, the eight sides, **Remove the label point**. Where
+   `BLUE 18AWG` is written mid-run, which is optional and is not work.
+
+#### Where it runs *(added 2026-09-03)*
+
+**The machine proposes and you accept.** A short **ranked** list of runs of ink that might be this
+wire, each row tagged with why it is there — and the tags are listed here in the order they outrank
+each other:
+
+| Tag | What it claims |
+|---|---|
+| `both ends` | both of this wire's **placed pins** are on this run's two ends. 37 of the 71 |
+| `one end` | one of them is — half a route, which is what an L or a crossover hop looks like |
+| `printed name` | the net name printed beside it is this wire's net |
+| `corrected name` | …and it is a name **you** read off the paper on the Review tab |
+| `spec` | its printed colour and gauge are this wire's |
+| `colour only` | the colour matches and the gauge does not |
+| `nearby` | nothing printed on it, and it runs close to this wire |
+| `another net` | a different net's name is printed beside it — **but the geometry fits.** Look twice |
+| `suspect` | under 15 pt, or a closed loop. 46 runs on this sheet are symbol strokes |
+
+**The geometry outranks the printed name**, because a pin you placed against a vector stroke has no
+reading of the paper in between — and because the second half of a real route routinely carries no
+printed name at all.
+
+- **hover** a row and it lights on the sheet in **blue** — narrower and more transparent than the
+  accepted orange, because a proposal must never look like a decision;
+- **click** to accept. Even a single exact candidate needs the click: nothing here accepts on its
+  own, and the file says `attribution: human` on every route;
+- **Add a run** continues a route across a hop. The gap between the pieces is drawn **as a gap**;
+- an accepted route shows two badges — **`from the ink`** or **`hand-drawn`**, and **`you said
+  so`** — the conductor ids it was lifted from, and its length in points *against the straight line
+  between the pins*, which is printed only to be compared with and is never drawn;
+- **Clear** takes the route back and leaves the end labels and the printed name alone;
+- **Make it editable** converts a lifted run to hand-drawn so a corner can be dragged, and drops
+  the conductor ids — the run stops being the run it was lifted from. There are no handles until
+  you press it, and that is deliberate (`H21`);
+- **Trace by hand** is the last resort, because a run out of the PDF is exact geometry and a hand
+  trace is not. Click each corner, `Enter` finishes, `Backspace` takes one back, `Esc` abandons —
+  and **nothing is written until `Enter`**;
+- **No path on this sheet** is a *decision*, not a gap: some wires run to a connector whose other
+  end is on another drawing, and this is what lets the count reach 71 rather than stopping short.
+
+`14_tests_path_editor.md` walks all of it.
 
 ### The advance checkbox
 

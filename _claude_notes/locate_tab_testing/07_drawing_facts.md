@@ -249,6 +249,14 @@ routinely a conductor with **no printed net label** (`C0092`, `C0057`), so ranki
 name alone finds one end of a wire and not the other; and endpoint proximity is decisive here — every
 pairing above is within 4 pt at both ends, against 16 pt rows.
 
+> **It learned both, and the table is reproduced. Measured 2026-09-03.** `candidates()` in
+> `features/locate/paths.ts` puts `C0109` first for `W052`, `C0080` first for `W053`, and offers
+> both pieces for `W063` (`C0091` + `C0092`) and `W068` (`C0081` + `C0057`) — and it ranks the
+> **endpoint geometry above the printed name** for exactly the two reasons this paragraph gives.
+> `paths.test.ts` pins all four as fixtures built from the coordinates above, so this table is now
+> an executable assertion rather than a note. If it is ever re-measured and found wrong, four tests
+> go red.
+
 ### The 34 printed net labels, and the nine misreads
 
 These are the strings read off the sheet beside a conductor. **They are not entities** — the netlist's
@@ -276,6 +284,23 @@ Each of the 71 wires against conductors whose printed `net_label` equals the wir
 | **19** | exactly 1 | glance and confirm |
 | **33** | 2 or 3 | say which is which |
 | **19** | 0 | choose from the 79 unlabelled conductors, ranked by proximity |
+
+**Re-measured 2026-09-03, against the shipped ranking, and it moved a long way** — because the
+review run happened in between. The table above was measured on 2026-08-23, before Phase F
+corrected 34 run names.
+
+| | 2026-08-23 | 2026-09-03 |
+|---|---|---|
+| Nets with a printed conductor to match against | 17 of 26 | **26 of 26** (`K10` answered) |
+| Wires with **one** run whose two ends land on **both** their pins | — | **37** — and never two, so no ambiguity at the top of the list |
+| Wires whose best candidate reaches **one** end (an L, or a crossover hop) | — | **33** — these need two runs, which is what `Add a run` is for |
+| Wires with **no** candidate at all | 19 | **0** |
+| Wires with no printed-name *and* spec match | 19 | **3** — `W012` and `W015`, which have no colour or gauge printed at all, plus `W049` |
+| Candidates offered per wire | — | median **6**, most **14**, fewest **1** |
+
+The plan's §13 warned that *"if the first two numbers come out much smaller, the ranking is wrong
+rather than the drawing being hard."* They came out larger, which is the direction Phase F was
+supposed to move them and the clearest measurement of what that session was worth.
 
 ### Totals the wires-and-nets work needs
 

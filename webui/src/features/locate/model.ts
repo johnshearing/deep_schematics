@@ -20,8 +20,11 @@ import type {
   LocationsDocument,
   Place,
   Placement,
+  Polyline,
   StoredEndLabel,
+  StoredLabel,
   StoredSite,
+  WirePath,
 } from '@/api/types'
 import type { RowState } from '@/lib/designators'
 
@@ -220,15 +223,45 @@ export function draftPlacement(
   return null
 }
 
-/** What the row shows: the draft where it has something to say, the server's answer otherwise. */
+/**
+ * What the row shows: the draft where it has something to say, the server's answer otherwise.
+ *
+ * **A wire reports its path first, and that is new with Phase E.** Phase B promised it: the
+ * `computed` state read *"route from its terminals"* until §3's amendment made that sentence
+ * false, became `ends known, no path`, and was always going to report the path state once there was
+ * one to report. `traced` and `no path here` are the two halves of *this wire has been dealt with*,
+ * and they are what the `Paths` filter counts down.
+ *
+ * The path is read out of the **draft**, which is why this needs nothing from `/api/paths`:
+ * accepting a candidate writes into the document this function is handed, so the row changes under
+ * the click rather than after the save. `lib/designators.ts` `readerRowState` deliberately does
+ * **not** do this — see its own note.
+ */
 export function rowState(document: LocationsDocument, entry: Designator): RowState {
   if (LABELLABLE.has(entry.kind)) {
-    const placed =
-      isPoint(storedLabel(document, entry.id)?.label_point) || Boolean(entry.label_point)
+    const stored = storedLabel(document, entry.id)
+    if (entry.kind === 'wire') {
+      if (stored?.no_path_on_this_sheet) return 'no-path'
+      if (stored?.path?.runs?.length) return 'traced'
+    }
+    const placed = isPoint(stored?.label_point) || Boolean(entry.label_point)
     return placed ? 'labelled' : entry.point ? 'computed' : 'none'
   }
   if (!PLACEABLE.has(entry.kind)) return entry.point ? 'computed' : 'none'
   return draftPlacement(document, entry) ?? entry.placement ?? 'none'
+}
+
+/** Whether this wire has been dealt with at all: a route, or a person saying there is none here. */
+export function pathSettled(document: LocationsDocument, wireId: string): boolean {
+  const stored = storedLabel(document, wireId)
+  return Boolean(stored?.no_path_on_this_sheet || stored?.path?.runs?.length)
+}
+
+/** The route in the draft, or null. The draft beats the server for the same reason it does for a
+ * point: the server has not seen the last click yet. */
+export function pathOf(document: LocationsDocument, wireId: string): WirePath | null {
+  const path = storedLabel(document, wireId)?.path
+  return path?.runs?.length ? path : null
 }
 
 /**
@@ -355,6 +388,19 @@ export function coverage(entries: Designator[], document: LocationsDocument) {
         ),
       0,
     ),
+    /**
+     * **Wires dealt with, out of all of them — and this one *can* be finished.**
+     *
+     * A route, or a person saying there is none on this sheet. Both, because they are two claims
+     * and a count of only the first could never reach 71: a wire whose run is on another drawing
+     * is not unfinished work, and a progress bar that stops short of its own total for a reason
+     * nobody can act on is `K7` exactly. That is the mistake this plan says three times it is
+     * avoiding on purpose, so the *no path on this sheet* state was designed in before the count
+     * was, rather than discovered after it.
+     */
+    settled: entries.filter(
+      (entry) => entry.kind === 'wire' && pathSettled(document, entry.id),
+    ).length,
   }
 }
 
@@ -536,6 +582,240 @@ export function assignTerminal(
       return { ...site, terminals: on ? [...without, pin] : without }
     }),
   )
+}
+
+// -- where a wire runs -------------------------------------------------------------------
+//
+// **Four things write a `path`, and none of them may invent one.** A route is lifted from the
+// PDF's own conductor strokes (`geometry: extracted`) or traced by a person along the printed
+// conductor (`geometry: human`), it says forever which of the two it was, and `derived` is refused
+// by name at both ends — here by never being written, and in `locations.py` by being named in a
+// refusal. A chord between a wire's two pins is not a worse path; it is a different claim, and the
+// netlist's authority rests on never having made it.
+
+/**
+ * Accept a route lifted from the ink: the polylines, and which runs they came from.
+ *
+ * `attribution` is **`human`** and not `printed`, even when the printed net name is exactly what
+ * put this run at the top of the list. The two axes answer different questions — `geometry` is
+ * *where did this line come from*, `attribution` is *who says it is this wire's* — and the answer
+ * to the second is always the person who clicked. `printed` is reserved for something nothing in
+ * this application does yet: accepting a match without a human in the loop. Writing it here would
+ * make the field say a ranking had been trusted, which is the one thing this editor exists not to
+ * do.
+ *
+ * Coordinates are written **as the ink gives them**, not rounded to a tenth like a placed point.
+ * A point is a person's judgement about where something is and a tenth is finer than the drawing;
+ * a lifted polyline is a copy of the PDF's own vector data, and rounding it would make the
+ * highlight disagree with the stroke it is tracing for no gain.
+ */
+export function setPath(
+  document: LocationsDocument,
+  wireId: string,
+  runs: readonly Polyline[],
+  conductors: readonly string[],
+  stamp: Stamp,
+): LocationsDocument {
+  if (!runs.length) return document
+  const path: WirePath & { by?: string; at?: string } = {
+    runs: runs.map((run) => run.map((point) => [point[0], point[1]] as [number, number])),
+    geometry: 'extracted',
+    attribution: 'human',
+    ...(conductors.length ? { conductors: [...conductors] } : {}),
+    ...(stamp.by ? { by: stamp.by } : {}),
+    at: stamp.at,
+  }
+  return writeWire(document, wireId, (record) => {
+    const next = { ...record, path }
+    // A route and *there is no route here* are contradictory claims, so accepting one retracts
+    // the other rather than leaving the file holding both.
+    delete next.no_path_on_this_sheet
+    return next
+  })
+}
+
+/**
+ * Add one more run to a route that already has one — **the crossover hop, and it is why `runs` is
+ * a list.**
+ *
+ * `W068` is the case the whole shape exists for: 312 pt of straight line between its pins against
+ * 644 pt of ink that goes out to x = 798 and comes back, in **two** conductors with a 3.5 pt gap
+ * between them where the drawing puts a hop arc to mean *no connection*. A path across it must
+ * show the gap rather than close it, so the second piece is appended and nothing is drawn between
+ * them. 33 of the 71 wires have a best candidate that reaches only one of their two pins, which
+ * is what half a route looks like from here.
+ *
+ * The `conductors` list grows with it and keeps its order, so the record says which ink was taken
+ * and in what sequence.
+ */
+export function addRun(
+  document: LocationsDocument,
+  wireId: string,
+  run: Polyline,
+  conductor: string | null,
+  stamp: Stamp,
+): LocationsDocument {
+  const existing = storedLabel(document, wireId)?.path
+  if (!existing?.runs?.length) {
+    return setPath(document, wireId, [run], conductor ? [conductor] : [], stamp)
+  }
+  if (conductor && existing.conductors?.includes(conductor)) return document
+  return writeWire(document, wireId, (record) => ({
+    ...record,
+    path: {
+      ...existing,
+      runs: [...existing.runs, run.map((point) => [point[0], point[1]] as [number, number])],
+      ...(conductor ? { conductors: [...(existing.conductors ?? []), conductor] } : {}),
+      ...(stamp.by ? { by: stamp.by } : {}),
+      at: stamp.at,
+    },
+  }))
+}
+
+/**
+ * A route a person drew, corner by corner — **the last resort, and it says so forever.**
+ *
+ * Offered *after* the proximity-ranked unlabelled runs, because 79 unlabelled conductors are real
+ * ink and beat a hand trace every time: the PDF's own stroke is exact geometry, and a person
+ * clicking corners is not. `conductors` is **absent**, and that absence is the record — there was
+ * no run to lift.
+ */
+export function tracePath(
+  document: LocationsDocument,
+  wireId: string,
+  corners: readonly [number, number][],
+  stamp: Stamp,
+): LocationsDocument {
+  if (corners.length < 2) return document
+  return writeWire(document, wireId, (record) => {
+    const next = {
+      ...record,
+      path: {
+        runs: [corners.map((point) => [round(point[0]), round(point[1])] as [number, number])],
+        geometry: 'human' as const,
+        attribution: 'human' as const,
+        ...(stamp.by ? { by: stamp.by } : {}),
+        at: stamp.at,
+      },
+    }
+    delete next.no_path_on_this_sheet
+    return next
+  })
+}
+
+/**
+ * Turn a lifted route into a hand-traced one, so it may be edited.
+ *
+ * **An extracted run is not draggable, and this is the price of moving one.** The polyline is a
+ * copy of the PDF's vector data and `geometry: extracted` is a claim about exactly that: *these
+ * corners are the drawing's, not mine*. Dragging a vertex would leave the claim standing over a
+ * line a person had altered — geometry that says it is the sheet's and is not — which is the same
+ * class of lie as storing a computed label side as though somebody chose it. So the conversion is
+ * explicit, it is stated on screen before it happens, and `conductors` goes with it: the run is no
+ * longer the run it was lifted from.
+ */
+export function convertPath(
+  document: LocationsDocument,
+  wireId: string,
+  stamp: Stamp,
+): LocationsDocument {
+  const existing = storedLabel(document, wireId)?.path
+  if (!existing?.runs?.length || existing.geometry === 'human') return document
+  return writeWire(document, wireId, (record) => {
+    const path = { ...existing, geometry: 'human' as const, at: stamp.at }
+    if (stamp.by) path.by = stamp.by
+    delete path.conductors
+    return { ...record, path }
+  })
+}
+
+/** Move one corner of a hand-traced route. Rounded to a tenth, like every other coordinate a
+ * person chooses, and **refused on a lifted run** — `convertPath` is the way to that. */
+export function movePathVertex(
+  document: LocationsDocument,
+  wireId: string,
+  run: number,
+  vertex: number,
+  point: [number, number],
+  stamp: Stamp,
+): LocationsDocument {
+  const existing = storedLabel(document, wireId)?.path
+  if (!existing?.runs?.[run]?.[vertex] || existing.geometry !== 'human') return document
+  return writeWire(document, wireId, (record) => ({
+    ...record,
+    path: {
+      ...existing,
+      runs: existing.runs.map((polyline, index) =>
+        index !== run
+          ? polyline
+          : polyline.map((corner, at) =>
+              at !== vertex ? corner : ([round(point[0]), round(point[1])] as [number, number]),
+            ),
+      ),
+      ...(stamp.by ? { by: stamp.by } : {}),
+      at: stamp.at,
+    },
+  }))
+}
+
+/** Take the route back. The end labels and the printed name in the same record are answers to
+ * different questions and stay exactly where they were — the same rule `clear` follows. */
+export function clearPath(document: LocationsDocument, wireId: string): LocationsDocument {
+  return writeWire(document, wireId, (record) => {
+    const next = { ...record }
+    delete next.path
+    return next
+  })
+}
+
+/**
+ * *There is nothing on this sheet to trace* — **a decision, and only ever `true`.**
+ *
+ * This is the `K7` defence, put in deliberately rather than discovered later. Some of the 71 wires
+ * run to a connector whose other end is on a different drawing, and without a way to say so the
+ * `Paths` count could never reach 71: a queue that stops short for a reason nobody can act on is
+ * worse than no queue, and this project has made that mistake once already (six rows in *To do*
+ * that can never be finished).
+ *
+ * `false` is never written — it is **deleted**, exactly as *Reset to default* deletes an end-label
+ * override and for the same reason. The server refuses `false` by name from the other side.
+ */
+export function setNoPath(
+  document: LocationsDocument,
+  wireId: string,
+  none: boolean,
+): LocationsDocument {
+  return writeWire(document, wireId, (record) => {
+    const next = { ...record }
+    if (none) {
+      next.no_path_on_this_sheet = true
+      // Saying *there is nothing here* while holding a route would be holding both claims.
+      delete next.path
+    } else {
+      delete next.no_path_on_this_sheet
+    }
+    return next
+  })
+}
+
+/**
+ * The one writer for the `wires` section, so *a record that says nothing is dropped* is decided
+ * once.
+ *
+ * Emptying the last key removes the wire from the file entirely, which is what keeps an untouched
+ * drawing's `"wires": {}` empty rather than filling it with `{}` for every wire anybody armed and
+ * changed their mind about. The same rule `withComponent` follows for a component with no sites.
+ */
+function writeWire(
+  document: LocationsDocument,
+  wireId: string,
+  change: (record: StoredLabel) => StoredLabel,
+): LocationsDocument {
+  const wires = { ...document.wires }
+  const record = change({ ...wires[wireId] })
+  if (Object.keys(record).length) wires[wireId] = record
+  else delete wires[wireId]
+  return { ...document, wires }
 }
 
 export function setLabelDir(

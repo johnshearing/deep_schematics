@@ -50,9 +50,13 @@ the diagram is the argument for it being a separate file:
                                              │
     label_corrections.json ──────────────────┤ resolve_corrections()
                                              ▼
-                                    GET / PUT /api/review    ← the Review tab, and nothing else
+                                    GET / PUT /api/review    ← the Review tab
                                              │
-                                             └─→ corrected_text()  ← Phase E's matcher reads this
+                                             └─→ corrected_text()
+                                                      │
+                                                      ▼
+                                             GET /api/conductors    ← the path editor's proposals
+                                                                       (gated; H20 is the pair)
 
 **Nothing in that column reaches `circuit_logic.json`.** `author_circuit_logic.py` does not read
 `label_corrections.json` and a test asserts its output is byte-identical with and without one. A
@@ -97,7 +101,11 @@ Two things to hold on to:
 | `GET`/`PUT /api/locations`, `POST /api/editor/unlock` | `server/app/main.py` | `get_locations`, `put_locations`, `editor_unlock` |
 | The `problems` list the UI shows | `server/app/main.py` | `_locations_report` (goes through `resolve_geometry`, so it catches netlist mismatches too) |
 | Drawing number / page size guards | `server/app/main.py` | `_drawing_identity` |
-| **The reduced read of `geometry.json`** — and the one place the 620 KB file narrows | `server/app/ink.py` | `load_ink` (`lru_cache`), `reduce`, `Label`, `Conductor`, `Flag`, `Ink`. Keeps named fields and drops `symbols`, `boxes`, `rects`, `junctions`, `stats`, `params` and the conductor `points` polylines. **There is no code path from here to the whole file** — see hazard H17 |
+| **The reduced read of `geometry.json`** — and the one place the 620 KB file narrows | `server/app/ink.py` | `load_ink` (`lru_cache`), `reduce`, `Label`, `Conductor`, `Binding`, `Flag`, `Ink`. Keeps named fields and drops `symbols`, `boxes`, `rects`, `junctions`, `stats`, `params`. **There is no code path from here to the whole file** — see hazard H17 |
+| **A run's own shape, and where its ends land** — read here since 2026-09-03 | `server/app/ink.py` | `Conductor.points`, `Conductor.rect` (min/max over **every** vertex, not the two endpoints — 19 of the 149 differ and `C0057`'s endpoint box does not contain its ink), `Conductor.color`/`gauge`/`length`, `Binding` and `Binding.on_terminal_point`, `_binding`. 7 KB of polylines and 18 KB of narrowed bindings, and the two things that needed them arrived together: `/api/conductors` ranks with them and the review screen rings with them |
+| **One candidate run, reduced to what tracing needs** — the second half of the boundary | `server/app/main.py` | `_traceable` — every key explicit, no `**rest`, pinned by `test_a_conductor_carries_only_what_tracing_needs`. `net_label` is the reading **after** corrections (`corrected_text`); `was` appears only where a person changed it |
+| **`GET /api/conductors`** — the proposals, and the **gated** half of the pair | `server/app/main.py` | inside `if settings.allow_edits:`. `/api/paths` is deliberately outside it; the two look like a pair and are opposites — see hazard **H20** |
+| **What the sheet prints for a net whose id was renamed** | `server/app/drawing.py` | `printed_net`, published as `printed` on a net entry and only where it differs. Two of 26: `NET-PB1`/`NET-PB2` against `PB1`/`PB2`. This is `K10`, and it is worth two nets to the matcher as well as two labels |
 | **Which label a run's net name was read from**, and the other direction of it | `server/app/ink.py` | `net_label_source_of`, `conductors_of`, `net_label_sources`. Matched on the text of a bound label, and it matches for all 70 on this sheet with 0 runs unexplained. This is the link a correction travels along |
 | **The corrections file, and every validation message** | `server/app/label_corrections.py` | `parse`, `_correction`, `SCHEMA` = 1, `SECTION` = `"labels"`, `Correction`, `Corrections`. `text` is required and may be `null`; `""` is refused **by name** |
 | **Whether a correction is keyed on something on this sheet** | `server/app/label_corrections.py` | `resolve_corrections` — refused by name, because its symptom would otherwise be *nothing at all*. The `H14` treatment, in a second file |
@@ -105,6 +113,18 @@ Two things to hold on to:
 | Writing corrections: atomic, whole-file, two refusals | `server/app/label_corrections.py` | `save_corrections`, `CorrectionsRefused`, `skeleton`. **No page-size check**: a string does not stop being true at a different page size, which is the one honest difference from `save_locations` |
 | `GET`/`PUT /api/review`, and what one item may carry | `server/app/main.py` | `get_review`, `put_review`, **`_reading`** (the second half of the boundary — every key explicit, no spread), `_review_report` |
 | Settings | `server/app/config.py` | `allow_edits`, `editor_password`, `editor_name`, `editor_password_required`. **Both** editing tabs are gated on `allow_edits`, and both take `editor_password` |
+
+**Server tests, after Session 6: 172 over ten files.** The new one is **`test_conductors.py`**
+(13), and three of its assertions are the session rather than the feature: the run key set is
+*pinned* so a careless spread cannot widen the boundary (`H17`), `load_ink` is asserted to parse
+once for N requests, and `/api/conductors` is asserted **404** with `allow_edits` false *in the same
+test* that asserts `/api/paths` answers — because the interesting fact is not that one is gated but
+that they are on opposite sides of the same gate (`H20`). `test_api.py` gained
+`test_a_renamed_net_publishes_the_name_the_sheet_actually_prints` (`K10`) and `test_review.py`
+gained `test_a_run_is_framed_by_its_own_polyline_and_not_by_the_box_round_its_ends` — and its
+pinned `ITEM_KEYS` gained `points`, while `points` left the *dropped sections* list, because a
+polyline is now published on purpose and `node_ids` is the tell that something unnarrowed got
+through.
 
 **Server tests, after Session 5: 157 over nine files.** The new one is **`test_paths.py`** (7), and
 two of its assertions are the session rather than the feature: `/api/paths` is asserted to answer
@@ -138,6 +158,12 @@ of `circuit_logic.json`.
 | **The one projection**, both directions | `webui/src/features/drawing/paint.ts` | `pointToCss`, `cssToPoint` |
 | **The highlighter** — a wire's route painted along the ink | `webui/src/features/drawing/paint.ts` | `polylineToDevice`, `paintRuns`, `HIGHLIGHT` (5 pt wide, floor 3 device px, translucent), `Polyline`, `RunStyle`. Every vertex goes through `tileDestRect`, which is invariant 2: one projection, or the highlight drifts off the conductor it names |
 | **Where it is painted** — under the DOM markers, in the tiles' own rAF pass | `webui/src/features/drawing/TileSheet.tsx` | the optional `runs` prop, painted after `paintSheet`. `data-runs` on the canvas is how a test knows what reached the sheet: `test-setup.ts` forces `getContext('2d')` to null, so nothing painted can be read back |
+| **Which runs of ink might be this wire** — the ranking, and the whole of it | `webui/src/features/locate/paths.ts` | `candidates`, `Candidate`, `Reason`, `compare`, `NEAR_PT` = 8 (half a conductor row), `NEARBY_PT` = 24, `MIN_RUN_PT` = 15, `netNames` (both forms — `K10`), `netOf`, `endsOf`, `chordOf`, `lengthOf`, `runsOf`, `draftRuns`. Pure, 19 unit tests, and four of them are the pairings measured off the sheet in `07_drawing_facts.md`. **The geometry outranks the printed name**, because a pin against a vector stroke has no reading of the paper in between and because the second half of a real route routinely carries no name at all |
+| **The wire panel** — propose, accept, assemble, convert, trace | `webui/src/features/locate/PathPanel.tsx` | `PathPanel`, `CandidateRow`, `Accepted`, `AddRun`, `Tracing`, `WHY`, `SHOWN` = 6. `data-path-panel`, `data-candidate` and `data-add-run` are how a test finds them |
+| **The corners of a hand-traced route** | `webui/src/features/locate/PathHandles.tsx` | `PathHandles`, `Handle`, `DRAG_SLOP` = 3. Rendered **only** for `geometry: human`; `data-path-handle` finds one |
+| **Writing a route into the draft** | `webui/src/features/locate/model.ts` | `setPath`, `addRun`, `tracePath`, `convertPath`, `movePathVertex`, `clearPath`, `setNoPath`, `writeWire`, and the readers `pathOf`/`pathSettled`. **`attribution` is always `human`**, `no_path_on_this_sheet: false` is deleted rather than written, and `movePathVertex` refuses a lifted run from this side as well as the panel's |
+| **A hand trace in progress, and the four keys** | `webui/src/features/locate/LocateTab.tsx` | `tracing`, `trace`, `traceRef`, and the two `window` effects — `Enter`/`Backspace` in the key effect, `Escape` in its own. **`Esc` takes the trace before the target**, and the sheet's `onClick` adds a corner instead of placing while one is running |
+| **One proposal, lit on the sheet** | `webui/src/features/drawing/paint.ts` · `TileSheet.tsx` | `CANDIDATE` (3.5 pt, floor 2 device px, blue) and the optional `candidates` prop, painted **under** `runs`. `data-candidates` on the canvas is the only assertable trace. One layer for the hovered candidate *and* the trace in progress, because the two cannot happen at once |
 | **What a selection highlights** — a wire's own runs, a net's the union of its wires' | `webui/src/lib/paths.ts` | `pathsFor`, `PathSummary`. Pure, 6 unit tests, and shared by **both** tabs so they cannot come to disagree about what a net is made of. Null for a component or a terminal; an empty summary for a wire nobody has traced — two different answers, both used |
 | **What the card says about a path**, including that there is none | `webui/src/features/drawing/SelectionCard.tsx` | `PathNote`, `GEOMETRY_WORD`, `ATTRIBUTION_WORD`. *`no path yet`* is load-bearing while 70 of 71 wires have none: an unhighlighted sheet cannot say which of *not traced* and *broken* it is |
 | Pan, zoom, fly-to | `webui/src/features/drawing/useTileViewport.ts` | `panTo`, `focusScale`, `centreOn` |
@@ -147,7 +173,8 @@ of `circuit_logic.json`.
 | **Which groups the Drawing tab draws** — **five** independent switches since 2026-08-25 | `webui/src/features/drawing/DrawingTab.tsx` | `Layer`, `LAYERS`, the `layers` memo, `shown`, the `markers` memo. `wires` and `nets` split out of `labels`, and `labels` is now the **text**: it has no markers of its own and gates the end labels |
 | **The list down the left of the sheet** | `webui/src/features/drawing/DrawingList.tsx` | `DrawingList`, `filterEntries`, `ListKind`, `LIST_FILTERS`. `filterEntries` is pure: an empty `kinds` means every kind, and the text matches the id **and** the one-line label, case-folded. Nothing here is an allowlist — it is not model output being matched (contrast `lib/designators.ts` `resolve`) |
 | **The rows themselves, for both tabs** | `webui/src/components/DesignatorList.tsx` | `DesignatorList`, `STATE`, `STATE_LABEL`, `armedRow`. This was `features/locate/WorkList.tsx` until 2026-08-25 and moved **unchanged**; the Locate tab imports it from here now and `WorkList.tsx` is gone |
-| **The row state a reader sees** — from the index, never from a draft | `webui/src/lib/designators.ts` | `readerRowState`, and `RowState` itself, which `features/locate/model.ts` re-exports. This is what lets the Drawing tab's list work with `SWUI_ALLOW_EDITS=false` |
+| **The row state a reader sees** — from the index, never from a draft | `webui/src/lib/designators.ts` | `readerRowState`, and `RowState` itself, which `features/locate/model.ts` re-exports. This is what lets the Drawing tab's list work with `SWUI_ALLOW_EDITS=false`. **It never says `traced` or `no path here`** and that divergence is chosen: a path is not in the designator index at all, so this list would have to be handed a second endpoint (`H20`), and the reader's way to a route is to select the wire — the card says `no path yet` or names the conductors, which is more than a word on a row could carry |
+| **The row state the editor sees** — including whether the wire has been dealt with | `webui/src/features/locate/model.ts` | `rowState` — `traced` and `no-path` come first for a wire, read off the **draft**, so the row changes under the click. `pathSettled` is the predicate the `Paths` filter and `coverage().settled` share, which is what stops the count and the queue from ever disagreeing |
 | Which kinds the list is filtered to, what has been typed, and whether it is open at all | `DrawingTab.tsx` (`kinds`, `text`, `toggleKind`, `rows`, `visibleRows`) · `stores/appStore.ts` (`drawingListOpen`, `setDrawingListOpen`) | The split is deliberate: **open/closed is persisted**, the filters are not. See hazard H16 |
 | What a click on a row raises | `webui/src/features/drawing/DrawingTab.tsx` | `onRow` — `select(row.kind, row.id)` with the default `'text'` origin, so the sheet flies. The same function a citation calls, and the row's **own** kind (the `onMarker` lesson again) |
 | A wire or net turned into something drawable — **its label point, never its route** | `webui/src/features/drawing/DrawingTab.tsx` | `atLabelPoint` (shared by the layer and by `selectedMarker`, so a label dot cannot exist in one path and not the other) |
@@ -184,9 +211,11 @@ of `circuit_logic.json`.
 | Draft, debounced autosave, unlock, load | `webui/src/stores/locateStore.ts` | `edit`, `place`, `save`, `load`, `unlock`, `SAVE_DEBOUNCE_MS` = 900 |
 | Re-reading the index after a save | `webui/src/stores/appStore.ts` | `refreshDesignators` — **and the paths with it since 2026-09-02**: one `PUT /api/locations` moves both, so refreshing one and not the other leaves the sheet half a save behind |
 | Where the paths live on the client | `webui/src/stores/appStore.ts` | `paths`, loaded by `loadAll` beside `designators`. Null while loading and after a failure, which is *nothing is highlighted* and not *nothing is traced* |
-| **The review queue's order, its filters, and what a decision writes** | `webui/src/features/review/model.ts` | `orderItems`, `filterItems`, `setCorrection`, `rowState`, `ROW_LABEL`, `SCOPES`, `progress`, `SCHEMA`. Pure, 21 unit tests. **`setCorrection` with no `text` deletes** — invariant 10, in a third file |
+| **The review queue's order, its filters, and what a decision writes** | `webui/src/features/review/model.ts` | `orderItems`, `filterItems`, `setCorrection`, `setNote`, `rowState`, `ROW_LABEL`, `SCOPES` (three since 2026-09-03 — `flagged`, `all`, **`rejected`**), `progress`, `SCHEMA`. Pure, 33 unit tests. **`setCorrection` with no `text` deletes** — invariant 10, in a third file — and **`setNote` refuses a row nobody has decided about** rather than inventing the `text` the file requires, which would record a confirmation nobody made |
+| **What sort of string a reading now is** — the badge, recomputed | `webui/src/features/review/model.ts` | `classifyLabel`, `labelKind`, `LabelKind`. A **mirror** of `classify_label()` in `schematic_skills/scripts/extract.py`, which imports PyMuPDF and exits without it, so neither the server nor the browser can import the original. The drift is bounded by `labelKind`: an **uncorrected** row shows the extraction's own answer verbatim, and the mirror is consulted only where a person changed the text. `review/model.test.ts` pins it against 45 strings generated from the Python |
 | **The review screen** — the queue, the boxes, the ring on the ink | `webui/src/features/review/ReviewTab.tsx` | `ReviewTab`, `ReadingRow`, **`InkRing`**, `PasswordGate`, `SaveStatus`, `TONE`. `data-reading="<id>"` finds a row and `data-ink-ring="<id>"` finds the ring |
-| **The ring, and why it is DOM rather than canvas** | `webui/src/features/review/ReviewTab.tsx` | `InkRing` — through **`pointToCss`**, like everything else that lands on the sheet (invariant 2). One box rather than 149 polylines, and `test-setup.ts` forces `getContext('2d')` to null, so a canvas ring could not be asserted at all while this one has a position a test can read |
+| **The ring, and why it is DOM rather than canvas** | `webui/src/features/review/ReviewTab.tsx` | `InkRing` — through **`pointToCss`** and, for a run, **`polylineToDevice`**, like everything else that lands on the sheet (invariant 2). `test-setup.ts` forces `getContext('2d')` to null, so a canvas mark could not be asserted at all while this one has a position a test can read. Since 2026-09-03 a **run** is drawn as an SVG polyline along its own corners and a **label** keeps its exact filled bbox — a label *is* a box, and framing it exactly is how a person sees the box is wrong. `data-ink-shape` finds the polyline |
+| **The note on a row, and why it is disabled until there is a decision** | `webui/src/features/review/ReviewTab.tsx` | `NoteBox`. Same `H4` local-state rule and same `H19` baseline rule as the reading above it |
 | **The corrections draft, and its debounced save** | `webui/src/stores/reviewStore.ts` | `document`, `items`, `edit`, `save`, `load`, `refresh`, `setCurrent`, `SAVE_DEBOUNCE_MS` = 900. Deliberately **no undo stack** and **no `stale`** — the header of that file says why for both |
 | Whether the tab exists | `webui/src/tabs.ts` | `isEnabled: tilesAvailable && editingEnabled`; `editingEnabled` from `health.editing.enabled` in `App.tsx`. **Both** editing tabs use that rule, and for the Review tab both halves are load-bearing: no editor means no routes, and no tiles means no ink to read against |
 | Wire contract | `webui/src/api/types.ts` | `Designator`, `Place`, `Placement`, `LocationsDocument`, `StoredSite`, `StoredLabel` |
@@ -203,7 +232,7 @@ wrong, it is wrong here.
 | Which kinds have only a label? | `LABELLABLE` = wire, net |
 | What does this row say? | `rowState`, and `draftPlacement` for the draft's half |
 | Where are this entry's dots? | `editorPlaces` |
-| What do the toolbar counts mean? | `coverage` — returns `placeable/confirmed/remaining` **and separately** `labellable/labelled` |
+| What do the toolbar counts mean? | `coverage` — `placeable/confirmed/remaining`, then `wires`/`nets`, then `authored` (end-label decisions) and **`settled`** (wires with a route *or* a *no path* decision — the one count here that reaches its own total) |
 | What does the advance pick next? | `nextUnplaced` (skips `LABELLABLE`, wraps once) |
 | What does a click write? | `place` → `setSitePoint` \| `setTerminalPoint` \| `setLabelPoint` |
 | Which site holds this pin? | `siteClaiming` (first claim wins) |
@@ -228,6 +257,19 @@ feature's. **127 tests.**
 | `components/Markdown.test.tsx` | 13 | |
 | `components/UnlockButton.test.tsx` | 4 | |
 | `App.test.tsx` | 8 | the tabs, and the `F2` effect |
+
+**After Session 6, 2026-09-03: 318 web tests over 17 files.** One new file,
+**`features/locate/paths.test.ts`** (**19** — the ranking as arithmetic, and four of them are the
+pairings measured off the real sheet), plus 17 in `locate/model.test.ts` (**45** — the path writers,
+and what may never be written), 13 in `LocateTab.test.tsx` (**51**), 12 in `review/model.test.ts`
+(**33**), five in `ReviewTab.test.tsx` (**24**) and one in `endLabels.test.ts` (**14**).
+
+Two idioms worth knowing before adding to it. The stubbed review server now **folds the last saved
+document back onto the readings it answers with**, the way `resolve_corrections` does on every
+request — without that, anything reading `item.correction` (the `decided` count, the `Not a label`
+scope) looks broken in a test while working in the browser. And the ranked candidate rows are found
+through `data-candidate` rather than by role: `getAllByRole('listitem')` would hand back the
+left-hand list's rows first, which is the same trap `data-end` was introduced for in Session 2.
 
 **After Session 5, 2026-09-02: 251 web tests over 16 files.** One new file, `lib/paths.test.ts`
 (**6** — the union rule as arithmetic), plus five in `paint.test.ts` (**20** — the highlighter's
@@ -521,18 +563,27 @@ survives five more sessions.
 Two narrowings, both with names:
 
 - **`ink.py` `reduce()`** keeps named fields and drops the rest at the parse boundary: `symbols`,
-  `boxes`, `rects`, `junctions`, `stats`, `params`, `endpoint_bindings`, and the conductor `points`
-  polylines. What survives is 664 small records. **There is no function in `ink.py` that returns the
-  raw parse**, so no route can leak it by spreading something.
-- **`main.py` `_reading()`** narrows again to what the screen draws, key by key, with **no `**rest`**.
-  `test_a_review_item_carries_only_the_fields_the_screen_draws` pins the set and asserts the response
-  text contains none of the dropped section names.
+  `boxes`, `rects`, `junctions`, `stats`, `params`. What survives is 664 small records. **There is
+  no function in `ink.py` that returns the raw parse**, so no route can leak it by spreading
+  something.
+- **`main.py` `_reading()`** and **`_traceable()`** narrow again to what each screen draws, key by
+  key, with **no `**rest`**. `test_a_review_item_carries_only_the_fields_the_screen_draws` and
+  `test_a_conductor_carries_only_what_tracing_needs` pin the two sets and assert the response text
+  contains none of the dropped section names.
 
-The result is a **119 KB** payload for all 664 readings, behind the editor password.
+The result is a **119 KB** payload for all 664 readings and a **32 KB** one for all 149 runs, both
+behind the editor password.
 
-**When Phase E needs the conductor polylines**, they are added *in `ink.py`*, named, behind the same
-cache — and `/api/conductors` decides what to publish. The loader still never returns the file. A
-route that reads `geometry.json` itself would be the regression, and it would look like nothing.
+**Two fields joined the kept set on 2026-09-03**, exactly as the paragraph above used to predict
+they would: the conductor **`points`** polylines (7 KB for 393 vertices) and the per-endpoint
+**`endpoint_bindings`**, narrowed as they are read to the bound symbol and its distance (18 KB).
+Both are read *in `ink.py`*, named, behind the same cache, and the routes decide what to publish;
+the loader still never returns the file. `points` therefore left the *dropped sections* list in
+`test_review.py` and joined `ITEM_KEYS`, which is the honest place for it — **the rule the list
+defends has not changed.** What may not reach a browser is a section of the file nobody narrowed,
+and `node_ids` is now the tell.
+
+A route that reads `geometry.json` itself would be the regression, and it would look like nothing.
 
 ### H18 — Two whole-document drafts now, in two stores *(added 2026-08-25)*
 
@@ -597,11 +648,66 @@ What that means for anyone adding to this route: it may publish **authored displ
 nothing else.** Session 6's `/api/conductors` — 149 candidate polylines out of the ink — is a
 different route with a different gate, and the two must not be merged for convenience.
 
+**Built 2026-09-03, and the pair now exists in code**: `test_a_reader_never_downloads_the_ink`
+asserts both halves in one test — `/api/conductors` **404** and `/api/paths` **200**, on the same
+reader's server — because the fact worth pinning is not that one is gated, it is that two routes
+which look like siblings are on opposite sides of the same gate. Anything that "tidies" them
+together has to answer what a technician with no password is supposed to do with 149 proposals.
+
+### H21 — an extracted run may not be edited in place *(added 2026-09-03)*
+
+`geometry: extracted` is not a quality rating. It is a **claim about the polyline**: *these corners
+are the PDF's own vector data, not mine.* So dragging a vertex of one would leave that claim
+standing over a line a person had altered — and nothing on screen would ever say so, because the
+badge would go on reading `from the ink`.
+
+That is invariant 10 in a fifth set of clothes: a file that cannot tell *the drawing said this* from
+*somebody adjusted this* has stopped being a record of who said what. The cure is a conversion a
+person has to ask for:
+
+- **`PathHandles` is rendered only for `geometry: human`.** No handles exist on a lifted run, so
+  there is nothing to drag.
+- **`model.movePathVertex` refuses one anyway**, returning the document unchanged, so a second
+  caller cannot reintroduce it.
+- **`model.convertPath` is the only way across**, it is an explicit press with the consequence
+  stated beside it, and **it deletes `conductors`** — the run is no longer the run it was lifted
+  from, and naming it would be a claim that is no longer true.
+
+If a report says *"I cannot move a corner"*, that is this, and T-925 is the walk-through. If a
+report says *"a stripe says `from the ink` and does not follow the ink"*, that is this hazard having
+been broken.
+
+### H22 — two things want `Escape`, and the trace has to win *(added 2026-09-03)*
+
+There are now **four** `window` key listeners in this application — this tab's `Escape`, this tab's
+`Ctrl+Z`/arrows, and the Drawing tab's `Escape` — and `H10`'s `activeTabId` guard is still all that
+separates the tabs. Inside the Locate tab a new contest appeared: `Escape` means *abandon the trace*
+and *clear the armed row*, and both are live at the same moment.
+
+**The trace wins the first press.** A half-drawn route is the more recent and more fragile of the
+two, and one press taking away both would mean losing your place as the price of abandoning a line.
+So: text field → trace → target, which is the same escalation the text field already had.
+
+The other half is `traceRef`, a ref rather than the state, for the reason `panTo` is: the listener
+is bound once per active tab and re-binding it on every corner would be a cost with no benefit. If
+a report says *"`Esc` cleared my row when I meant to drop a corner"*, the trace had already ended —
+and if it says *"`Esc` did nothing"*, check `isTextField` first.
+
 ---
 
 ## 5. Invariants — if one of these is violated, that is the bug
 
 1. **A wire's route is never *computed*.** Not in the file, not in the editor, not in the API.
+   *(Phase E, 2026-09-03, is the first thing that ever writes one, and it writes only the two legal
+   kinds: `setPath` copies a polyline out of `/api/conductors` — the PDF's own strokes — and
+   `tracePath` records corners a person clicked. Nothing in `features/locate/paths.ts` produces a
+   coordinate: `candidates()` ranks runs that already exist and `runsOf` hands back their own
+   points. `attribution` is written `human` on every route, including the ones an exact printed-name
+   match proposed, because **nothing here accepts a ranking on its own** — 37 of the 71 wires have
+   a single run whose two ends land on both their pins and every one of them still needs a click.
+   `chordOf` is the one function that computes anything from the endpoints, and it exists **only**
+   to be printed beside the ink's length for comparison: it is never drawn, and `W068`'s 312 pt
+   against 644 pt is why.)*
    *(Amended in force since 2026-09-02, which is the whole of Phase D: a wire may now carry a
    `path` — one or more polylines **lifted from the PDF's own conductor strokes** or **traced by a
    person** — and it says forever which of the two it was. A route **synthesised from its
@@ -649,6 +755,15 @@ different route with a different gate, and the two must not be merged for conven
    clothes: a file that cannot distinguish *nobody has looked at this* from *a person decided this*
    has stopped being a record of who said what, which is the only thing it is for. T-570 walks it,
    and it is the one assertion in that document worth reporting loudly.
+
+   *Extended 2026-09-03 to two more, and both are deletions.* **`no_path_on_this_sheet: false`** is
+   never written — pressing the control off **deletes** the key, and `locations.py` `_no_path`
+   refuses a written `false` by name from the other side, because `false` is the shape a *Reset*
+   that wrote instead of deleting would leave behind. And a **`note`** is refused on a row nobody
+   has decided about: `note` rides on a `text`, the file requires one, and inventing the machine's
+   reading to hang a note off would record *a person checked this* about a row nobody checked.
+   Owners: `setNoPath` and `writeWire` (`features/locate/model.ts`), `_no_path`
+   (`server/app/locations.py`), `setNote` (`features/review/model.ts`).
 
    *Extended 2026-08-25 to the third file, with the line drawn exactly.* On the Review tab **Reset
    deletes** the correction rather than writing the machine's reading back in (`setCorrection` with no
