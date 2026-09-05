@@ -2169,7 +2169,7 @@
       "function": "output",
       "net": "24E-1",
       "location": {
-        "x": 61.5,
+        "x": 61.4,
         "y": 679.0,
         "source": "human"
       }
@@ -2334,8 +2334,8 @@
       "function": "output",
       "net": "PB1-SP",
       "location": {
-        "x": 169.8,
-        "y": 249.6,
+        "x": 170.0,
+        "y": 249.1,
         "source": "human"
       }
     },
@@ -2554,7 +2554,7 @@
       "function": "NO_contact",
       "net": "120",
       "location": {
-        "x": 236.1,
+        "x": 236.4,
         "y": 563.4,
         "source": "human"
       }
