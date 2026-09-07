@@ -498,6 +498,29 @@ describe('a wire’s path', () => {
     expect(pathOf(doc, 'W063')!.conductors).toEqual(['C0091'])
   })
 
+  it('stamps the two endpoints the route was accepted against', () => {
+    /**
+     * **`for`, and why a path needs one since 2026-09-07.** A wire's endpoints used to be a
+     * Python literal nobody could correct; they are authored in `wiring.json` now, and 11 of this
+     * sheet's 71 land on the wrong screw. A path is a claim about *ink* and the ink does not move,
+     * so a correction does not invalidate a route — unless it moves the end that route reaches.
+     * Recording what the route was accepted against is what lets the editor say *path may be
+     * stale* by comparing, instead of asking a person to remember which wires they corrected.
+     */
+    const doc = setPath(fresh(), 'W052', [RUN], ['C0109'], STAMP, ['CR2:14', 'TB-120:1'])
+    expect(pathOf(doc, 'W052')!.for).toEqual(['CR2:14', 'TB-120:1'])
+  })
+
+  it('stamps a hand trace with them too, and keeps them when a second run is added', () => {
+    // `addRun` and `convertPath` spread the path they found, so the stamp survives an edit that
+    // is not a re-acceptance. If it ever stops surviving, a path that *is* current starts
+    // claiming it might be stale, which is the noisier of the two failures.
+    let doc = tracePath(fresh(), 'W049', [[10, 10], [20, 10]], STAMP, ['CR-SW:A2', 'TB-130:1'])
+    expect(pathOf(doc, 'W049')!.for).toEqual(['CR-SW:A2', 'TB-130:1'])
+    doc = addRun(doc, 'W049', SECOND, null, STAMP)
+    expect(pathOf(doc, 'W049')!.for).toEqual(['CR-SW:A2', 'TB-130:1'])
+  })
+
   it('names no conductor on a hand trace, and that absence is the record', () => {
     // Offered *after* the proximity-ranked unlabelled runs, because 79 unlabelled conductors are
     // real ink and beat a hand trace every time. There was no run to lift, so there is nothing to

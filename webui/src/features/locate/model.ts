@@ -608,6 +608,12 @@ export function assignTerminal(
  * A point is a person's judgement about where something is and a tenth is finer than the drawing;
  * a lifted polyline is a copy of the PDF's own vector data, and rounding it would make the
  * highlight disagree with the stroke it is tracing for no gain.
+ *
+ * `endpoints` is the wire's two pins **as they are at the moment of accepting**, written into the
+ * path as `for`. Since 2026-09-07 an endpoint is authored in `wiring.json` and can be corrected,
+ * and a route accepted against the wrong screw is a route reaching the wrong place — so the path
+ * carries what it was accepted against and the editor can compare. Optional, because a test
+ * asserting what a route *is* has no business supplying two terminal ids to get one.
  */
 export function setPath(
   document: LocationsDocument,
@@ -615,6 +621,7 @@ export function setPath(
   runs: readonly Polyline[],
   conductors: readonly string[],
   stamp: Stamp,
+  endpoints?: readonly string[],
 ): LocationsDocument {
   if (!runs.length) return document
   const path: WirePath & { by?: string; at?: string } = {
@@ -624,6 +631,7 @@ export function setPath(
     ...(conductors.length ? { conductors: [...conductors] } : {}),
     ...(stamp.by ? { by: stamp.by } : {}),
     at: stamp.at,
+    ...(endpoints?.length ? { for: [...endpoints] } : {}),
   }
   return writeWire(document, wireId, (record) => {
     const next = { ...record, path }
@@ -685,6 +693,7 @@ export function tracePath(
   wireId: string,
   corners: readonly [number, number][],
   stamp: Stamp,
+  endpoints?: readonly string[],
 ): LocationsDocument {
   if (corners.length < 2) return document
   return writeWire(document, wireId, (record) => {
@@ -696,6 +705,7 @@ export function tracePath(
         attribution: 'human' as const,
         ...(stamp.by ? { by: stamp.by } : {}),
         at: stamp.at,
+        ...(endpoints?.length ? { for: [...endpoints] } : {}),
       },
     }
     delete next.no_path_on_this_sheet

@@ -1041,3 +1041,65 @@ Also the model should be able to turn on the highlighting on selected wires when
 2. Currently we are doing work on one particular schematic. This is helping us work out what features we would like to have in this application and it is helping us tryout different ways to create that funtionality. But the long term goal is to create processes that will work on any schematic. Then we will use these methods to create indexes for a whole range of schematics and eventually we will be creating a library of schematic indexes that a model can answer questions about. Now imagine that all the schematics for a factory or for a sort center are indexed. Then no matter what circuits need repair, we can get troubleshooting assistance from the model. The point I am making here is that while the current work is about a specific drawing, eventually we need to create an abstraction that can be applied to other schematics. So please build with that idea in mind.  
 
  3. Currently, we are doing work on a schematic that has only one page which describes the circuit. But eventually we will be working with more complex circuits which will require several pages of drawings in order to fully describe them. The point I am making here is that while the current work is on just a single page, eventually we need to create an abstraction that can be applied to other circuits which require several pages to describe. So please build with that idea in mind.  
+---
+
+## 15. What actually happened — the record, appended as each session lands
+
+*Added 2026-09-07. The sections above are the plan as written and are not edited when reality
+disagrees with them; this is where the disagreements go, so a reader can tell one from the other.
+`_claude_notes/change_history.md` has the full entry for each.*
+
+### Session 1 — Phase 0. **Done, 2026-09-07.**
+
+`wiring.json` exists with 71 records, all `source: index`. The generator reads it, derives each
+wire's net from its two ends, flags a wire whose ends are on different nets, and **raises** on a
+missing or broken file. All 58 paths carry a `for`. **The artifact is byte-identical** and
+`custom_kg.json` re-ran to the same bytes. 184 server tests, 320 web, ruff and tsc clean.
+
+Four places where the execution departed from §8 and §9, each with its reason:
+
+1. **The bootstrap script is kept, not deleted.** §8 said *"a migration that survives is a
+   migration somebody will run twice"*. `schematic_skills/scripts/bootstrap_wiring.py` **refuses to
+   overwrite an existing `wiring.json`** and only adds a `for` to a path that has none, so running
+   it twice does nothing — which removes the reason to delete it and leaves the bootstrap that
+   **drawing number two** needs. It reads `circuit_logic.json` and `locations.json` by name out of
+   whatever directory it is pointed at and knows nothing about this sheet.
+
+2. **The `W` table keeps its `from`, `to` and `net` columns.** §6 says what leaves it is those
+   three, and §6 also says the table is *the fallback* for a wire with no record — which it cannot
+   be if they are gone. The columns stayed: the endpoints are the fallback the plan describes, and
+   `net` is kept as what it always was, *the name printed beside the run*. Neither is the source
+   any more. A record that disagrees with the table is **printed** by the generator, so the copy
+   decision 5 was worried about cannot go stale *silently*, which is the word that mattered. The
+   standing test is that every record still saying `source: index` reproduces the table exactly —
+   written that way so it stays green through the authoring run instead of going red on the first
+   correction.
+
+3. **Byte-identity is asserted against an empty file rather than an absent one.** q2 asks for
+   *"byte-identical with and without the file present"*, and §9 asks for *"a missing or broken
+   `wiring.json` raises"*. Both cannot be run at once. A `wiring.json` whose `wires` section is
+   `{}` is the honest stand-in for *absent* — present, valid, saying nothing — and the test
+   compares the real records against it. The absent case is its own test, and it raises.
+
+4. **The seven sentences were corrected now rather than in Session 4.** §13 schedules them after
+   the authoring run. They were pulled forward for the reason §4 q11 itself gives: *a wrong fact in
+   a document the next session reads is how nine days went by last time* — and Session 2's required
+   reading is `06_code_map.md` and the manual, which were two of the six. The `W063` fixture and the
+   `07_drawing_facts.md` row were **not** pulled forward; they belong with the proposal work in
+   Phases B and C, and §4 q10 warns that a fixture corrected carelessly there will not go red.
+
+Two things the plan did not ask for and that were built anyway, both because the format was being
+defined and adding them later would be a schema change:
+
+- **A `retired` record removes the wire and its `CONNECTS_TO` edge.** Retiring is Phase E, but the
+  *dangerous* half of it is that a tombstone silently ignored leaves an edge a person deleted. A
+  record for an id the `W` table does not have is still **refused by name**, so `Add a wire` stays
+  Phase E's to unlock deliberately.
+- **`from` or `to` may be `null`, and such a wire earns no edge.** It stays in `wires`, because
+  somebody started it and a queue has to be able to show it.
+
+### What §14 now costs
+
+Unchanged: **about 100 gestures**. Nothing in Phase 0 is an authored decision, and the queue will
+read `0 of 71 wires confirmed` the first time Session 2's screen is opened, exactly as decision 4
+says it should.

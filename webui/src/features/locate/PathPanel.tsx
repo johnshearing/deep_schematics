@@ -45,6 +45,7 @@ import {
   candidates as rank,
   chordOf,
   lengthOf,
+  endPinsOf,
   type Candidate,
   type Reason,
 } from './paths'
@@ -201,6 +202,7 @@ export function PathPanel({
                       [candidate.conductor.points],
                       [candidate.conductor.id],
                       stamp(),
+                      endPinsOf(entry),
                     ),
                   `traced ${entry.id} along ${candidate.conductor.id}`,
                 )

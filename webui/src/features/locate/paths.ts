@@ -124,6 +124,19 @@ export function endsOf(entry: Designator): WireEnds {
 }
 
 /**
+ * The wire's two endpoint terminals by **name**, in `[from, to]` order — what a route is accepted
+ * *against*.
+ *
+ * `endsOf` answers where the pins are and this answers which pins they are, and since 2026-09-07
+ * the second question has an authored answer that can change: an endpoint lives in `wiring.json`
+ * and 11 of this sheet's 71 were on the wrong screw. A path stamps these into its `for` so the
+ * editor can say *path may be stale* by comparing, rather than by trusting that nothing moved.
+ */
+export function endPinsOf(entry: Designator): string[] {
+  return (entry.terminals ?? []).map((member) => member.id)
+}
+
+/**
  * The names this wire's net answers to — **both of them**, where the sheet and the netlist
  * disagree.
  *

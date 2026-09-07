@@ -44,16 +44,22 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **172 server, 318 web, ruff clean, tsc clean** *(2026-09-03, after Session 6 —
-the last session of the wires-and-nets plan; it was 157 and 251 after Session 5, 141 and 232 after
-Session 4, 117 and 192 after Session 3, 117 and 185 after Session 2, 111 and 155 after Session 1,
-and 106 and 127 before that)* — except
+Expected right now: **184 server, 320 web, ruff clean, tsc clean** *(2026-09-07, after Session 1 of
+the authoring-the-wires plan; it was 172 and 318 after Session 6 of the wires-and-nets plan, 157 and
+251 after its Session 5, 141 and 232 after Session 4, 117 and 192 after Session 3, 117 and 185 after
+Session 2, 111 and 155 after Session 1, and 106 and 127 before that)* — except
 that
 `test_the_committed_artifact_is_exactly_what_the_generator_writes` is red whenever `locations.json`
-has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a failure; re-run the
-generator (§5) and it goes green. **A review run cannot cause it** — that is Session 4's acceptance
-criterion (T-740), and if the artifact test goes red after correcting a label, something is very
-wrong.
+**or `wiring.json`** has moved ahead of `circuit_logic.json`. That is **K6** doing its job, not a
+failure; re-run the generator (§5) and it goes green. **Two files can cause it now**, and the banner
+does not yet say which — that is `K12`, §7. **A review run still cannot cause it** — that is Session
+4's acceptance criterion (T-740), and if the artifact test goes red after correcting a label,
+something is very wrong.
+
+**And since 2026-09-07 the generator refuses to run at all without `wiring.json`.** If it exits with
+`REFUSED:` and writes nothing, read the message: it names the file and the wire. That is deliberate
+and it is the one place in this project where a missing authored file stops the work rather than
+being warned about — see §5h.
 
 ---
 
@@ -76,8 +82,15 @@ list. It matters because 30 of the 70 printed net names came back at confidence 
 are wrong, which is why only **17 of 26** nets can be matched to a printed conductor — the comparison
 Session 6's path finder is built on. So the Review tab is a queue of 664 readings with the **ink on
 screen beside each one**, and `label_corrections.json` records what a person said the paper actually
-says. It corrects a *reading of the sheet* and never the netlist, which is already right: T-740 is the
-test, and it compares bytes.
+says. It corrects a *reading of the sheet* and never the netlist: T-740 is the test, and it compares
+bytes.
+
+*Corrected 2026-09-07.* This used to read *"never the netlist, which is already right"*. The netlist
+has **no duplicates** — 26 nets, 131 terminals, 47 components, no twins — and §2 of
+`highlighting_wires_and_nets.md` measured that correctly. **What it never checked is whether a
+wire's two endpoints are the two the sheet joins, and 11 of the 71 are not**
+(`_claude_notes/authoring_the_wires.md` §3). It was checked for twins and not for truth. The claim
+about this tab not touching the netlist is unaffected.
 
 ---
 
@@ -579,6 +592,65 @@ client is a rebuilt bundle.
                       members, `traced` and `no-path`. New hazards **H21** and
                       **H22**.
 
+### 5h. Session 1 of the authoring-the-wires plan, 2026-09-07
+
+**Phase 0, and nothing on this screen changed.** The plan is `_claude_notes/authoring_the_wires.md`;
+its §13 says Session 2 is Phases A and B — the wiring queue and the ink's proposal. **No server
+change and no restart**; the client changed by two functions, so the bundle was rebuilt.
+
+38. **A wire's two endpoints are authored now, in `wiring.json`.** This is the layer below the one
+    the path editor made visible. The `W` table in `author_circuit_logic.py` was typed by the same
+    vision pass that seeded the coordinates, and for the **40** wires landing on a multi-point
+    terminal block the far end was **allocated rather than read** — one screw number after another
+    as the table went down the page. Measured against the 131 placed points and the PDF's own
+    conductor polylines: **11 of the 71 are on the wrong screw, 13 more cannot be settled from the
+    ink, and 47 are right.** Every one of the eleven was already on the user's own list of
+    thirteen. See that plan's §3 for the per-wire tables, which exist so nobody re-derives them.
+
+    Nothing is corrected yet, and that is the phase. What exists is the file, one record per wire,
+    every one saying `source: index` — *this is what the machine guessed.* Session 2 builds the
+    screen that turns each into `source: human`, and the queue will read **0 of 71** on its first
+    run because that is the honest number.
+
+39. **The generator refuses to run without it, and that asymmetry is the point.** A broken
+    `locations.json` has always been warned about and skipped: the netlist does not depend on the
+    geometry, so a typo in one must not cost the other. `wiring.json` does the opposite — **a
+    missing point makes a worse drawing, and a missing endpoint makes a different netlist**, and it
+    is the netlist the model answers from. An endpoint on a terminal that does not exist, a record
+    for a wire the table does not have, a `source` that is not `index` or `human`: all refused **by
+    name**, with nothing written. `H14`'s treatment in a fourth file.
+
+40. **A wire's net is derived from its two ends, and a wire across two nets is flagged, not fixed.**
+    Net membership already comes from each terminal's own `net`; a wire's stored copy was a third
+    statement of the same fact and the one that goes stale the moment an endpoint moves. `W019` is
+    the case worth remembering: corrected, it runs `PS1:-2 → TB-GND-B:2` and reads `0V` at one end
+    and `GND` at the other, because it is a 0 V-to-ground **bond**. Two nets is the *finding*, and
+    a screen that quietly picked one would hide the only interesting thing about the wire.
+
+41. **Every one of the 58 authored paths now records what it was accepted against.** A path is a
+    claim about *ink* and the ink does not move, so correcting an endpoint invalidates no route —
+    unless it moves the end that route reaches. `path.for` holds the wire's two terminals as they
+    were when the route was accepted, so a future session can say **`path may be stale`** by
+    comparing rather than by asking you to remember. **Zero of the 58 is invalidated by the eleven
+    corrections**, and the reason is worth knowing: you authored no path for any of the thirteen
+    wires you flagged.
+
+**The proof of the phase, and it is worth doing once by hand.** Run the generator and
+`circuit_logic.json` does not move — same bytes, artifact test green, `custom_kg.json` unchanged.
+Then rename `wiring.json` and run it again: it says `REFUSED:`, names the file, tells you how to
+write one, and leaves `circuit_logic.json` exactly as it was. Rename it back.
+
+    tests             184 server (was 172), 320 web (was 318), ruff and tsc clean.
+                      New: eleven in test_extraction_generator.py (18) and two in
+                      features/locate/model.test.ts (47). What moved:
+                      test_review.py's byte-identity test copies wiring.json into
+                      its scratch directories, because the generator will not run
+                      without one. New files: `wiring.json` in the extraction, and
+                      `schematic_skills/scripts/bootstrap_wiring.py` — which is
+                      **kept rather than deleted**, because it refuses to overwrite
+                      an existing wiring file and so is safe to point at the next
+                      drawing. New hazard **H23**, new known issue **K12**.
+
 ### 5a. What is in the files, 2026-08-24
 
 **The counts below replaced a stale block that still described 6 components and 18 terminals.**
@@ -646,6 +718,26 @@ against the files, not remembered:
                       regenerate, exactly like locations.json, so it wants a commit.
                       **Nothing regenerates from it and nothing needs to** — T-740, in
                       bytes.
+    wiring.json       **Added 2026-09-07.** Schema 1, the fourth authored file, and
+                      the first one the generator *cannot run without*. 71 records,
+                      one per wire: `from`, `to`, and `source` — which is `index`
+                      for the indexing pass's own answer and `human` for a person
+                      who looked. **All 71 say `index` today**, which is why the
+                      queue Session 2 builds will read `0 of 71 wires confirmed` on
+                      its first run: the file is *what the machine guessed*, written
+                      once by `bootstrap_wiring.py`, and nothing writes that again.
+                      A wire's colour, gauge, cable and note stay in the `W` table
+                      in `author_circuit_logic.py` — those were read off printed
+                      callouts, which is a different claim. Its **net is not here
+                      at all**: it is derived from the two ends' own nets, and a
+                      wire whose ends are on different nets is flagged rather than
+                      fixed. `commoning` is present and empty; Phase C fills it with
+                      the 8 conductors across 7 blocks that are a terminal block's
+                      own bus rather than field wire.
+                      **The endpoints are terminal designators and not coordinates**,
+                      so there is no page in this file — which is what will make it
+                      survive a circuit that needs several sheets.
+                      Authored content git cannot regenerate, so it wants a commit.
     custom_kg.json    generated from circuit_logic.json by
                       schematic_skills/scripts/build_kg.py, and **re-run 2026-09-03**
                       (small-batch item 6). 693 chunks, 291 entities, 402
@@ -713,6 +805,8 @@ The first column is what the user says. Use this to pick one leaf document, not 
 | I corrected a label and the conductor beside it still reads the old string | `12_tests_label_corrections.md` **T-710** | `label_corrections.py` `resolve_corrections` — a run's reading must follow the label its net name is bound from (`ink.net_label_source_of`), or Phase F unlocks nothing for the matcher |
 | `label_corrections.json` grew a line nobody asked for, or lost one | `12_tests_label_corrections.md` **T-730** | *Reset* **deletes**; `""` is refused. `features/review/model.ts` `setCorrection` |
 | The red strip on the Review tab names an id I do not recognise | `12_tests_label_corrections.md` — hand-editing | a correction keyed on something not in `geometry.json` is refused **by name**, because its symptom would otherwise be nothing at all. Same reasoning as `H14` |
+| The generator exits saying `REFUSED:` and writes nothing | §5h; the message names the file and the wire | **deliberate, and the only place a missing authored file stops the work.** `wiring.json` is absent, unreadable, or names a terminal or a wire that is not in the netlist. `read_wiring` / `build_wires` in `author_circuit_logic.py`. Falling back to the `W` table would regenerate the artifact the model answers from using the guesses this project measured as wrong |
+| The artifact test is red and I do not know which file is ahead | §7 **K12** | **two** files can make it red now, `locations.json` and `wiring.json`, and the banner does not say which. Re-running the generator clears it either way; `git diff` says what you actually changed |
 | The artifact test went red after a review run | `12_tests_label_corrections.md` **T-740** | **that is a bug, not `K6`.** Nothing this screen writes can make `circuit_logic.json` stale; the generator does not read the corrections and a test asserts it in bytes |
 | ~~A run of ink is ringed with an enormous box covering unrelated conductors~~ | `12_tests_label_corrections.md` **T-765** | **Fixed 2026-09-03** (small-batch item 5). A run is drawn along **its own polyline** now and a label keeps its exact bbox. It was min/max over the run's two *endpoints*, which for 19 of the 149 did not even contain the ink — `C0057` goes out to x = 798 while its ends span x 429.8–598.9. If a **run** is still a filled box, the bundle is stale: `npm run build` and restart |
 | No candidate runs are offered for an armed wire | `14_tests_path_editor.md` **T-900**, and the panel says which it is | *"The extracted ink did not load"* means `/api/conductors` failed — check `SWUI_ALLOW_EDITS=true` and that the tab is unlocked. An **empty list** is a real answer: no run is near either pin and none carries the net name. `Trace by hand` still works either way, and so does everything else on the screen |
@@ -800,6 +894,7 @@ out to avoid rather than fix — and `K11`, which is now a decision rather than 
 | **K6** | `circuit_logic.json` goes stale after every save | Deliberate — the banner says so and `test_the_committed_artifact_is_exactly_what_the_generator_writes` goes red until you re-run the generator. | not a bug |
 | ~~**K10**~~ | ~~An invented net id is printed on the sheet as its end label~~ | **Fixed 2026-09-03**, in Session 6, and it turned out to be worth **two nets** rather than two labels. `NET-PB1` and `NET-PB2` are prefixed names for the nets the sheet prints as `PB1` and `PB2` — the rename was right, because the drawing also has a *push button* called `PB1` and two things may not share an id — and it cost two things. The visible one: an end label saying a word a reader holding the paper cannot find. The expensive one, which only appeared once the whole review queue had been worked: those two were **the only nets of 26 with no printed conductor for Phase E's matcher to compare against**, while both of their printed names sat on a run (`C0054` reads `PB1` after your correction; `PB2` was read correctly all along). So `drawing.py` `printed_net` publishes the printed form beside the id, `endLabels.ts` draws it, and `candidates()` compares against **both** forms. **26 of 26.** T-945 walks it. | done — `printed_net` (`drawing.py`), `printed` on a net entry, `netNames` (`features/locate/paths.ts`) |
 | **K11** | The Review tab records a run's **net name** and nothing else about a run | 40 of the 119 flagged conductors were flagged for a missing `spec_label` or an unbound endpoint rather than a missing net name, and this screen cannot record either. **Decided after using the ranking, 2026-09-03, and the answer is: leave it.** Phase E's ranking does use the spec as its second signal — `spec_label` whole, and `color`/`gauge` apart so a run whose colour matches while its gauge does not ranks below an exact match rather than dropping out of the list — but the measurement says it is not the binding constraint. Every one of the 71 wires comes back with at least one candidate, **37 of them with a single run whose two ends land on both their pins**, and the three wires with no name-and-spec match are two that have no colour or gauge printed at all plus `W049`. A `spec` key on a run would double this file's schema for the weaker signal, and the strongest one turned out to be neither: it is the **endpoint geometry**, which needs nothing from this screen. Kept as a known issue rather than struck, because the reasoning is *not needed*, not *impossible* — the day a drawing arrives where the geometry is ambiguous, this is the field to add. | **not doing it** — and now for a measured reason rather than a guess |
+| **K12** | The stale banner cannot say **which** authored file is ahead of `circuit_logic.json` | Since 2026-09-07 the generator has two inputs that make it stale — `locations.json` and `wiring.json` — and `test_the_committed_artifact_is_exactly_what_the_generator_writes` goes red for either. The instruction *"re-run the generator"* is still correct and still one command, so this costs nothing today; it will cost something the day the banner has to explain a wiring change to somebody who was placing points. Named now rather than discovered later. | small — the banner compares mtimes and says the name. Plan §10 asks for it, and it is Session 2's to pick up if the queue makes it obvious |
 | **K7** | Six rows in *To do* can never sensibly be finished | The two off-page machines and four referenced drawings say `nowhere` and have no position on this sheet, so "to do" cannot reach 0. Exactly the complaint that made wire labels a separate count — and I missed it here. **Unchanged on the Locate tab**, and worth knowing that on the Drawing tab's new list those same six rows are not a chore at all: there, `nowhere` is information — *this identifier is real and it is not on this sheet* (T-640). | small — exclude `nowhere` from the queue, or count them apart |
 | ~~**K8**~~ | ~~A marker moved by accident cannot be put back~~ | **Fixed 2026-08-24.** `Ctrl+Z` over the draft, fifty whole-document snapshots deep, announcing what it undid and arming the row it changed; `Ctrl+Shift+Z` redoes. Plus `Shift`+arrows to nudge an armed point by 1.0 pt and `Shift`+`Alt`+arrows by 0.1 pt, so a small move never needs a small drag. **A minimum-drag threshold stays rejected** — small moves are legitimate. **The stack is in memory and dies with the page:** cross-session recovery is still git, which is why a run of placement should end in a commit. T-470–T-490 test it. | done — `stores/locateStore.ts` `edit`/`undo`/`redo`, `LocateTab.tsx` `nudge` and the key effect, `model.ts` `draftPoint` |
 | ~~**K9**~~ | ~~A net cannot be selected from the sheet~~ | **Fixed 2026-08-25.** The Drawing tab has a list of all 275 designators down its left: type or scroll, click the row, and the net is selected and framed with its seven pins ringed — the same selection a citation raises, without the question. T-610 walks it against T-500, which is the same test at the price of one model answer. | done — `features/drawing/DrawingList.tsx`, `components/DesignatorList.tsx`, `DrawingTab.tsx` `onRow` |

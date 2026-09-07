@@ -282,9 +282,18 @@ The Review tab is deliberately the opposite. `author_circuit_logic.py` does not 
 the note **"that is a bug, not `K6`"**. The footer of the Review tab says the same thing on screen.
 
 The honest corollary, which you should have in plain words: **the model does not learn anything from
-your corrections either.** It reads `circuit_logic.json`, and `circuit_logic.json` was already right
-— it was read off the tiles by eye, not by OCR. Your corrections feed **Session 6's path matcher**,
-and today that is their only consumer. Nothing to run, and nothing gained by the model.
+your corrections either.** It reads `circuit_logic.json`, and nothing in that file is a reading by
+OCR — it was read off the tiles by eye. Your corrections feed **Session 6's path matcher**, and today
+that is their only consumer. Nothing to run, and nothing gained by the model.
+
+*Corrected 2026-09-07.* This used to say `circuit_logic.json` **was already right**. It has no
+duplicates — 26 nets, 131 terminals, 47 components, no twins, which is what §2 of
+`highlighting_wires_and_nets.md` measured. **What nobody checked is whether a wire's two endpoints
+are the two the sheet joins, and 11 of the 71 are not** (`_claude_notes/authoring_the_wires.md` §3).
+It was checked for twins and not for truth, and *that* is what your `Ask`-tab question about
+`PS1:-2` ran into: the model answered `TB-0V:2` faithfully, from a netlist that said so. The
+statement above — that a **label correction** does not move the netlist — is unaffected and still
+exactly true.
 
 **Two smaller things about the model's files, while we are here.** `EXTRACTION_NOTES.md` says the
 full recipe is *"`python author_circuit_logic.py`, then `build_kg.py`"*. `custom_kg.json` is derived

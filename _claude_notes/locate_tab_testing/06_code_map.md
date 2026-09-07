@@ -19,11 +19,15 @@ spelled out, and `fold_in_labels` lives in the generator rather than the server.
 ## 1. The data flow, end to end
 
     ┌── authored by a human ───────────────────────────────────────────────┐
-    │  author_circuit_logic.py     the netlist: what connects              │
+    │  author_circuit_logic.py     the netlist: what each thing IS         │
+    │  wiring.json                 the connectivity: what each wire JOINS  │
     │  locations.json              the geometry: where it is drawn         │
     │  label_corrections.json      the readings: what the ink says         │
     └──────────────────────────────┬───────────────────────────────────────┘
                                    │ python author_circuit_logic.py
+                                   │   reads the first three. **Raises** on a
+                                   │   missing or broken wiring.json and warns on
+                                   │   a broken locations.json — H23.
                                    ▼
                           circuit_logic.json          ← fully generated, never hand-edited
                                    │
@@ -60,8 +64,13 @@ the diagram is the argument for it being a separate file:
 
 **Nothing in that column reaches `circuit_logic.json`.** `author_circuit_logic.py` does not read
 `label_corrections.json` and a test asserts its output is byte-identical with and without one. A
-correction is about a *reading of the sheet*; the netlist is about *what connects*, and it is already
-right (§2 of the wires-and-nets plan measured it: 26 nets, 131 terminals, no twins).
+correction is about a *reading of the sheet*, which is a different claim from *what connects*.
+
+*(Corrected 2026-09-07. This used to end "and it is already right (§2 of the wires-and-nets plan
+measured it: 26 nets, 131 terminals, no twins)." The netlist has no **duplicates**, which is what
+that measured. **What nobody checked is whether a wire's two endpoints are the two the sheet joins,
+and 11 of the 71 are not** — `_claude_notes/authoring_the_wires.md` §3. That is why there is a
+fourth authored file in the diagram above, and it is the only line of the diagram that changed.)*
 
 Two things to hold on to:
 
@@ -114,6 +123,14 @@ Two things to hold on to:
 | `GET`/`PUT /api/review`, and what one item may carry | `server/app/main.py` | `get_review`, `put_review`, **`_reading`** (the second half of the boundary — every key explicit, no spread), `_review_report` |
 | Settings | `server/app/config.py` | `allow_edits`, `editor_password`, `editor_name`, `editor_password_required`. **Both** editing tabs are gated on `allow_edits`, and both take `editor_password` |
 
+**Server tests, after Session 1 of the authoring-the-wires plan, 2026-09-07: 184 over ten files.**
+Eleven new in `test_extraction_generator.py` (18), all of them about the third authored input:
+the id freeze (`wiring.json`'s ids **are** the netlist's wire ids, so the `W` table fallback is
+never exercised), the byte-identity pair, the two loud failures of `H23`, three refusals by name,
+and one each for a confirmed correction moving a net, a retired wire and a half-set one. Nothing
+existing moved except `test_review.py`'s byte-identity test, which now copies `wiring.json` into
+its scratch directories because the generator will not run without one.
+
 **Server tests, after Session 6: 172 over ten files.** The new one is **`test_conductors.py`**
 (13), and three of its assertions are the session rather than the feature: the run key set is
 *pinned* so a careless spread cannot widen the boundary (`H17`), `load_ink` is asserted to parse
@@ -162,6 +179,7 @@ of `circuit_logic.json`.
 | **The wire panel** — propose, accept, assemble, convert, trace | `webui/src/features/locate/PathPanel.tsx` | `PathPanel`, `CandidateRow`, `Accepted`, `AddRun`, `Tracing`, `WHY`, `SHOWN` = 6. `data-path-panel`, `data-candidate` and `data-add-run` are how a test finds them |
 | **The corners of a hand-traced route** | `webui/src/features/locate/PathHandles.tsx` | `PathHandles`, `Handle`, `DRAG_SLOP` = 3. Rendered **only** for `geometry: human`; `data-path-handle` finds one |
 | **Writing a route into the draft** | `webui/src/features/locate/model.ts` | `setPath`, `addRun`, `tracePath`, `convertPath`, `movePathVertex`, `clearPath`, `setNoPath`, `writeWire`, and the readers `pathOf`/`pathSettled`. **`attribution` is always `human`**, `no_path_on_this_sheet: false` is deleted rather than written, and `movePathVertex` refuses a lifted run from this side as well as the panel's |
+| **What a route was accepted *against*** — the two endpoints, stamped into the path | `webui/src/features/locate/model.ts` · `features/locate/paths.ts` | `setPath` and `tracePath` take an optional `endpoints` and write it as `path.for`; `endPinsOf` is where it comes from. Since 2026-09-07 a wire's endpoints are authored in `wiring.json` and can be **corrected**, and a path is a claim about ink that survives a correction *unless the correction moves the end it reaches* — so the comparison has to be possible. `addRun`, `convertPath` and `movePathVertex` spread the path they found, so the stamp survives an edit that is not a re-acceptance. Back-filled onto all 58 by `bootstrap_wiring.py`; **not published by `/api/paths`**, because the only reader is the editor's own draft |
 | **A hand trace in progress, and the four keys** | `webui/src/features/locate/LocateTab.tsx` | `tracing`, `trace`, `traceRef`, and the two `window` effects — `Enter`/`Backspace` in the key effect, `Escape` in its own. **`Esc` takes the trace before the target**, and the sheet's `onClick` adds a corner instead of placing while one is running |
 | **One proposal, lit on the sheet** | `webui/src/features/drawing/paint.ts` · `TileSheet.tsx` | `CANDIDATE` (3.5 pt, floor 2 device px, blue) and the optional `candidates` prop, painted **under** `runs`. `data-candidates` on the canvas is the only assertable trace. One layer for the hovered candidate *and* the trace in progress, because the two cannot happen at once |
 | **What a selection highlights** — a wire's own runs, a net's the union of its wires' | `webui/src/lib/paths.ts` | `pathsFor`, `PathSummary`. Pure, 6 unit tests, and shared by **both** tabs so they cannot come to disagree about what a net is made of. Null for a component or a terminal; an empty summary for a wire nobody has traced — two different answers, both used |
@@ -257,6 +275,11 @@ feature's. **127 tests.**
 | `components/Markdown.test.tsx` | 13 | |
 | `components/UnlockButton.test.tsx` | 4 | |
 | `App.test.tsx` | 8 | the tabs, and the `F2` effect |
+
+**After Session 1 of the authoring-the-wires plan, 2026-09-07: 320 web tests over 17 files.** Two
+new in `locate/model.test.ts` (**47**), both about `path.for` — that a route records the endpoints
+it was accepted against, and that adding a second run across a hop does not lose them. No new file:
+Phase 0 has no screen.
 
 **After Session 6, 2026-09-03: 318 web tests over 17 files.** One new file,
 **`features/locate/paths.test.ts`** (**19** — the ranking as arithmetic, and four of them are the
@@ -693,6 +716,30 @@ is bound once per active tab and re-binding it on every corner would be a cost w
 a report says *"`Esc` cleared my row when I meant to drop a corner"*, the trace had already ended —
 and if it says *"`Esc` did nothing"*, check `isTextField` first.
 
+### H23 — one authored file stops the generator and two do not *(added 2026-09-07)*
+
+Three files are read by `author_circuit_logic.py` and they are **not** treated alike, which looks
+like an inconsistency and is the design:
+
+- **`locations.json`** — unreadable? `read_locations()` prints `WARNING: locations.json ignored`
+  and the netlist is written without it. The netlist does not depend on the geometry, so a typo in
+  one must not cost the other, and `test_a_broken_locations_file_still_writes_the_netlist` pins it.
+- **`wiring.json`** — unreadable, absent, naming a terminal the netlist does not have, or naming a
+  wire the `W` table does not have? `read_wiring()` **raises**, the script exits non-zero saying
+  `REFUSED:`, and `circuit_logic.json` is not touched.
+
+The asymmetry is one sentence: **a missing point makes a worse drawing, and a missing endpoint
+makes a different netlist.** The failure mode being defended against is not a crash, it is the
+opposite — a `wiring.json` deleted or mistyped, the generator falling back to the `W` table, and
+71 endpoints quietly reverting to the guesses that 11 of them are wrong in, with git showing a
+change to a generated file and nothing anywhere saying why.
+
+Two consequences for anyone adding to it. **Anything that runs the generator has to supply the
+file** — `test_review.py`'s byte-identity test copies it into its scratch directories for exactly
+this reason, and so does `run()` in `test_extraction_generator.py`. And **the refusal has to say
+how to fix itself**: the missing-file message names `bootstrap_wiring.py`, and a test asserts that
+it does, because a loud failure that leaves a person stuck is only half of the bargain.
+
 ---
 
 ## 5. Invariants — if one of these is violated, that is the bug
@@ -731,12 +778,21 @@ and if it says *"`Esc` did nothing"*, check `isTextField` first.
    pins at different sites.
 5. **Nothing refused is silent.** Every rejected value lands in `problems` and the UI shows it.
 6. **Generated files stay generated.** `circuit_logic.json` is only ever written by
-   `author_circuit_logic.py`. *(Extended 2026-08-25: and the generator reads **two** authored inputs,
-   not three. `label_corrections.json` corrects a reading of the ink and must never reach the
-   netlist — the netlist is already right, and a session wiring the corrections in would move the
-   artifact every answer is checked against with nothing else in the project noticing. Owner:
+   `author_circuit_logic.py`. *(Extended 2026-08-25 and corrected 2026-09-07: the generator reads
+   **three** authored inputs — `locations.json`, and since Phase 0 of the wiring plan `wiring.json`,
+   which says which two terminals each wire joins. `label_corrections.json` is still not one of
+   them: it corrects a reading of the ink and must never reach the netlist, and a session wiring the
+   corrections in would move the artifact every answer is checked against with nothing else in the
+   project noticing. Owner:
    `test_the_generator_output_is_byte_identical_with_and_without_a_corrections_file`, which compares
-   bytes rather than making an argument.)*
+   bytes rather than making an argument.*
+
+   *The sentence that used to sit here — "the netlist is already right" — was doing two jobs and
+   only one of them was true. The netlist has **no duplicates**, which is what §2 of
+   `highlighting_wires_and_nets.md` measured; **what nobody checked is whether a wire's two
+   endpoints are the two the sheet joins, and 11 of the 71 are not**
+   (`_claude_notes/authoring_the_wires.md` §3). It was checked for twins and not for truth. Every
+   claim about the Review tab not touching the netlist is unaffected and still exactly true.)*
 7. **A terminal nobody placed has no location in the generated artifact** — not its parent's.
    The substitution happens at read time and is labelled `parent`.
 8. **Nothing writes a coordinate a person did not choose.** *(added 2026-08-24 with the keyboard.)*

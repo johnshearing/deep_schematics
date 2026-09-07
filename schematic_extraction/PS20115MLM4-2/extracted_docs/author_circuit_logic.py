@@ -11,17 +11,18 @@ generated from those tables rather than hand-written, so they cannot drift out o
 the netlist. The edges that are *not* derivable from a netlist - POWERS, PROTECTS, ACTUATES,
 COIL_CONTROLS_CONTACT, GROUNDED_TO, REFERENCES - are authored explicitly at the bottom.
 
-THERE ARE TWO AUTHORED FILES, and this is only the first of them.
+THERE ARE THREE AUTHORED FILES THIS SCRIPT READS, and this is only the first of them.
 
-  this script    what is connected - the netlist, read by eye off the renders
-  locations.json where it is drawn  - points, put there by a human in the Locate editor
+  this script    what each wire IS      - colour, gauge, cable, the note beside it, read by eye
+  locations.json where it is drawn      - points, put there by a human in the Locate editor
+  wiring.json    what each wire JOINS   - the two terminals, confirmed by a human
 
-Both are hand-maintained; everything else in this directory is generated. The x= / y= arguments
-in the comp() calls below are the *vision pass's estimate*, good to about 11 pt on this sheet
-and occasionally a whole conductor row out, so they are a seed and nothing more: wherever
-locations.json has a placed point, this script uses that instead and marks it. A component
-location with no "source" key is therefore an estimate; one with "source": "human" was placed
-by a person looking at the drawing.
+Both of the others are hand-maintained; everything else in this directory is generated. The
+x= / y= arguments in the comp() calls below are the *vision pass's estimate*, good to about
+11 pt on this sheet and occasionally a whole conductor row out, so they are a seed and nothing
+more: wherever locations.json has a placed point, this script uses that instead and marks it. A
+component location with no "source" key is therefore an estimate; one with "source": "human" was
+placed by a person looking at the drawing.
 
 The split exists because this file is regenerated wholesale and a coordinate typed into
 circuit_logic.json would be erased by the next run. It also lets a component be drawn in more
@@ -29,7 +30,29 @@ than one place, which relays on this sheet are: CR-SW has its coil in the right-
 its contact eight inches away, and CR-BP has three sites, because its NC and NO contacts are in
 different circuits. See "sites" in locations.json.
 
-Re-run after correcting any reading, or after editing locations.json:
+WHY THE ENDPOINTS LEFT THIS FILE, 2026-09-07
+--------------------------------------------
+The `W` table below was typed by the same vision pass that seeded the coordinates, and for the
+40 wires that land on a multi-point terminal block **the block end was allocated rather than
+read**: one screw number after another, in declaration order. Measured against the 131
+human-placed points on 2026-09-06, 11 of the 71 land on the wrong screw and 13 more cannot be
+settled from the ink. That is the same failure as the component positions, one layer up - a
+guess presented as a fact, in a file nothing checks - and the cure is the one this project
+already lives by: the indexing pass gets one chance to guess, and after that a human owns it.
+
+So a wire's two endpoints are now authored in `wiring.json` and this table's `from`/`to` columns
+are only the fallback for a wire nobody has a record for. Its `net` column is not the source
+either: a wire's net is **derived from the nets of its two ends**, because a stored copy is a
+third statement of the same fact and it is the copy that goes stale when an endpoint moves. The
+column is kept as what it always was - the net name printed beside the run - and disagreeing
+with the derived value is reported rather than silently preferred.
+
+`read_wiring()` **raises** where `read_locations()` warns and carries on. A missing point makes a
+worse drawing; a missing endpoint makes a different netlist, and the model answers questions off
+this file. See `_claude_notes/authoring_the_wires.md` §4 q1.
+
+Re-run after correcting any reading, after editing locations.json, and **always** after editing
+wiring.json:
 
     python author_circuit_logic.py
 """
@@ -39,6 +62,7 @@ from pathlib import Path
 
 OUT = Path(__file__).parent / "circuit_logic.json"
 LOCATIONS = Path(__file__).parent / "locations.json"
+WIRING = Path(__file__).parent / "wiring.json"
 
 DRAWING_NO = "PS20115MLM4-2"
 
@@ -818,6 +842,236 @@ def read_locations():
     return raw
 
 
+# -- wiring.json: the fourth authored file --------------------------------------------------
+#
+# Everything below is deliberately drawing-agnostic. It knows the *shape* of a wiring record and
+# nothing about PS20115MLM4-2, so the next schematic gets it by copying this script and replacing
+# the tables above. The endpoints are terminal designators rather than coordinates, which is also
+# what makes the format survive a drawing that needs several pages: a designator names the same
+# terminal whichever sheet it is printed on, and only the `commoning` section - Phase C - will
+# ever need to say which page a polyline is on.
+
+WIRING_SCHEMA = 1
+WIRING_READABLE = (1,)
+
+#: Who says these are the two terminals. `index` is the indexing pass's own answer, carried over
+#: from the `W` table so that every wire has a record to be confirmed *against*; `human` is a
+#: person who looked at the sheet. There is no third value, and no `derived`: an endpoint is read
+#: or it is guessed, and the file has to be able to tell you which.
+WIRING_SOURCES = ("index", "human")
+
+
+class WiringRefused(Exception):
+    """`wiring.json` says something the netlist cannot be written without understanding.
+
+    Refusing is the whole point of the file. `read_locations()` warns and carries on because a
+    broken geometry file costs a drawing its dots; this one stops the run because a broken wiring
+    file costs the netlist its truth, and a netlist that is confidently wrong is worse than no
+    netlist at all - it is what this project spent nine days discovering.
+    """
+
+
+def read_wiring():
+    """The third authored input: which two terminals each wire joins. Raises rather than warns.
+
+    Returns `{wire_id: record}` for every record in the file, validated for *shape* only. Whether
+    a terminal exists, and whether the wire does, is checked in `build_wires()` where the netlist
+    is in hand - the same three-layer split `server/app/locations.py` uses and for the same
+    reason: this half must stay ignorant of the drawing.
+    """
+    try:
+        raw = json.loads(WIRING.read_text("utf-8"))
+    except FileNotFoundError:
+        raise WiringRefused(
+            f"{WIRING.name} is not here, and a wire's endpoints are authored rather than "
+            "guessed. Write it once from the indexing pass's own answers with\n"
+            "    python ../../../schematic_skills/scripts/bootstrap_wiring.py .\n"
+            "and confirm them in the editor after that."
+        ) from None
+    except (OSError, ValueError) as exc:
+        raise WiringRefused(f"{WIRING.name} could not be read: {exc}") from None
+
+    if not isinstance(raw, dict):
+        raise WiringRefused(f"{WIRING.name} is not an object")
+    if raw.get("schema") not in WIRING_READABLE:
+        raise WiringRefused(
+            f"{WIRING.name} declares schema {raw.get('schema')!r}, not one of {WIRING_READABLE}"
+        )
+    named = raw.get("drawing_number")
+    if named and named != DRAWING_NO:
+        raise WiringRefused(
+            f"{WIRING.name} is for {named!r} and this script writes {DRAWING_NO!r}. "
+            "Endpoints from one sheet say nothing about another."
+        )
+
+    section = raw.get("wires")
+    if section is None:
+        section = {}
+    if not isinstance(section, dict):
+        raise WiringRefused(f"{WIRING.name}: wires is not an object")
+
+    out = {}
+    for wid, body in section.items():
+        out[wid] = _wiring_record(wid, body)
+    return out
+
+
+def _wiring_record(wid, body):
+    """One record. Every refusal names the wire, because a wiring file is read by a person."""
+    where = f"{WIRING.name}: wires[{wid!r}]"
+    if not isinstance(wid, str) or not wid.strip():
+        raise WiringRefused(f"{where} is not a wire id")
+    if not isinstance(body, dict):
+        raise WiringRefused(f"{where} is not an object")
+
+    for key in ("note", "by", "at"):
+        if body.get(key) is not None and not isinstance(body[key], str):
+            raise WiringRefused(f"{where} has {key} {body[key]!r}, which is not a string")
+
+    retired = body.get("retired")
+    if retired is not None:
+        # A tombstone, so an id is never reused and a stale path or citation gets an answer
+        # rather than silence. It carries a reason and nothing else: saying where a wire went
+        # while saying it does not exist is two claims at once.
+        if not isinstance(retired, str) or not retired.strip():
+            raise WiringRefused(
+                f"{where} is retired with {retired!r}: a tombstone needs a reason, in words"
+            )
+        if body.get("from") is not None or body.get("to") is not None:
+            raise WiringRefused(
+                f"{where} is retired and still names endpoints; a retired wire joins nothing"
+            )
+        return {"retired": retired.strip()}
+
+    for key in ("from", "to"):
+        if key not in body:
+            raise WiringRefused(
+                f"{where} has no {key!r}. Use null for an end nobody has set - the file has to "
+                "be able to say *this is not settled yet*."
+            )
+        end = body[key]
+        if end is not None and (not isinstance(end, str) or ":" not in end):
+            raise WiringRefused(f"{where} has {key} {end!r}, which is not a COMPONENT:PIN id")
+
+    source = body.get("source")
+    if source not in WIRING_SOURCES:
+        raise WiringRefused(f"{where} has source {source!r}, not one of {WIRING_SOURCES}")
+
+    was = body.get("was")
+    if was is not None and not (
+        isinstance(was, list)
+        and len(was) == 2
+        and all(w is None or isinstance(w, str) for w in was)
+    ):
+        raise WiringRefused(
+            f"{where} has was {was!r}: it keeps the two endpoints this record replaced, or is "
+            "absent where nothing was replaced"
+        )
+
+    return {"from": body["from"], "to": body["to"], "source": source,
+            **{k: body[k] for k in ("by", "at", "note") if body.get(k) is not None},
+            **({"was": was} if was is not None else {})}
+
+
+def build_wires(table, authored, terminal_nets):
+    """The netlist's wires: the spec from the `W` table, the endpoints from `wiring.json`.
+
+    Three things happen here that did not before 2026-09-07, and each is one of the plan's
+    decisions made executable:
+
+    **The endpoints come from the authored file where there is a record**, and from the table
+    only where there is not. A record that says `source: human` also puts an `endpoints` block on
+    the wire, so the artifact the model reads says *a person confirmed this* - exactly as a
+    component's `location` says `source: human`. An `index` record adds nothing to the output,
+    which is what makes Phase 0 byte-identical.
+
+    **The net is derived from the two ends**, never stored. Net membership already comes from each
+    terminal's own `net`, and a wire's copy is a third statement of the same fact - the one that
+    goes stale, silently, the moment an endpoint moves. Where the two ends sit on different nets
+    the wire is **flagged and not fixed**: `W019` corrected reads 0V at one end and GND at the
+    other, and that is the finding rather than an error to be tidied away.
+
+    **A retired wire leaves the netlist**, and its id is never reused.
+
+    Refusals are raised, not collected. An endpoint naming a terminal that does not exist is the
+    one hand-edit mistake here whose symptom would otherwise be nothing at all, which is the same
+    argument `H14` makes about an end label on a pin its wire does not touch.
+    """
+    known = {f"W{i:03d}" for i in range(1, len(table) + 1)}
+    for wid in sorted(authored):
+        if wid not in known:
+            raise WiringRefused(
+                f"{WIRING.name} has a record for {wid!r}, which is not a wire in the W table. "
+                "Adding a wire is Phase E and this generator does not do it yet, so an id that "
+                "is not in the table is a typo - and a typo here would invent a connection."
+            )
+
+    out = []
+    counts = {"records": 0, "confirmed": 0, "retired": 0, "mismatched": 0, "unset": 0}
+    notes = []
+    for index, (frm, to, colour, gauge, printed_net, cable, note) in enumerate(table, start=1):
+        wid = f"W{index:03d}"
+        record = authored.get(wid)
+        if record is not None:
+            counts["records"] += 1
+            if record.get("retired"):
+                counts["retired"] += 1
+                notes.append(f"    {wid} retired: {record['retired']}")
+                continue
+            frm, to = record["from"], record["to"]
+            if record["source"] == "human":
+                counts["confirmed"] += 1
+
+        for end in (frm, to):
+            if end is not None and end not in terminal_nets:
+                raise WiringRefused(
+                    f"{WIRING.name} lands {wid} on {end!r}, which is not a terminal in this "
+                    "netlist. An endpoint on a terminal that does not exist connects nothing "
+                    "and would never be drawn, so it is refused by name rather than kept."
+                )
+
+        net, mismatch = _net_across(frm, to, terminal_nets)
+        wire = {
+            "id": wid, "color": colour, "gauge": gauge,
+            "from_terminal": frm, "to_terminal": to, "cable": cable, "net": net,
+            "description": note,
+        }
+        if mismatch is not None:
+            # Flagged, not fixed. A 0V-to-ground bond is a real wire and the two nets are the
+            # point of it; so is a wire across a breaker. Picking one end's net would hide both.
+            counts["mismatched"] += 1
+            wire["net_mismatch"] = {"from": mismatch[0], "to": mismatch[1]}
+            notes.append(f"    {wid} joins two nets: {mismatch[0]} at one end, {mismatch[1]} "
+                         f"at the other")
+        if frm is None or to is None:
+            counts["unset"] += 1
+            notes.append(f"    {wid} has an end nobody has set yet")
+        if printed_net is not None and net is not None and printed_net != net and not mismatch:
+            notes.append(f"    {wid} is printed {printed_net} and its ends are both on {net}")
+        if record is not None and record["source"] == "human":
+            wire["endpoints"] = {
+                "source": "human",
+                **{k: record[k] for k in ("by", "at", "note") if k in record},
+                **({"was": list(record["was"])} if "was" in record else {}),
+            }
+        out.append(wire)
+    return out, counts, notes
+
+
+def _net_across(frm, to, terminal_nets):
+    """The net a wire is on, read off its two ends, and whether they disagree.
+
+    Both ends is the normal case and they agree on all 71 wires as this was written. One end
+    unset answers with the end that is set, because a half-authored wire is still on a net at the
+    end somebody has settled. Neither set answers with nothing, which is honest.
+    """
+    at_from = terminal_nets.get(frm) if frm else None
+    at_to = terminal_nets.get(to) if to else None
+    if frm and to and at_from != at_to:
+        return at_from, (at_from, at_to)
+    return at_from if at_from is not None else at_to, None
+
+
 def fold_in_labels(items, section):
     """Apply the wires/nets sections of locations.json: where each name is written.
 
@@ -919,13 +1173,17 @@ nets = [
     for nid, (st, nv, desc) in NETS.items()
 ]
 
-wires = []
-for i, (frm, to, colour, gauge, net, cable, note) in enumerate(W, start=1):
-    wires.append({
-        "id": f"W{i:03d}", "color": colour, "gauge": gauge,
-        "from_terminal": frm, "to_terminal": to, "cable": cable, "net": net,
-        "description": note,
-    })
+try:
+    WIRED = read_wiring()
+except WiringRefused as exc:
+    raise SystemExit(
+        f"\n  REFUSED: {exc}\n\n"
+        f"  Nothing was written. {OUT.name} is exactly as it was.\n"
+    ) from None
+
+wires, wired_counts, wired_notes = build_wires(
+    W, WIRED, {t["id"]: t["net"] for t in terminals}
+)
 
 placed["labels"] = fold_in_labels(wires, LOCATED.get("wires") or {}) + fold_in_labels(
     nets, LOCATED.get("nets") or {}
@@ -974,6 +1232,11 @@ for t in terminals:
         f"signal on net {t['net']} is seen at this terminal.")
 
 for w in wires:
+    # A wire with an end nobody has set joins nothing yet, and an edge to `None` would be a
+    # connection the graph could answer questions about. It stays in `wires` - it is a real wire
+    # somebody has started - and it earns its edge when its second end is settled.
+    if not w["from_terminal"] or not w["to_terminal"]:
+        continue
     spec = " ".join(x for x in [w["color"], w["gauge"]] if x) or "an unlabelled conductor"
     extra = f" {w['description']}" if w["description"] else ""
     cable = f" It is part of cable {w['cable']}." if w["cable"] else ""
@@ -1116,3 +1379,10 @@ print(
     f"  from locations.json: {placed['sites']} sites, {placed['terminals']} terminals, "
     f"{placed['labels']} labels"
 )
+print(
+    f"  from wiring.json: {wired_counts['records']} of {len(W)} wires have a record, "
+    f"{wired_counts['confirmed']} confirmed by a person, {wired_counts['retired']} retired, "
+    f"{wired_counts['mismatched']} joining two nets, {wired_counts['unset']} half-set"
+)
+for line in wired_notes:
+    print(line)

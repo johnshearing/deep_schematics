@@ -53,7 +53,7 @@ import {
 } from '@/features/drawing/useTileViewport'
 import { isTextField } from '@/lib/keys'
 import { PathHandles } from './PathHandles'
-import { draftRuns, netOf } from './paths'
+import { draftRuns, endPinsOf, netOf } from './paths'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
 import { useLocateStore } from '@/stores/locateStore'
@@ -557,7 +557,7 @@ export function LocateTab() {
       setTracing(null)
       if (!corners || corners.length < 2 || !targetEntry) return
       edit(
-        (d) => tracePathInto(d, targetEntry.id, corners, stamp()),
+        (d) => tracePathInto(d, targetEntry.id, corners, stamp(), endPinsOf(targetEntry)),
         `traced ${targetEntry.id} by hand, ${corners.length} corners`,
       )
     },

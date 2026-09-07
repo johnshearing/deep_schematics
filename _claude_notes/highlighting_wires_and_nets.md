@@ -804,9 +804,13 @@ acceptance criterion, not a nicety.*
   - **A `Net labels` filter**, because that is the 34 that unlock Phase E, and finishing those first
     is worth doing before the other 244.
 - **`drawing.py` and the Phase E matcher read the corrections**, and a corrected label is badged as
-  corrected wherever it is shown. `author_circuit_logic.py` **does not** read this file — the netlist
-  is already right and nothing here changes it. Worth a test that says so, so a later session does
-  not wire it in and quietly move the index.
+  corrected wherever it is shown. `author_circuit_logic.py` **does not** read this file — a reading
+  of the ink is not the netlist and nothing here changes it. Worth a test that says so, so a later
+  session does not wire it in and quietly move the index. *(Corrected 2026-09-07: this used to say
+  "the netlist is already right". It has no duplicates, which is what §2 measured — but **11 of the
+  71 wires land on the wrong screw**, which nobody checked. See
+  `_claude_notes/authoring_the_wires.md` §3. The claim about this file not reaching the netlist is
+  unaffected.)*
 
 ---
 
@@ -871,7 +875,10 @@ version 1 had it as a phase of its own with more in it. Two small items.
 - **More than one net highlighted at a time** — one at a time, one colour.
 - **Auto-accepting the 17 exact net matches** — proposals only. The machine ranks, you confirm.
 - **Corrections feeding `author_circuit_logic.py`** — Phase F fixes readings of the ink, not the
-  netlist. The netlist is already right; a test asserts the generator ignores the file.
+  netlist; a test asserts the generator ignores the file. *(Corrected 2026-09-07: this used to add
+  "the netlist is already right". It has no duplicates, and **11 of its 71 wires land on the wrong
+  screw** — `_claude_notes/authoring_the_wires.md` §3. The generator now reads a third authored
+  input, `wiring.json`, which is where an endpoint is corrected; it still does not read this one.)*
 - **Fixing `K2`/`H1`** (whole-file save, last write wins) — **still out**, deferred by you on
   2026-08-24 once it was clear it has never actually bitten. Noted only so the next reader knows it
   was weighed and not forgotten: this plan does put more authored work into that file, and adds a

@@ -7,10 +7,20 @@ Audit trail for `circuit_logic.json`. Extraction date: 2026-07-26.
 | `geometry.json` | Deterministic output of `schematic_skills/scripts/extract.py` (`--layers SCHEMATIC`) |
 | `tiles/` | 16 overlapping 400 DPI renders — the vision pass read all of them |
 | `author_circuit_logic.py` | The human-read tables + derivation of the mechanical edges |
+| `locations.json` | **Authored.** Where each thing is drawn — 131 terminal points, 47 component sites, 58 wire routes, placed by a person in the Locate editor |
+| `label_corrections.json` | **Authored.** What the ink actually says — 654 decisions over the 664 strings and runs the extraction lifted off the paper |
+| `wiring.json` | **Authored, since 2026-09-07.** Which two terminals each wire joins, and whether the indexing pass guessed it or a person confirmed it |
 | `circuit_logic.json` | The master artifact (47 components, 131 terminals, 26 nets, 71 wires, 402 edges) |
 | `custom_kg.json` | LightRAG custom KG (693 chunks, 291 entities, 402 relationships) |
 
-Re-run after correcting any reading: `python author_circuit_logic.py`, then `build_kg.py`.
+**Three of those are hand-maintained and everything else is generated.** The generator folds
+`locations.json` and `wiring.json` in; it does **not** read `label_corrections.json`, and a test
+asserts that in bytes. Re-run after correcting any reading, and always after editing `wiring.json`:
+`python author_circuit_logic.py`, then `build_kg.py`.
+
+A missing or broken `locations.json` is warned about and skipped — the netlist does not depend on
+the geometry. A missing or broken `wiring.json` **stops the run**: a missing point makes a worse
+drawing, and a missing endpoint makes a different netlist.
 
 ---
 
@@ -87,10 +97,32 @@ Flagged so a reviewer can challenge them:
    the standard-code mapping is noted in the component description. Same for the 6-pin
    infeed/discharge interfaces.
 
-2. **Terminal-block point numbering is ours.** Blocks like `TB-0V` and `TB-24E1-A` show one
-   marked circle and land the rest of their wires on the box edge. Point numbers are assigned
-   in drawing order top to bottom. `TB-0V` is modelled with 12 points; the exact physical
-   count is not determinable from the sheet.
+2. **Terminal-block point numbering is ours — and the numbering was fine; the *assignment* was
+   not.** *(Rewritten 2026-09-07. The paragraph this replaces said the point numbers were
+   "assigned in drawing order top to bottom" and that "`TB-0V` is modelled with 12 points; the
+   exact physical count is not determinable from the sheet." The first half turned out to be true
+   by accident and the second half is now answerable.)*
+
+   Blocks like `TB-0V` and `TB-24E1-A` show one marked circle and land the rest of their wires on
+   the box edge, so the point numbers are ours and are printed nowhere — not on the sheet and not
+   on the part.
+
+   **`TB-0V` has twelve landings**, counted by a human on 2026-09-06, and every one of the twelve
+   is accounted for. All 48 `TB-*` points across the seven multi-point blocks were placed by hand
+   during the 2026-08-20 run, all are distinct, and all run monotonically down the sheet — so the
+   convention this note claimed is the convention a person placed.
+
+   **What was wrong is one layer up.** For the 40 wires that land on a multi-point block, the far
+   end of the wire was **allocated rather than read**: this pass took the next screw number as each
+   row of the `W` table was typed. Measured against the placed points and the PDF's own conductor
+   polylines on 2026-09-06, **11 of the 71 wires land on the wrong screw, 13 more cannot be settled
+   from the ink, and 47 are right.** Renumbering cannot be the fix even in principle — `W062` and
+   `W067` both claim `TB-0V:12` while the ink puts them seven rows apart, so no permutation of the
+   twelve ids makes the present assignments correct.
+
+   A wire's two endpoints are therefore no longer in the `W` table. They are authored in
+   **`wiring.json`**, one record per wire, each saying whether the indexing pass guessed it or a
+   person confirmed it. See `_claude_notes/authoring_the_wires.md`.
 
 3. **The two ground terminal blocks are modelled as one `GND` net.** `TB-GND-A` (plug
    grounds) and `TB-GND-B` (door + PS1 chassis) each carry their own earth symbol. They are

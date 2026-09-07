@@ -290,6 +290,19 @@ export interface WirePath {
   /** The extracted runs it was lifted from. **Absent on a hand trace**, and that absence is the
    * record: there was no conductor to lift. */
   conductors?: string[]
+  /**
+   * The wire's two endpoint terminals **as they were when this route was accepted**.
+   *
+   * A path is a claim about ink and the ink does not move, so correcting a wire's endpoint in
+   * `wiring.json` does not invalidate its route — unless it moves the end that route reaches.
+   * Comparing this against the wire's endpoints today is how the editor can say *path may be
+   * stale* without asking a person to remember which wires they corrected, and it keeps working
+   * for every future correction rather than for one batch.
+   *
+   * Absent on the paths authored before 2026-09-07 only until `bootstrap_wiring.py` has run;
+   * absent after that means a hand edit.
+   */
+  for?: string[]
 }
 
 /**

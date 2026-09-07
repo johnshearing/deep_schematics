@@ -40,10 +40,15 @@ candidate conductors by comparing a run's printed net name against a wire's net 
 | `"GND` | `GND` | |
 | `C4E-1` | `24E-1` | and `24E-1` is read correctly in fifteen other places |
 
-Correcting these is **not repairing the index.** The netlist is already right — 26 nets, 131
+Correcting these is **not repairing the index.** The netlist has **no duplicates** — 26 nets, 131
 terminals, no twins, and `L1-A` against `L1-A1` is two real nets with a circuit breaker between them
-rather than one string read twice. What is wrong is a layer *below* the netlist, in strings that
+rather than one string read twice. What is wrong here is a layer *below* the netlist, in strings that
 never became entities. **T-740 is the test that this stays true.**
+
+*Corrected 2026-09-07.* This used to say the netlist was *already right*, full stop. It was checked
+for twins and not for truth: **what nobody checked is whether a wire's two endpoints are the two the
+sheet joins, and 11 of the 71 are not** (`_claude_notes/authoring_the_wires.md` §3). That is a
+different layer again — `wiring.json`, not this file — and nothing on this tab touches it.
 
 ---
 

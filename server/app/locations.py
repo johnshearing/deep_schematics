@@ -106,6 +106,16 @@ conductor at every crossover hop — 88 of them — and a path spanning two of t
 the ink that should show as a gap rather than be closed by a segment nobody drew. `conductors`
 records which extracted runs it was lifted from and is absent on a hand trace.
 
+**`for`, added 2026-09-07 and deliberately not validated here.** A path may also carry the wire's
+two endpoint terminals *as they were when the route was accepted*. It exists because an endpoint
+stopped being a Python literal on that date and became authored in `wiring.json`, where it can be
+corrected — and a path is a claim about ink that survives a correction **unless** the correction
+moves the end it reaches. Comparing the stamp against the wire's endpoints today is how the editor
+can say *path may be stale* instead of asking a person to remember. This module neither checks it
+nor publishes it: the only reader is the editor's own whole-document draft out of
+`GET /api/locations`, so putting it on `WirePath` would widen `/api/paths` for a reader who has no
+use for it. Schema 2 tolerates it the way it tolerated `path` itself.
+
 **A net stores no path at all.** Its highlight is the union of its wires' paths, so a `path` under
 `nets` is refused by name: it would be authored, saved, and never drawn, which is the shape of
 mistake this file reports rather than keeps.

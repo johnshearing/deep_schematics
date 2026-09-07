@@ -503,17 +503,24 @@ def test_the_generator_output_is_byte_identical_with_and_without_a_corrections_f
     """The assertion the whole phase rests on, and it is worth having as bytes rather than as an
     argument: `author_circuit_logic.py` does not read this file and must not start.
 
-    The netlist is already right — §2 of the plan measured it: 26 nets, 131 terminals, no twins,
-    and `L1-A` against `L1-A1` is two real nets with a breaker between them rather than one misread.
-    What is wrong is a layer below, in strings that never became entities. A later session wiring
-    the corrections into the generator would quietly move the index that every answer is checked
-    against, and nothing else in the project would notice.
+    The netlist has **no duplicates** — 26 nets, 131 terminals, 47 components, no twins — and §2 of
+    `highlighting_wires_and_nets.md` measured that correctly. **What it never checked is whether a
+    wire's two endpoints are the two the sheet joins, and 11 of the 71 are not**
+    (`_claude_notes/authoring_the_wires.md` §3). It was checked for twins and not for truth. Nothing
+    on the `Review` tab changes the netlist, which is what these tests assert and is still exactly
+    true — a correction is about a *reading of the ink*, and an endpoint is a different claim in a
+    different file.
     """
     script = EXTRACTION / "author_circuit_logic.py"
+    # The generator refuses to run without one since 2026-09-07, and rightly: a missing endpoint
+    # makes a different netlist. It is the same file on both sides here, so it cannot be what
+    # makes the two runs differ.
+    wiring = (EXTRACTION / "wiring.json").read_bytes()
 
     def run(work: Path, corrections: dict[str, Any] | None) -> bytes:
         work.mkdir()
         (work / script.name).write_bytes(script.read_bytes())
+        (work / "wiring.json").write_bytes(wiring)
         if corrections is not None:
             (work / "label_corrections.json").write_text(
                 json.dumps(corrections), encoding="utf-8"
