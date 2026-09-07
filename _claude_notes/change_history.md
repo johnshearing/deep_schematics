@@ -14,76 +14,95 @@ nothing else. Everything after it is history. When a piece of that work lands it
 entry like the rest, and `NEXT UP` is rewritten around what is left.
 
 *It has held a plan for the work in progress for most of this file's life — Job B attempt 2, then
-Job E, then a session of the wires-and-nets plan. **Since 2026-09-03 it does not, because that plan
-is finished**, and it is a list of candidates in priority order instead. That is a real difference:
-the first item on it is not code.*
+Job E, then a session of the wires-and-nets plan; between 2026-09-03 and 2026-09-06 it held no plan
+at all, because that one was finished. **Since 2026-09-06 it holds a plan again:**
+`_claude_notes/authoring_the_wires.md`.*
 
 ---
 
-## NEXT UP — the plan is finished; what comes after it
+## NEXT UP — `_claude_notes/authoring_the_wires.md`
 
-**`_claude_notes/highlighting_wires_and_nets.md` is built end to end.** Six sessions, eight phases
-— **0, A, B, C, D, E, F, G** — landing 2026-08-24, 2026-08-24, 2026-08-25, 2026-08-25, 2026-09-02
-and **2026-09-03**; the six dated entries below are the record and the plan's §13 carries a landing
-note per session saying what went differently. **172 server / 318 web tests, ruff and tsc clean.**
+**Read that document, whole, and then its §0.** It is the plan for the thing the wires-and-nets
+project uncovered by working: **a wire's two endpoints were never read off the sheet.** Written
+2026-09-06 in a session that wrote no code, measured the damage, and stopped.
 
-**There is no seventh session of that plan, and this section is not a plan.** It is the honest list
-of what is in front of the project, in the order I would take it — and the first item is not code.
+**The diagnosis in one sentence.** The indexing pass read the components and the terminals and then
+*allocated* the terminal-block end of 40 wires, one screw number after another, as the `W` table was
+typed — and the manual's rule, *"the indexing pass gets one chance to guess, and after that a human
+owns the positions"*, was never applied to connectivity.
 
-### 1. Walk `14_tests_path_editor.md`, and author the 71 paths
+**The census, measured 2026-09-06** (method and per-wire tables in that plan's §3, which exists so
+nobody re-derives it):
 
-**T-900–T-960**, and **T-910 is the acceptance criterion**: the ranking has to reproduce the four
-wire-to-conductor pairings measured by hand in `07_drawing_facts.md`. It does, in `paths.test.ts` —
-but the point of the lesson document is that *you* look at the sheet, because `attribution: human`
-names a person and this is where that becomes true rather than merely stored.
+| | |
+|---|---|
+| Wires | **71** |
+| Confirmed by the ink — the netlist's two pins are the two the sheet joins | **47** |
+| **Provably wrong — the ink names the pin** | **11** |
+| Unresolved — the ink binds neither end, so only a person can say | **13** |
+| Genuinely missing field wires | **0** |
+| Terminal-block **commoning** conductors that no wire claims, and that a net's highlight should include | **8** across 7 blocks |
+| Authored paths invalidated by the corrections | **0 of 58** |
 
-Then the authoring run itself. What to expect, measured 2026-09-03 against the shipped ranking:
-**37** of the 71 wires have a single run whose two ends land on both their placed pins — a glance
-and a click. **33** have a best candidate that reaches one end, which means two runs and `Add a
-run`. **0** have no candidate at all. `locations.json` is authored content git cannot regenerate, so
-that run should end in a commit.
+All eleven provable corrections were already on the user's own list of thirteen. **His eye and the ink
+have not disagreed once.**
 
-### 2. The two authored files want committing
+**Three things settled that had been open:**
 
-`locations.json` and `label_corrections.json` are the two things in this repository nothing can
-rebuild. The second holds **654** decisions in the working tree against **90** in git, and has since
-2026-09-02. That is the largest single piece of unbacked work in the project.
+1. **The point numbering does not move.** No permutation of `TB-0V`'s twelve numbers can make the
+   present assignments right — `W062` and `W067` both claim `TB-0V:12` while the ink puts them seven
+   landings apart — so numbering and assignment are **not** one degree of freedom, and the user
+   confirmed no numbers are printed on the sheet or the part. **48 placed `TB-*` points and 111
+   end-label overrides stay exactly where they are.**
+2. **`W019` is not an invented edge.** `PS1:-2` runs to `TB-GND-B:2` as `C0056` — a 0 V-to-ground
+   bond. It is a wrong endpoint like the other ten, and it is the one whose correction changes a net.
+3. **`TB-0V` has twelve landings**, counted by the user 2026-09-06, and all twelve are now accounted
+   for. `EXTRACTION_NOTES.md`'s *"the exact physical count is not determinable from the sheet"* has an
+   answer.
 
-### 3. `K7`, which is the last of the small known issues
+**Nothing rolls back**, and the plan's §5 gives a stronger reason than the four it was handed: the
+census could not have been measured without every phase that shipped — 131 placed points, 654 review
+decisions and `/api/conductors` are what made it possible.
 
-Six rows in the Locate tab's *To do* filter can never be finished — the two off-page machines and
-the four referenced drawings, which have no position on this sheet at all. `Paths` was built the
-right way round in Session 6 (a count that reaches its own total, because *no path on this sheet* is
-a decision a person can take), and holding the two filters side by side is the clearest possible
-statement of what the difference costs. The fix is small: exclude `nowhere` from the queue, or count
-those six apart. Manual §7.
+**Four sessions plus the user's authoring run** (plan §13). **Session 1 is worth doing alone and
+stands alone**: it freezes the wire ids so an insertion can never silently reattach the 58 paths, and
+lifts the endpoints out of the Python literal into `wiring.json`, the **fourth** authored file. After
+that the eleven corrections are a one-line edit each.
 
-### 4. Then the road map, which is `webui_ideas.md`
+**Then, and only after the authoring run:** the `W063` fixture in `paths.test.ts`, the `W063` row in
+`07_drawing_facts.md` (`C0092` is `TB-120`'s commoning, not the second half of an L), and the sentence
+*"the netlist is already right"* in **six** documents plus `EXTRACTION_NOTES.md`. Plan §4 questions 10
+and 11 have the exact wording. A wrong fact in a document the next session reads is how nine days went
+by last time.
 
-Nothing in it is blocked any more. Two entries there are now the interesting ones and both are
-**gated on drawing number two**, which is the honest gate — one sheet cannot tell a systematic
-failure from this sheet's handwriting:
+### Still true, and not part of that plan
 
-- **feed the corrections back into the extractor's lexicon** (`webui_ideas.md` §6). The data exists:
-  654 `was → text` pairs a person produced, and `correct_token()`'s last line is `return t, 0.4`,
-  which is why so much of the queue sat at exactly that confidence. It means *no rule of mine
-  recognised this*, not *I am unsure*. A script that reports the pairs by frequency, and a **human**
-  editing `LEXICON` — an auto-grown lexicon is a guesser, and this project's whole position is that
-  a guesser gets one chance and then a person owns it;
-- **a symbol library**, so the vision pass gets cheaper each sheet.
-
-And the simulator (§3) is the biggest thing in the road map and is now unblocked in a way it was
-not before: the boolean network is solved from the netlist, and **the paths are what let you
-watch it** — net 121 going dead, then 120, then CR-BP picking up, each drawn on conductors a
-technician can see. That was the argument for building paths as display geometry in the first place
-(plan §5), and it is worth re-reading before starting it.
+- **The two authored files want committing.** `locations.json` and `label_corrections.json` are what
+  nothing can rebuild — the second holds **654** decisions in the tree against **90** in git, and has
+  since 2026-09-02. That is still the largest piece of unbacked work in the project, and there will be
+  three such files shortly.
+- **`circuit_logic.json` was regenerated on 2026-09-06** and is uncommitted. It was regenerated by
+  the planning session while probing the failing artifact test — say so rather than let a future
+  session wonder — so it now folds in the `TB-120:3` move below. **If that move is put back, re-run
+  the generator again before committing either file.**
+- **`TB-120:3` looks accidentally dragged.** It went from **(300.1, 663.7)** to **(111.5, 625.5)** at
+  2026-09-07T03:04Z — 190 pt off the block's column, which is `K8`'s shape rather than a placement.
+  The committed value is the one the ink agrees with (`C0080` lands there; it is `W053`'s run), and
+  every number in `authoring_the_wires.md` §3 was measured against it. `Ctrl+Z` if the tab is still
+  open, otherwise `git diff` on `locations.json` names it exactly.
+- **`K7`** — six rows in the Locate tab's *To do* that can never be finished. Manual §7. The new
+  `Wiring` count is built the right way round, so holding the two side by side is still the clearest
+  statement of what the difference costs.
+- **The road map, `webui_ideas.md`** — the lexicon feedback (§6) and the symbol library, both gated on
+  drawing number two, and the simulator (§3), which the paths unblocked.
 
 ### What a session picking this up should read
 
-Not this whole file. **`locate_tab_testing/locate_tab_instruction_and_test_manual.md`** is the index
-over fifteen leaf documents — §3 is the map, §5a is what is actually in the files, §7 is the known
-issues, and `08_results_log.md` says what the user has walked and what broke. About 8 k tokens for
-one symptom instead of the whole feature.
+**`authoring_the_wires.md` §0 says.** In short: that plan whole, then
+`locate_tab_testing/locate_tab_instruction_and_test_manual.md` (the index over fifteen leaf
+documents — §5a is what is in the files, §7 the known issues, §8 the rule about routes), then
+`06_code_map.md` for the hazards, then `07_drawing_facts.md`. About 8 k tokens for one symptom
+instead of the whole feature.
 
 Two facts that have each cost a session, and neither has stopped being true:
 
@@ -91,12 +110,11 @@ Two facts that have each cost a session, and neither has stopped being true:
    an `if`, so with it false there is nothing there to be wrong about — deliberate, not a bug.
 2. **`python -m app` has no reloader and the client is a built bundle.** A change under
    `server/app/` needs a restart; one under `webui/src/` needs `npm run build`; a rebuilt bundle
-   against an unrestarted server is the dangerous combination, because the new client can send
-   fields the old validator ignores.
+   against an unrestarted server is the dangerous combination.
 
 **Do not read `geometry.json` (620 KB, ~150,000 tokens) or `circuit_logic.json` in full.**
-`07_drawing_facts.md` exists so that never becomes necessary; when a number is needed, get it with a
-`python3 -c` one-liner that prints a summary.
+`07_drawing_facts.md` and `authoring_the_wires.md` §3 exist so that never becomes necessary; when a
+number is needed, get it with a `python3 -c` one-liner that prints a summary.
 
 Job E below is done — the placement run finished on 2026-08-20 and all 131 terminals are placed. Job
 F is still the runner-up and still worth doing as its own piece of work. **The rest of this section
