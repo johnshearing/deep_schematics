@@ -77,6 +77,15 @@ import {
   type Target,
 } from './model'
 import { TargetPanel } from './TargetPanel'
+import { inkIndex } from './wiring'
+import {
+  endpointsOf as endsFor,
+  setEndpoint as setEndpointInto,
+  terminalNets,
+  wiringCoverage,
+  wiringPending,
+} from './wiringModel'
+import { useWiringStore } from '@/stores/wiringStore'
 
 export { LOCATE_TAB_ID }
 
@@ -89,10 +98,36 @@ export { LOCATE_TAB_ID }
  * pair of compasses, while a net has up to nine members and its panel is a list — different work,
  * done in different sittings, and finding one among the other 96 rows was the cost of the merge.
  */
-type Filter = 'todo' | 'paths' | 'components' | 'terminals' | 'wires' | 'nets' | 'all'
+type Filter =
+  | 'todo'
+  | 'wiring'
+  | 'paths'
+  | 'components'
+  | 'terminals'
+  | 'wires'
+  | 'nets'
+  | 'all'
 
 const FILTERS: { id: Filter; label: string; title: string }[] = [
   { id: 'todo', label: 'To do', title: 'Components and terminals nobody has placed yet' },
+  {
+    /**
+     * **The 71 wires nobody has confirmed the ends of** — the queue this session exists for, and
+     * the second one on this screen that can be finished.
+     *
+     * A wire leaves it one way: a person looks at its two terminals and says so. **Including
+     * where nothing changes** — 47 of the 71 are already right, and until there was a screen for
+     * it the file could not tell those 47 from the wires nobody had opened. That is why it reads
+     * `0 of 71` the first time it is pressed and not `47 of 71`: the honest number is the one
+     * decision 4 asked for.
+     */
+    id: 'wiring',
+    label: 'Wiring',
+    title:
+      'Wires whose two terminals nobody has confirmed. For the 40 that land on a multi-point ' +
+      'block the far end was allocated rather than read — 11 of the 71 are on the wrong screw. A ' +
+      'wire leaves this list when you have looked at its ends, whether or not they change.',
+  },
   {
     /**
      * **The 71 wires still waiting for a route** — the one queue on this screen that can be
@@ -205,6 +240,26 @@ export function LocateTab() {
     save,
   } = useLocateStore()
 
+  /**
+   * The **third** whole-document draft, over the fourth authored file, in its own store.
+   *
+   * Two documents are now edited from this one screen and they must not learn about each other —
+   * `H18`. What happens here is the seam: this component reads both and hands them to pure
+   * functions, and neither store touches the other's state.
+   */
+  const {
+    document: wiring,
+    report: wiringReport,
+    armed: armedSlot,
+    saveState: wiringSaveState,
+    saveError: wiringSaveError,
+    stale: wiringStale,
+    load: loadWiring,
+    arm,
+    edit: editWiring,
+    save: saveWiring,
+  } = useWiringStore()
+
   const tiles = drawing?.tiles ?? null
   const [width, height] = tiles?.page_size_pt ?? [1, 1]
   const viewer = useTileViewport({ width, height, dpi: tiles?.dpi ?? 400 })
@@ -238,6 +293,19 @@ export function LocateTab() {
   }, [ready, loading, needsPassword, unlocked, load, drawing?.drawing_number, tiles?.page_size_pt])
 
   /**
+   * The wiring file, beside the geometry and **without blocking on it.**
+   *
+   * Its own request rather than a field on the first, for the same reason `/api/conductors` is: a
+   * failure here costs the wiring panel and nothing else — every point on this screen stays
+   * placeable and every path stays authorable. Two files, two drafts, two requests.
+   */
+  useEffect(() => {
+    if (!unlocked && needsPassword) return
+    if (wiring || useWiringStore.getState().loading) return
+    void loadWiring(drawing?.drawing_number ?? null)
+  }, [unlocked, needsPassword, wiring, loadWiring, drawing?.drawing_number])
+
+  /**
    * The index, **in alphabetical order by id**, and this is the order everything on the left uses.
    *
    * The server publishes the index grouped by kind, which is the order the extraction happened to
@@ -255,8 +323,9 @@ export function LocateTab() {
   )
 
   const stateOf = useCallback(
-    (entry: Designator) => (document ? rowState(document, entry) : (entry.placement ?? 'none')),
-    [document],
+    (entry: Designator) =>
+      document ? rowState(document, entry, wiring) : (entry.placement ?? 'none'),
+    [document, wiring],
   )
 
   const visible = useMemo(() => {
@@ -264,6 +333,11 @@ export function LocateTab() {
     switch (filter) {
       case 'todo':
         return entries.filter((e) => PLACEABLE.has(e.kind) && stateOf(e) !== 'confirmed')
+      case 'wiring':
+        // Read off the wiring **draft**, so a wire leaves the queue under the click that confirms
+        // it rather than 900 ms later. The count below shares this predicate, which is what stops
+        // the two from ever disagreeing.
+        return wiring ? entries.filter((e) => wiringPending(wiring, e)) : []
       case 'paths':
         // Read off the **draft**, so a wire leaves the queue under the click that settles it
         // rather than after the save.
@@ -279,9 +353,13 @@ export function LocateTab() {
       default:
         return entries
     }
-  }, [entries, filter, document, stateOf])
+  }, [entries, filter, document, wiring, stateOf])
 
   const done = document ? coverage(entries, document) : null
+  /** `n of 71 wires confirmed`. Shares `wiringPending` with the filter above. */
+  const wired = wiring ? wiringCoverage(entries, wiring) : null
+  /** Terminal id → net id, for the panel's mismatch flag. One pass over the 26 nets. */
+  const nets = useMemo(() => terminalNets(entries), [entries])
   const targetEntry = useMemo(
     () => (target ? (entries.find((e) => e.id === target.id) ?? null) : null),
     [entries, target],
@@ -309,6 +387,21 @@ export function LocateTab() {
      * the list with a dot. A label with no dot beside it is a label you cannot check the side of,
      * which is the one thing this panel is for.
      */
+    /**
+     * **While an end slot is armed, every terminal is on the sheet.**
+     *
+     * `Pick from the sheet` is only usable if the pin you are aiming at has a dot: the `Wiring`
+     * filter's rows are wires, so without this the sheet would hold the armed wire's own two ends
+     * and nothing else to move it to. It is also the one place `K5`/`H6` — *a dot swallows the
+     * click* — stops being a nuisance and becomes the mechanism, because here the dot **is** what
+     * you are aiming at rather than what is in the way.
+     */
+    if (armedSlot) {
+      const shown = new Set(rows.map((row) => row.id))
+      for (const entry of entries) {
+        if (entry.kind === 'terminal' && !shown.has(entry.id)) rows.push(entry)
+      }
+    }
     if (targetEntry && LABELLABLE.has(targetEntry.kind)) {
       const shown = new Set(rows.map((row) => row.id))
       for (const member of targetEntry.terminals ?? []) {
@@ -326,7 +419,7 @@ export function LocateTab() {
         return { ...entry, places, point: places[0]?.point ?? null }
       })
       .filter((entry) => entry.point)
-  }, [visible, document, targetEntry, entries])
+  }, [visible, document, targetEntry, entries, armedSlot])
 
   /**
    * The armed wire's or net's end labels, planned against the **draft** so a compass click lands
@@ -379,6 +472,27 @@ export function LocateTab() {
     () => (net ? (entries.find((e) => e.kind === 'net' && e.id === net)?.printed ?? null) : null),
     [entries, net],
   )
+
+  /**
+   * The ink, indexed once for the whole drawing — **Phase B's input, built here and not per wire.**
+   *
+   * 149 runs against 131 pins is about twenty thousand projections, which is nothing, but doing it
+   * inside the panel would do it again on every hover. Keyed on the payloads and nothing else, so
+   * it survives every click on this screen.
+   *
+   * Only **confirmed** terminal points go in, and that is load-bearing rather than tidy: a pin
+   * resolved to its parent component's dot (`placement: 'parent'`) is a coordinate nobody chose,
+   * and feeding one to a landing rule that discriminates at 4 pt would invent landings on whatever
+   * ink happens to pass the component. All 131 on this sheet are confirmed; the guard is for the
+   * next drawing, half-placed.
+   */
+  const ink = useMemo(() => {
+    if (!conductors) return null
+    const pins = entries
+      .filter((entry) => entry.kind === 'terminal' && entry.placement === 'confirmed')
+      .flatMap((entry) => (entry.point ? [{ id: entry.id, point: entry.point }] : []))
+    return inkIndex(conductors, pins)
+  }, [conductors, entries])
 
   /**
    * The corners a person may move: a hand-traced route's, and nothing else.
@@ -500,13 +614,26 @@ export function LocateTab() {
         return
       }
       /**
+       * **An armed end slot goes before the trace, which goes before the target.**
+       *
+       * Four things want this key on this tab now and the escalation is written down rather than
+       * discovered — `H22`, extended: **text field → slot → trace → target.** Each step is more
+       * recent and more fragile than the one after it, and each press takes exactly one thing
+       * away. The slot is first among the three modes because it is the one where the *next click
+       * writes into a different authored file*: leaving it armed while thinking it was gone is
+       * how an endpoint gets written by a click meant to place a dot.
+       */
+      if (slotRef.current) {
+        event.preventDefault()
+        keys.current.disarm()
+        return
+      }
+      /**
        * **A trace in progress is what Escape abandons, before the target.**
        *
-       * Two things want this key and the order is not arbitrary: a half-drawn route is the more
-       * recent, more fragile thing, and one press taking away *both* it and the armed row would
-       * mean losing your place as the price of abandoning a line. So the first Escape drops the
-       * corners and leaves the wire armed, ready to try again; the second disarms. Same
-       * escalation as a text field getting the first one.
+       * A half-drawn route is more recent and more fragile than the armed row, and one press
+       * taking away *both* would mean losing your place as the price of abandoning a line. So this
+       * press drops the corners and leaves the wire armed, ready to try again; the next disarms.
        */
       if (traceRef.current) {
         event.preventDefault()
@@ -525,6 +652,22 @@ export function LocateTab() {
    * not be re-bound on every corner. */
   const traceRef = useRef(false)
   traceRef.current = tracing !== null
+
+  /**
+   * An armed end slot belongs to the row it was armed from, so changing rows disarms it.
+   *
+   * Without this, arming `W063`'s `to` slot and then picking `W068` would leave the next terminal
+   * click writing into `W063` — an endpoint written into a wire the person is no longer looking
+   * at, which is the worst shape a silent write can have.
+   */
+  useEffect(() => {
+    if (armedSlot && armedSlot.wire !== target?.id) arm(null)
+  }, [armedSlot, target?.id, arm])
+
+  /** Whether an end slot is armed, for the `window` `Escape` listener. Same ref trick, same
+   * reason: the listener is bound once per active tab. */
+  const slotRef = useRef(false)
+  slotRef.current = armedSlot !== null
 
   const stamp = useCallback(
     () => ({ by: health?.editing?.by ?? null, at: new Date().toISOString() }),
@@ -613,8 +756,8 @@ export function LocateTab() {
    * armed target, both of which change constantly, and re-binding a `window` listener on every
    * keystroke of a placement run is a cost with no benefit.
    */
-  const keys = useRef({ nudge, undo, redo, trace })
-  keys.current = { nudge, undo, redo, trace }
+  const keys = useRef({ nudge, undo, redo, trace, disarm: () => arm(null) })
+  keys.current = { nudge, undo, redo, trace, disarm: () => arm(null) }
   useEffect(() => {
     if (activeTabId !== LOCATE_TAB_ID) return
     const onKeyDown = (event: KeyboardEvent) => {
@@ -741,6 +884,21 @@ export function LocateTab() {
             {`${done.authored} end label${done.authored === 1 ? '' : 's'} moved by hand`}
           </span>
         )}
+        {wired && (
+          <span
+            className="text-muted-foreground tabular-nums"
+            title={
+              'Wires whose two terminals a person has looked at — whether or not they changed. ' +
+              'It reads 0 the first time this screen is opened, and that is the honest number: ' +
+              'every record the indexing pass wrote says `index`. Like the path count, this one ' +
+              'can be finished.'
+            }
+            data-wiring-count
+          >
+            {`${wired.confirmed} of ${wired.wires} wires confirmed`}
+            {wired.corrected > 0 && ` · ${wired.corrected} corrected`}
+          </span>
+        )}
         {armed && loaded < total && (
           <span className="text-muted-foreground">
             loading {loaded}/{total}…
@@ -748,6 +906,43 @@ export function LocateTab() {
         )}
 
         <div className="ml-auto flex items-center gap-1">
+          {/* Its own badge, named, and shown only when it has something to say. Two files are
+              being written from this screen and *which one is unsaved* is a question a person will
+              ask — a second identical badge would have been worse than none. */}
+          {wiringSaveState !== 'clean' && (
+            <span className="flex items-center gap-1" data-wiring-save={wiringSaveState}>
+              <span className="text-[11px] text-muted-foreground">wiring</span>
+              <Badge
+                tone={
+                  wiringSaveState === 'error'
+                    ? 'danger'
+                    : wiringSaveState === 'pending'
+                      ? 'warning'
+                      : 'default'
+                }
+                title={wiringSaveError ?? 'wiring.json'}
+              >
+                {wiringSaveState === 'saving'
+                  ? 'saving…'
+                  : wiringSaveState === 'pending'
+                    ? 'unsaved'
+                    : wiringSaveState === 'error'
+                      ? 'not saved'
+                      : 'saved'}
+              </Badge>
+              {wiringSaveState === 'error' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => void saveWiring()}
+                >
+                  <Save />
+                  Retry
+                </Button>
+              )}
+            </span>
+          )}
           <SaveStatus
             state={saveState}
             error={saveError}
@@ -784,6 +979,28 @@ export function LocateTab() {
           </span>
         </p>
       )}
+
+      {wiringStale && (
+        <p className="flex items-start gap-2 border-b border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-4 py-1.5 text-[11px]">
+          <AlertTriangle className="mt-px size-3.5 shrink-0 text-[var(--color-warning)]" />
+          {/* **A different banner from the one above it, and the difference is the point.** A
+              saved point leaves the sheet current and only the artifact behind. A saved endpoint
+              changes *what connects to what*, so the netlist below it is genuinely a different
+              netlist until the generator runs — and this is the one authored file whose work also
+              needs `build_kg.py`, because that script emits no coordinates and only moves when
+              connectivity does. */}
+          <span>{wiringStale}</span>
+        </p>
+      )}
+
+      {wiringReport?.problems.map((problem) => (
+        <p
+          key={`wiring:${problem}`}
+          className="border-b border-[var(--color-danger)]/40 bg-[var(--color-danger)]/10 px-4 py-1 text-[11px]"
+        >
+          {problem}
+        </p>
+      ))}
 
       {report?.problems.map((problem) => (
         <p
@@ -833,7 +1050,14 @@ export function LocateTab() {
              * shadow cast upward over the list, which is the one cue that says *in front of*
              * rather than *after*.
              */
-            <div className="border-t-2 border-[var(--color-ring)] bg-muted px-3 py-2 shadow-[0_-6px_14px_-6px_rgb(0_0_0/0.3)]">
+            /* **Capped at 60% of the viewport and scrollable, since 2026-09-08.** An armed wire
+               now carries three sections — what it joins, both ends' labels, and where it runs —
+               and on a laptop the three together are taller than the column. Without a ceiling the
+               panel pushes the advance checkbox off the bottom and takes the list's space with it,
+               which is a screen you cannot work a 71-row queue on. The list keeps whatever is
+               left; it has had `min-h-0 flex-1 overflow-y-auto` since the beginning for exactly
+               this reason. */
+            <div className="max-h-[60vh] overflow-y-auto border-t-2 border-[var(--color-ring)] bg-muted px-3 py-2 shadow-[0_-6px_14px_-6px_rgb(0_0_0/0.3)]">
               <TargetPanel
                 entry={targetEntry}
                 document={document}
@@ -844,6 +1068,12 @@ export function LocateTab() {
                 net={net}
                 printedNet={printedNet}
                 tracing={tracing}
+                wiring={wiring}
+                nets={nets}
+                ink={ink}
+                armedEnd={armedSlot?.wire === targetEntry.id ? armedSlot.end : null}
+                onArmEnd={(end) => arm(end ? { wire: targetEntry.id, end } : null)}
+                onEditWiring={editWiring}
                 stamp={stamp}
                 onPreview={setPreview}
                 onTrace={(start) => trace(start ? 'start' : 'abandon')}
@@ -901,7 +1131,11 @@ export function LocateTab() {
             /* While tracing, a click is a **corner** and not a placement. Nothing is written
                until Enter, so an abandoned trace leaves the file exactly as it was. */
             if (tracing) setTracing([...tracing, at])
-            else put(at)
+            /* And while an end slot is armed, bare paper is **nothing at all**. Only a terminal
+               fills a slot (`onSelect` below), and the armed row is a wire — so placing here
+               would write the wire's `label_point` in the middle of an endpoint decision, into
+               the other authored file, from a click meant for a dot. */
+            else if (!armedSlot) put(at)
           }}
         >
           {armed && viewer.viewport.scale > 0 && (
@@ -936,6 +1170,32 @@ export function LocateTab() {
                  looking. So the click names the site, and the sheet closes in on the dot under
                  the pointer rather than going anywhere. */
               onSelect={(entry, place) => {
+                /**
+                 * **The armed slot wins the click, and only a terminal fills it.**
+                 *
+                 * This is how the two meanings of clicking a terminal stay apart on this tab: a
+                 * click still places or retargets exactly as before *unless* a slot is armed,
+                 * which only `Pick from the sheet` can do. Then the next terminal binds that end
+                 * and the slot disarms itself, so the mode cannot outlive the gesture.
+                 *
+                 * Clicking anything that is not a terminal while a slot is armed does nothing —
+                 * silently, on purpose. A component's dot is not an endpoint, and retargeting to
+                 * it would throw the wire the person is working on off the panel.
+                 */
+                if (armedSlot) {
+                  if (entry.kind !== 'terminal') return
+                  const wire = entries.find((e) => e.id === armedSlot.wire)
+                  if (!wire) return
+                  arm(null)
+                  setPreview(null)
+                  editWiring((d) =>
+                    setEndpointInto(d, armedSlot.wire, armedSlot.end, entry.id, endsFor(d, wire), {
+                      by: health?.editing?.by ?? null,
+                      at: new Date().toISOString(),
+                    }),
+                  )
+                  return
+                }
                 setTarget(
                   entry.kind === 'component' && place.site
                     ? { id: entry.id, site: place.site }

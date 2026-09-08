@@ -1103,3 +1103,96 @@ defined and adding them later would be a schema change:
 Unchanged: **about 100 gestures**. Nothing in Phase 0 is an authored decision, and the queue will
 read `0 of 71 wires confirmed` the first time Session 2's screen is opened, exactly as decision 4
 says it should.
+
+### Session 2 — Phases A and B. **Done, 2026-09-08.**
+
+There is a screen. A sixth **`Wiring`** filter on the Locate tab, a queue reading
+`0 of 71 wires confirmed`, two end slots per wire with `Pick from the sheet`, `I looked and it was
+right`, `Take it back`, the `was` stamp, the net-mismatch flag, a note, and `path may be stale`.
+`features/locate/wiring.ts` is the ink's proposal, pure, carrying the commoning-aware landing rule.
+`server/app/wiring.py` is the fourth authored file's validator and `GET`/`PUT /api/wiring` are
+behind the editor password. **228 server tests, 392 web, ruff and tsc clean.**
+
+**Both acceptance criteria are met.** Confirming a wire whose endpoints do not change writes a
+record and moves the count — asserted in `wiringModel.test.ts`, in `WiringPanel.test.tsx` end to end
+through the `PUT`, and in `test_wiring.py` as the first test in the file. And the proposal, measured
+against the real drawing rather than a fixture of it:
+
+| | |
+|---|---|
+| §3.2's eleven corrections reproduced, each at the top of its end | **11 of 11** |
+| …and the screw the netlist claims **not even offered** on that end | **11 of 11** |
+| Ends of a census-confirmed wire where the declared terminal is missing from the proposals | **0 of 90** |
+| Offered for `W042` | **nothing, at either end** |
+| §3.6's commoning conductors recovered from shape alone | **8 of 8** |
+
+**Four places where the execution departed from §4 and §9, each with its reason:**
+
+1. **`path may be stale` is a word on the row and not a filter.** §4 q9 says *"the `Paths` filter
+   can show them"*. `pathSettled` is unchanged and the filter is untouched. `T-940` is that the path
+   count and the `Paths` filter share **one** predicate, so a corrected endpoint quietly
+   un-finishing wires would walk that count backwards in the middle of a run — a worse thing to do
+   to a person than a word being only a word. The session's instructions ask for *"one word on a row
+   and one predicate in `rowState`"*, which is what shipped.
+
+2. **`ENDPOINT_LABEL` sits beside `PLACEMENT_LABEL` rather than reusing it.** §4 q4 says the slots
+   should reuse the `placed` / `estimate` / `on its component` vocabulary. Mapped literally that
+   calls an endpoint *placed*, which says the wrong thing — nothing about an endpoint is a position
+   — and *estimate* is too soft for a screw number a counter allocated. The words §4 q4 actually
+   asks for shipped (`from the index`, `you, on 2026-09-08`), in the **same module**,
+   cross-referenced, so the concern behind the instruction is met structurally.
+
+3. **The proposal is ranked on geometry alone and the printed name is carried, not scored.** §4 q4's
+   worked panel line implies the name is part of the answer. It is not, and the reason is stronger
+   here than in `paths.ts`: a run's printed name is its **net**, every point of a terminal block is
+   on the same net, so `0V` cannot tell row 3 from row 8 — and the screw number is printed nowhere
+   at all. Ordering is fit and then id; the names and specs are shown for a person to read.
+
+4. **The proposal does not promote whatever the record already says.** Eleven of this sheet's 90
+   endpoints have another wire's landing ranked above the declared one, because two wires land on
+   one pin (`PLG1`/`PLG2` onto `TB-L1:1` and `TB-N:1`, `CR-ON:14` beside `CR-BP:24`). Reordering to
+   put the record's own answer first would produce a list that could never disagree with the record,
+   which is the only thing it exists to do. The one that agrees is **tagged** instead.
+
+**Three things §3 got slightly wrong, all now measured by shipped code:**
+
+- **The proposal settles 48 wires, not 47.** It also chains `W002` and `W003` — `PLG1`'s runs
+  paralleling `PLG2`'s — and `W031`, whose block end the commoning rule reads past the bus §3.3 says
+  it could not get through.
+- **It cannot settle `W047` or `W048`**, which §3 counts among the 47. Both land on a relay coil's
+  `A2`, and the ink stops **46 pt short**: the vertical bus runs at x ≈ 917.5 while the coil pins
+  were placed on the symbol at x ≈ 871. §3.1 names that shortfall for `W048` itself and stops there.
+  Together with `W024`, `W025`, `W026` and `W049` that is **six wires reaching a relay coil, none of
+  them settleable from the ink** — the same shape §3.3 calls *"three coil feeds, one bound
+  landing"*. §3.1's arithmetic is also internally short by one: §3.3's table has 13 rows and the
+  *"5 of the 31"* list adds `W048`, which is not one of them.
+- **§3.6 is *8 conductors across 6 blocks*, not 7.** Its own table lists six distinct blocks.
+
+**Two things built that the plan did not ask for, both because the alternative was worse:**
+
+- **`Take it back`** on a confirmation. §7 has no control for it, and the alternative for somebody
+  who confirms the row above the one they meant is a text editor — on a screen whose entire purpose
+  is that a decision is a person's. It writes `source: index` with the endpoints `was` was holding,
+  and it does **not** delete the record: the bootstrap wrote one for all 71, and a vanished record
+  reads in `git diff` as a wire somebody removed.
+- **A `note` box**, disabled until the record has a decision to ride on. §6 defines the field and
+  the plan's own examples are the shape it is for — *"a 0V-to-ground bond; the two ends are on
+  different nets and that is correct"*. Without a control the field would have been unreachable
+  during the run it exists for.
+
+**And one hazard worth reading before Phase C touches this: `H24`.** The commoning-aware landing has
+three parts and only the first is obvious. A landing must also be **nearer this end of a run than
+the other** — `C0017` is 17.2 pt long, shorter than the tolerance, and without that clause `W069`'s
+correction vanishes entirely. And only `placement: 'confirmed'` pins may be fed to it: a terminal
+resolved to its parent's dot is a coordinate nobody chose, and a rule discriminating at 4 pt handed
+one would invent landings on whatever ink passes the component.
+
+### What §14 now costs
+
+**Unchanged: about 100 gestures, 45–75 minutes.** What changes is where the time goes. The 47 the
+ink agrees with are **faster** than estimated — the panel says `agrees with the index` and it is one
+button. The **six coil wires are slower**: the ink offers nothing for `W024`, `W025`, `W026`,
+`W047`, `W048` and `W049`, so those are `Pick from the sheet` and judgement. And **`W042` is the one
+to do deliberately** — press `I looked and it was right` on a wire the ink says nothing about, and
+notice that the screen did not try to talk you out of correct data.
+

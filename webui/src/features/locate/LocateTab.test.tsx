@@ -23,6 +23,7 @@ import type { Designator, DesignatorIndex, DrawingSummary, Health } from '@/api/
 import { buildLookup } from '@/lib/designators'
 import { useAppStore } from '@/stores/appStore'
 import { useLocateStore } from '@/stores/locateStore'
+import { useWiringStore } from '@/stores/wiringStore'
 import { enabledTabs } from '@/tabs'
 import { LOCATE_TAB_ID } from '@/tabIds'
 
@@ -133,6 +134,27 @@ const CONDUCTORS = {
 /** `W047` is on net `110`, which is the one place that fact is published — see `netOf`. */
 const PATHS = { wires: {}, nets: { '110': ['W047'] } }
 
+/**
+ * The fourth authored file, as `bootstrap_wiring.py` leaves it: one record per wire, saying
+ * `index` — *this is what the machine guessed.*
+ *
+ * It is here so this suite stubs every route the screen asks for. **The wiring editor itself is
+ * tested in `WiringPanel.test.tsx`**, which brings its own index with confirmed terminal points:
+ * this fixture's two pins are both `parent`, and a landing rule that discriminates at 4 pt has no
+ * business being handed a coordinate nobody chose.
+ */
+const WIRING = {
+  drawing_number: 'PS20115MLM4-2',
+  schema: 1,
+  wires: { W047: { from: 'CR-BP:A1', to: 'CR-BP:11', source: 'index' as const } },
+  commoning: {},
+}
+
+const WIRING_REPORT = {
+  file: true, wires: 1, confirmed: 0, corrected: 0, unset: 0, retired: 0, commoning: 0,
+  problems: [] as string[],
+}
+
 const EMPTY_REPORT = {
   file: false, components: 0, sites: 0, confirmed_sites: 0, terminals: 0,
   confirmed_terminals: 0, problems: [] as string[],
@@ -186,6 +208,12 @@ function stubServer(
           },
           report: options.report ?? EMPTY_REPORT,
         })
+      }
+      if (url.endsWith('/api/wiring') && init?.method === 'PUT') {
+        return json({ saved: true, report: WIRING_REPORT, stale: 'circuit_logic.json is behind.' })
+      }
+      if (url.endsWith('/api/wiring')) {
+        return json({ present: true, document: WIRING, report: WIRING_REPORT })
       }
       if (url.endsWith('/api/designators')) return json(INDEX)
       if (url.endsWith('/api/conductors')) {
@@ -247,6 +275,7 @@ beforeEach(() => {
   // Module state `setState` cannot reach: a coalescing run left open by one test would merge
   // into the next one's first edit and hide a missing undo step.
   useLocateStore.getState().endRun()
+  useWiringStore.getState().reset()
   stubServer()
 })
 

@@ -221,6 +221,41 @@ the sheet by hand in `07_drawing_facts.md`, and `W052` has to come back **`C0109
 
 ---
 
+## T-100x–T-109x — the wiring editor — `15_tests_wiring_editor.md`
+
+**Phases A and B of the authoring-the-wires plan, 2026-09-08.** Needs the editor password **and a
+restart** — `server/app/wiring.py` is new and `python -m app` has no reloader. It writes
+`wiring.json`, the one authored file whose save really does make `circuit_logic.json` stale.
+
+**Two acceptance criteria, and T-1010 and T-1030 are them.** *Confirming a wire whose endpoints do
+not change still writes a record and moves the count* — 47 of the 71 wires need exactly that. And
+**`W042` must be offered nothing at all**, because there the ink is wrong and the data is right: a
+screen that trains you to accept the proposal is worse than no screen.
+
+| Test | What it checks | Result | Notes if not P |
+|---|---|:--:|---|
+| T-1000 | The sixth filter, **`Wiring`** · 71 rows · **`0 of 71 wires confirmed`**, which is the honest number and not a claim the wires are wrong · held against `To do`, which still cannot reach zero (`K7`) | | |
+| T-1005 | The **What it joins** section · two end slots · `from the index` · the proposal for one end comes from walking the ink away from the **other** | | |
+| T-1010 | **`I looked and it was right` on `W067`, which changes nothing** · `source: human`, a `by` and an `at`, and **no `was`** · the count moves and the row leaves the queue before the save lands · a **second** stale banner naming `build_kg.py` too | | |
+| T-1015 | **`Take it back`** · back to `source: index` · the record **stays** rather than being deleted | | |
+| T-1020 | `W063`'s proposal — `TB-120:1` on `C0091` · *the ink does not offer `TB-120:2` at all* · the five tag words · hovering lights the run in **blue** · why the printed name is carried and not ranked on | | |
+| T-1025 | **The eleven, in order** — the two-minute check that the instrument is right before you spend an hour on it | | |
+| T-1030 | **`W042`: nothing offered, at either end** · and confirming it unchanged is the correct answer | | |
+| T-1035 | **`was`** · a second thought does not overwrite the machine's original · putting it back **deletes** `was` and keeps the confirmation | | |
+| T-1040 | **`Pick from the sheet`** on `W057` · every terminal gets a dot while a slot is armed · the slot disarms itself · **bare paper does nothing** while armed · `K5` finally helping | | |
+| T-1045 | **`Escape`**: text field → **slot** → trace → row, one thing per press · changing rows disarms the slot | | |
+| T-1050 | The two ends' nets side by side · **`two nets — look at it`** on `W019` corrected · a flag and never a fix | | |
+| T-1055 | **`path may be stale`** on the row and in the panel · it does **not** put the wire back in the `Paths` queue · silent on a path with no `for` | | |
+| T-1060 | **The commoning** — `W067` lands on `TB-0V:12` and not row 1, tagged `past the commoning` · **`C0092` is never offered to anything** · eight conductors found from shape alone | | |
+| T-1065 | The **note**, disabled until the record has a decision to ride on · emptying it deletes the key | | |
+| T-1070 | **Two banners saying different things** · the generator, then `build_kg.py` · `endpoints: {source: human}` in the artifact | | |
+| T-1075 | With `SWUI_ALLOW_EDITS=false`: `/api/wiring` is **404** and `/api/paths` is **200** | | |
+| T-1080 | Hand-editing: eight refusals, every one **by name** · the three that are checked against the netlist because their symptom would otherwise be nothing at all · the generator says `REFUSED:` and writes nothing | | |
+| T-1085 | **228 server · 392 web · ruff clean · tsc clean** · the artifact test's failure **names which authored file is ahead** (`K12` narrowed) | | |
+| T-1090 | What is deliberately **not** here: `Add a wire`, `Retire this wire`, authoring the commoning, a net's highlight including it, a terminal's wires, `/api/conductors` losing its password | | |
+
+---
+
 ## Failure detail
 
 One block per **F** or **?**. Copy the template from the index (§4) and fill it in. More is better

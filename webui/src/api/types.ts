@@ -474,6 +474,95 @@ export interface SaveLocationsResponse {
 }
 
 /**
+ * `wiring.json` — the fourth authored file, as the wiring editor holds it.
+ *
+ * **What connects to what**, and it is the only authored file whose contents change the netlist
+ * rather than the drawing. `locations.json` says where a thing is drawn, `label_corrections.json`
+ * says what the ink reads, and this says which two terminals each wire joins — which is the
+ * `CONNECTS_TO` edge the model answers questions from.
+ *
+ * Modelled loosely on purpose, exactly like `LocationsDocument`: the editor loads this document,
+ * mutates it and sends the whole thing back, so unknown keys are carried through rather than
+ * normalised away. `server/app/wiring.py` is the one validator.
+ *
+ * **There are no coordinates in it.** A terminal designator names the same terminal whichever
+ * sheet prints it, which is what will let this format survive a circuit that needs several pages.
+ * The one thing that will need a page is `commoning`, because that stores polylines — Phase C.
+ */
+export interface WiringDocument {
+  drawing_number: string | null
+  schema: number
+  wires?: Record<string, StoredWire>
+  /** Phase C's: a terminal block's own bus, keyed on the block's component id. Carried through
+   * untouched by everything in this session. */
+  commoning?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+/**
+ * One wire's two ends, and who says so.
+ *
+ * `from` and `to` are terminal designators or **`null`** — a real state, and the only honest one
+ * for a wire somebody started and has not finished. `source` is `index` for the indexing pass's
+ * own answer and `human` for a person who looked; there is deliberately no third value and no
+ * `derived`, because an endpoint is read or it is guessed and the file has to say which.
+ *
+ * **`was` is kept forever**, for the same reason a label correction keeps it: the `W` table in
+ * `author_circuit_logic.py` is hand-maintained and a future edit there would destroy the original.
+ * Absent where nothing was replaced — which is the 47 wires a person confirms unchanged.
+ */
+export interface StoredWire {
+  from?: string | null
+  to?: string | null
+  source?: 'index' | 'human'
+  /** The two endpoints this record replaced, in `[from, to]` order. */
+  was?: [string | null, string | null]
+  /** About the **connection**. The note about the printed callout stays in the `W` table. */
+  note?: string
+  by?: string
+  at?: string
+  /** A tombstone with a reason, in place of the two ends, so an id is never reused. */
+  retired?: string
+  [key: string]: unknown
+}
+
+export interface WiringReport {
+  file: boolean
+  wires: number
+  /** The number the queue counts up to its own total. `0` on the first run, and that is the
+   * honest figure: every record the bootstrap wrote says `index`. */
+  confirmed: number
+  /** Confirmations that **moved** an endpoint, as opposed to ones that agreed with the index. */
+  corrected: number
+  /** Records with an end nobody has set. */
+  unset: number
+  retired: number
+  commoning: number
+  problems: string[]
+}
+
+export interface WiringResponse {
+  present: boolean
+  document: WiringDocument
+  report: WiringReport
+}
+
+export interface SaveWiringResponse {
+  saved: boolean
+  report: WiringReport
+  /**
+   * The banner, and **this is the one authored file whose save really does make
+   * `circuit_logic.json` stale.**
+   *
+   * A path and a label correction never reach the netlist and a test compares bytes for each. An
+   * endpoint *is* the netlist, so this one names both commands — `author_circuit_logic.py` and
+   * then `build_kg.py`, because `build_kg.py` emits no coordinates and only moves when
+   * connectivity does.
+   */
+  stale: string
+}
+
+/**
  * One piece of ink whose reading might be wrong — a row of the Review tab.
  *
  * Two id spaces, one shape, because the question is the same one twice: *what does the ink say

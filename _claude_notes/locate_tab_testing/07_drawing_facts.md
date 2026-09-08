@@ -257,6 +257,51 @@ pairing above is within 4 pt at both ends, against 16 pt rows.
 > an executable assertion rather than a note. If it is ever re-measured and found wrong, four tests
 > go red.
 
+### The commoning, and the six wires the ink cannot reach — **measured 2026-09-08**
+
+*Added with Phases A and B of `authoring_the_wires.md`. Both of these came out of shipping the
+proposal rather than out of the census, and both are things Phase C and the authoring run need.*
+
+**The eight commoning conductors, recovered from geometry alone.** `features/locate/wiring.ts`
+detects a block's own bus as a **shape** — two or more of one component's terminals lying on one
+conductor — and handed the real sheet with nothing told to it about this drawing it finds exactly
+the eight the plan's §3.6 lists by hand. `wiring.test.ts` asserts the list, so it is executable.
+
+| Block | Conductors | Note |
+|---|---|---|
+| `TB-0V` | `C0105` | **fused with `DISCHARGE1:2`'s wire.** 279.6 pt of vertical; the polyline *ends* beside row 1 while the wire joins at row 12 |
+| `TB-24E1-A` | `C0086` | pure bus, points 1–8, 527.4 pt |
+| `TB-24E1-B` | `C0010`, `C0008` | `C0008` is **fused with `RECEPT1:5`'s wire**; its bus stretch covers points 3, 4 and 5 over 49.5 pt of a 376.1 pt run |
+| `TB-110` | `C0060`, `C0077` | two short pieces, 12.8 pt and 11.1 pt, meeting at point 3 |
+| `TB-120` | `C0092` | pure bus, 72.7 pt, points 1–2. **No wire may claim it** — plan §4 q10 |
+| `TB-GND-B` | `C0041` | 10.9 pt |
+
+**Six distinct blocks, not seven.** §3.6's heading says *8 conductors, 7 blocks* and its own table
+lists six. Six is right. And `TB-130` and `TB-120:3` still have **no commoning conductor at all** —
+`TB-130`'s two points are 71 pt apart with nothing joining them, and `TB-120:3` is 24 pt below `:2`
+off the end of `C0092`. Both are on the plan's §14 list of things only the user's eyes can close.
+
+**Six wires reach a relay coil's `A2`, and the ink stops 46 pt short of every one of them.** This is
+the finding that explains a whole class the census had split up. The vertical bus feeding the coils
+runs at **x ≈ 917.5**; the coil pins were placed on the symbol at **x ≈ 871**. So `C0079` ends at
+(917.5, 679.0) while `CR-BP:A2` is at (871.4, 679.1) — **46.1 pt** away, against a landing tolerance
+that has to stay inside half a 16 pt conductor row.
+
+| Wire | Its coil end | What §3 said |
+|---|---|---|
+| `W024` | `CR-ON:A1` | §3.3 — *"three coil feeds, one bound landing"* |
+| `W025` | `CR-BP:A1` | §3.3 — ditto |
+| `W026` | `CR-SW:A1` | §3.3 — ditto |
+| `W047` | `CR-ON:A2` | §3 counted it **confirmed**; it is not settleable from the ink |
+| `W048` | `CR-BP:A2` | §3.1 names the 46 pt shortfall for this one by itself |
+| `W049` | `CR-SW:A2` | §3.3 — attributed there to `TB-130` instead |
+
+**It is the ink and not the arithmetic**, and `wiring.test.ts` holds it as a test so the next
+session meets the reason rather than the gap. These six are where the authoring run's judgement will
+actually be spent: `Pick from the sheet`, and the user's eyes.
+
+---
+
 ### The 34 printed net labels, and the nine misreads
 
 These are the strings read off the sheet beside a conductor. **They are not entities** — the netlist's

@@ -24,11 +24,15 @@ import type {
   LocationsDocument,
   Polyline,
   StoredSite,
+  WiringDocument,
 } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { PlannedLabel } from '@/features/drawing/endLabels'
 import { PathPanel } from './PathPanel'
+import { WiringPanel } from './WiringPanel'
+import type { InkIndex } from './wiring'
+import type { End } from './wiringModel'
 import { cn } from '@/lib/utils'
 import {
   assignTerminal,
@@ -75,6 +79,22 @@ interface Props {
    * `[]`, which is a drawing with no vector extraction at all.
    */
   conductors?: Conductor[] | null
+  /**
+   * The wiring editor's inputs, and they are all a **wire's** too — see `WiringPanel`.
+   *
+   * Threaded through here rather than read from `useWiringStore` inside that panel, for the reason
+   * the path panel's inputs are: the arithmetic is the part that can be quietly wrong, and a
+   * component that fetched its own state could not be handed a fixture. It is also what keeps the
+   * two whole-document drafts from meeting anywhere but in this component's props — `H18`.
+   */
+  wiring?: WiringDocument | null
+  /** Terminal id → net id, the reverse pass over the index, for the net-mismatch flag. */
+  nets?: Record<string, string>
+  ink?: InkIndex | null
+  /** Which of the armed wire's two end slots is armed, if either. */
+  armedEnd?: End | null
+  onArmEnd?: (end: End | null) => void
+  onEditWiring?: (change: (document: WiringDocument) => WiringDocument, note?: string) => void
   /** The armed wire's net, and the name the sheet prints for it where the two differ (`K10`). */
   net?: string | null
   printedNet?: string | null
@@ -115,6 +135,12 @@ export function TargetPanel({
   net,
   printedNet,
   tracing,
+  wiring,
+  nets,
+  ink,
+  armedEnd,
+  onArmEnd,
+  onEditWiring,
   stamp,
   onTarget,
   onEdit,
@@ -129,6 +155,7 @@ export function TargetPanel({
       <LabelPanel
         {...{
           entry, document, target, endLabels, conductors, net, printedNet, tracing, stamp,
+          wiring, nets, ink, armedEnd, onArmEnd, onEditWiring,
           onEdit, onLabelDir, onClear, onClose, onPreview, onTrace,
         }}
       />
@@ -168,6 +195,12 @@ function LabelPanel({
   net,
   printedNet,
   tracing,
+  wiring,
+  nets,
+  ink,
+  armedEnd,
+  onArmEnd,
+  onEditWiring,
   stamp,
   onEdit,
   onLabelDir,
@@ -185,6 +218,12 @@ function LabelPanel({
   | 'net'
   | 'printedNet'
   | 'tracing'
+  | 'wiring'
+  | 'nets'
+  | 'ink'
+  | 'armedEnd'
+  | 'onArmEnd'
+  | 'onEditWiring'
   | 'stamp'
   | 'onEdit'
   | 'onLabelDir'
@@ -246,6 +285,27 @@ function LabelPanel({
           ends with — and its <span className="font-mono">{entry.id}</span> is an id we invented,
           which is not on the sheet for anybody to check.
         </p>
+      )}
+
+      {/* **What the wire joins**, and it comes first among the wire-only sections because it is
+          the claim underneath the other two: a route accepted against the wrong screw reaches the
+          wrong place, and an end label hangs off a terminal this wire may not touch. Since
+          2026-09-08 there is a screen for it; before that the endpoints were a Python literal.
+          A net gets none of this — a net is not wired to anything, it *is* the wiring. */}
+      {entry.kind === 'wire' && stamp && onEditWiring && onArmEnd && onPreview && (
+        <WiringPanel
+          entry={entry}
+          wiring={wiring ?? null}
+          locations={document}
+          nets={nets ?? {}}
+          ink={ink ?? null}
+          conductors={conductors ?? null}
+          armed={armedEnd ?? null}
+          onArm={onArmEnd}
+          stamp={stamp}
+          onEdit={onEditWiring}
+          onPreview={onPreview}
+        />
       )}
 
       {/* **Where the wire runs**, above the printed name and below the end labels — three

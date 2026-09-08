@@ -11,6 +11,7 @@ import pytest
 from app.config import Settings
 from app.drawing import load_circuit_logic
 from app.locations import load_locations
+from app.wiring import load_wiring
 
 FAKE = Path(__file__).parent / "fake_claude.py"
 
@@ -22,9 +23,11 @@ def _clear_drawing_cache():
     # after it writes or it will save a point and be handed back the old one.
     load_circuit_logic.cache_clear()
     load_locations.cache_clear()
+    load_wiring.cache_clear()
     yield
     load_circuit_logic.cache_clear()
     load_locations.cache_clear()
+    load_wiring.cache_clear()
 
 
 @pytest.fixture

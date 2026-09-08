@@ -43,9 +43,20 @@ spelled out, and `fold_in_labels` lives in the generator rather than the server.
                     ┌──────────────┴──────────────┐
                     ▼                             ▼
               Drawing tab                    Locate tab
-              (read only)                    (draft + PUT /api/locations)
+              (read only)                    (two drafts, two files)
                                                    │
-                                                   └─→ save_locations() → locations.json
+                                    ┌──────────────┴──────────────┐
+                                    ▼                             ▼
+                          save_locations()              save_wiring()
+                            → locations.json              → wiring.json
+                            *where* it is drawn           *what* it joins
+                            artifact goes stale           artifact goes stale **and**
+                                                          custom_kg.json does
+
+**Two files are written from one screen since 2026-09-08**, and that is the narrowest arrangement
+available rather than an accident: `H18` is the reasoning, and `wiringStore`'s header is why the two
+drafts must not learn about each other. The **Locate** tab is where the wiring editor lives because
+confirming a wire's two ends and accepting its route are one act in one sitting — plan §4 q4.
 
 **The third authored file joins that picture at the side rather than in the middle**, and the shape of
 the diagram is the argument for it being a separate file:
@@ -121,7 +132,25 @@ Two things to hold on to:
 | **What one reading now says**, corrections applied, for the screen and for Phase E | `server/app/label_corrections.py` | `Reading`, `resolve_corrections`, **`corrected_text`** — the function Session 6's candidate ranking reads, put here so the answer is given once |
 | Writing corrections: atomic, whole-file, two refusals | `server/app/label_corrections.py` | `save_corrections`, `CorrectionsRefused`, `skeleton`. **No page-size check**: a string does not stop being true at a different page size, which is the one honest difference from `save_locations` |
 | `GET`/`PUT /api/review`, and what one item may carry | `server/app/main.py` | `get_review`, `put_review`, **`_reading`** (the second half of the boundary — every key explicit, no spread), `_review_report` |
-| Settings | `server/app/config.py` | `allow_edits`, `editor_password`, `editor_name`, `editor_password_required`. **Both** editing tabs are gated on `allow_edits`, and both take `editor_password` |
+| **The fourth authored file, and every validation message** | `server/app/wiring.py` | `parse`, `_wire`, `SCHEMA` = 1, `WIRES_SECTION` = `"wires"`, `COMMONING_SECTION` = `"commoning"`, `SOURCES` = `("index","human")`, `ENDS` = `("from","to")`, `Wire`, `Wiring`. `from`/`to` may be **`null`** — a real state — and `source` has two values and deliberately no `derived`: an endpoint is read or it is guessed |
+| **What a person actually did to one wire**, as three separate questions | `server/app/wiring.py` | `Wire.confirmed` (a person looked, **including where nothing changed**), `Wire.settled` (both ends named), `Wire.corrected` (the confirmation moved an endpoint, so `was` is present). Spelled out so no caller writes `source == "human" and from and to` and folds two of them together |
+| **Whether a wiring record is keyed on something this drawing has** | `server/app/wiring.py` | `resolve_wiring` — three refusals **by name**: an endpoint that is not a terminal, a record for a wire the netlist lacks, a `commoning` key that is not a component. Each has a symptom that would otherwise be *nothing at all*. The `H14` treatment in a fourth file |
+| Writing wiring: atomic, whole-file, two refusals | `server/app/wiring.py` | `save_wiring`, `WiringRefused`, `skeleton`. **No page-size check** — this file holds no coordinates, which is the same honest difference `save_corrections` has and the thing that will let it survive a circuit needing several sheets |
+| **`GET`/`PUT /api/wiring`** — and the one save that says the netlist is behind | `server/app/main.py` | `get_wiring`, `put_wiring`, `WiringRequest`, `_wiring_report`. Inside `if settings.allow_edits:` and behind `_require_editor`. Its `stale` names **two** commands, because `build_kg.py` emits no coordinates and only moves when connectivity does |
+| **Why this module duplicates the generator's validator** | `server/app/wiring.py` header | `author_circuit_logic.py` cannot import from `server/` — it ships inside an extraction directory. The guard is `test_the_editor_cannot_write_a_record_the_generator_refuses`, which puts twelve record shapes through both and asserts one verdict each. `read_locations()`/`locations.py` have lived that way since the beginning |
+| Settings | `server/app/config.py` | `allow_edits`, `editor_password`, `editor_name`, `editor_password_required`. **All three** editing surfaces are gated on `allow_edits`, and all three take `editor_password` |
+
+**Server tests, after Session 2 of the authoring-the-wires plan, 2026-09-08: 228 over eleven
+files.** The new one is **`test_wiring.py`** (44), and three of its groups are the session rather
+than the feature. The first assertion in the file is Phase A's acceptance criterion —
+*a confirmation that changes nothing is still a decision* — because 47 of the 71 wires are that case
+and a file recording only corrections would have left them indistinguishable from the wires nobody
+opened. Ten refusals are asserted **by name**, one per record shape, because a wiring file is read
+by a person and *"the file is invalid"* is a problem nobody can act on. And twelve are
+`test_the_editor_cannot_write_a_record_the_generator_refuses`, parameterised over the same records
+put through **both** validators — the guard on a duplication that is deliberate and cannot be
+removed. `test_extraction_generator.py` gained `_whats_ahead`, which is `K12` narrowed: the artifact
+test's failure names which authored file is newer.
 
 **Server tests, after Session 1 of the authoring-the-wires plan, 2026-09-07: 184 over ten files.**
 Eleven new in `test_extraction_generator.py` (18), all of them about the third authored input:
@@ -176,6 +205,12 @@ of `circuit_logic.json`.
 | **The highlighter** — a wire's route painted along the ink | `webui/src/features/drawing/paint.ts` | `polylineToDevice`, `paintRuns`, `HIGHLIGHT` (5 pt wide, floor 3 device px, translucent), `Polyline`, `RunStyle`. Every vertex goes through `tileDestRect`, which is invariant 2: one projection, or the highlight drifts off the conductor it names |
 | **Where it is painted** — under the DOM markers, in the tiles' own rAF pass | `webui/src/features/drawing/TileSheet.tsx` | the optional `runs` prop, painted after `paintSheet`. `data-runs` on the canvas is how a test knows what reached the sheet: `test-setup.ts` forces `getContext('2d')` to null, so nothing painted can be read back |
 | **Which runs of ink might be this wire** — the ranking, and the whole of it | `webui/src/features/locate/paths.ts` | `candidates`, `Candidate`, `Reason`, `compare`, `NEAR_PT` = 8 (half a conductor row), `NEARBY_PT` = 24, `MIN_RUN_PT` = 15, `netNames` (both forms — `K10`), `netOf`, `endsOf`, `chordOf`, `lengthOf`, `runsOf`, `draftRuns`. Pure, 19 unit tests, and four of them are the pairings measured off the sheet in `07_drawing_facts.md`. **The geometry outranks the printed name**, because a pin against a vector stroke has no reading of the paper in between and because the second half of a real route routinely carries no name at all |
+| **Which terminal a wire's end actually lands on** — the proposal, and the whole of it | `webui/src/features/locate/wiring.ts` | `inkIndex`, `proposalsFor`, `landingsFrom`, `isCommoning`, `Landing`, `Landed`, `ON_INK_PT` = 4 (a quarter of a conductor row), `LANDING_PT` = 30, `JOIN_PT` = 6 (`W069`'s measured 3.5 pt hop, plus a little). Pure, 23 unit tests, nine of which read the **real drawing** rather than a fixture of it. **The one rule that makes it correct: a run's landing is where it *leaves* a block's commoning, not where its polyline ends** — `C0105` holds `DISCHARGE1:2`'s wire *and* all 279.6 pt of `TB-0V`'s bus, so its polyline ends beside row 1 while the wire joins at row 12. The test for a bus is a **shape** — two or more of one component's terminals on one run — and it finds §3.6's eight conductors having been told nothing |
+| **Why the printed name is carried and not ranked on** | `webui/src/features/locate/wiring.ts` header | The opposite of `paths.ts`, and for a reason rather than an inconsistency: a run's printed name is its **net**, and every point of a block is on the same net, so `0V` cannot tell row 3 from row 8. The screw number is printed nowhere. Ordering is **fit** and then id |
+| **Every rule the wiring editor applies** | `webui/src/features/locate/wiringModel.ts` | `confirmEndpoints` (the acceptance criterion: a record with no `was`), `setEndpoint` (`was` stamped **once** and dropped when a correction is taken back), `unconfirm`, `setWiringNote`, `endpointsOf`, `sourceOf`, `confirmed`/`corrected`/`settled`, `wiringDecided`, `wiringPending`, `wiringCoverage`, `terminalNets`, `netsAcross`, `pathStale`, `SCHEMA` = 1. Pure, 27 unit tests. Its import of `model.ts` is **type-only**, deliberately: `model.ts` imports `pathStale` from here, so a value import back would close a runtime cycle between the two documents' rule modules |
+| **The wiring panel** — two end slots, the proposal, and the button that changes nothing | `webui/src/features/locate/WiringPanel.tsx` | `WiringPanel`, `Ready`, `EndSlot`, `ProposalRow`, `NetsAcross`, `NoteBox`, `WHY`, `SHOWN` = 4. `data-wiring-panel`, `data-wiring-end`, `data-wiring-pick`, `data-wiring-proposal`, `data-wiring-confirm`, `data-wiring-mismatch`, `data-wiring-stale` and `data-wiring-note` are how a test finds them |
+| **Which end slot the next terminal click fills**, and the draft it writes into | `webui/src/stores/wiringStore.ts` | `document`, `report`, `armed`, `edit`, `load`, `save`, `arm`, `reset`, `SAVE_DEBOUNCE_MS` = 900. **No undo stack** — `reviewStore`'s argument, and its header says why: an endpoint is one of 131 named terminals, `was` keeps what it replaced forever, and `unconfirm` is one press. **A `stale` banner, unlike `reviewStore`** — an endpoint *is* the netlist |
+| **The three endpoint/placement words, in one module** | `webui/src/lib/designators.ts` | `PLACEMENT_LABEL`, and beside it `ENDPOINT_LABEL` / `endpointLabel` — `from the index` and `you, on 2026-09-08`. The **claim** is the same distinction one file down (the machine guessed against a person looked); the **words** differ because an endpoint is not *placed*. Same module so the two tables cannot drift into different English |
 | **The wire panel** — propose, accept, assemble, convert, trace | `webui/src/features/locate/PathPanel.tsx` | `PathPanel`, `CandidateRow`, `Accepted`, `AddRun`, `Tracing`, `WHY`, `SHOWN` = 6. `data-path-panel`, `data-candidate` and `data-add-run` are how a test finds them |
 | **The corners of a hand-traced route** | `webui/src/features/locate/PathHandles.tsx` | `PathHandles`, `Handle`, `DRAG_SLOP` = 3. Rendered **only** for `geometry: human`; `data-path-handle` finds one |
 | **Writing a route into the draft** | `webui/src/features/locate/model.ts` | `setPath`, `addRun`, `tracePath`, `convertPath`, `movePathVertex`, `clearPath`, `setNoPath`, `writeWire`, and the readers `pathOf`/`pathSettled`. **`attribution` is always `human`**, `no_path_on_this_sheet: false` is deleted rather than written, and `movePathVertex` refuses a lifted run from this side as well as the panel's |
@@ -260,6 +295,7 @@ wrong, it is wrong here.
 | Rounding and provenance stamping | `signed` (private) — one decimal place, `source: human`, `by`, `at` |
 | What may be nudged from the keyboard? | `draftPoint` — a point this target's own record already holds, and nothing resolved |
 | What has a person decided about one wire end? | `endLabelsOf`, `setEndLabel` — and `SCHEMA`, which this module owns on the client side |
+| Is this wire's route still reaching the ends it was accepted against? | `rowState`'s optional third argument, which is the wiring draft, and `wiringModel.pathStale`. **One word, and no change to `pathSettled`** — see below |
 
 **Client tests** ▲ — all nine files and their counts, since the four listed before were only this
 feature's. **127 tests.**
@@ -275,6 +311,20 @@ feature's. **127 tests.**
 | `components/Markdown.test.tsx` | 13 | |
 | `components/UnlockButton.test.tsx` | 4 | |
 | `App.test.tsx` | 8 | the tabs, and the `F2` effect |
+
+**After Session 2 of the authoring-the-wires plan, 2026-09-08: 392 web tests over 19 files.**
+Three new files. **`features/locate/wiring.test.ts`** (**23**) is the ink's proposal: fourteen of
+them arithmetic on hand-built fixtures out of the plan's §3.2 and §3.5, and **nine that read the
+real drawing** — `geometry.json` with `node:fs` and never an import, so `H17` is untouched and no
+bundle can see the path. Those nine are Phase B's acceptance criterion, and they are against the
+files rather than a snapshot of them so that re-measuring the sheet can never leave a green suite
+behind a stale answer. **`features/locate/wiringModel.test.ts`** (**27**) is the document's rules,
+led by *a confirmation that changes nothing is still a decision*. **`features/locate/
+WiringPanel.test.tsx`** (**22**) is the screen, and it renders the whole `LocateTab` because the
+queue, the sheet click and the `Escape` escalation are the tab's — with **its own index**, because
+`LocateTab.test.tsx`'s two pins are `placement: 'parent'` and a rule that discriminates at 4 pt may
+not be handed a coordinate nobody chose. Nothing existing moved except `LocateTab.test.tsx`'s stub,
+which now answers `/api/wiring` and resets the third store in `beforeEach`.
 
 **After Session 1 of the authoring-the-wires plan, 2026-09-07: 320 web tests over 17 files.** Two
 new in `locate/model.test.ts` (**47**), both about `path.for` — that a route records the endpoints
@@ -608,13 +658,34 @@ and `node_ids` is now the tell.
 
 A route that reads `geometry.json` itself would be the regression, and it would look like nothing.
 
-### H18 — Two whole-document drafts now, in two stores *(added 2026-08-25)*
+### H18 — **Three** whole-document drafts now, in three stores, and two of them on one screen *(added 2026-08-25, extended 2026-09-08)*
 
 `H1` was *the editor loads the document once and PUTs the whole thing, so the last save wins.* There
-are now **two** of those: `locateStore` over `locations.json` and `reviewStore` over
-`label_corrections.json`. That is deliberate and is the safer of the two arrangements — **two files,
-two drafts, no overlap** — rather than one store over one document written from two screens, which
-would make `H1` fire between the Locate tab and the Review tab as a matter of course.
+are now **three** of those: `locateStore` over `locations.json`, `reviewStore` over
+`label_corrections.json`, and `wiringStore` over `wiring.json`. That is deliberate and is the safer
+of the two arrangements — **three files, three drafts, no overlap** — rather than one store over one
+document written from several screens, which would make `H1` fire between them as a matter of
+course.
+
+**What changed on 2026-09-08 is that two of the three are edited from the same screen**, and that is
+the closest this rule has come to being tested. The plan says so out loud: it is a *narrower*
+exposure than a second tab, and it is the strongest reason yet to keep the wiring editor on the
+Locate tab rather than giving it one of its own. The seam is exact and worth knowing before touching
+it:
+
+- **`LocateTab.tsx` reads both documents and hands them to pure functions.** Neither store reads the
+  other's state. There is no `useWiringStore` call inside `locateStore` and no `useLocateStore` call
+  inside `wiringStore`.
+- **The one place the two documents meet is `wiringModel.pathStale`**, and it meets them as
+  *arguments*. `rowState` in `model.ts` takes an optional wiring draft for the same reason. Anything
+  that made a wiring decision *write* into `locations.json`, or a placement write into
+  `wiring.json`, would re-create the single-draft problem inside the code instead of in the file.
+- **`wiringModel.ts`'s import of `model.ts` is type-only**, because `model.ts` imports `pathStale`
+  from `wiringModel.ts`. A value import in that direction would close a runtime cycle between the
+  two rule modules — the code-level shape of exactly the coupling this hazard forbids between their
+  stores.
+- **`wiringStore` has no undo stack and it does have a `stale` banner** — the opposite of
+  `reviewStore` on the second count. An endpoint *is* the netlist.
 
 What it means in practice:
 
@@ -700,21 +771,36 @@ If a report says *"I cannot move a corner"*, that is this, and T-925 is the walk
 report says *"a stripe says `from the ink` and does not follow the ink"*, that is this hazard having
 been broken.
 
-### H22 — two things want `Escape`, and the trace has to win *(added 2026-09-03)*
+### H22 — **three** things want `Escape`, and the escalation is written down *(added 2026-09-03, extended 2026-09-08)*
 
-There are now **four** `window` key listeners in this application — this tab's `Escape`, this tab's
+There are **four** `window` key listeners in this application — this tab's `Escape`, this tab's
 `Ctrl+Z`/arrows, and the Drawing tab's `Escape` — and `H10`'s `activeTabId` guard is still all that
-separates the tabs. Inside the Locate tab a new contest appeared: `Escape` means *abandon the trace*
-and *clear the armed row*, and both are live at the same moment.
+separates the tabs. Inside the Locate tab there are now **three** modal states that all want this
+key, and the order is not arbitrary:
 
-**The trace wins the first press.** A half-drawn route is the more recent and more fragile of the
-two, and one press taking away both would mean losing your place as the price of abandoning a line.
-So: text field → trace → target, which is the same escalation the text field already had.
+    a text field  →  an armed end slot  →  a trace in progress  →  the armed row
 
-The other half is `traceRef`, a ref rather than the state, for the reason `panTo` is: the listener
-is bound once per active tab and re-binding it on every corner would be a cost with no benefit. If
-a report says *"`Esc` cleared my row when I meant to drop a corner"*, the trace had already ended —
-and if it says *"`Esc` did nothing"*, check `isTextField` first.
+**Each press takes exactly one thing away, and each step is more recent and more fragile than the
+one after it.** A half-drawn route is more fragile than the armed row, and one press taking away
+both would mean losing your place as the price of abandoning a line.
+
+**The end slot goes first among the three modes, and that is the 2026-09-08 addition.** It is the
+one state where *the next click writes into a different authored file*: with a slot armed a terminal
+click binds an endpoint into `wiring.json`, and leaving it armed while believing it was gone is how
+an endpoint gets written by a click meant to place a dot. The most dangerous mode should be the
+cheapest to leave.
+
+Both halves are held in **refs** rather than in state — `traceRef` and `slotRef` — for the reason
+`panTo` is: the listener is bound once per active tab and re-binding it on every corner or every
+click would be a cost with no benefit.
+
+**And there is a fourth way out of the slot that is not a key at all:** changing the armed row
+disarms it, in its own effect. Without that, arming `W063`'s `to` slot and then picking `W068` would
+leave the next terminal click writing into `W063` — an endpoint written into a wire the person is no
+longer looking at, which is the worst shape a silent write can have.
+
+If a report says *"`Esc` cleared my row when I meant to drop a corner"*, the trace had already
+ended — and if it says *"`Esc` did nothing"*, check `isTextField` first.
 
 ### H23 — one authored file stops the generator and two do not *(added 2026-09-07)*
 
@@ -739,6 +825,45 @@ file** — `test_review.py`'s byte-identity test copies it into its scratch dire
 this reason, and so does `run()` in `test_extraction_generator.py`. And **the refusal has to say
 how to fix itself**: the missing-file message names `bootstrap_wiring.py`, and a test asserts that
 it does, because a loud failure that leaves a person stuck is only half of the bargain.
+
+### H24 — the ink's landing is not the polyline's end, and four wires prove it *(added 2026-09-08)*
+
+The single most breakable thing in Phase B, written down because breaking it produces an answer that
+is **confidently wrong** rather than absent.
+
+A terminal block's own vertical bus is **fused into some wire polylines**, because the extractor
+splits a conductor only at a **crossover hop** and a T-junction is not one. `C0105` is one conductor
+holding `DISCHARGE1:2`'s wire *and* the whole 279.6 pt vertical of `TB-0V`'s commoning: its polyline
+**ends beside row 1** while the wire joins the block at **row 12**, 114 pt and seven landings away.
+
+So `wiring.ts` reads a landing at the point a run **leaves** the commoning geometry:
+
+- a run passing within `ON_INK_PT` (4) of **two or more terminals of one component** is running
+  along that component's bus over that stretch;
+- an end of the polyline sitting inside such a stretch is not a landing — the landing is the far
+  boundary of the stretch;
+- a run that is *nothing but* bus (`C0092`, `C0086`, `C0010`) lands on nothing and is never offered,
+  which is plan §4 q10's *`C0092` is `TB-120`'s commoning and no wire may claim it* as a predicate.
+
+**Three things to keep straight if this moves.**
+
+1. **The test is a shape, not a prefix.** Nothing in `webui/src/` knows what `TB-` means and nothing
+   should — the next drawing will not name its blocks the same way. Handed the real sheet and told
+   nothing, it recovers exactly the 8 conductors the plan's §3.6 lists by hand.
+2. **A landing must be nearer *this* end of a run than the other**, and that clause is easy to leave
+   out. `C0017` is 17.2 pt long — shorter than `LANDING_PT` — so without it the same pin is reported
+   at both of its ends, the 3.5 pt join to `C0117` is never made, and `W069`'s correction to
+   `TB-130:1` disappears entirely.
+3. **Only `placement: 'confirmed'` pins may be fed to it.** A terminal resolved to its parent
+   component's dot is a coordinate nobody chose, and a rule discriminating at 4 pt handed one would
+   invent landings on whatever ink happens to pass the component. All 131 on this sheet are
+   confirmed; the guard in `LocateTab.tsx`'s `ink` memo is for the next drawing, half-placed.
+
+Get the first of these wrong and **four wires are mis-proposed** — which is precisely how
+`07_drawing_facts.md` came to record `W063` as ending on `TB-120:2`. That row and the
+`paths.test.ts` fixture built on it are **still uncorrected on purpose**: they go with Phase C, and
+§4 q10 warns that both of that test's assertions still hold after the correction, so a careless fix
+there will not go red.
 
 ---
 
@@ -778,7 +903,14 @@ it does, because a loud failure that leaves a person stuck is only half of the b
    pins at different sites.
 5. **Nothing refused is silent.** Every rejected value lands in `problems` and the UI shows it.
 6. **Generated files stay generated.** `circuit_logic.json` is only ever written by
-   `author_circuit_logic.py`. *(Extended 2026-08-25 and corrected 2026-09-07: the generator reads
+   `author_circuit_logic.py`. *(Extended again 2026-09-08: since Phases A and B there is a
+   **screen** that writes `wiring.json`, and it is the only editing surface in this application
+   whose save moves what the netlist says connects to what. It still does not write the artifact —
+   `PUT /api/wiring` puts a banner up naming two commands and this server does not run Python on
+   request. The two validators over that file are deliberately duplicated and
+   `test_the_editor_cannot_write_a_record_the_generator_refuses` is the guard, because the editor
+   writing something the generator refuses is the one failure here that nothing else would
+   notice.)* *(Extended 2026-08-25 and corrected 2026-09-07: the generator reads
    **three** authored inputs — `locations.json`, and since Phase 0 of the wiring plan `wiring.json`,
    which says which two terminals each wire joins. `label_corrections.json` is still not one of
    them: it corrects a reading of the ink and must never reach the netlist, and a session wiring the
@@ -811,6 +943,17 @@ it does, because a loud failure that leaves a person stuck is only half of the b
    clothes: a file that cannot distinguish *nobody has looked at this* from *a person decided this*
    has stopped being a record of who said what, which is the only thing it is for. T-570 walks it,
    and it is the one assertion in that document worth reporting loudly.
+
+   *Extended 2026-09-08 to the fourth file, and it is the same distinction one layer down.* A
+   **confirmation** of a wire's two endpoints is **kept** even where nothing changed — `source:
+   human` with no `was` — for the reason `label_corrections.py` argues at length: nothing produces
+   *a person checked this* but a person, and 47 of the 71 wires need exactly that and nothing else.
+   But a **`was`** is deleted the moment a correction is taken back: put an endpoint back where it
+   started and the file must stop claiming a move that did not happen. And `unconfirm` writes
+   `source: index` rather than **deleting the record**, because the bootstrap wrote one for all 71
+   and a vanished record says *somebody removed a wire*, which is a louder claim than *nobody has
+   checked this*. Owners: `confirmEndpoints`, `setEndpoint`, `unconfirm`, `setWiringNote`
+   (`features/locate/wiringModel.ts`), `_wire` (`server/app/wiring.py`).
 
    *Extended 2026-09-03 to two more, and both are deletions.* **`no_path_on_this_sheet: false`** is
    never written — pressing the control off **deletes** the key, and `locations.py` `_no_path`

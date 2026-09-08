@@ -25,8 +25,10 @@ import type {
   StoredLabel,
   StoredSite,
   WirePath,
+  WiringDocument,
 } from '@/api/types'
 import type { RowState } from '@/lib/designators'
+import { pathStale } from './wiringModel'
 
 /**
  * The schema this editor writes, and it is stamped onto the draft as it loads.
@@ -237,12 +239,28 @@ export function draftPlacement(
  * the click rather than after the save. `lib/designators.ts` `readerRowState` deliberately does
  * **not** do this — see its own note.
  */
-export function rowState(document: LocationsDocument, entry: Designator): RowState {
+export function rowState(
+  document: LocationsDocument,
+  entry: Designator,
+  /**
+   * The draft `wiring.json`, for one word only: **`path may be stale`**.
+   *
+   * Optional, and the two documents meet here as an argument rather than as coupled stores — see
+   * `wiringStore`'s header on `H18`. Absent means *do not say it*, which is what every caller
+   * outside the wiring work wants and what every existing test gets.
+   */
+  wiring?: WiringDocument | null,
+): RowState {
   if (LABELLABLE.has(entry.kind)) {
     const stored = storedLabel(document, entry.id)
     if (entry.kind === 'wire') {
       if (stored?.no_path_on_this_sheet) return 'no-path'
-      if (stored?.path?.runs?.length) return 'traced'
+      if (stored?.path?.runs?.length) {
+        // A route **and** a doubt about it. Still `traced` as far as `pathSettled` and the `Paths`
+        // count are concerned — a corrected endpoint must not walk that count backwards mid-run —
+        // and one word on the row instead.
+        return wiring && pathStale(document, wiring, entry) ? 'stale-path' : 'traced'
+      }
     }
     const placed = isPoint(stored?.label_point) || Boolean(entry.label_point)
     return placed ? 'labelled' : entry.point ? 'computed' : 'none'

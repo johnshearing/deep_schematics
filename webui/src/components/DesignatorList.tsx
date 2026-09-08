@@ -83,6 +83,15 @@ const STATE: Record<RowState, { label: string; tone: string; Icon: typeof Circle
     tone: 'text-[var(--color-success)]',
     Icon: Route,
   },
+  // A route **and** a doubt about it. The path was accepted against a pair of terminals this wire
+  // no longer has, so it may now reach the wrong place — one comparison against the `for` stamp
+  // every path carries. It is not a seventh kind of work and it does not leave the `Paths` count:
+  // the wire is still traced, and this is the word that says *look at this one again*.
+  'stale-path': {
+    label: 'path may be stale',
+    tone: 'text-[var(--color-warning)]',
+    Icon: Route,
+  },
   'no-path': {
     label: 'no path here',
     tone: 'text-muted-foreground',
@@ -102,6 +111,7 @@ export const STATE_LABEL: Record<RowState, string> = {
   computed: STATE.computed.label,
   labelled: STATE.labelled.label,
   traced: STATE.traced.label,
+  'stale-path': STATE['stale-path'].label,
   'no-path': STATE['no-path'].label,
   none: STATE.none.label,
 }

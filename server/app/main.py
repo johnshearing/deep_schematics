@@ -72,6 +72,8 @@ from .locations import (
 from .prompts import PROMPT_VERSION
 from .questions import starter_questions
 from .sessions import SessionStore
+from .wiring import WiringRefused, load_wiring, resolve_wiring, save_wiring, wiring_path
+from .wiring import skeleton as wiring_skeleton
 
 log = logging.getLogger(__name__)
 
@@ -104,6 +106,18 @@ class CorrectionsRequest(BaseModel):
     one validator and it reports per entry into a `problems` list the screen shows. A pydantic model
     here would refuse the whole document with a 422 for one malformed reading, in different words,
     before that validator ever ran.
+    """
+
+    document: dict[str, Any]
+
+
+class WiringRequest(BaseModel):
+    """The whole `wiring.json`, as the wiring editor holds it.
+
+    `dict[str, Any]` for the same reason `LocationsRequest` is: `app/wiring.py` is the one
+    validator, it reports per record into a `problems` list the screen shows, and a pydantic model
+    here would refuse the whole document with a 422 over one malformed endpoint, in different
+    words, before that validator ever ran.
     """
 
     document: dict[str, Any]
@@ -530,6 +544,73 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "problems": list(ink.problems),
             }
 
+        @app.get("/api/wiring")
+        async def get_wiring(
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """The fourth authored file — which two terminals each wire joins.
+
+            Behind `allow_edits` with the rest of the write surface, and behind the editor
+            password with it: this is *what connects to what*, which is the claim the model
+            answers questions from, and it is the one authored file whose contents change the
+            netlist rather than the drawing.
+
+            `document` is verbatim, for the same reason `GET /api/locations` is: the screen sends
+            it straight back, so anything normalised away here would be silently deleted on the
+            next save. An extraction with no wiring file gets `skeleton()` rather than a 404, so
+            the load path has one shape — and note that the skeleton is deliberately *not* what
+            the generator will accept, which `wiring.skeleton`'s own docstring explains.
+
+            `report` goes through **`resolve_wiring`** rather than the raw parse, so the red strip
+            can say the one thing only the netlist reveals: a record keyed on a wire, or landing on
+            a terminal, that does not exist. Its symptom would otherwise be nothing at all.
+            """
+            _require_editor(app.state.settings, x_editor_password)
+            path = wiring_path(settings.drawing_dir)
+            try:
+                document = json.loads(path.read_text("utf-8"))
+                present = True
+            except FileNotFoundError:
+                document, present = wiring_skeleton(_drawing_identity(settings)[0]), False
+            except (OSError, json.JSONDecodeError) as exc:
+                raise HTTPException(500, f"wiring.json could not be read: {exc}") from exc
+            return {
+                "present": present,
+                "document": document,
+                "report": _wiring_report(settings),
+            }
+
+        @app.put("/api/wiring")
+        async def put_wiring(
+            body: WiringRequest,
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """Replace `wiring.json`. Whole, atomic, the parse cache cleared behind it.
+
+            **This one really does make `circuit_logic.json` stale, and that is the difference
+            between this file and the other two authored ones.** A path and a label correction are
+            display geometry and a reading of the ink; neither reaches the netlist, and a test
+            asserts each in bytes. An endpoint *is* the netlist — it is the `CONNECTS_TO` edge the
+            model answers from — so a save here has to say *re-run the generator*, and unlike a
+            placement run it also needs `build_kg.py`, because this is the work that moves
+            connectivity rather than coordinates.
+            """
+            _require_editor(app.state.settings, x_editor_password)
+            number, _ = _drawing_identity(settings)
+            try:
+                save_wiring(settings.drawing_dir, body.document, drawing_number=number)
+            except WiringRefused as exc:
+                raise HTTPException(409, str(exc)) from exc
+            except OSError as exc:
+                raise HTTPException(500, f"wiring.json could not be written: {exc}") from exc
+            return {
+                "saved": True,
+                "report": _wiring_report(settings),
+                "stale": "circuit_logic.json is behind wiring.json — re-run "
+                "`python author_circuit_logic.py` in the extraction directory, and then "
+                "`build_kg.py`, because an endpoint is connectivity rather than geometry.",
+            }
+
     # -- the one endpoint that spends money -----------------------------------------------
 
     @app.post("/api/ask")
@@ -732,6 +813,20 @@ def _locations_report(settings: Settings) -> dict[str, Any]:
     )
     return geometry.report()
 
+
+def _wiring_report(settings: Settings) -> dict[str, Any]:
+    """What the wiring screen shows in its red strip.
+
+    Through `resolve_wiring` where the netlist can be loaded, and through the raw parse where it
+    cannot — the same shape as `_locations_report`, and for the same reason: a drawing with no
+    generated netlist beside it still has a file whose *shape* can be reported on, and refusing to
+    say anything would leave the screen blank about a file it is holding.
+    """
+    try:
+        doc = load_circuit_logic(settings.drawing_dir)
+    except DrawingUnavailable:
+        return load_wiring(settings.drawing_dir).report()
+    return resolve_wiring(settings.drawing_dir, doc).report()
 
 def _review_report(corrections: Any, ink_problems: tuple[str, ...]) -> dict[str, Any]:
     """What the review screen shows in its red strip, from both files at once.

@@ -30,6 +30,41 @@ export const PLACEMENT_LABEL: Record<Placement, string> = {
 /** What a member of a net or a wire says about itself, including the no-point case. */
 export const NOWHERE_LABEL = 'nowhere'
 
+/**
+ * How well a wire's **endpoint** is known — and it lives here, beside `PLACEMENT_LABEL`, on
+ * purpose.
+ *
+ * The claim is the same distinction one file down: *the machine guessed this* against *a person
+ * looked at this*. `locations.json` draws it over a coordinate and `wiring.json` draws it over a
+ * terminal designator, and a reader who learned `estimate` from a dot has to meet the same idea
+ * about an endpoint without having to work out that it is the same idea.
+ *
+ * The **words** differ because the things do. An endpoint is not *placed* — nothing about it is a
+ * position — and `estimate` is too soft for a screw number a counter allocated: the plan asks for
+ * `from the index`, which says where the answer came from rather than how confident it is. They
+ * share this module so the two tables cannot drift into different English, which is the whole
+ * reason `PLACEMENT_LABEL` was lifted out of two components in the first place.
+ */
+export const ENDPOINT_LABEL: Record<'index' | 'human', string> = {
+  index: 'from the index',
+  human: 'you',
+}
+
+/**
+ * The endpoint provenance in a phrase, with the date where there is one: *`from the index`* or
+ * *`you, on 2026-09-07`*.
+ *
+ * The date is the day, not the instant. A confirmation is an act somebody remembers doing on an
+ * afternoon, and a millisecond stamp in a panel is noise — the file keeps the whole ISO string,
+ * which is where an audit belongs.
+ */
+export function endpointLabel(source: 'index' | 'human', at: string | null): string {
+  const word = ENDPOINT_LABEL[source]
+  if (source !== 'human' || !at) return word
+  const day = at.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? `${word}, on ${day}` : word
+}
+
 export function placementLabel(placement: Placement | null | undefined): string {
   return placement ? PLACEMENT_LABEL[placement] : NOWHERE_LABEL
 }
@@ -46,13 +81,28 @@ export function placementLabel(placement: Placement | null | undefined): string 
  * **decision** rather than a gap — without it the count could never reach 71, because six of this
  * drawing's rows are not on this sheet at all.
  *
+ * **`path may be stale` arrived 2026-09-08** and is `traced` with a caveat rather than a seventh
+ * kind of work: the route exists, and the endpoints it was accepted against are no longer the
+ * wire's. It is `wiringModel.pathStale`, which is one comparison against the `for` stamp every
+ * path has carried since the endpoints became authored. It deliberately does **not** change
+ * `pathSettled`: a corrected endpoint must not silently un-finish the `Paths` queue and walk that
+ * count backwards mid-run, and `T-940`'s rule that the count and the filter share one predicate
+ * is the one thing on that screen that cannot be allowed to become untrue.
+ *
  * **It lives here, in a leaf module, because two lists now read it.** The editor's list computes
  * it from the draft (`model.ts` `rowState`, which is draft-aware and re-exports this type) and the
  * Drawing tab's list computes it from the index alone (`readerRowState` below). The words on the
  * row come from one table either way — `components/DesignatorList.tsx` — so a reader who learns
  * *on its component* in the editor meets the same phrase as a reader with no password at all.
  */
-export type RowState = Placement | 'computed' | 'labelled' | 'traced' | 'no-path' | 'none'
+export type RowState =
+  | Placement
+  | 'computed'
+  | 'labelled'
+  | 'traced'
+  | 'stale-path'
+  | 'no-path'
+  | 'none'
 
 /**
  * The row state a **reader** sees, from the published index and nothing else.

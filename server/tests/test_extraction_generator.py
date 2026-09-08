@@ -105,14 +105,57 @@ def find(items: list[dict], identifier: str) -> dict:
 def test_the_committed_artifact_is_exactly_what_the_generator_writes(tmp_path: Path) -> None:
     """Generated files stay fully generated.
 
-    Run against **both** authored inputs — the script and whatever `locations.json` the extraction
-    currently has — and compare to the committed `circuit_logic.json`. A hand-edit of the artifact
-    fails here, and so does a `locations.json` that has been placed but never regenerated, which is
-    the staleness the editor puts a banner up about.
+    Run against **all three** authored inputs — the script, whatever `locations.json` the
+    extraction currently has, and its `wiring.json` — and compare to the committed
+    `circuit_logic.json`. A hand-edit of the artifact fails here, and so does an authored file that
+    has been changed but never regenerated, which is the staleness the editor puts a banner up
+    about.
+
+    **The failure names which file is ahead**, and that is `K12` narrowed. Since 2026-09-07 two
+    inputs can make this red, and *"re-run the generator"* is still one command either way — but a
+    person who has spent an afternoon placing points and meets a red test about a wiring change
+    they made yesterday has been told the wrong thing about their own work. The comparison is one
+    `st_mtime` each; see `_whats_ahead`.
     """
     real = EXTRACTION / "locations.json"
     doc, _ = run(tmp_path, json.loads(real.read_text("utf-8")) if real.is_file() else None)
-    assert doc == json.loads((EXTRACTION / "circuit_logic.json").read_text("utf-8"))
+    assert doc == json.loads((EXTRACTION / "circuit_logic.json").read_text("utf-8")), _whats_ahead()
+
+
+def _whats_ahead() -> str:
+    """Which authored file is newer than the artifact, in words, for the assertion above.
+
+    Best-effort and deliberately so: an mtime is not provenance, a `git checkout` can reorder them,
+    and this is a hint attached to a failure rather than a fact anything depends on. It says what it
+    knows and admits when it knows nothing, which is better than the bare dict diff this replaced —
+    and *much* better than naming the wrong file confidently.
+    """
+    artifact = EXTRACTION / "circuit_logic.json"
+    if not artifact.is_file():
+        return "circuit_logic.json is not here at all. Run `python author_circuit_logic.py`."
+    generated = artifact.stat().st_mtime
+    ahead = [
+        name
+        for name in ("locations.json", "wiring.json")
+        if (EXTRACTION / name).is_file() and (EXTRACTION / name).stat().st_mtime > generated
+    ]
+    where = (
+        "cd schematic_extraction/PS20115MLM4-2/extracted_docs && python author_circuit_logic.py"
+    )
+    if not ahead:
+        return (
+            "circuit_logic.json is newer than both authored inputs, so this is **not** the "
+            "ordinary stale case: something hand-edited the artifact, or the generator's own "
+            f"output moved. Re-run it and read the diff — {where}"
+        )
+    names = " and ".join(ahead)
+    tail = (
+        " A wiring change also needs `build_kg.py` afterwards, because an endpoint is connectivity "
+        "rather than geometry."
+        if "wiring.json" in ahead
+        else ""
+    )
+    return f"{names} is ahead of circuit_logic.json. Re-run the generator — {where}{tail}"
 
 
 def test_the_loader_is_inert_when_there_is_no_locations_file(tmp_path: Path) -> None:

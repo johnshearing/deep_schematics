@@ -64,22 +64,46 @@ have not disagreed once.**
 census could not have been measured without every phase that shipped — 131 placed points, 654 review
 decisions and `/api/conductors` are what made it possible.
 
-**Four sessions plus the user's authoring run** (plan §13). **Session 1 landed 2026-09-07** — see
-the dated entry below. The wire ids are frozen, the endpoints are in `wiring.json`, the generator
-reads it and refuses to run without it, and the eleven corrections are now a one-line edit each in a
-file a person can open. Nothing on screen changed and the artifact is byte-identical.
+**Four sessions plus the user's authoring run** (plan §13). **Sessions 1 and 2 have landed** — see
+the two dated entries below.
 
-**Next is Session 2: Phases A and B together** — the `Wiring` filter and its queue, the two end
-slots and `Pick from the sheet`, and `features/locate/wiring.ts`, the pure sibling of `paths.ts`
-that says what the ink lands on at each end. They go together because a queue with nothing to
-propose is a form to fill in. **Server change** — `server/app/wiring.py` and `GET`/`PUT` behind the
-editor password — **so a restart.** The deliverable document is `15_tests_wiring_editor.md`,
-T-1000–T-1090. Phase B's acceptance is the whole point of it: fixtures built from plan §3.2 and
-§3.5, reproducing all eleven corrections, agreeing with the netlist on the 47, and **offering
-nothing for `W042`**, where the ink is wrong and the data is right.
+**Session 1, 2026-09-07 — Phase 0.** The wire ids are frozen, the endpoints are in `wiring.json`,
+the generator reads it and refuses to run without it. Nothing on screen changed and the artifact is
+byte-identical.
 
-*Do not start the authoring run at the end of Session 2.* Phase C changes what a net looks like on
-the sheet, and you will want to see the commoning while you work.
+**Session 2, 2026-09-08 — Phases A and B.** There is a screen. A sixth **`Wiring`** filter on the
+Locate tab, a queue reading **`0 of 71 wires confirmed`**, two end slots per wire with
+`Pick from the sheet`, and `features/locate/wiring.ts` — the ink's proposal, carrying the
+commoning-aware landing rule. **Phase B's acceptance criterion is met and is asserted against the
+real drawing**: all eleven corrections reproduced, the netlist's claimed screw **not even offered**
+on any of them, no wire the census found right ever contradicted, and **nothing at all offered for
+`W042`**, where the ink is wrong and the data is right. **Nothing in `wiring.json` says
+`source: human` yet** — the eleven corrections and the 47 confirmations are the user's to make on
+the screen he now has.
+
+Three things Session 2 measured that the census had not. The proposal settles **48** rather than 47
+(it also chains `W002`, `W003` and `W031`); it **cannot** settle `W047` or `W048`, which the census
+counted as confirmed, because **six wires land on a relay coil's `A2` and the ink stops 46 pt short
+of those dots**; and §3.6's *"8 conductors across 7 blocks"* is **six** blocks, as that section's own
+table says.
+
+**Next is Session 3: Phases C and D.** Author a terminal block's **commoning** and union it into a
+net's highlight — the change the user asked for on 2026-09-06, *"when we highlight a net the
+commoning needs to be highlighted too"* — then `pathsFor`'s third case, the **terminal → wires**
+reverse index in `lib/designators.ts`, the sheet hit-test for *is there a wire here*, and
+`GET /api/conductors` **losing the password**. **Server change, so a restart.** The deliverable
+document is `16_tests_terminal_wires_and_commoning.md`, T-1100–T-1160, and its acceptance criterion
+is `/api/conductors` with **`SWUI_ALLOW_EDITS=false`**.
+
+**Phase C starts from something already built.** `wiring.ts`'s landing rule finds all eight
+commoning conductors by shape, with nothing told to it about this drawing, and `isCommoning` already
+answers *no wire may claim this run*. The `commoning` section of `wiring.json` is parsed, its key is
+refused by name if it is not a component, and its body is carried through untouched — so Phase C's
+job is the geometry (`runs` rather than just `conductors`, because `C0105` and `C0008` are each half
+wire and half bus), the screen that accepts them, and the one-net assertion §7 of the plan asks for.
+
+**Session 3 is where the authoring run should start.** §13 says so: after it, every question the
+user asked has a screen.
 
 **The seven sentences are already corrected** — *"the netlist is already right"* was pulled forward
 out of Phase F on 2026-09-07, because Session 2 reads two of the documents it was wrong in. **Still
@@ -94,6 +118,10 @@ the correction — so a fixture corrected carelessly there will not go red.
   `label_corrections.json` and — since 2026-09-07 — `wiring.json`. They are what nothing can
   rebuild, and `label_corrections.json` still holds **654** decisions in the tree against **90** in
   git. That is the largest piece of unbacked work in the project.
+- **`K12` is narrowed and `K5` has one place where it helps.** The artifact test's failure names
+  which authored file is ahead; what is left of `K12` is that an mtime is not provenance. And *you
+  cannot place a point under an existing dot* is now the **mechanism** in the wiring editor, where
+  the dot is what you are aiming at rather than what is in the way.
 - **`TB-120:3` was moved and put back.** It went to (111.5, 625.5) at 2026-09-07T03:04Z and the user
   returned it very close to (300.1, 663.7), which is the value the ink agrees with — `C0080` lands
   there and it is `W053`'s run. Every number in `authoring_the_wires.md` §3 was measured against the
@@ -233,6 +261,169 @@ a specific question needs them.
 
 Semicolons, not `&&`, so one failure does not hide the state of the other three. Run
 `npm run build` **and restart the server** at the end; see the state block above for why both.
+
+---
+
+## 2026-09-08 — Session 2 of the authoring-the-wires plan: the ink names the screw, a person signs it
+
+**Phases A and B, together, because a queue with nothing to propose is a form to fill in.** The plan
+is `_claude_notes/authoring_the_wires.md`; its §13 says Session 3 is Phases C and D — the commoning,
+a net you can see, and a terminal's wires. **Server change — restart needed**, and the client is a
+rebuilt bundle. The lesson document is the new `locate_tab_testing/15_tests_wiring_editor.md`,
+T-1000–T-1090, none walked.
+
+**228 server / 392 web tests, ruff and tsc clean** (was 184 / 320).
+
+### What landed, and why each piece is where it is
+
+**42. There is a screen for a wire's two terminals, and it reads `0 of 71 wires confirmed`.** A
+sixth filter, **`Wiring`**, beside `Paths`. Arm a wire and the panel shows **two end slots**, each
+naming the terminal it holds and where that came from — `from the index`, or `you, on 2026-09-08`
+once somebody has looked. Those words live in `webui/src/lib/designators.ts` beside
+`PLACEMENT_LABEL`: the *claim* is the same distinction one file down and the *words* differ because
+an endpoint is not *placed*, so they share a module and cannot drift into different English.
+
+**43. The button that matters most is the one that changes nothing.** `I looked and it was right`
+writes a record, stamps `source: human` and moves the count for a wire whose endpoints do not move
+— and **47 of the 71 wires are exactly that.** That was Phase A's whole acceptance criterion, and
+the reason it needed a phase: before it, a correct wire and a wire nobody had opened were the same
+bytes, and telling *nobody has looked at this* from *somebody decided this* is the only thing an
+authored file is for. There is no `was` on such a record, because nothing was replaced. `Take it
+back` is the way out, and it writes `source: index` rather than deleting the record — the bootstrap
+wrote one for all 71 and a vanished record reads in `git diff` as a wire somebody removed.
+
+**44. The ink proposes an endpoint, and the whole difficulty is a block's own commoning.**
+`features/locate/wiring.ts` is the pure sibling of `paths.ts`'s `candidates()`: for one end of a
+wire, walk the ink away from the *other* end and see where it arrives. The rule that makes it
+correct rather than nearly correct is §3's method paragraph made executable — **a run's landing is
+where it *leaves* the commoning geometry, not where its polyline ends.** `C0105` is a single
+conductor holding `DISCHARGE1:2`'s wire **and** all 279.6 pt of `TB-0V`'s vertical bus, so its
+polyline ends beside **row 1** while the wire joins the block at **row 12**, 114 pt and seven
+landings away. Reading endpoints naively mis-assigns four wires — which is precisely how
+`07_drawing_facts.md` came to say `W063` ends on `TB-120:2`.
+
+**The test for a bus is a *shape*: two or more of one component's terminals on one run.** Nothing in
+`webui/src/` knows what a `TB-` prefix means and nothing should. Handed the real sheet and told
+nothing about it, it recovers exactly the **8 commoning conductors** the plan's §3.6 lists by hand —
+and a run that is *nothing but* bus is never offered to any wire, which is §4 q10's *`C0092` is
+`TB-120`'s commoning and no wire may claim it* as a predicate instead of a sentence.
+
+**45. Phase B's acceptance criterion, measured against the drawing rather than a fixture of it.**
+The proposal **reproduces all eleven** corrections §3.2 names. Better than that: on every one of
+them the terminal the netlist claims is **absent from the proposals for that end** — the ink
+positively contradicts the allocation rather than merely out-ranking it, which is what makes each of
+the eleven *provable*. It fails to offer the declared endpoint on **none** of the wires the census
+found right — 90 ends, 90 offered, 0 absent. And it **offers nothing whatever for `W042`**, where
+the ink is wrong and the data is right: the run stops at the west side of the block instead of
+reaching the commoning line, which the user spotted before any of this was measured.
+
+`wiring.test.ts` reads `geometry.json`, `circuit_logic.json` and `locations.json` at test time with
+`node:fs` — never an import, so `H17` is untouched and no bundle can see the path. A committed
+fixture of the 149 runs would have made this a test of a snapshot; reading the files makes it a test
+of the sheet, so re-measuring the drawing can never leave a green suite behind a stale answer.
+
+**46. Three departures from the census's own arithmetic, and all three are measurements rather than
+opinions.** The shipped proposal settles **48** wires, not 47. It also chains `W002` and `W003` —
+`PLG1`'s runs paralleling `PLG2`'s onto the same terminal — and `W031`, whose block end the
+commoning rule reads past the bus §3.3 said it could not get through. Against that, it **cannot**
+settle `W047` or `W048`, which the census counted as confirmed: both land on a relay coil's `A2`,
+and on this sheet the ink stops **46 pt short** of those dots — the vertical bus runs at x ≈ 917.5
+and the coil pins were placed on the symbol at x ≈ 871. §3.1 names that shortfall for `W048` itself
+and did not draw the conclusion for `W047`. **Six wires reach a relay coil and none of them is
+settleable from the ink** — `W024`, `W025`, `W026`, `W047`, `W048`, `W049` — which is the same shape
+§3.3 calls *"three coil feeds, one bound landing"*, and it is where the authoring run's judgement
+will actually be spent.
+
+**47. `path may be stale`, and it is one comparison.** Every path has carried `for` — the two
+endpoints it was accepted against — since Phase 0, and nothing read it. A path is a claim about
+*ink*, the ink does not move, and so a correction invalidates no route **unless it moves the end
+that route reaches**. It is now a word on the row and a predicate in `rowState`, unordered because a
+route is not directed.
+
+**48. A wire across two nets is flagged and never fixed.** The two ends' nets sit side by side under
+the slots, with `two nets — look at it` where they differ. `W019` corrected runs `PS1:-2 →
+TB-GND-B:2` and reads `0V` at one end and `GND` at the other, because it is a 0 V-to-ground **bond**
+— and that is the finding rather than an error. This is what decision 5 bought: a wire's net is
+derived from its two ends and not stored, so the mismatch is visible instead of being a third,
+silently-stale copy of a fact. If the net were still stored, correcting `W019` would have left it
+reading `0V` and the most interesting wire on the sheet would have looked ordinary.
+
+**49. `K12` is narrowed, and it earned it by getting in the way.** Two authored files can make
+`test_the_committed_artifact_is_exactly_what_the_generator_writes` red, and its failure now **names
+the one whose mtime is newer** — adding `build_kg.py` where that file is the wiring one, because an
+endpoint is connectivity rather than geometry. What is left is honest rather than fixable: an mtime
+is not provenance, a `git checkout` can reorder them, and it says so in its own docstring. The two
+*save* banners already named their own file in their own words; the gap was the message a person
+meets hours later, and that is the half that closed.
+
+### Two departures from the plan, and their reasons
+
+1. **`path may be stale` is a word on the row and not a filter.** §4 q9 says *"the `Paths` filter
+   can show them"*. It does not, and `pathSettled` is unchanged. `T-940`'s rule is that the path
+   count and the `Paths` filter share **one** predicate, and a corrected endpoint quietly
+   un-finishing wires would walk that count backwards in the middle of a run — which is a worse
+   thing to do to a person than a word being only a word. The session's own instructions ask for
+   *"one word on a row and one predicate in `rowState`"*, and that is exactly what shipped.
+
+2. **`ENDPOINT_LABEL` is a second table beside `PLACEMENT_LABEL`, not a reuse of it.** §4 q4 says
+   the slots should reuse the `placed` / `estimate` / `on its component` vocabulary. Mapped
+   literally that would call an endpoint *placed*, which says the wrong thing — nothing about an
+   endpoint is a position — and *estimate* is far too soft for a screw number a counter allocated.
+   So the words the plan actually asks for shipped (`from the index`, `you, on <date>`) and they
+   live in the same module, cross-referenced, so the concern behind the instruction — two sets of
+   words in two places drifting apart — is met structurally.
+
+### Built for the library rather than for this drawing
+
+Three properties of the code rather than promises about a later session. **The landing rule is about
+shapes**: two terminals of one component on one conductor, no prefix, no class, nothing about
+PS20115MLM4-2 — and it finds this sheet's eight commoning runs having been told nothing about any of
+them. **`wiring.json` still holds no coordinates**, so there is no page in it and a wire's endpoints
+mean the same thing on a circuit that needs six sheets. And the door the user asked to be left open
+is open: the `Ask` tab reasoning about highlighted wires needs a terminal → wires index and a
+highlight, both of which are Phase D's, and nothing here forecloses either.
+
+### The proof, done once by hand
+
+A confirmation was `PUT` through the running server onto `W067`, the generator was re-run, and the
+artifact gained the field that is the whole point of the project:
+
+    "endpoints": {"source": "human", "by": "js", "at": "2026-09-08T..."}
+
+Then `wiring.json` was restored from its backup, the generator re-run, and both files checked
+byte-identical to where they started. **Nothing in `wiring.json` says `source: human` today**, and
+nothing will until the user clicks it: the eleven corrections are the user's to make on the screen
+they now have, and thirteen one-line edits by a coding session would have left 47 confirmations
+unrecorded and the run unstarted.
+
+    tests             228 server (was 184), 392 web (was 320), ruff and tsc clean.
+                      New: tests/test_wiring.py (44), of which twelve are the same
+                      record shapes put through **both** validators —
+                      author_circuit_logic.py cannot import from server/, so the
+                      duplication is deliberate and this is the guard on it;
+                      features/locate/wiring.test.ts (23, nine reading the real
+                      drawing and forming Phase B's acceptance criterion);
+                      features/locate/wiringModel.test.ts (27);
+                      features/locate/WiringPanel.test.tsx (22, with its own index
+                      because LocateTab.test.tsx's pins are `parent` and a 4 pt
+                      landing rule may not be handed a coordinate nobody chose).
+                      New files: server/app/wiring.py,
+                      webui/src/stores/wiringStore.ts, webui/src/features/locate/
+                      {wiring.ts,wiringModel.ts,WiringPanel.tsx} and
+                      locate_tab_testing/15_tests_wiring_editor.md. What moved:
+                      GET/PUT /api/wiring and _wiring_report in main.py; conftest
+                      clears load_wiring; _whats_ahead in
+                      test_extraction_generator.py; RowState gains `stale-path`;
+                      rowState takes an optional wiring draft; ENDPOINT_LABEL and
+                      endpointLabel in lib/designators.ts; a sixth FILTERS entry,
+                      an `ink` memo, an armed-slot guard on the sheet click and on
+                      onSelect, and a fourth window-Escape branch in LocateTab.tsx.
+                      The target panel is capped at 60vh and scrolls: an armed wire
+                      now carries three sections and the three together are taller
+                      than the column on a laptop.
+                      Hazards **H18** and **H22** extended, new hazard **H24**,
+                      invariants 6 and 10 extended, **K5** narrowed in one place and
+                      **K12** narrowed.
 
 ---
 

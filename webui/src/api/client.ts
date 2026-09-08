@@ -21,6 +21,9 @@ import type {
   SaveReviewResponse,
   ServerEvent,
   StarterQuestion,
+  SaveWiringResponse,
+  WiringDocument,
+  WiringResponse,
 } from './types'
 
 const API = '/api'
@@ -149,6 +152,41 @@ export async function getConductors(): Promise<ConductorIndex> {
   })
   if (!response.ok) throw new ApiError(response.status, await detail(response))
   return (await response.json()) as ConductorIndex
+}
+
+/**
+ * Which two terminals each wire joins — the fourth authored file.
+ *
+ * Behind the editor password with the rest of the write surface, and behind it for a stronger
+ * reason than either of the others: this is *what connects to what*, which is the claim the model
+ * answers from. Throws 404 when the server was started without `SWUI_ALLOW_EDITS=true` — the
+ * route does not exist.
+ */
+export async function getWiring(): Promise<WiringResponse> {
+  const response = await fetch(`${API}/wiring`, {
+    headers: { Accept: 'application/json', ...editorHeader() },
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  return (await response.json()) as WiringResponse
+}
+
+/**
+ * Replace `wiring.json` wholesale — the same shape of write as `putLocations`.
+ *
+ * One deliberate difference in what comes back, and it is the opposite of `putReview`'s: **this
+ * save really does make `circuit_logic.json` stale.** A path and a label correction are display
+ * geometry and a reading of the ink; an endpoint is the netlist. The banner names both the
+ * generator and `build_kg.py`, because this is the work that moves connectivity rather than
+ * coordinates.
+ */
+export async function putWiring(document: WiringDocument): Promise<SaveWiringResponse> {
+  const response = await fetch(`${API}/wiring`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...editorHeader() },
+    body: JSON.stringify({ document }),
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  return (await response.json()) as SaveWiringResponse
 }
 
 function editorHeader(): Record<string, string> {
