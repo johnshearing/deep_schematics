@@ -37,7 +37,13 @@
  * single-draft problem inside the code instead of in the file.
  */
 
-import type { Designator, LocationsDocument, StoredWire, WiringDocument } from '@/api/types'
+import type {
+  Designator,
+  LocationsDocument,
+  StoredCommoning,
+  StoredWire,
+  WiringDocument,
+} from '@/api/types'
 // **Type-only**, deliberately. `model.ts` imports `pathStale` from here for one word on a row, so
 // a value import in this direction would close a runtime cycle between the two documents' rule
 // modules — which is the code-level shape of the coupling `H18` forbids between their stores.
@@ -338,6 +344,124 @@ export function pathStale(
   const now = endpointsOf(wiring, entry)
   if (now[0] === null || now[1] === null) return false
   return [...accepted].sort().join(' ') !== [...now].sort().join(' ')
+}
+
+// -- the commoning section, and it is the other kind of claim ---------------------------------
+//
+// Everything above is *what connects to what* and every save of it makes `circuit_logic.json`
+// stale. Everything below is **display geometry**: a block's own bus is not field wire, it earns
+// no `CONNECTS_TO` edge, the generator does not read the section at all, and
+// `test_commoning_does_not_reach_the_netlist` compares bytes to prove it. Two claims in one file,
+// and the file can tell you which one you changed because they are two sections.
+
+/** What this block's bus record says, or undefined for a block nobody has commoned. */
+export function commoningOf(
+  document: WiringDocument,
+  block: string,
+): StoredCommoning | undefined {
+  return document.commoning?.[block]
+}
+
+/** Blocks somebody has authored a bus for. The queue counts against the ink's proposals, which is
+ * why this is a list rather than a number: the two are different sets and the panel says so. */
+export function commonedBlocks(document: WiringDocument): string[] {
+  return Object.keys(document.commoning ?? {})
+}
+
+/**
+ * **Accept the ink's proposal for a block's bus** — the only way a commoning record is written.
+ *
+ * `geometry: 'extracted'` because the polylines are stretches of the PDF's own conductor strokes,
+ * and `attribution: 'human'` because a **person** said these are the block's own commoning rather
+ * than field wire. Never `printed`: nothing on this sheet writes *commoning* beside a line, and
+ * `printed` is reserved for accepting a match with nobody looking. Never `derived`, which the
+ * server refuses by name — the shape rule *found* this bus and finding it is not deciding it.
+ *
+ * `page` is written only where the caller has one, which on a single-sheet drawing is never. It is
+ * the one page number in this file and it exists so the first two-page circuit is not a schema
+ * change.
+ */
+export function setCommoning(
+  document: WiringDocument,
+  block: string,
+  bus: { runs: [number, number][][]; conductors: string[]; page?: number },
+  stamp: Stamp,
+): WiringDocument {
+  if (bus.runs.length === 0) return document
+  const record: StoredCommoning = {
+    ...(document.commoning?.[block] ?? {}),
+    runs: bus.runs.map((run) => run.map(([x, y]) => [round(x), round(y)] as [number, number])),
+    geometry: 'extracted',
+    attribution: 'human',
+    ...(bus.conductors.length ? { conductors: [...bus.conductors] } : {}),
+    ...(bus.page !== undefined ? { page: bus.page } : {}),
+    ...(stamp.by ? { by: stamp.by } : {}),
+    at: stamp.at,
+  }
+  return { ...document, commoning: { ...(document.commoning ?? {}), [block]: record } }
+}
+
+/**
+ * Take a block's bus back off the file — and here the record really is **deleted**.
+ *
+ * The opposite of `unconfirm` one section up, and the difference is who wrote the record. Every
+ * one of the 71 wire records was written by `bootstrap_wiring.py`, so a vanished one reads in
+ * `git diff` as a wire somebody removed; `unconfirm` therefore writes `index` rather than leaving
+ * a hole. Nothing bootstraps a bus. A commoning record exists **only** because a person accepted
+ * one, so *nobody has authored this* and *no record* are the same state, and keeping an empty one
+ * would invent a third.
+ */
+export function clearCommoning(document: WiringDocument, block: string): WiringDocument {
+  if (!document.commoning?.[block]) return document
+  const commoning = { ...document.commoning }
+  delete commoning[block]
+  return { ...document, commoning }
+}
+
+/** A note about **this block's bus**, and refused where there is no record to ride on — the same
+ * rule `setWiringNote` and the Review tab's note box follow, and the same reason. */
+export function setCommoningNote(
+  document: WiringDocument,
+  block: string,
+  note: string,
+): WiringDocument {
+  const record = document.commoning?.[block]
+  if (!record) return document
+  const written: StoredCommoning = { ...record }
+  if (note.trim()) written.note = note.trim()
+  else delete written.note
+  return { ...document, commoning: { ...document.commoning, [block]: written } }
+}
+
+/**
+ * **`n of m blocks commoned`** — and unlike the wiring queue, `m` is what the *ink* proposes.
+ *
+ * A wire's total is 71 because the netlist has 71 wires and every one of them has a state a person
+ * can put it in. A block's bus has no such total: nothing in the netlist says which components
+ * have one, and `TB-130`'s two points are 71 pt apart with no conductor joining them, so the ink
+ * cannot propose one and this screen cannot author one. The honest denominator is therefore
+ * *blocks the ink offers, plus blocks somebody has already authored* — a set that can be finished,
+ * which is `K7` avoided the way the `Paths` count avoided it.
+ *
+ * It goes to `0 of 0` rather than misreporting when the conductors have not loaded, and the panel
+ * says which of the two that is.
+ */
+export function commoningCoverage(
+  document: WiringDocument,
+  proposed: readonly string[],
+): { blocks: number; commoned: number } {
+  const all = new Set([...proposed, ...commonedBlocks(document)])
+  return {
+    blocks: all.size,
+    commoned: [...all].filter((block) => document.commoning?.[block]).length,
+  }
+}
+
+/** A tenth of a point, which is the precision every authored coordinate in this project records.
+ * A stretch cut out of a polyline lands on an arbitrary float, and a file a person reads should
+ * not carry fifteen digits of it. */
+function round(value: number): number {
+  return Math.round(value * 10) / 10
 }
 
 /**

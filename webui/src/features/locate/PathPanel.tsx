@@ -92,6 +92,16 @@ interface Props {
   /** The wire's net, and the name the sheet prints for it where that differs (`K10`). */
   net: string | null
   printedNet: string | null
+  /**
+   * The runs that are **nothing but a terminal block's own bus**, which no wire may claim.
+   *
+   * From the shape rule in `wiring.ts`, and they are not offered at all — see `candidates()` for
+   * why the exclusion is keyed on that rather than on the authored `commoning` records, and see
+   * `Refused` below for why the panel says how many were kept out.
+   */
+  commoning?: ReadonlySet<string>
+  /** Which block each of them belongs to, for the sentence that names the refusal. */
+  commonedBy?: Record<string, string>
   /** Corners so far, when a hand trace is in progress. Owned by the tab, because the clicks that
    * add them land on the sheet. */
   tracing: [number, number][] | null
@@ -108,6 +118,8 @@ export function PathPanel({
   conductors,
   net,
   printedNet,
+  commoning,
+  commonedBy,
   tracing,
   stamp,
   onEdit,
@@ -119,9 +131,23 @@ export function PathPanel({
   const none = Boolean(storedLabel(document, entry.id)?.no_path_on_this_sheet)
 
   const proposals = useMemo(
-    () => (conductors ? rank(entry, conductors, { net, printedNet }) : []),
-    [entry, conductors, net, printedNet],
+    () => (conductors ? rank(entry, conductors, { net, printedNet, commoning }) : []),
+    [entry, conductors, net, printedNet, commoning],
   )
+
+  /**
+   * Which runs were kept out for being a block's bus, and whose.
+   *
+   * Computed against **this wire's** unfiltered list rather than over all 149, so the sentence
+   * says *`C0092` is `TB-120`'s commoning* on a wire that lands on `TB-120` and says nothing at
+   * all on a wire nowhere near it. Invariant 5 — *nothing refused is silent* — is why this exists
+   * rather than the runs simply vanishing.
+   */
+  const refused = useMemo(() => {
+    if (!conductors || !commoning?.size) return []
+    const offered = new Set(rank(entry, conductors, { net, printedNet }).map((c) => c.conductor.id))
+    return [...offered].filter((id) => commoning.has(id)).sort()
+  }, [conductors, entry, net, printedNet, commoning])
 
   const chord = chordOf(entry)
 
@@ -163,6 +189,7 @@ export function PathPanel({
           conductors={conductors}
           net={net}
           printedNet={printedNet}
+          commoning={commoning}
           stamp={stamp}
           onEdit={onEdit}
           onPreview={onPreview}
@@ -180,10 +207,15 @@ export function PathPanel({
           screen still works, and <span className="font-medium">Trace</span> below does too.
         </p>
       ) : proposals.length === 0 ? (
-        <p className="text-[11px] text-muted-foreground">
-          No run of ink is near either of this wire&apos;s pins and none carries its net name. Trace
-          it by hand, or say there is nothing here.
-        </p>
+        <>
+          <p className="text-[11px] text-muted-foreground">
+            No run of ink is near either of this wire&apos;s pins and none carries its net name.
+            Trace it by hand, or say there is nothing here.
+          </p>
+          <ul>
+            <Refused runs={refused} commonedBy={commonedBy} />
+          </ul>
+        </>
       ) : (
         <ul className="space-y-1" aria-label={`Candidate runs for ${entry.id}`}>
           {(expanded ? proposals : proposals.slice(0, SHOWN)).map((candidate) => (
@@ -221,6 +253,7 @@ export function PathPanel({
               </Button>
             </li>
           )}
+          <Refused runs={refused} commonedBy={commonedBy} />
         </ul>
       )}
 
@@ -344,6 +377,42 @@ function CandidateRow({
   )
 }
 
+/**
+ * The runs this list is **not** offering, and whose they are.
+ *
+ * *Nothing refused is silent* — invariant 5 — and this is the fifth place it applies. A block's
+ * own commoning is excluded from the ranking rather than tagged, because a tag on a row somebody
+ * can still press is not enforcement and the failure being prevented is a click: `C0092` was
+ * recorded as *"the second piece of `W063`'s L"* in `07_drawing_facts.md`, and T-915 went as far
+ * as instructing a person to add it to `W063`'s route.
+ *
+ * But *removed and unmentioned* is how a proposal list stops being trustworthy, so the sentence
+ * names the run and the block. If the shape rule is ever wrong about one, this is where a person
+ * will see it and report it.
+ */
+function Refused({
+  runs,
+  commonedBy = {},
+}: {
+  runs: readonly string[]
+  commonedBy?: Record<string, string>
+}) {
+  if (runs.length === 0) return null
+  return (
+    <li className="px-1 pt-1 text-[10px] text-muted-foreground" data-path-refused={runs.length}>
+      not offered:{' '}
+      {runs.map((id, index) => (
+        <span key={id}>
+          {index > 0 && ', '}
+          <span className="font-mono">{id}</span>
+          {commonedBy[id] ? ` is ${commonedBy[id]}'s own commoning` : ' is a block’s own commoning'}
+        </span>
+      ))}
+      . A terminal block joins its own screws with it, so no wire may claim it.
+    </li>
+  )
+}
+
 /** An accepted route: what it is, what it cost, and every way to change your mind. */
 function Accepted({
   entry,
@@ -352,6 +421,7 @@ function Accepted({
   conductors,
   net,
   printedNet,
+  commoning,
   stamp,
   onEdit,
   onPreview,
@@ -362,6 +432,7 @@ function Accepted({
   conductors: Conductor[] | null
   net: string | null
   printedNet: string | null
+  commoning?: ReadonlySet<string>
   stamp: () => Stamp
   onEdit: Props['onEdit']
   onPreview: Props['onPreview']
@@ -380,11 +451,11 @@ function Accepted({
   const more = useMemo(
     () =>
       conductors
-        ? rank(entry, conductors, { net, printedNet }).filter(
+        ? rank(entry, conductors, { net, printedNet, commoning }).filter(
             (candidate) => !path.conductors?.includes(candidate.conductor.id),
           )
         : [],
-    [conductors, entry, net, printedNet, path.conductors],
+    [conductors, entry, net, printedNet, commoning, path.conductors],
   )
 
   return (

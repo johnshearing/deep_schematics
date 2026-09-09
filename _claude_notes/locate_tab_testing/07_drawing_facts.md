@@ -236,7 +236,7 @@ is wrong.
 |---|---|---|---|
 | `W052` | `CR2:14` (236.1, 563.4) → `TB-120:1` (300.1, 563.3) | **`C0109`** | one run; both ends within 4 pt |
 | `W053` | `TB-120:3` (300.1, 663.7) → `BYPASS-CB:1` (381.5, 663.8) | **`C0080`** | one run; both ends within 1.7 pt |
-| `W063` | `INFEED1:3` (563.6, 563.5) → `TB-120:2` (300.1, 639.6) | **`C0091` + `C0092`** | an L: west along the row, then 73 pt down the vertical `C0092` (300.1, 565.2) → (300.1, 637.9), which carries **no printed label** |
+| `W063` | `INFEED1:3` (563.6, 563.5) → **`TB-120:1`** (300.1, 563.3) | **`C0091`** | **one run**, west along y = 563.4, stopping at point 1. See the correction below |
 | `W068` | `DISCHARGE1:3` (602.7, 563.6) → `TB-120:2` (300.1, 639.6) | **`C0081` + `C0057`** | **the crossover hop**: a 3.5 pt gap at x ≈ 428, and `C0057` is a 3-segment detour (429.8, 639.6) → (798, 639.6) → (798, 563.5) → (598.9, 563.5) |
 
 **`W068` is the example the whole plan should have used.** Its straight chord is 312 pt diagonally
@@ -245,9 +245,28 @@ pieces with a hop between them. That is both halves of the argument at once — 
 be computed, and why `path.runs` is a **list**.
 
 Two things Session 6's matcher can learn from the same table: the second half of a real path is
-routinely a conductor with **no printed net label** (`C0092`, `C0057`), so ranking on the printed
-name alone finds one end of a wire and not the other; and endpoint proximity is decisive here — every
-pairing above is within 4 pt at both ends, against 16 pt rows.
+routinely a conductor with **no printed net label** — `C0057` is the example — so ranking on the
+printed name alone finds one end of a wire and not the other; and endpoint proximity is decisive
+here — every pairing above is within 4 pt at both ends, against 16 pt rows.
+
+> **The `W063` row above was corrected on 2026-09-09, and the sentence with it.** Both said `W063`
+> ends on `TB-120:2` and runs `C0091` **+ `C0092`**, measured off the ink on 2026-09-02 and still
+> wrong — because the measurement did not know that **a block's commoning gets fused into a wire's
+> polyline**. `C0092` is 72.7 pt of vertical joining `TB-120:1` to `:2`: it is `TB-120`'s **own
+> commoning**, not the second half of an L, and *that* is why it carries no printed name — the
+> sheet writes a colour and gauge beside a wire and nothing beside a bus. So `W063` is one run,
+> `C0091`, ending at `TB-120:1`.
+>
+> The sentence above used to cite **two** examples of an unlabelled second half, `C0092` and
+> `C0057`. `C0057` still makes the point and `C0092` never did. The argument survives on one
+> example instead of two, and it is the better one.
+>
+> **It is executable now rather than a note.** `paths.test.ts`'s `W063` fixture carries the
+> corrected endpoint, `candidates()` **does not offer** a run that is nothing but a block's bus,
+> and the path panel says which runs it kept out and whose they are. Plan §4 q10 warned that
+> correcting the fixture carelessly would not go red — `C0091` ranks first *more* strongly
+> afterwards and `C0092` would stay in the list on proximity — so the assertion that carries the
+> finding is the one that was added, not the one that was edited.
 
 > **It learned both, and the table is reproduced. Measured 2026-09-03.** `candidates()` in
 > `features/locate/paths.ts` puts `C0109` first for `W052`, `C0080` first for `W053`, and offers

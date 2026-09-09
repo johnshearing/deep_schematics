@@ -22,6 +22,24 @@ Result codes: **P** pass · **F** fail · **?** unsure what I was looking at · 
 > behalf would put a claim in this file that nobody made row by row — but the sentence above is the
 > answer to *what is broken*, and the answer is nothing so far.
 
+> **Reported by John, 2026-09-09, about the wiring editor:**
+>
+> > *"I went through the lessons/tests in `15_tests_wiring_editor.md`. I will admit that I didn't
+> > understand everything that I was being shown, but that likely does not matter for now. The
+> > important thing is that I am convinced that everything is working and so it is reasonable to
+> > work on the next phases."*
+>
+> That covers **T-1000–T-1090**. Nothing was reported broken. The rows are left unmarked for the
+> same reason as above.
+>
+> **The second sentence is a result too, and it is the one worth acting on.** A lesson document
+> that a person works through successfully and does not fully understand has taught the gestures
+> and not the reasons — which is half of what these documents are for, since the other audience is
+> a session troubleshooting them. `16_tests_terminal_wires_and_commoning.md` is being written
+> plainer for it: shorter sentences, the *why* in one line under the *do* rather than woven through
+> it, and the arguments that belong to the code left in the code. Recorded here rather than only in
+> `claude.md` so it does not get lost when the next plan is written.
+
 ---
 
 ## T-1xx — picking, placing, advancing, dragging — `02_tests_place_and_drag.md`
@@ -252,7 +270,34 @@ screen that trains you to accept the proposal is worse than no screen.
 | T-1075 | With `SWUI_ALLOW_EDITS=false`: `/api/wiring` is **404** and `/api/paths` is **200** | | |
 | T-1080 | Hand-editing: eight refusals, every one **by name** · the three that are checked against the netlist because their symptom would otherwise be nothing at all · the generator says `REFUSED:` and writes nothing | | |
 | T-1085 | **228 server · 392 web · ruff clean · tsc clean** · the artifact test's failure **names which authored file is ahead** (`K12` narrowed) | | |
-| T-1090 | What is deliberately **not** here: `Add a wire`, `Retire this wire`, authoring the commoning, a net's highlight including it, a terminal's wires, `/api/conductors` losing its password | | |
+| T-1090 | What is deliberately **not** here: `Add a wire`, `Retire this wire`, authoring the commoning, a net's highlight including it, a terminal's wires, `/api/conductors` losing its password *(the last four landed 2026-09-09 — see the next table)* | | |
+
+---
+
+## T-110x–T-116x — a terminal's wires, a block's commoning, and *is there a wire here* — `16_tests_terminal_wires_and_commoning.md`
+
+Added 2026-09-09 with Phases C and D. **Most of this needs no password**, which is the point of it:
+the reader's half runs on a server started with `SWUI_ALLOW_EDITS=false`.
+
+**The acceptance criterion is T-1100** — `/api/conductors` answering without one. **The two worth
+reporting loudly if they are wrong** are T-1110 (a commoning save must not move the netlist) and
+T-1145 (the route count printed beside every verdict, without which the card teaches a false fact).
+
+| Test | What it checks | Result | Notes |
+|---|---|---|---|
+| T-1100 | **`/api/conductors` 200, `/api/paths` 200, `/api/wiring` 404** with `SWUI_ALLOW_EDITS=false` · a line on the sheet can be named with no password anywhere | | |
+| T-1105 | The seventh filter, **`Commoning`** · six blocks · `0 of 6 blocks commoned` · the proposal is a **stretch** of `C0105`, stopping at row 12 rather than following the wire west · the record holds `runs`, not a conductor id | | |
+| T-1110 | **A commoning save leaves `circuit_logic.json` current** — no banner, same md5 after the generator | | |
+| T-1115 | **`TB-130` has no bus to offer** and no section at all · and `TB-120:3`, 24 pt below `:2` · **two of the three questions only your eyes can close** | | |
+| T-1120 | **A net highlighted with its commoning** — the change asked for on 2026-09-06 · it survives its own layer switch being off · and a **wire** deliberately does not paint the bus | | |
+| T-1125 | **Clicking a terminal highlights every wire that reaches it** · the chip takes you to the wire and offers the way back · the same click on the **Locate** tab still places | | |
+| T-1130 | **`TB-0V:8`, `:9`, `:11` — a missing wire visible by its absence**, beside the count that makes the claim honest | | |
+| T-1135 | The hit-test, verdict 1: **claimed by `W052`** · the link selects the wire · **blank paper does nothing** | | |
+| T-1140 | Verdict 2: **`TB-120`'s commoning** · *by its shape* before you confirm it, and without the caveat after | | |
+| T-1145 | Verdict 3: **no wire claims this run**, and *`n` of 71 wires have a route so far* beside it | | |
+| T-1150 | One corner, two cards · `Escape` takes the run of ink **before** the selection, one thing per press | | |
+| T-1155 | **`C0092` is never offered as a route**, and the panel says which runs it kept out and whose bus they are | | |
+| T-1160 | What is deliberately **not** here: hand-tracing a bus, `Add a wire`/`Retire this wire`, a wire's highlight including the bus, the Ask tab reasoning about highlights | | |
 
 ---
 

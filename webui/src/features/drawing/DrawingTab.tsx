@@ -39,7 +39,8 @@ import {
 import { SOURCE_URL } from '@/api/client'
 import type { Designator, DesignatorKind } from '@/api/types'
 import { Button } from '@/components/ui/button'
-import { normalise, suggestedQuestion } from '@/lib/designators'
+import { normalise, suggestedQuestion, wiresByTerminal } from '@/lib/designators'
+import { inkIndex } from '@/features/locate/wiring'
 import { pathsFor } from '@/lib/paths'
 import { isTextField } from '@/lib/keys'
 import { cn } from '@/lib/utils'
@@ -47,9 +48,12 @@ import { useAppStore } from '@/stores/appStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useLocateStore } from '@/stores/locateStore'
 import { ASK_TAB_ID, DRAWING_TAB_ID, LOCATE_TAB_ID } from '@/tabIds'
+import { ConductorCard } from './ConductorCard'
 import { DrawingList, filterEntries, type ListKind } from './DrawingList'
 import { planEndLabels } from './endLabels'
+import { claimsFrom, pickRun, type Pick } from './hitTest'
 import { MarkerLayer } from './MarkerLayer'
+import { cssToPoint } from './paint'
 import { SelectionCard } from './SelectionCard'
 import { TileSheet } from './TileSheet'
 import { useTileViewport } from './useTileViewport'
@@ -165,6 +169,9 @@ export function DrawingTab() {
   const activeTabId = useAppStore((s) => s.activeTabId)
   const designators = useAppStore((s) => s.designators)
   const paths = useAppStore((s) => s.paths)
+  const conductors = useAppStore((s) => s.conductors)
+  const conductorsError = useAppStore((s) => s.conductorsError)
+  const loadConductors = useAppStore((s) => s.loadConductors)
   const byToken = useAppStore((s) => s.byToken)
   const selection = useAppStore((s) => s.selection)
   const select = useAppStore((s) => s.select)
@@ -296,7 +303,23 @@ export function DrawingTab() {
    * own conductor strokes or traced by a person, and if nobody has done either then nothing is
    * painted and the card says so — a wrong line is worse than no line.
    */
-  const path = useMemo(() => pathsFor(paths, entry?.kind, entry?.id), [paths, entry])
+  /**
+   * **Terminal id → the wires that reach it** — the reverse of what the payload publishes, and one
+   * pass over the wire entries already on this page (plan §4 q7: *no server change for this one*).
+   */
+  const reaching = useMemo(() => wiresByTerminal(designators?.entries ?? []), [designators])
+
+  const path = useMemo(
+    () =>
+      pathsFor(paths, entry?.kind, entry?.id, {
+        // A net's blocks are the blocks its member terminals sit on, and the membership is
+        // published on the entry. A wire passes them too and `pathsFor` ignores them — see its
+        // header for why a wire paints no bus.
+        terminals: entry?.terminals?.map((member) => member.id),
+        wiresByTerminal: reaching,
+      }),
+    [paths, entry, reaching],
+  )
 
   /** A marker for the selection itself — at its own point, under its own name, and only where
    * there is a real place to put one. See `atLabelPoint` for the wire and net case. */
@@ -402,6 +425,61 @@ export function DrawingTab() {
   )
 
   /**
+   * The run of ink somebody pointed at, or null. **Local state, not a selection.**
+   *
+   * A conductor is not a designator: it has no entry in the index, no citation can name it, and
+   * `appStore.selection` is the reader's place in the *index*. Putting `C0059` in there would have
+   * every consumer of a selection switching on a fifth kind that has no row, no `runs through`
+   * chips and nothing for the Ask tab to be asked about. So it lives here, beside the pan and the
+   * zoom, and it and the selection card take turns in the same corner.
+   */
+  const [pick, setPick] = useState<Pick | null>(null)
+  /** For the `window` `Escape` listener, which is bound once per activation. The same ref trick
+   * `traceRef` and `slotRef` use on the Locate tab, and for the same reason: re-binding a window
+   * listener on every click would be a cost with no benefit. */
+  const pickRef = useRef<Pick | null>(null)
+  pickRef.current = pick
+
+  /**
+   * 32 KB of polylines, fetched on first sight of this tab and never again.
+   *
+   * Not in `loadAll`: somebody who only ever asks questions should not pay for the ink. Not on
+   * mount either, because this tab is `keepMounted` and exists from the first paint — the same
+   * arming rule the 2.2 MB of tiles already follow.
+   */
+  useEffect(() => {
+    if (activeTabId === DRAWING_TAB_ID) void loadConductors()
+  }, [activeTabId, loadConductors])
+
+  /**
+   * The ink indexed by shape, for the one verdict the authored records cannot give yet.
+   *
+   * `/api/paths` says which blocks a person has **confirmed** a bus for, and until the authoring
+   * run happens that is none of them. The shape rule — two or more of one block's terminals on one
+   * run — recovers all eight of this sheet's commoning conductors having been told nothing, so a
+   * click on `C0092` can say *`TB-120`'s commoning* today. The card marks that answer as the shape
+   * rule's rather than a person's, because they are different claims and collapsing them would
+   * have the screen reporting a decision nobody made.
+   *
+   * Only **confirmed** pins go in, which is `H24`'s third clause: a terminal drawn on its parent's
+   * dot is a coordinate nobody chose, and a rule discriminating at 4 pt handed one would invent a
+   * bus out of whatever ink passes the component.
+   */
+  const ink = useMemo(() => {
+    if (!conductors) return null
+    const pins = (designators?.entries ?? [])
+      .filter((one) => one.kind === 'terminal' && one.placement === 'confirmed' && one.point)
+      .map((one) => ({ id: one.id, point: one.point as [number, number] }))
+    return inkIndex(conductors, pins)
+  }, [conductors, designators])
+
+  /** Who claims which run, and how much of the drawing has been traced at all. */
+  const claims = useMemo(
+    () => claimsFrom(paths, designators?.counts?.wire ?? 0, ink?.commoning ?? {}),
+    [paths, designators, ink],
+  )
+
+  /**
    * Fly to whatever the answer just pointed at.
    *
    * Keyed on the selection's nonce, so clicking the same citation twice pans again — by then
@@ -446,6 +524,18 @@ export function DrawingTab() {
       if (event.key !== 'Escape' || event.defaultPrevented) return
       if (isTextField(event.target)) {
         event.target.blur()
+        return
+      }
+      /**
+       * **The run of ink goes before the selection**, which is `H22`'s escalation on the reader's
+       * tab: each press takes exactly one thing, most recent first. Pointing at a line is a newer
+       * and cheaper thing than the selection you arrived with — often from a citation on another
+       * tab — and losing your place in the index as the price of dismissing a conductor card would
+       * be the same complaint the trace and the end slot already answer over there.
+       */
+      if (pickRef.current) {
+        event.preventDefault()
+        setPick(null)
         return
       }
       // Nothing selected is not this tab's Escape to swallow: a dialog elsewhere may want it.
@@ -506,7 +596,13 @@ export function DrawingTab() {
    * papered over it here, which is exactly what makes it worth naming.
    */
   const onMarker = useCallback(
-    (marker: Designator) => select(marker.kind, marker.id, 'drawing'),
+    (marker: Designator) => {
+      // A dot answers *where is this identifier* and takes the corner from the run of ink that
+      // answered *what is this line*. Leaving the old card up beside a new selection would be two
+      // answers to one gesture.
+      setPick(null)
+      select(marker.kind, marker.id, 'drawing')
+    },
     [select],
   )
 
@@ -520,9 +616,24 @@ export function DrawingTab() {
    * citation, and a citation costs a question.
    */
   const onRow = useCallback(
-    (row: Designator) => select(row.kind, row.id),
+    (row: Designator) => {
+      setPick(null)
+      select(row.kind, row.id)
+    },
     [select],
   )
+
+  /**
+   * The viewport as it was when the press began, so a **pan is never mistaken for a point.**
+   *
+   * The Locate tab's definition, borrowed whole: *a click is a press that did not move the sheet.*
+   * Better than a distance threshold, because the sheet is the only thing panning moves and there
+   * is no tolerance to pick — and it also covers a press that lands while a flight to a citation
+   * is still animating, where the coordinate under the cursor is not the one anybody aimed at.
+   */
+  const pressedAt = useRef<typeof viewer.viewport | null>(null)
+  const current = useRef(viewer.viewport)
+  current.current = viewer.viewport
 
   if (!tiles) return null
 
@@ -550,6 +661,18 @@ export function DrawingTab() {
           <span className="flex items-center gap-1 text-[var(--color-danger)]">
             <ImageOff className="size-3.5" />
             {broken} tile{broken === 1 ? '' : 's'} failed to load
+          </span>
+        )}
+        {/* Said out loud rather than left to look like an answer. Without the runs of ink a click
+            on bare paper does nothing, and *nothing happened* is indistinguishable from *no wire
+            claims this run* — which is the one false fact this feature could teach. */}
+        {conductorsError && (
+          <span
+            className="text-[var(--color-warning)]"
+            title={conductorsError}
+            data-ink-error
+          >
+            the runs of ink did not load, so clicking a line cannot name it
           </span>
         )}
 
@@ -657,6 +780,32 @@ export function DrawingTab() {
             'focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:outline-none',
           )}
           {...viewer.handlers}
+          onPointerDown={(event) => {
+            pressedAt.current = current.current
+            viewer.handlers.onPointerDown(event)
+          }}
+          /**
+           * **A click on bare paper names the line under it** — Phase D's third piece.
+           *
+           * Hit-tested in **point space**, through `cssToPoint`, which is the same projection
+           * every marker and every highlight goes through: invariant 2, one projection, never a
+           * second. A click on a *dot* never reaches here — `MarkerLayer`'s markers stop pointer
+           * events, which is `K5`/`H6` being useful for once — so this is exactly the bare-paper
+           * case, and it clears the designator selection because the two cards share a corner.
+           */
+          onClick={(event) => {
+            const from = pressedAt.current
+            pressedAt.current = null
+            if (!from) return
+            const now = current.current
+            if (from.x !== now.x || from.y !== now.y || from.scale !== now.scale) return
+            const box = event.currentTarget.getBoundingClientRect()
+            const at = cssToPoint(
+              { left: event.clientX - box.left, top: event.clientY - box.top },
+              viewer.viewport,
+            )
+            setPick(pickRun(conductors, at, claims))
+          }}
         >
           {armed && viewer.viewport.scale > 0 && (
             <TileSheet
@@ -667,6 +816,10 @@ export function DrawingTab() {
               size={viewer.size}
               dpr={viewer.dpr}
               runs={path?.runs}
+              /* The run under the pointer, in the proposal colour rather than the highlight's:
+                 *this is the line you asked about* is not the same claim as *this is the route of
+                 the wire you selected*, and one colour for both would say it was. */
+              candidates={pick ? [pick.conductor.points] : undefined}
               onTileSettled={onTileSettled}
             />
           )}
@@ -692,10 +845,41 @@ export function DrawingTab() {
             />
           )}
 
-          {entry && (
+          {/**
+            * One corner, two cards, **never both** — they answer the same question from opposite
+            * ends, *where is this identifier* and *what is this line*, and a fight over the
+            * bottom-left of the sheet would be the worst way to find that out.
+            *
+            * The run of ink wins while it is there, and the selection is **kept** rather than
+            * cleared: asking what a line is in the middle of reading a net is a question about
+            * the net, and answering it by throwing away where you were would make the feature
+            * cost something to use. `Escape` gives the card back — that is `H22`'s escalation,
+            * and it is why this is a precedence rather than a replacement.
+            */}
+          {pick && (
+            <ConductorCard
+              pick={pick}
+              claims={claims}
+              onSelectWire={(id) => {
+                setPick(null)
+                select('wire', id)
+              }}
+              onSelectBlock={(id) => {
+                setPick(null)
+                select('component', id)
+              }}
+              onClose={() => setPick(null)}
+            />
+          )}
+
+          {entry && !pick && (
             <SelectionCard
               entry={entry}
               path={path}
+              /* How much of the drawing has a route at all, so a terminal with no wires on it
+                 reads as *nothing is indexed here yet* rather than as *nothing is here*. */
+              coverage={claims}
+              onSelectWire={(id) => select('wire', id, 'text', { kind: entry.kind, id: entry.id })}
               canSelect={(id) => located.has(id)}
               /* Both of these are steps *off* this card, so both record where they came from and
                  the next card offers the way back. `from` is the entry the reader is leaving, not

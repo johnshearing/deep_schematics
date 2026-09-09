@@ -93,9 +93,49 @@ def refuse(work: Path, wiring: dict | str | None) -> str:
     return done.stderr
 
 
+#: The extraction's own records **as the indexing pass left them**, whatever the authoring run has
+#: reached since — every `source` forced back to `index`, and every corrected endpoint taken from
+#: its own `was`, which is the pair the machine guessed and the record replaced.
+#:
+#: **This exists because two tests below went red on the user's first three decisions**, on
+#: 2026-09-08, and they would have gone red again on every one after that. They asserted absolute
+#: counts — *"1 confirmed by a person"*, *"no wire carries `endpoints`"* — against the **live**
+#: file, so they were really asserting *nobody has authored anything yet*, which stops being true
+#: the moment the screen those tests were written for gets used.
+#:
+#: Session 1's §15 recorded that its one *standing* test was deliberately written to survive the
+#: run — *"every record still saying `source: index` reproduces the table exactly"* — and the two
+#: beside it were not. This is that lesson applied to the rest of the file: a test about what a
+#: confirmation does must build the confirmation itself rather than borrow one.
+#:
+#: A **retired** record is omitted rather than reset. There is no machine answer in the file for a
+#: wire somebody tombstoned, and a wire with no record falls back to the `W` table — which *is*
+#: the index's answer, so omitting it is the honest reconstruction rather than a gap.
+INDEXED = (
+    {
+        **REAL_WIRING,
+        "wires": {
+            wid: {
+                "from": (record.get("was") or [record.get("from"), record.get("to")])[0],
+                "to": (record.get("was") or [record.get("from"), record.get("to")])[1],
+                "source": "index",
+            }
+            for wid, record in REAL_WIRING["wires"].items()
+            if "retired" not in record
+        },
+    }
+    if REAL_WIRING
+    else None
+)
+
+
 def wired(**records: dict) -> dict:
-    """A `wiring.json` payload: the real one with a few records replaced."""
-    return {**REAL_WIRING, "wires": {**REAL_WIRING["wires"], **records}}
+    """A `wiring.json` payload: **the indexing pass's own answers** with a few records replaced.
+
+    Built on `INDEXED` rather than on the live file, so a test that says *one wire is confirmed*
+    stays true however many the user has confirmed since. See `INDEXED`.
+    """
+    return {**INDEXED, "wires": {**INDEXED["wires"], **records}}
 
 
 def find(items: list[dict], identifier: str) -> dict:
@@ -326,6 +366,63 @@ def test_wiring_json_covers_every_wire_in_the_netlist_and_invents_none(tmp_path:
     assert REAL_WIRING["drawing_number"] == netlist["drawing"]["drawing_number"]
 
 
+def test_commoning_does_not_reach_the_netlist(tmp_path: Path) -> None:
+    """**Phase C's acceptance criterion, in bytes** — and the second half of the argument that
+    `wiring.json`'s two sections are not alike.
+
+    A wire's endpoints *are* the netlist: saving one puts a banner up naming two commands, because
+    `CONNECTS_TO PS1:-2 → TB-0V:2` is what the model answers from. A block's commoning is the
+    opposite. It is the eight lengths of vertical a terminal block joins its own screws with — not
+    field wire, no `W###`, no edge, no entity — and the user's answer on 2026-09-06 was that
+    modelling them as wires would put six connections the sheet does not mean in front of the
+    model. So the generator does not read the section at all, and this compares its output with
+    and without one rather than making the argument.
+
+    The same treatment `test_a_path_does_not_reach_the_netlist` gives display geometry in
+    `locations.json`, in the file where it is *less* obvious — because everything else in this one
+    moves the artifact.
+    """
+    bus = {
+        "TB-110": {
+            "runs": [[[790.8, 537.4], [790.8, 550.2]]],
+            "conductors": ["C0060"],
+            "geometry": "extracted",
+            "attribution": "human",
+            "by": "js",
+            "at": "2026-09-09T10:00:00.000Z",
+        }
+    }
+    (tmp_path / "plain").mkdir()
+    (tmp_path / "commoned").mkdir()
+    plain, _ = run(tmp_path / "plain")
+    commoned, out = run(tmp_path / "commoned", wiring={**REAL_WIRING, "commoning": bus})
+
+    assert commoned == plain
+    # And it is not ignored because the generator failed to open the file: the wires beside it in
+    # the same document were read and folded in exactly as usual.
+    assert "from wiring.json:" in out
+
+
+def test_a_broken_commoning_record_does_not_stop_the_netlist_being_written(
+    tmp_path: Path,
+) -> None:
+    """`H23`'s asymmetry, one section further down the same file.
+
+    A missing endpoint makes a **different netlist**, so `read_wiring()` raises and writes nothing.
+    A broken block's bus makes a worse *drawing* — which is `read_locations()`'s case, and it warns
+    and carries on. The generator never reads `commoning`, so the rule falls out of the design
+    rather than being enforced, and this is the test that says the design is the one intended: the
+    editor reports a malformed bus into its red strip, and the artifact the model reads is
+    untouched by it.
+    """
+    broken = {"TB-110": {"runs": "not a polyline", "geometry": "derived"}}
+    (tmp_path / "plain").mkdir()
+    (tmp_path / "broken").mkdir()
+    plain, _ = run(tmp_path / "plain")
+    despite, _ = run(tmp_path / "broken", wiring={**REAL_WIRING, "commoning": broken})
+    assert despite == plain
+
+
 def test_an_unconfirmed_record_still_says_exactly_what_the_indexing_pass_guessed(
     tmp_path: Path,
 ) -> None:
@@ -346,6 +443,32 @@ def test_an_unconfirmed_record_still_says_exactly_what_the_indexing_pass_guessed
         if record.get("source") != "index":
             continue
         assert [record["from"], record["to"]] == from_table[wire_id], wire_id
+
+
+def test_every_correction_keeps_the_endpoints_the_table_actually_said(tmp_path: Path) -> None:
+    """**A `was` has to be the machine's answer, not whatever the record held a moment ago.**
+
+    The other half of the test above, and it grows teeth as the authoring run proceeds rather than
+    losing them. `was` means *the pair this record replaced*, and the only pair worth keeping is the
+    one the indexing pass produced: the `W` table is hand-maintained, a later edit there would
+    destroy the original, and a `was` stamped from an intermediate guess would leave the file
+    unable to say what was ever wrong.
+
+    The editor gets this right by stamping `was` **once** and never overwriting it
+    (`wiringModel.setEndpoint`). This is the same property asserted against the file on disk, so a
+    hand edit or a future writer that got it wrong is caught here rather than never.
+    """
+    plain, _ = run(tmp_path, wiring={**REAL_WIRING, "wires": {}})
+    from_table = {w["id"]: [w["from_terminal"], w["to_terminal"]] for w in plain["wires"]}
+    checked = 0
+    for wire_id, record in REAL_WIRING["wires"].items():
+        if "was" not in record:
+            continue
+        assert record["was"] == from_table[wire_id], wire_id
+        checked += 1
+    # Zero is a legitimate answer — it is the state Session 1 left the file in — so this reports
+    # rather than requires. A count in the output is how a future reader knows it was doing work.
+    print(f"{checked} corrections checked against the W table")
 
 
 def test_the_generator_output_is_byte_identical_when_the_file_only_repeats_the_table(
@@ -496,7 +619,7 @@ def test_a_wire_nobody_has_confirmed_carries_no_provenance_at_all(tmp_path: Path
     for where it lands, and on no other wire — which is what lets a reader of `circuit_logic.json`
     tell the 47 the ink confirms from the 47 somebody has actually confirmed.
     """
-    doc, _ = run(tmp_path)
+    doc, _ = run(tmp_path, wiring=INDEXED)
     assert not any("endpoints" in w for w in doc["wires"])
     assert not any("net_mismatch" in w for w in doc["wires"])
 

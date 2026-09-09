@@ -39,6 +39,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Conductor } from '@/api/types'
 import {
+  commoningFor,
   inkIndex,
   isCommoning,
   landingsFrom,
@@ -143,6 +144,54 @@ describe('the commoning-aware landing', () => {
     expect(isCommoning(index, 'C0092')).toBe(true)
     expect(landingsFrom(index, 'TB-120:1')).toEqual([])
     expect(landingsFrom(index, 'TB-120:2')).toEqual([])
+  })
+})
+
+describe('the bus the ink proposes for a block — Phase C', () => {
+  it('offers the stretch of a fused conductor and not the whole of it', () => {
+    /**
+     * **The reason a commoning record stores polylines rather than conductor ids**, and the whole
+     * of §6's argument as arithmetic.
+     *
+     * `C0105` is 279.6 pt of `TB-0V`'s vertical **plus** 355 pt of `DISCHARGE1:2`'s wire running
+     * away west. Accepting *"conductor `C0105`"* as the bus would paint that wire as though the
+     * block owned it — which is the same mistake, one layer up, that had
+     * `07_drawing_facts.md` calling `C0092` the second half of `W063`'s L.
+     */
+    const index = inkIndex([C0105], [...TB0V, DISCHARGE1_2])
+    const bus = commoningFor(index, 'TB-0V')
+
+    expect(bus.conductors).toEqual(['C0105'])
+    expect(bus.runs).toHaveLength(1)
+    // From row 1 to row 12 down the vertical, and **not** on to (598.87, 546.94).
+    expect(bus.runs[0][0][0]).toBeCloseTo(954.38, 1)
+    expect(bus.runs[0][0][1]).toBeCloseTo(267.3, 1)
+    expect(bus.runs[0][bus.runs[0].length - 1][0]).toBeCloseTo(954.38, 1)
+    expect(bus.runs[0][bus.runs[0].length - 1][1]).toBeCloseTo(546.7, 0)
+  })
+
+  it('keeps the corners of a bus that bends, rather than joining its two ends', () => {
+    // Invariant 1 in a fourth place: a bus is *lifted*, never computed. A straight line between
+    // the ends of a bent stretch would be a polyline nobody drew.
+    const bent = run('C9000', [
+      [100, 100],
+      [100, 200],
+      [180, 200],
+    ])
+    const index = inkIndex([bent], [pin('TB-X:1', 100, 110), pin('TB-X:2', 170, 200)])
+    expect(commoningFor(index, 'TB-X').runs[0]).toEqual([
+      [100, 110],
+      [100, 200],
+      [170, 200],
+    ])
+  })
+
+  it('says nothing about a block the ink joins nowhere', () => {
+    // `TB-130`'s two points are 71 pt apart with no conductor between them, so there is nothing
+    // to propose and the screen must be able to say so rather than inventing a line. That is one
+    // of the three questions §14 leaves for the user's own eyes.
+    const index = inkIndex([C0105], [...TB0V, DISCHARGE1_2])
+    expect(commoningFor(index, 'TB-130')).toEqual({ runs: [], conductors: [] })
   })
 })
 
@@ -323,6 +372,7 @@ function loadReal() {
   const ink = JSON.parse(readFileSync(path.join(EXTRACTION, 'geometry.json'), 'utf-8'))
   const netlist = JSON.parse(readFileSync(path.join(EXTRACTION, 'circuit_logic.json'), 'utf-8'))
   const locations = JSON.parse(readFileSync(path.join(EXTRACTION, 'locations.json'), 'utf-8'))
+  const wiring = JSON.parse(readFileSync(path.join(EXTRACTION, 'wiring.json'), 'utf-8'))
 
   const conductors: Conductor[] = (ink.pages[0].conductors ?? []).map(
     (c: Record<string, unknown>) => ({
@@ -337,14 +387,42 @@ function loadReal() {
   const terminals: TerminalPoint[] = Object.entries(
     (locations.terminals ?? {}) as Record<string, { point: [number, number] }>,
   ).map(([id, stored]) => ({ id, point: stored.point }))
+  /**
+   * Every wire's endpoints **as the indexing pass gave them**, whatever the authoring run has
+   * reached since — the corrected pair's `was` where there is one, and the netlist's otherwise.
+   *
+   * **This is not fussiness, it is what keeps these nine tests meaningful.** Two of them went red
+   * on 2026-09-09, after the user confirmed his first three wires: they asked *does the ink
+   * contradict what the netlist claims*, and for `W019` and `W063` the netlist had stopped
+   * claiming the wrong thing — it had been corrected, and `circuit_logic.json` is **generated from
+   * `wiring.json`**. So the premise evaporated and the assertions inverted.
+   *
+   * The durable question is the one the census asked: *does the ink contradict the screw the
+   * machine allocated.* That answer never changes, because `was` keeps the machine's answer
+   * forever — which is exactly the reason `was` exists. Reconstructing from it makes every test
+   * below true for the whole of the authoring run rather than only until it starts.
+   */
+  const records = (wiring.wires ?? {}) as Record<
+    string,
+    { from?: string | null; to?: string | null; was?: [string | null, string | null] }
+  >
   const wires = (netlist.wires ?? []).map(
-    (w: { id: string; from_terminal: string | null; to_terminal: string | null }) => ({
-      id: w.id,
-      from: w.from_terminal,
-      to: w.to_terminal,
-    }),
+    (w: { id: string; from_terminal: string | null; to_terminal: string | null }) => {
+      const was = records[w.id]?.was
+      return {
+        id: w.id,
+        from: was ? was[0] : w.from_terminal,
+        to: was ? was[1] : w.to_terminal,
+      }
+    },
   )
-  return { index: inkIndex(conductors, terminals), wires, terminals }
+  /** Terminal id → the net its own record says it is on. The netlist is where net membership
+   * lives; a wire's copy was decision 5's third statement of the same fact. */
+  const nets: Record<string, string> = {}
+  for (const terminal of netlist.terminals ?? []) {
+    if (typeof terminal?.net === 'string') nets[terminal.id] = terminal.net
+  }
+  return { index: inkIndex(conductors, terminals), wires, terminals, nets }
 }
 
 describe.skipIf(!present)('against PS20115MLM4-2 itself', () => {
@@ -385,11 +463,15 @@ describe.skipIf(!present)('against PS20115MLM4-2 itself', () => {
     expect(missed).toEqual([])
   })
 
-  it('does not even offer the screw the netlist claims, on any of the eleven', () => {
+  it('does not even offer the screw the indexing pass allocated, on any of the eleven', () => {
     // **The strong form of the same finding, and it is the one worth having.** Ranking the right
     // answer first could be luck; *never mentioning the wrong one* is the ink positively
-    // contradicting the allocation. Measured: on all eleven the declared terminal is absent from
+    // contradicting the allocation. Measured: on all eleven the allocated terminal is absent from
     // the proposals for that end, which is what makes each of them provable rather than likely.
+    //
+    // *Allocated*, not *claimed by the netlist* — see `loadReal`. The netlist is generated from
+    // `wiring.json`, so once the user corrects one of these the netlist stops claiming the wrong
+    // screw and this test would invert. The machine's answer is kept in `was` forever.
     const got = readings()
     const offered: string[] = []
     for (const [wire, want] of Object.entries(ELEVEN)) {
@@ -401,7 +483,7 @@ describe.skipIf(!present)('against PS20115MLM4-2 itself', () => {
     expect(offered).toEqual([])
   })
 
-  it('never fails to offer the endpoint a wire the census found right already has', () => {
+  it('never fails to offer the endpoint the indexing pass gave a wire the census found right', () => {
     // **The half of the criterion that keeps the screen honest.** Reproducing eleven corrections
     // is worth nothing if the price is contradicting a twelfth wire that was already correct. So
     // for every end of every wire §3 found right, the declared terminal has to be *in* the
@@ -442,11 +524,14 @@ describe.skipIf(!present)('against PS20115MLM4-2 itself', () => {
     expect(shared.length).toBe(11)
   })
 
-  it('agrees with the netlist on 48 wires, which is the census plus three', () => {
+  it('agrees with the indexing pass on 48 wires, which is the census plus three', () => {
     // §3.1 measured **47 confirmed**. This settles 48: it also chains `W002` and `W003` — the
     // parallel plug runs — and `W031`, because the commoning rule reads `C0008`'s block end past
     // the bus §3.3 says it could not get through. A number rather than a description, so a change
     // to the arithmetic has to come and edit this line.
+    //
+    // Against the **indexing pass's** endpoints, so it stays 48 through the authoring run instead
+    // of climbing towards 71 as the user corrects wires and regenerates. `loadReal` says why.
     const got = readings()
     const agreed = [...got].filter(
       ([, seen]) => seen.to[0] === seen.wire.to || seen.from[0] === seen.wire.from,
@@ -483,6 +568,63 @@ describe.skipIf(!present)('against PS20115MLM4-2 itself', () => {
       'TB-GND-B C0041',
     ])
     expect(Object.keys(real!.index.commoning).length).toBe(6)
+  })
+
+  it('has a bus for every block whose points share one net, and no block spans two', () => {
+    /**
+     * **The assertion §7 asks for while it is still true**, and it is the hazard Phase C's
+     * highlight rests on rather than a property anything enforces.
+     *
+     * A net's highlight now paints the commoning of every block holding one of its member
+     * terminals. That is only honest because a block's points are all on one net: `TB-0V`'s twelve
+     * are all `0V`, so painting the whole vertical for net `0V` says something true. A block whose
+     * points ever spanned two nets would have its **entire** bus painted for **both** of them, and
+     * nothing on screen would say which part belonged to which — the highlight would be confidently
+     * wrong, which is the failure this project keeps finding.
+     *
+     * Measured here rather than asserted as a rule, so the day a drawing arrives where it stops
+     * being true a test says so and a person decides what the highlight should do. That decision
+     * is not this session's to guess: it might be a bus per net, or a refusal to author one.
+     */
+    const spanning: string[] = []
+    for (const block of Object.keys(real!.index.commoning)) {
+      const on = new Set(
+        real!.terminals
+          .filter((t) => t.id.split(':')[0] === block)
+          .map((t) => real!.nets[t.id])
+          .filter(Boolean),
+      )
+      if (on.size > 1) spanning.push(`${block}: ${[...on].sort().join(' + ')}`)
+    }
+    expect(spanning).toEqual([])
+  })
+
+  it('proposes a bus for each of the six blocks, and it is a stretch rather than a conductor', () => {
+    // The other side of the eight-conductors test: what Phase C's panel actually offers. `TB-0V`
+    // and `TB-24E1-B` are the two whose bus is fused into a wire's polyline, so for those the
+    // proposal must be **shorter** than the conductor it came out of — which is the whole reason
+    // a commoning record stores `runs` and not just `conductors`.
+    const byId = new Map(real!.index.runs.map((r) => [r.id, r]))
+    for (const block of Object.keys(real!.index.commoning)) {
+      const bus = commoningFor(real!.index, block)
+      expect(bus.runs.length).toBe(bus.conductors.length)
+      expect(bus.runs.every((one) => one.length >= 2)).toBe(true)
+    }
+    // `C0105` is 279.6 pt of bus inside a conductor that is much longer than that.
+    const fused = commoningFor(real!.index, 'TB-0V')
+    const whole = byId.get('C0105')!.length
+    const painted = fused.runs[0].reduce(
+      (total, point, i, all) =>
+        i === 0 ? 0 : total + Math.hypot(point[0] - all[i - 1][0], point[1] - all[i - 1][1]),
+      0,
+    )
+    // A range rather than `toBeCloseTo(279.6)`, and the reason is trap 4 in a third place: this
+    // is measured against `locations.json`, and a stray nudge of `TB-0V:1` or `:12` during the
+    // authoring run would move it by a point or two without anything being wrong. What is worth
+    // pinning is that the bus is the block's twelve rows and **not** the whole conductor.
+    expect(painted).toBeGreaterThan(270)
+    expect(painted).toBeLessThan(290)
+    expect(whole - painted).toBeGreaterThan(300)
   })
 
   it('cannot settle a wire onto a relay coil, and that is the ink and not the arithmetic', () => {

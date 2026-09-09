@@ -138,20 +138,21 @@ export async function putReview(document: CorrectionsDocument): Promise<SaveRevi
 }
 
 /**
- * The 149 runs of ink, reduced to what tracing a wire needs.
+ * The 149 runs of ink, reduced to what tracing a wire needs — **and to naming a line on the
+ * sheet.**
  *
- * Behind the editor password, and **`getPaths` deliberately is not** — they look like a pair and
- * they are opposites. A path is authored display geometry and a reader is exactly who wants it;
- * this is the raw ink out of `geometry.json`, and it is no use to somebody who cannot accept one
- * of these runs into an authored file. Throws 404 when the server was started without
- * `SWUI_ALLOW_EDITS=true` — the route does not exist.
+ * **Free since 2026-09-09.** It was behind the editor password from the day it was built, on the
+ * argument that 149 candidate polylines are no use to somebody who cannot accept one into an
+ * authored file. Phase D added the reader that argument had not met: a technician points at a
+ * line and asks *what is this, and does any wire claim it*, which needs exactly these polylines
+ * and no password. `H20` was rewritten round it, and the line it draws now is **geometry is free
+ * and connectivity is not** — `getWiring` below is still gated, and for a stronger reason.
+ *
+ * No editor header, deliberately: the route does not consult one, and sending it would imply
+ * this call means something different on a machine that has a password set.
  */
 export async function getConductors(): Promise<ConductorIndex> {
-  const response = await fetch(`${API}/conductors`, {
-    headers: { Accept: 'application/json', ...editorHeader() },
-  })
-  if (!response.ok) throw new ApiError(response.status, await detail(response))
-  return (await response.json()) as ConductorIndex
+  return getJson<ConductorIndex>('/conductors')
 }
 
 /**

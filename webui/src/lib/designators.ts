@@ -130,6 +130,47 @@ export function readerRowState(entry: Designator): RowState {
 }
 
 /**
+ * **Terminal id → the wires that reach it** — the reverse index, and it is one pass over a payload
+ * the client already has.
+ *
+ * `/api/designators` publishes `terminals` on each wire and each net: *what this wire is made of*.
+ * The Drawing tab needs the other direction — *what reaches this pin* — so that clicking `TB-0V:6`
+ * can highlight `W042`, which is plan §4 q7 and Phase D's first piece. **Deliberately not a server
+ * change**: it is a loop over the wire entries already on the page, and a second endpoint for a
+ * transposition of the first would be a second answer to one question.
+ *
+ * It lives here beside `readerRowState` because the Drawing tab reads it with **no editor
+ * password**, so it may not come from a draft or from anything gated. `wiringModel.terminalNets`
+ * is the same shape of pass over the net entries and is the precedent.
+ *
+ * Ordered as the index lists the wires, and a wire whose two ends are the same terminal appears
+ * once — the sheet has none, and a duplicate would paint one run twice for no gain.
+ */
+export function wiresByTerminal(entries: readonly Designator[]): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  for (const entry of entries) {
+    if (entry.kind !== 'wire') continue
+    for (const member of entry.terminals ?? []) {
+      const here = (out[member.id] ??= [])
+      if (!here.includes(entry.id)) here.push(entry.id)
+    }
+  }
+  return out
+}
+
+/**
+ * The component a terminal hangs off, from its id and nothing else.
+ *
+ * A terminal designator is `COMPONENT:PIN` everywhere in this project — the server refuses an
+ * endpoint without the colon by name — so this is a **shape** rule and not a fact about this
+ * drawing, which is the same standard `wiring.ts`'s bus detection is held to. It is here rather
+ * than in three callers because *which block is this pin on* is one question.
+ */
+export function blockOf(terminalId: string): string {
+  return terminalId.split(':', 1)[0]
+}
+
+/**
  * Everywhere this identifier is drawn, as one list whether the server sent one place or five.
  *
  * The payload omits `places` for the 269 of 275 entries that have a single point, because

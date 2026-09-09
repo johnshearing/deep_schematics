@@ -38,7 +38,9 @@ spelled out, and `fold_in_labels` lives in the generator rather than the server.
                                    ▼
                         designator_index()  →  GET /api/designators
                         paths_index()       →  GET /api/paths     ← the highlight: authored
-                                   │                                 runs, and each net's wires
+                                   │                                 runs, each net's wires, and
+                                   │                                 each block's commoning
+                                   │                                 (out of wiring.json — H20)
                                    │
                     ┌──────────────┴──────────────┐
                     ▼                             ▼
@@ -49,9 +51,13 @@ spelled out, and `fold_in_labels` lives in the generator rather than the server.
                                     ▼                             ▼
                           save_locations()              save_wiring()
                             → locations.json              → wiring.json
-                            *where* it is drawn           *what* it joins
+                            *where* it is drawn           `wires`: *what* it joins
                             artifact goes stale           artifact goes stale **and**
-                                                          custom_kg.json does
+                                                            custom_kg.json does
+                                                          `commoning`: a block's own bus
+                                                            artifact does **not** move —
+                                                            display geometry, like a path,
+                                                            and asserted in bytes
 
 **Two files are written from one screen since 2026-09-08**, and that is the narrowest arrangement
 available rather than an accident: `H18` is the reasoning, and `wiringStore`'s header is why the two
@@ -110,7 +116,8 @@ Two things to hold on to:
 | **Where a wire runs, and the two axes that say how we know it** | `server/app/locations.py` | `WirePath`, `_paths`, `PATH_KEY`, `GEOMETRIES` = `("extracted","human")`, `ATTRIBUTIONS` = `("printed","human")`, `DERIVED` — refused **by name** on both axes. The unit of refusal is the **whole path**, unlike everything else in this file: half a route is a line that stops in the middle of the sheet and claims to be a wire |
 | **The explicit *nothing here to trace*** | `server/app/locations.py` | `_no_path`, `NO_PATH_KEY`, `Locations.no_path`. `false` is refused as *says nothing*, exactly as `hidden: false` is — invariant 10 |
 | **Whether a path is for a wire the netlist has** — and that a **net** carries none | `server/app/locations.py` | `resolve_geometry`'s `known_wires`, and the `section == "nets"` refusal in `_labels`. A net's highlight is the union of its wires' paths, so a path stored on a net would be saved and never drawn: the `H14` treatment again |
-| **`GET /api/paths`** — the highlight | `server/app/drawing.py` | `paths_index`. Two maps: `wires` → the traced ones only (**absent**, never null, when there is none) and `nets` → its wires, from `wire.net`. Uncached, and **not** behind `allow_edits` — see hazard H20 |
+| **`GET /api/paths`** — the highlight | `server/app/drawing.py` | `paths_index`. **Three** maps since 2026-09-09: `wires` → the traced ones only (**absent**, never null, when there is none), `nets` → its wires, from `wire.net`, and `commoning` → each block's own bus out of `wiring.json`. Uncached, and **not** behind `allow_edits` — see hazard H20, which the third map is the reason for rewriting |
+| **Why a block's bus is published on a free route out of a gated file** | `server/app/drawing.py` `paths_index` | `H20`'s line is **geometry is free and connectivity is not**. A bus never enters the netlist; a wire's endpoints are it. `test_no_wires_endpoints_travel_with_it` asserts the other half in the response text |
 | Publishing `point`/`rect`/`places`/`placement`/`label_point` | `server/app/drawing.py` | `designator_index`, `_entry`. **Not paths**: a route travels on its own endpoint, so the index is exactly what it was |
 | **What a wire or a net is made of** — its member terminals, in order, **undeduped**, each with its own point and `placement` | `server/app/drawing.py` | `_entry`'s `terminal_ids` parameter and `_member`. `[from, to]` for a wire, `member_terminals` for a net. **Not** `members`, which is those terminals' *parent components* — see hazard H12 |
 | **Whether `places` is published at all** — and it must be whenever a place carries a `label_dir`, single dot or not, because that field exists nowhere else in the payload | `server/app/drawing.py` | `_entry`, the `len(places) > 1 or any("label_dir" …)` test. This was the 2026-08-19 label-side fault (T-335): 269 of 275 entries are single, and eliding their `places` elided the side a human chose |
@@ -124,7 +131,7 @@ Two things to hold on to:
 | **The reduced read of `geometry.json`** — and the one place the 620 KB file narrows | `server/app/ink.py` | `load_ink` (`lru_cache`), `reduce`, `Label`, `Conductor`, `Binding`, `Flag`, `Ink`. Keeps named fields and drops `symbols`, `boxes`, `rects`, `junctions`, `stats`, `params`. **There is no code path from here to the whole file** — see hazard H17 |
 | **A run's own shape, and where its ends land** — read here since 2026-09-03 | `server/app/ink.py` | `Conductor.points`, `Conductor.rect` (min/max over **every** vertex, not the two endpoints — 19 of the 149 differ and `C0057`'s endpoint box does not contain its ink), `Conductor.color`/`gauge`/`length`, `Binding` and `Binding.on_terminal_point`, `_binding`. 7 KB of polylines and 18 KB of narrowed bindings, and the two things that needed them arrived together: `/api/conductors` ranks with them and the review screen rings with them |
 | **One candidate run, reduced to what tracing needs** — the second half of the boundary | `server/app/main.py` | `_traceable` — every key explicit, no `**rest`, pinned by `test_a_conductor_carries_only_what_tracing_needs`. `net_label` is the reading **after** corrections (`corrected_text`); `was` appears only where a person changed it |
-| **`GET /api/conductors`** — the proposals, and the **gated** half of the pair | `server/app/main.py` | inside `if settings.allow_edits:`. `/api/paths` is deliberately outside it; the two look like a pair and are opposites — see hazard **H20** |
+| **`GET /api/conductors`** — the proposals, and since 2026-09-09 **free** | `server/app/main.py` | Outside `if settings.allow_edits:` and consulting no header. It was gated from 2026-09-03 and Phase D moved it: *what is this line, and does any wire claim it* is a reader's question and needs these polylines. The property that survives is `H17`'s narrowing, not the gate — see the rewritten **H20** |
 | **What the sheet prints for a net whose id was renamed** | `server/app/drawing.py` | `printed_net`, published as `printed` on a net entry and only where it differs. Two of 26: `NET-PB1`/`NET-PB2` against `PB1`/`PB2`. This is `K10`, and it is worth two nets to the matcher as well as two labels |
 | **Which label a run's net name was read from**, and the other direction of it | `server/app/ink.py` | `net_label_source_of`, `conductors_of`, `net_label_sources`. Matched on the text of a bound label, and it matches for all 70 on this sheet with 0 runs unexplained. This is the link a correction travels along |
 | **The corrections file, and every validation message** | `server/app/label_corrections.py` | `parse`, `_correction`, `SCHEMA` = 1, `SECTION` = `"labels"`, `Correction`, `Corrections`. `text` is required and may be `null`; `""` is refused **by name** |
@@ -136,9 +143,25 @@ Two things to hold on to:
 | **What a person actually did to one wire**, as three separate questions | `server/app/wiring.py` | `Wire.confirmed` (a person looked, **including where nothing changed**), `Wire.settled` (both ends named), `Wire.corrected` (the confirmation moved an endpoint, so `was` is present). Spelled out so no caller writes `source == "human" and from and to` and folds two of them together |
 | **Whether a wiring record is keyed on something this drawing has** | `server/app/wiring.py` | `resolve_wiring` — three refusals **by name**: an endpoint that is not a terminal, a record for a wire the netlist lacks, a `commoning` key that is not a component. Each has a symptom that would otherwise be *nothing at all*. The `H14` treatment in a fourth file |
 | Writing wiring: atomic, whole-file, two refusals | `server/app/wiring.py` | `save_wiring`, `WiringRefused`, `skeleton`. **No page-size check** — this file holds no coordinates, which is the same honest difference `save_corrections` has and the thing that will let it survive a circuit needing several sheets |
+| **A terminal block's own bus, and every validation message** | `server/app/wiring.py` | `Commoning`, `_commoning`, `COMMONING_SECTION`, `GEOMETRIES`, `ATTRIBUTIONS`, `DERIVED` — refused **by name** on both axes, as it is on a path. `runs` is a list of **polylines and not conductor ids**, because `C0105` is `DISCHARGE1:2`'s wire fused with all 279.6 pt of `TB-0V`'s vertical. The unit of refusal is the **whole record**, unlike a wire and like `_paths`. An optional `page` is the one page number in this file, and there is deliberately **no page-size check**: a record may name a sheet this server is not serving |
 | **`GET`/`PUT /api/wiring`** — and the one save that says the netlist is behind | `server/app/main.py` | `get_wiring`, `put_wiring`, `WiringRequest`, `_wiring_report`. Inside `if settings.allow_edits:` and behind `_require_editor`. Its `stale` names **two** commands, because `build_kg.py` emits no coordinates and only moves when connectivity does |
 | **Why this module duplicates the generator's validator** | `server/app/wiring.py` header | `author_circuit_logic.py` cannot import from `server/` — it ships inside an extraction directory. The guard is `test_the_editor_cannot_write_a_record_the_generator_refuses`, which puts twelve record shapes through both and asserts one verdict each. `read_locations()`/`locations.py` have lived that way since the beginning |
 | Settings | `server/app/config.py` | `allow_edits`, `editor_password`, `editor_name`, `editor_password_required`. **All three** editing surfaces are gated on `allow_edits`, and all three take `editor_password` |
+
+**Server tests, after Session 3 of the authoring-the-wires plan, 2026-09-09: 245 over eleven
+files.** No new file: Phases C and D add a *format* to a file that already had a validator and take
+a gate off a route that already had tests. `test_wiring.py` gained **11** for the `commoning`
+record — the polylines-not-conductor-ids shape, `derived` refused by name on both axes, eight
+refusals each naming the block, the optional `page`, and *one bad block costs that block and leaves
+the wires alone*. `test_paths.py` gained **3**: a block's bus published on the free route, **no
+wire's endpoints travelling with it**, and a bus on a block the netlist lacks being absent here as
+well as in the red strip. `test_extraction_generator.py` gained **2**, and the first is Phase C's
+acceptance criterion in bytes — `test_commoning_does_not_reach_the_netlist`.
+`test_conductors.py` did not grow and **two of its tests were rewritten**:
+`test_a_reader_never_downloads_the_ink` is now
+`test_a_reader_may_ask_what_a_line_on_the_sheet_is` and asserts the opposite verdict for the
+reasoning in the rewritten `H20`, and the password test became
+`test_asking_what_a_line_is_needs_no_password_even_where_there_is_one`.
 
 **Server tests, after Session 2 of the authoring-the-wires plan, 2026-09-08: 228 over eleven
 files.** The new one is **`test_wiring.py`** (44), and three of its groups are the session rather
@@ -217,7 +240,16 @@ of `circuit_logic.json`.
 | **What a route was accepted *against*** — the two endpoints, stamped into the path | `webui/src/features/locate/model.ts` · `features/locate/paths.ts` | `setPath` and `tracePath` take an optional `endpoints` and write it as `path.for`; `endPinsOf` is where it comes from. Since 2026-09-07 a wire's endpoints are authored in `wiring.json` and can be **corrected**, and a path is a claim about ink that survives a correction *unless the correction moves the end it reaches* — so the comparison has to be possible. `addRun`, `convertPath` and `movePathVertex` spread the path they found, so the stamp survives an edit that is not a re-acceptance. Back-filled onto all 58 by `bootstrap_wiring.py`; **not published by `/api/paths`**, because the only reader is the editor's own draft |
 | **A hand trace in progress, and the four keys** | `webui/src/features/locate/LocateTab.tsx` | `tracing`, `trace`, `traceRef`, and the two `window` effects — `Enter`/`Backspace` in the key effect, `Escape` in its own. **`Esc` takes the trace before the target**, and the sheet's `onClick` adds a corner instead of placing while one is running |
 | **One proposal, lit on the sheet** | `webui/src/features/drawing/paint.ts` · `TileSheet.tsx` | `CANDIDATE` (3.5 pt, floor 2 device px, blue) and the optional `candidates` prop, painted **under** `runs`. `data-candidates` on the canvas is the only assertable trace. One layer for the hovered candidate *and* the trace in progress, because the two cannot happen at once |
-| **What a selection highlights** — a wire's own runs, a net's the union of its wires' | `webui/src/lib/paths.ts` | `pathsFor`, `PathSummary`. Pure, 6 unit tests, and shared by **both** tabs so they cannot come to disagree about what a net is made of. Null for a component or a terminal; an empty summary for a wire nobody has traced — two different answers, both used |
+| **What a selection highlights** — a wire's runs; a net's *and a terminal's* with the block's bus | `webui/src/lib/paths.ts` | `pathsFor`, `PathSummary`, `PathContext`, `blocksOf`. Pure, 14 unit tests, shared by **both** tabs. Three cases since 2026-09-09: a **wire** is its own runs and **no commoning**; a **net** is the union of its wires' plus the bus of every block its member terminals sit on; a **terminal** is the wires that reach it plus its own block's bus. Null for a component only — a terminal stopped being null, and the docstring replaces the reason rather than deleting it |
+| **Why a wire paints no bus when a net and a terminal do** | `webui/src/lib/paths.ts` header | The one departure from plan §9. `C0092` was recorded as *"the second piece of `W063`'s L"* for a week; painting a block's bus in the highlight colour under a selected wire would teach that error on every wire landing on a block. A net and a terminal are questions about a **place in the circuit**; a wire is a claim about **one piece of ink** |
+| **Terminal → the wires that reach it**, and the block a pin is on | `webui/src/lib/designators.ts` | `wiresByTerminal`, `blockOf`. One pass over the wire entries already on the page — plan §4 q7 is explicit that this must not become a second endpoint — and it lives beside `readerRowState` because the Drawing tab reads it with **no password** |
+| **A block's bus as geometry a screen can paint** | `webui/src/features/locate/wiring.ts` | `commoningFor`, `BusProposal`, and `IndexedRun.spans`. The exported half of the arithmetic `landingsFrom` has used privately since Phase B: exporting it rather than re-deriving it keeps **one** answer to *where is this block's bus*. It returns the **stretch** of each run, not the conductor |
+| **Point-space arithmetic, and there is one of it** | `webui/src/lib/polyline.ts` | `project`, `atArc`, `between`, `polylineLength`, `gap`. Not a screen projection — that is `paint.ts` and invariant 2. This is *how far is this pin from that run, and how far along*, and it had one caller until Phase D gave it three: the endpoint proposal, the bus a commoning record is cut out of, and the sheet hit-test. A hit-test with its own distance function could name a run the landing rule says a pin is not on |
+| **What line am I pointing at** — the sheet hit-test and its three verdicts | `webui/src/features/drawing/hitTest.ts` | `pickRun`, `claimsFrom`, `Pick`, `Claims`, `PICK_PT` = 6 (a third of a conductor row, in **points**, so the target is the same width of paper at every zoom). Nearest **and** within tolerance: a click on blank paper answers *nothing here* rather than reaching for the closest run. A confirmed bus and one the shape rule merely found are kept **apart**, because they are different claims |
+| **The card that names a run of ink** | `webui/src/features/drawing/ConductorCard.tsx` | `ConductorCard`, `Verdict`. `data-conductor-card`, `data-conductor-verdict` and `data-conductor-coverage` find it. It prints *`n` of 71 wires have a route so far* beside **every** verdict — the honesty requirement, because until the authoring run *no wire claims this run* is right for about 90 of the 149 |
+| **Authoring a block's commoning** | `webui/src/features/locate/CommoningPanel.tsx` | `CommoningPanel`, `NoteBox`. On a **component** row, through `wiringStore` — `H18`, and the reason it is not a store of its own. `data-commoning-panel`, `-accept`, `-clear`, `-runs`, `-note` |
+| **Every rule the commoning editor applies** | `webui/src/features/locate/wiringModel.ts` | `commoningOf`, `setCommoning`, `clearCommoning`, `setCommoningNote`, `commonedBlocks`, `commoningCoverage`. `setCommoning` writes `extracted`/`human` and never `derived`; `clearCommoning` **deletes**, unlike `unconfirm` one section up, because nothing bootstrapped a bus and *no record* is the same state as *nobody authored this* |
+| **The runs a wire may not be offered**, and the sentence that says which | `webui/src/features/locate/paths.ts` · `PathPanel.tsx` | `candidates()`'s `commoning` option, and `Refused`. Keyed on the **shape rule** (`isCommoning`) and **not** on the authored records: a record stores stretches, and `C0105`/`C0008` are each partly a wire, so excluding by a record's conductor ids would take two real routes out of the list. Removed rather than tagged — the failure is a click — and named, because invariant 5 |
 | **What the card says about a path**, including that there is none | `webui/src/features/drawing/SelectionCard.tsx` | `PathNote`, `GEOMETRY_WORD`, `ATTRIBUTION_WORD`. *`no path yet`* is load-bearing while 70 of 71 wires have none: an unhighlighted sheet cannot say which of *not traced* and *broken* it is |
 | Pan, zoom, fly-to | `webui/src/features/drawing/useTileViewport.ts` | `panTo`, `focusScale`, `centreOn` |
 | Dots: one per place, filled vs hollow, label side, drag | `webui/src/features/drawing/MarkerLayer.tsx` | `Marker`, `LABEL_SIDE`, `PLACEMENT_NOTE`, `onDragPoint`, `DRAG_SLOP` |
@@ -311,6 +343,27 @@ feature's. **127 tests.**
 | `components/Markdown.test.tsx` | 13 | |
 | `components/UnlockButton.test.tsx` | 4 | |
 | `App.test.tsx` | 8 | the tabs, and the `F2` effect |
+
+**After Session 3 of the authoring-the-wires plan, 2026-09-09: 433 web tests over 20 files.**
+One new file, **`features/drawing/hitTest.test.ts`** (**6** — the three verdicts as arithmetic,
+plus the two failures that would make the card untrustworthy: naming the nearest run anywhere on
+the sheet, and a tolerance measured in CSS pixels rather than points). The rest grew:
+`lib/paths.test.ts` (**14**, +8 — the net's commoning, the terminal case that used to be null, and
+*a wire paints no bus*, which is the one departure from plan §9);
+`features/drawing/DrawingTab.test.tsx` (**58**, +11 — the reader's half end to end, including the
+`Escape` order and *nothing happens on blank paper*);
+`features/locate/WiringPanel.test.tsx` (**30**, +8 — the commoning editor, which is tested here
+rather than in a file of its own because it writes through the same store on the same screen, which
+is the `H18` property worth asserting); `features/locate/wiring.test.ts` (**28**, +5 — including
+**the one-net assertion §7 asked for while it is still true**, measured against the real drawing);
+and `lib/designators.test.ts` (**16**, +3 — the reverse index).
+
+Two idioms worth knowing before adding to it. The Drawing tab's suite now sets
+`conductors: []` in `beforeEach`, because the tab fetches the ink on its first activation and no
+test in that file stubs `fetch`. And a test that needs to click a **point on the sheet** reads a
+marker's `style.left`/`style.top` — `MarkerLayer` positions through `pointToCss`, which is the one
+projection, so clicking there hit-tests back to that point without the test having to know the
+viewport.
 
 **After Session 2 of the authoring-the-wires plan, 2026-09-08: 392 web tests over 19 files.**
 Three new files. **`features/locate/wiring.test.ts`** (**23**) is the ink's proposal: fourteen of
@@ -723,7 +776,45 @@ somebody to correct it a second time on the run itself.
 And saying *the machine was right* is therefore an **explicit press**, the ✓ — which is disabled on an
 empty box, where there is nothing to accept and the honest decision is *not a label*.
 
-### H20 — the highlight is free, and that is a decision rather than an oversight *(added 2026-09-02)*
+### H20 — **geometry is free and connectivity is not** *(added 2026-09-02, rewritten 2026-09-09)*
+
+**Read this version. The one underneath it was right for two sessions and is kept because the
+reasoning it was replaced by is a refinement of it, not a reversal.**
+
+Three routes publish something out of this drawing without an editor password: `/api/paths` (a
+wire's authored route, and since Phase C a block's own commoning), `/api/conductors` (the 149 runs
+of ink, narrowed), and `/api/designators`. One does not: **`/api/wiring`**, which says *what
+connects to what*.
+
+That is the line, and it is about **what is published** rather than about **who is asking**:
+
+- **Geometry is free.** A route, a bus, a polyline, a dot. It is what a reader with the paper
+  wants, and *which of these lines is the one I care about* was always a reader's question. Phase D
+  added the sharper form of it — **what is this line, and does any wire claim it** — which is
+  answerable only with the raw polylines, and that is why `/api/conductors` lost its gate.
+- **Connectivity is not.** `wiring.json`'s `wires` section is the `CONNECTS_TO` edge the model
+  answers from and the one authored claim whose save makes `circuit_logic.json` stale. There is no
+  reader's half of it to free. `test_no_wires_endpoints_travel_with_it` asserts that publishing a
+  block's bus on `/api/paths` did not smuggle an endpoint out with it.
+
+**What survives from the old version is the property, not the gate**, and it is `H17` rather than
+this hazard: what a reader may not have is **a section of `geometry.json` nobody narrowed**.
+`ink.py` `reduce()` keeps named fields at the parse boundary and `main.py` `_traceable()` narrows
+again key by key with no `**rest`. `test_a_conductor_carries_only_what_tracing_needs` pins the set,
+and freeing this route makes that test **more** load-bearing rather than less — it is now the only
+thing between 620 KB and a browser on a public copy.
+
+*The pair that used to be asserted in one test is gone with the gate.*
+`test_a_reader_never_downloads_the_ink` became
+`test_a_reader_may_ask_what_a_line_on_the_sheet_is`, and it asserts the new line instead:
+`/api/conductors` **200**, `/api/paths` **200**, `/api/wiring` **404**, on one reader's server. The
+old test's docstring is quoted in the new one, because a rule that changes should show its working.
+
+---
+
+*The original, 2026-09-02 to 2026-09-09, kept because it is the argument this one refines:*
+
+### H20 (as written 2026-09-02) — the highlight is free, and that is a decision rather than an oversight
 
 Every other route that reads an authored file is behind `allow_edits`: `/api/locations`,
 `/api/review`. **`/api/paths` is not**, and the reasoning is the two things that put the others
@@ -748,6 +839,11 @@ reader's server — because the fact worth pinning is not that one is gated, it 
 which look like siblings are on opposite sides of the same gate. Anything that "tidies" them
 together has to answer what a technician with no password is supposed to do with 149 proposals.
 
+*(**And on 2026-09-09 that last question got an answer**, which is why the version above replaces
+this one: a technician with no password uses them to ask **what is this line**, one at a time, by
+pointing at it. The sentence *"it may publish authored display geometry and nothing else"* is still
+the rule for `/api/paths` — a block's commoning satisfies it and a wire's endpoints do not.)*
+
 ### H21 — an extracted run may not be edited in place *(added 2026-09-03)*
 
 `geometry: extracted` is not a quality rating. It is a **claim about the polyline**: *these corners
@@ -771,7 +867,7 @@ If a report says *"I cannot move a corner"*, that is this, and T-925 is the walk
 report says *"a stripe says `from the ink` and does not follow the ink"*, that is this hazard having
 been broken.
 
-### H22 — **three** things want `Escape`, and the escalation is written down *(added 2026-09-03, extended 2026-09-08)*
+### H22 — **three** things want `Escape`, and the escalation is written down *(added 2026-09-03, extended 2026-09-08 and 2026-09-09)*
 
 There are **four** `window` key listeners in this application — this tab's `Escape`, this tab's
 `Ctrl+Z`/arrows, and the Drawing tab's `Escape` — and `H10`'s `activeTabId` guard is still all that
@@ -801,6 +897,19 @@ longer looking at, which is the worst shape a silent write can have.
 
 If a report says *"`Esc` cleared my row when I meant to drop a corner"*, the trace had already
 ended — and if it says *"`Esc` did nothing"*, check `isTextField` first.
+
+**And since 2026-09-09 the Drawing tab has an escalation of its own**, which is this rule applied
+to the reader's side rather than a fourth occupant of the Locate tab's:
+
+    a text field  →  the run of ink you pointed at  →  the selection
+
+The conductor card goes **before** the selection for the same reason the end slot goes before the
+trace: most recent first, and cheapest to lose. Asking *what is this line* in the middle of reading
+net `120` is a question **about** net `120`, and taking the selection away as the price of
+dismissing the card would make the feature cost something to use. So the selection is **kept** while
+the card is up — the two share the bottom-left corner and the card simply wins — and `Escape` gives
+it back. `pickRef` in `DrawingTab.tsx` is the same ref trick `traceRef` and `slotRef` use, and for
+the same reason: the listener is bound once per activation.
 
 ### H23 — one authored file stops the generator and two do not *(added 2026-09-07)*
 
@@ -860,10 +969,23 @@ So `wiring.ts` reads a landing at the point a run **leaves** the commoning geome
    confirmed; the guard in `LocateTab.tsx`'s `ink` memo is for the next drawing, half-placed.
 
 Get the first of these wrong and **four wires are mis-proposed** — which is precisely how
-`07_drawing_facts.md` came to record `W063` as ending on `TB-120:2`. That row and the
-`paths.test.ts` fixture built on it are **still uncorrected on purpose**: they go with Phase C, and
-§4 q10 warns that both of that test's assertions still hold after the correction, so a careless fix
-there will not go red.
+`07_drawing_facts.md` came to record `W063` as ending on `TB-120:2`.
+
+**All of that was corrected on 2026-09-09**, and the shape rule grew a second job with it. The row,
+the `paths.test.ts` fixture and `14_tests_path_editor.md` T-915 — which had been *instructing* a
+person to add `TB-120`'s bus to `W063`'s route — now say `W063` is one run, `C0091`, ending at
+`TB-120:1`. And `onlyCommoning` is no longer only a filter on *proposals*: `paths.ts`
+`candidates()` is handed the set and **does not offer** a run that is nothing but a bus, with the
+panel naming what it kept out. Two things follow for anyone touching `stretches` or the effective
+ends:
+
+- **`commoningFor` is the exported form of the same arithmetic**, and the authoring screen writes
+  what it returns. Change the spans and you change what is written into `wiring.json`, not just
+  what is proposed.
+- **The exclusion is keyed on `onlyCommoning`, never on an authored record's `conductors`.**
+  `C0105` and `C0008` are each partly a wire, so a record's conductor ids name runs that *are*
+  legitimate routes for `DISCHARGE1:2` and `RECEPT1:5`. The narrow question — *is the whole of this
+  run a bus* — is the only one safe to exclude on.
 
 ---
 

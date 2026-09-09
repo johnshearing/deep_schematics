@@ -232,24 +232,127 @@ def test_a_record_for_a_wire_the_netlist_does_not_have_is_refused_by_name(drawin
     assert any("'W999'" in p and "not a wire" in p for p in wiring.problems)
 
 
+# -- Phase C: a block's own bus -------------------------------------------------------------
+#
+# `commoning` was parsed for its key and its shape only until 2026-09-09, on the argument that a
+# validator somebody has to un-write is more expensive than a paragraph. This is the session that
+# defines what is inside one, so the paragraph is cashed in.
+
+#: `TB-110`'s bus as the real sheet has it — two short pieces meeting at point 3, which is why
+#: `runs` is a list even before the fused-conductor case gets involved.
+BUS: dict[str, Any] = {
+    "runs": [[[790.8, 537.4], [790.8, 550.2]], [[790.8, 550.2], [790.8, 561.3]]],
+    "conductors": ["C0060", "C0077"],
+    "geometry": "extracted",
+    "attribution": "human",
+    "by": "js",
+    "at": "2026-09-09T10:00:00.000Z",
+}
+
+
 def test_commoning_keyed_on_something_that_is_not_a_component_is_refused_by_name(
     drawing_dir: Path,
 ):
-    """A block's bus keyed on nothing would be authored, saved, and never highlighted."""
-    write(drawing_dir, {}, {"TB-999": {"runs": [[[0, 0], [0, 10]]]}})
+    """A block's bus keyed on nothing would be authored, saved, and never highlighted.
+
+    The record itself is **well formed**, deliberately: this is the layer that has been handed the
+    netlist, and a body that failed `parse`'s shape check would never reach it. Shape first, then
+    what exists — the same three-layer split `locations.py` has."""
+    write(drawing_dir, {}, {"TB-999": BUS})
     wiring = resolved(drawing_dir)
     assert not wiring.commoning
     assert any("'TB-999'" in p and "not a component" in p for p in wiring.problems)
 
 
-def test_a_commoning_record_is_carried_through_untouched(drawing_dir: Path):
-    """**Phase C owns what is inside one of these**, and this module validates the key and the
-    shape and nothing else. Carrying the body through rather than half-validating a format nothing
-    writes yet is cheaper than a validator somebody has to un-write — and the assertion that it
-    arrives unchanged is what makes that safe to rely on."""
-    body = {"runs": [[[954.4, 267.3], [954.4, 546.9]]], "conductors": ["C0105"], "by": "js"}
-    write(drawing_dir, {}, {"TB-110": body})
-    assert resolved(drawing_dir).commoning == {"TB-110": body}
+def test_a_block_records_its_bus_as_polylines_and_not_as_conductor_ids(drawing_dir: Path):
+    """**Why this record has a shape of its own**, and it is the whole of §6's argument.
+
+    `C0105` is one conductor holding `DISCHARGE1:2`'s wire *and* all 279.6 pt of `TB-0V`'s
+    vertical, because the extractor splits a conductor at a crossover hop and a T-junction is not
+    one. *"Conductor `C0105`"* is therefore not a description of `TB-0V`'s bus: highlighting the
+    whole thing would drag a wire in with it. So the polylines are stored and `conductors` records
+    only which runs they were lifted from — a different claim, and a weaker one.
+    """
+    write(drawing_dir, {}, {"TB-110": BUS})
+    bus = resolved(drawing_dir).commoning["TB-110"]
+    assert bus.runs == (
+        ((790.8, 537.4), (790.8, 550.2)),
+        ((790.8, 550.2), (790.8, 561.3)),
+    )
+    assert bus.conductors == ("C0060", "C0077")
+    assert (bus.geometry, bus.attribution) == ("extracted", "human")
+    assert resolved(drawing_dir).counts()["commoning"] == 1
+
+
+def test_a_bus_derived_from_where_the_pins_line_up_is_refused_by_name(drawing_dir: Path):
+    """`derived` on **both** axes, refused by name, which is §8's rule made enforceable in a
+    fourth file.
+
+    The shape rule in `features/locate/wiring.ts` finds a block's bus by seeing two of one
+    component's terminals on one run, and that answer is a **proposal**. It is already known to be
+    incomplete on this sheet: `TB-130` has two points 71 pt apart with nothing joining them, and
+    `TB-120:3` sits off the end of `C0092`. A file that could hold the proposal as though somebody
+    had accepted it would stop distinguishing *nobody has looked* from *a person decided* —
+    invariant 10, one section further down the same file.
+    """
+    for axis in ("geometry", "attribution"):
+        write(drawing_dir, {}, {"TB-110": {**BUS, axis: "derived"}})
+        wiring = resolved(drawing_dir)
+        assert not wiring.commoning
+        assert any(f"{axis} 'derived'" in p for p in wiring.problems), wiring.problems
+
+
+@pytest.mark.parametrize(
+    ("broken", "says"),
+    [
+        ({"runs": []}, "at least one polyline"),
+        ({"runs": [[[790.8, 537.4]]]}, "fewer than two points"),
+        ({"runs": [[[790.8, 537.4], [790.8, "x"]]]}, "not two numbers"),
+        ({"conductors": "C0060"}, "not a list of extraction ids"),
+        ({"geometry": "traced"}, "geometry 'traced'"),
+        ({"page": 0}, "numbered from 1"),
+        ({"page": 1.5}, "numbered from 1"),
+        ({"note": 7}, "not a string"),
+    ],
+)
+def test_every_commoning_refusal_names_the_block(
+    drawing_dir: Path, broken: dict[str, Any], says: str
+):
+    """**The unit of refusal is the whole record**, unlike a wire and like a path.
+
+    A bad `note` on one wire costs that wire, because the other 70 are separate decisions. Half a
+    bus is not a decision at all — it is a line that stops in the middle of a terminal block and
+    claims to be its commoning, which is exactly the wrong thing to draw.
+    """
+    write(drawing_dir, {}, {"TB-110": {**BUS, **broken}})
+    wiring = resolved(drawing_dir)
+    assert not wiring.commoning
+    assert any("'TB-110'" in p and says in p for p in wiring.problems), wiring.problems
+
+
+def test_a_commoning_record_may_say_which_page_its_polyline_is_on(drawing_dir: Path):
+    """**The one page number in this file, and it is here before it is needed.**
+
+    Everything else in `wiring.json` is a terminal designator, which names the same terminal
+    whichever sheet prints it — that is what will let this format survive a circuit that needs
+    several pages. A polyline is the exception: it only means something on a sheet. An optional
+    `page` costs nothing on a one-page drawing and would be a schema change on the first two-page
+    one, so the user asked for it now.
+    """
+    write(drawing_dir, {}, {"TB-110": {**BUS, "page": 2}})
+    assert resolved(drawing_dir).commoning["TB-110"].page == 2
+    write(drawing_dir, {}, {"TB-110": BUS})
+    assert resolved(drawing_dir).commoning["TB-110"].page is None
+
+
+def test_one_bad_block_costs_that_block_and_leaves_the_wires_alone(drawing_dir: Path):
+    """Commoning is display geometry and endpoints are the netlist. A typo in the first must not
+    cost the second — the same asymmetry `read_locations()` and `read_wiring()` have one layer
+    up."""
+    write(drawing_dir, {"W047": CONFIRMED}, {"TB-110": {**BUS, "runs": []}, "CB1": BUS})
+    wiring = resolved(drawing_dir)
+    assert wiring.wires["W047"].confirmed
+    assert set(wiring.commoning) == {"CB1"}
 
 
 # -- the routes ----------------------------------------------------------------------------

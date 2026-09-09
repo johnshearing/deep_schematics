@@ -316,6 +316,37 @@ export interface WirePath {
 export interface PathIndex {
   wires: Record<string, WirePath>
   nets: Record<string, string[]>
+  /**
+   * A terminal block's own bus, keyed on the block's component id — **authored, and free.**
+   *
+   * It lives in `wiring.json`, whose own route is behind the editor password, and it is published
+   * here on purpose: `H20` draws its line at **geometry is free and connectivity is not**. A
+   * block's commoning never enters the netlist — no `W###`, no `CONNECTS_TO` edge, no entity —
+   * and the reader with the paper and no password is exactly who wants it, because net `0V` is
+   * eleven wire runs *and* the 279.6 pt vertical they all land on.
+   *
+   * Absent on a server older than 2026-09-09, which reads as *no block has one*.
+   */
+  commoning?: Record<string, BlockCommoning>
+}
+
+/**
+ * Where one block's own bus runs, and the two axes that say how we know it.
+ *
+ * `runs` is a **list of polylines and not a list of conductor ids**, and that is the whole of the
+ * format. `C0105` is one conductor holding `DISCHARGE1:2`'s wire *and* all 279.6 pt of `TB-0V`'s
+ * vertical, because the extractor splits a conductor at a crossover hop and a T-junction is not
+ * one. Painting the conductor would drag that wire in with it.
+ */
+export interface BlockCommoning {
+  runs: Polyline[]
+  geometry: 'extracted' | 'human'
+  attribution: 'printed' | 'human'
+  /** The runs the polylines were lifted from. Absent on a hand trace. */
+  conductors?: string[]
+  /** Which sheet the polylines are on. Absent on a single-page drawing, which is every drawing
+   * today — it is here because a polyline is the one thing in `wiring.json` that needs a page. */
+  page?: number
 }
 
 /**
@@ -493,9 +524,37 @@ export interface WiringDocument {
   drawing_number: string | null
   schema: number
   wires?: Record<string, StoredWire>
-  /** Phase C's: a terminal block's own bus, keyed on the block's component id. Carried through
-   * untouched by everything in this session. */
-  commoning?: Record<string, unknown>
+  /** A terminal block's own bus, keyed on the block's component id. Display geometry: the
+   * generator does not read this section, and a save here leaves `circuit_logic.json` current —
+   * the opposite of `wires` beside it, which *is* the netlist. */
+  commoning?: Record<string, StoredCommoning>
+  [key: string]: unknown
+}
+
+/**
+ * One block's own commoning, as the file holds it.
+ *
+ * The two provenance axes mean exactly what they mean on a `WirePath`, and **`derived` is refused
+ * by name on both**. That refusal is the point rather than a formality: the shape rule in
+ * `features/locate/wiring.ts` *finds* a block's bus by seeing two of one component's terminals on
+ * one run, and its answer is a **proposal** — `TB-130` has two points 71 pt apart with nothing
+ * joining them, and `TB-120:3` sits off the end of `C0092`. A file that could record the proposal
+ * as though somebody had accepted it would stop distinguishing *nobody has looked* from *a person
+ * decided*, which is the only thing an authored file is for.
+ */
+export interface StoredCommoning {
+  runs: Polyline[]
+  geometry: 'extracted' | 'human'
+  attribution: 'printed' | 'human'
+  conductors?: string[]
+  /** **The one page number in `wiring.json`.** Everything else here is a terminal designator,
+   * which names the same terminal whichever sheet prints it; a polyline only means something on a
+   * sheet. Optional, absent on this drawing, and here now because it would be a schema change on
+   * the first circuit that needs two pages. */
+  page?: number
+  note?: string
+  by?: string
+  at?: string
   [key: string]: unknown
 }
 

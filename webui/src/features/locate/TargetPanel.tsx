@@ -29,6 +29,7 @@ import type {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { PlannedLabel } from '@/features/drawing/endLabels'
+import { CommoningPanel } from './CommoningPanel'
 import { PathPanel } from './PathPanel'
 import { WiringPanel } from './WiringPanel'
 import type { InkIndex } from './wiring'
@@ -91,6 +92,15 @@ interface Props {
   /** Terminal id → net id, the reverse pass over the index, for the net-mismatch flag. */
   nets?: Record<string, string>
   ink?: InkIndex | null
+  /**
+   * The runs that are **nothing but a block's own bus**, and which block each belongs to.
+   *
+   * Derived from `ink` by the tab rather than here, because the ranking below is memoised on it
+   * and a `Set` rebuilt on every render would defeat that. `PathPanel` refuses them as candidates
+   * and says so.
+   */
+  commoning?: ReadonlySet<string>
+  commonedBy?: Record<string, string>
   /** Which of the armed wire's two end slots is armed, if either. */
   armedEnd?: End | null
   onArmEnd?: (end: End | null) => void
@@ -138,6 +148,8 @@ export function TargetPanel({
   wiring,
   nets,
   ink,
+  commoning,
+  commonedBy,
   armedEnd,
   onArmEnd,
   onEditWiring,
@@ -155,7 +167,7 @@ export function TargetPanel({
       <LabelPanel
         {...{
           entry, document, target, endLabels, conductors, net, printedNet, tracing, stamp,
-          wiring, nets, ink, armedEnd, onArmEnd, onEditWiring,
+          wiring, nets, ink, commoning, commonedBy, armedEnd, onArmEnd, onEditWiring,
           onEdit, onLabelDir, onClear, onClose, onPreview, onTrace,
         }}
       />
@@ -163,7 +175,10 @@ export function TargetPanel({
   }
   return entry.kind === 'component' ? (
     <ComponentPanel
-      {...{ entry, document, target, pinsOf, onTarget, onEdit, onLabelDir, onClear, onClose }}
+      {...{
+        entry, document, target, pinsOf, wiring, ink, stamp, onEditWiring, onPreview,
+        onTarget, onEdit, onLabelDir, onClear, onClose,
+      }}
     />
   ) : (
     <TerminalPanel {...{ entry, document, target, onLabelDir, onClear, onClose }} />
@@ -198,6 +213,8 @@ function LabelPanel({
   wiring,
   nets,
   ink,
+  commoning,
+  commonedBy,
   armedEnd,
   onArmEnd,
   onEditWiring,
@@ -221,6 +238,8 @@ function LabelPanel({
   | 'wiring'
   | 'nets'
   | 'ink'
+  | 'commoning'
+  | 'commonedBy'
   | 'armedEnd'
   | 'onArmEnd'
   | 'onEditWiring'
@@ -320,6 +339,8 @@ function LabelPanel({
           conductors={conductors ?? null}
           net={net ?? null}
           printedNet={printedNet ?? null}
+          commoning={commoning}
+          commonedBy={commonedBy}
           tracing={tracing ?? null}
           stamp={stamp}
           onEdit={onEdit}
@@ -435,6 +456,11 @@ function ComponentPanel({
   document,
   target,
   pinsOf,
+  wiring,
+  ink,
+  stamp,
+  onEditWiring,
+  onPreview,
   onTarget,
   onEdit,
   onLabelDir,
@@ -562,6 +588,20 @@ function ComponentPanel({
           Nothing placed yet, so the dot on the sheet is the estimate the indexing pass made.
           Click the sheet to replace it.
         </p>
+      )}
+
+      {/* **The second authored file this panel writes into**, and the only place on this screen a
+          *component* row does. It renders itself away on the 41 components that are not terminal
+          blocks — see `CommoningPanel`'s own guard — so this is not a section on every relay. */}
+      {onEditWiring && stamp && onPreview && (
+        <CommoningPanel
+          entry={entry}
+          wiring={wiring ?? null}
+          ink={ink ?? null}
+          stamp={stamp}
+          onEdit={onEditWiring}
+          onPreview={onPreview}
+        />
       )}
     </div>
   )

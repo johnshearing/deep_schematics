@@ -194,7 +194,23 @@ export function netOf(paths: PathIndex | null, wireId: string): string | null {
 export function candidates(
   entry: Designator,
   conductors: readonly Conductor[],
-  options: { net?: string | null; printedNet?: string | null } = {},
+  options: {
+    net?: string | null
+    printedNet?: string | null
+    /**
+     * Runs that are **nothing but a block's own bus**, which no wire may claim.
+     *
+     * From `wiring.ts` `isCommoning` — the shape rule — and **not** from the authored
+     * `commoning` records, which is the one decision in this change worth reading twice. A record
+     * stores *stretches*, because `C0105` is `DISCHARGE1:2`'s wire fused with `TB-0V`'s vertical
+     * and `C0008` is `RECEPT1:5`'s fused with `TB-24E1-B`'s. Excluding by the conductor ids a
+     * record names would take two **real routes** out of the list, which is a worse fault than
+     * the one being fixed. The shape rule answers the narrower question this needs — *is the
+     * whole of this run a bus* — and it answers it before anybody has authored anything, which
+     * matters because the authoring run starts now.
+     */
+    commoning?: ReadonlySet<string>
+  } = {},
 ): Candidate[] {
   const ends = endsOf(entry)
   const names = netNames(options.net ?? null, options.printedNet ?? null)
@@ -203,6 +219,21 @@ export function candidates(
 
   const out: Candidate[] = []
   for (const conductor of conductors) {
+    /**
+     * **A block's own commoning is never a wire's route**, and since 2026-09-09 the screen
+     * enforces that rather than asserting it in a document.
+     *
+     * Plan §4 q10 found `C0092` — 72.7 pt of vertical joining `TB-120:1` to `:2` — recorded as
+     * *"the second piece of `W063`'s L"* in `07_drawing_facts.md`, and `14_tests_path_editor.md`
+     * T-915 went as far as **instructing** a person to add it to `W063`'s route. It looks exactly
+     * like the second half of an L, it is near the right pin, and the only thing that says it is
+     * not a wire is that it joins two screws of one block.
+     *
+     * Removed rather than demoted, and the panel **says how many and whose** — *nothing refused is
+     * silent* (invariant 5) is satisfied by naming it, not by leaving it clickable. A tag on a row
+     * a person can still press is not enforcement, and the failure being prevented is a click.
+     */
+    if (options.commoning?.has(conductor.id)) continue
     const match = matchEnds(conductor, ends)
     const printedName = conductor.net_label?.trim().toUpperCase() ?? null
     const named = printedName !== null && names.includes(printedName)

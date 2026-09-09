@@ -67,14 +67,19 @@ client would `PUT /api/wiring` at a server that has no such route, and the panel
 wiring file did not load.
 
 Four checks, and they should read **228 server · 392 web · ruff clean · tsc clean** before you
-touch anything.
+touch anything. *(245 · 433 since Session 3 on 2026-09-09 — the manual's §1 is where the current
+pair lives.)*
 
 ---
 
 ## T-1000 · The `Wiring` filter, the queue, and the honest zero
 
-**Do.** Open the Locate tab, unlock with `edit-1234`, and press the new **`Wiring`** filter — the
-sixth one, between `To do` and `Paths`.
+**Do.** Open the Locate tab, unlock with `edit-1234`, and press the **`Wiring`** filter — the
+second one, immediately after `To do`.
+
+*(It sat between `To do` and `Paths` when this was written. Session 3 put a seventh filter,
+`Commoning`, between it and `Paths` on 2026-09-09 —
+`16_tests_terminal_wires_and_commoning.md` T-1105.)*
 
 **Expected.** **71 rows**, every wire on the sheet, because nobody has confirmed any of them. In
 the toolbar, beside the placement and path counts:
@@ -625,6 +630,11 @@ something the generator refuses and nothing else in the project would notice.
 `test_the_committed_artifact_is_exactly_what_the_generator_writes` **red** until you re-run the
 generator, which is `K6` doing its job.
 
+*(Those were the numbers on 2026-09-08. **Since Session 3 on 2026-09-09 it is 245 · 433** — the
+manual's §1 carries the current pair, and this page keeps the one it shipped with. What has not
+changed is the shape of the answer: everything green except the artifact test, and that one red
+only while an authored file is ahead of the netlist.)*
+
 **And since 2026-09-08 its failure says which file is ahead**, by name:
 
     wiring.json is ahead of circuit_logic.json. Re-run the generator — cd … && python
@@ -647,10 +657,10 @@ So you do not go looking for it, and so nobody builds it by accident:
 | Not built | Why, and when |
 |---|---|
 | **`Add a wire`** and **`Retire this wire`** | **Phase E.** §3.7 measured **0** genuinely missing field wires, so it is insurance for drawing number two rather than work this sheet needs. The *format* is ready — `from`/`to` may be `null`, a `retired` tombstone is validated and removes the wire's edge, and a record for an id the `W` table lacks is refused by name so the door stays deliberately shut. |
-| **Authoring the commoning** | **Phase C.** The `commoning` section of `wiring.json` is parsed, its key is refused by name if it is not a component, and its body is carried through untouched. The proposal already *finds* all eight conductors by shape (T-1060), so Phase C's job is to let you accept them and to union them into a net's highlight. |
-| **A net's highlight including the commoning** | **Phase C**, and it is the change you asked for on 2026-09-06. |
-| **Clicking a terminal to highlight its wires** | **Phase D**, on the **Drawing** tab, with no password. That is also the feature that makes a missing wire visible by its absence — build it before the run, use it during. |
-| **`/api/conductors` losing its password** | **Phase D.** *Is there a wire here* is a reader's question; 149 raw polylines are not. |
+| ~~**Authoring the commoning**~~ | **Built 2026-09-09**, Phase C — the `Commoning` filter, `16_tests_terminal_wires_and_commoning.md` T-1105. |
+| ~~**A net's highlight including the commoning**~~ | **Built 2026-09-09.** T-1120. |
+| ~~**Clicking a terminal to highlight its wires**~~ | **Built 2026-09-09**, on the Drawing tab with no password. T-1125, and T-1130 is the missing wire visible by its absence. |
+| ~~**`/api/conductors` losing its password**~~ | **Done 2026-09-09.** T-1100, and `H20` was rewritten round it. |
 | **The `Ask` tab reasoning about highlighted wires** | After Phase D, and it is your own note at the end of the plan. Nothing here forecloses it: `wiring.json` holds designators and no coordinates, so a terminal names the same terminal whichever sheet prints it. |
 
 **And one thing that is not built and never will be:** nothing on this screen accepts a proposal on
@@ -669,7 +679,7 @@ its own. Not for the 48 the ink agrees with, and least of all for `W042`.
 | An empty proposal list | **a real answer, and for six wires the expected one.** No run of ink reaches that end. `W042` is the drawing's error; `W047`, `W048`, `W024`, `W025`, `W026` and `W049` are relay coils the ink stops 46 pt short of |
 | The proposal at the top is another wire's endpoint | **worth a look, and often correct.** Where two wires land on one pin the nearer run may be the other wire's — eleven of this sheet's endpoints are that case (`PLG1`/`PLG2`, `CR-ON:14` beside `CR-BP:24`). The list is **not** patched to prefer whatever the file already says, because a proposal that agreed by construction would be no proposal. The one that agrees is tagged instead |
 | A proposal names a pin on the wrong row of a block | worth a report, with the wire id and the pin you expected. `features/locate/wiring.ts` is the whole of it, and `wiring.test.ts` pins all eleven corrections against the real drawing |
-| `C0092` offered as a candidate for anything | that is a real fault. It is `TB-120`'s commoning and `isCommoning` should exclude it — T-1060 |
+| `C0092` offered as a candidate for anything | that is a real fault. It is `TB-120`'s commoning and `isCommoning` should exclude it — T-1060, and since 2026-09-09 the path editor refuses it outright and says so |
 | `Esc` cleared my row when I meant to disarm a slot | the slot had already gone. text field → slot → trace → row, and each press takes one thing. `06_code_map.md` §H22 |
 | A click on the sheet placed a wire's label point | that is a real fault: while a slot is armed, bare paper does nothing. `LocateTab.tsx`'s `onClick` guard |
 | The two nets flag on a wire I think is fine | look twice, then trust your eyes. It is a flag and never a fix — `W019`, `DISC1` and `CB1` are all legitimately across two nets |
@@ -698,6 +708,7 @@ time will actually go:
   nothing, so those are `Pick from the sheet` and your judgement. `W024`, `W025`, `W026`, `W047`,
   `W048`, `W049`.
 
-**Do not start the run yet.** The plan's §13 stopping point for Session 2 is *you can confirm all 71
-wires*, and it says explicitly to wait: **Phase C changes what a net looks like on the sheet**, and
-you will want to see the commoning while you work.
+~~**Do not start the run yet.**~~ **Phase C landed on 2026-09-09, so the wait is over.** The
+commoning is on the sheet, a terminal's wires are one click away, and a pin nothing reaches says so
+— which is the instrument §4 q7 wanted you to have *during* the run rather than after it. Walk
+`16_tests_terminal_wires_and_commoning.md` first, then start.

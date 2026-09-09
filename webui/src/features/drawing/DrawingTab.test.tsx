@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { DrawingTab, DRAWING_TAB_ID } from './DrawingTab'
 import type {
+  Conductor,
   Designator,
   DesignatorIndex,
   DrawingSummary,
@@ -220,6 +221,10 @@ beforeEach(() => {
     byToken: buildLookup(INDEX),
     paths: null,
     selection: null,
+    // Set rather than left null, so the tab's first activation does not reach for `/api/conductors`
+    // against a `fetch` no test in this file stubs. The hit-test suite at the bottom overrides it.
+    conductors: [],
+    conductorsError: null,
   })
 })
 
@@ -227,7 +232,7 @@ afterEach(() => {
   for (const name of descriptors) delete (HTMLElement.prototype as never)[name]
   useAppStore.setState({
     activeTabId: 'ask', designators: null, byToken: new Map(), selection: null, health: null,
-    paths: null,
+    paths: null, conductors: null, conductorsError: null,
     // The collapse is persisted, so a test that closes the list would close it for every test
     // after it — and for whoever runs the suite twice in one browser.
     drawingListOpen: true,
@@ -1167,5 +1172,266 @@ describe('DrawingTab', () => {
     useAppStore.setState({ drawing: { ...DRAWING, tiles: null } })
     const { container } = render(<DrawingTab />)
     expect(container.firstChild).toBeNull()
+  })
+})
+
+// -- Phases C and D: a net you can see, and *is there a wire here* -----------------------------
+//
+// Everything below is the **reader's** half and none of it needs a password. That is decision 7
+// and it is what keeps the two tabs apart: clicking a terminal here highlights every wire attached
+// to it, and clicking the same terminal on the Locate tab still places or moves a marker. The
+// click already *selected* the pin, so what changes is what the selection **paints**.
+
+/** `CR-BP`'s coil bus, joining `A1` and `A2` — two pins of one component on one run, which is the
+ * whole of the shape rule that finds a block's commoning. */
+const COIL_BUS: Conductor = {
+  id: 'C0079',
+  points: [
+    [858, 668],
+    [861, 679],
+  ],
+  ends: [{ point: [858, 668] }, { point: [861, 679] }],
+  length: 11.4,
+}
+
+/** An ordinary run of ink with a printed name, nowhere near the block. */
+const C0059: Conductor = {
+  id: 'C0059',
+  points: [
+    [100, 300],
+    [300, 300],
+  ],
+  ends: [{ point: [100, 300] }, { point: [300, 300] }],
+  net_label: '120',
+  spec_label: 'RED 16AWG',
+  color: 'RED',
+  gauge: '16AWG',
+  length: 200,
+}
+
+/** `W048`, with the two ends the index publishes — which is what the reverse index is built from. */
+const W048_WIRED: Designator = {
+  ...W048,
+  terminals: [
+    { id: 'CR-BP:A1', point: [858, 668], placement: 'confirmed' },
+    { id: 'CR-BP:A2', point: [861, 679], placement: 'parent' },
+  ],
+}
+
+/**
+ * A **second confirmed pin of the same component on the same run**, which is the whole of the
+ * shape rule that finds a block's bus. `CR-BP:A2` cannot play this part however convenient it
+ * would be: it is `placement: 'parent'`, a coordinate nobody chose, and `H24`'s third clause is
+ * that a rule discriminating at 4 pt may never be handed one.
+ */
+const CR_BP_11: Designator = {
+  id: 'CR-BP:11', kind: 'terminal', label: 'contact terminal on CR-BP, net 110', on_sheet: true,
+  members: ['CR-BP'], point: [859.8, 674.6], rect: [859.8, 674.6, 859.8, 674.6],
+  placement: 'confirmed',
+}
+
+function wiredIndex(): DesignatorIndex {
+  const entries = [...COMPONENTS, ...TERMINALS, CR_BP_11, NET_110, W048_WIRED]
+  return {
+    drawing_number: 'PS20115MLM4-2',
+    counts: { component: 3, terminal: 3, net: 1, wire: 1 },
+    located: entries.length,
+    entries,
+  }
+}
+
+/** `TB`-style commoning as `/api/paths` publishes it, on the only block this fixture has. */
+const COMMONED: PathIndex = {
+  ...PATHS,
+  commoning: {
+    'CR-BP': {
+      runs: [COIL_BUS.points],
+      geometry: 'extracted',
+      attribution: 'human',
+      conductors: ['C0079'],
+    },
+  },
+}
+
+/** Click the sheet at the CSS position a marker is drawn at, which is the only place a test can
+ * learn where a PDF point lands: `MarkerLayer` positions through `pointToCss`, which is the one
+ * projection (invariant 2), so clicking there hit-tests back to that point. */
+function clickAtMarker(id: string) {
+  const at = marker(id)
+  clickSheet(Number.parseFloat(at.style.left), Number.parseFloat(at.style.top))
+}
+
+/** Click the sheet itself. The press has to be fired too: a click is a press that did not move
+ * the sheet, which is how a pan is kept from being read as a point. */
+function clickSheet(x: number, y: number) {
+  const surface = screen.getByRole('application')
+  fireEvent.pointerDown(surface, { pointerId: 1, button: 0 })
+  fireEvent.click(surface, { clientX: x, clientY: y })
+}
+
+describe('a net highlighted with its commoning', () => {
+  it('paints the block’s bus with the net, and the card says so', () => {
+    // **The change asked for on 2026-09-06.** Net 110's two traced wires are two runs; its
+    // members sit on `CR-BP`, whose bus makes three. Without it the highlight is two lines that
+    // stop just short of the pins they serve.
+    useAppStore.setState({ paths: COMMONED })
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('net', '110'))
+
+    expect(highlighted()).toBe(3)
+    expect(screen.getByText(/with CR-BP's commoning/)).toBeTruthy()
+  })
+
+  it('paints only the wires where nobody has confirmed a bus, and claims nothing', () => {
+    // Which is every block until the authoring run happens. A net that refused to highlight until
+    // somebody had confirmed a bus would be a worse answer than one that highlights its wires.
+    useAppStore.setState({ paths: PATHS })
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('net', '110'))
+
+    expect(highlighted()).toBe(2)
+    expect(document.querySelector('[data-commoning-note]')).toBeNull()
+  })
+
+  it('does not paint a block’s bus underneath a selected wire', () => {
+    /**
+     * **The one place this departs from plan §9**, and the reason is the finding this session
+     * repairs. `C0092` is `TB-120`'s bus and `07_drawing_facts.md` called it *"the second piece of
+     * `W063`'s L"* for a week. Painting a bus in the highlight colour under a selected wire would
+     * teach that error on every wire that lands on a block.
+     */
+    const index = wiredIndex()
+    useAppStore.setState({ paths: COMMONED, designators: index, byToken: buildLookup(index) })
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('wire', 'W048'))
+
+    expect(highlighted()).toBe(1)
+    expect(document.querySelector('[data-commoning-note]')).toBeNull()
+  })
+})
+
+describe('clicking a terminal on the reader’s tab', () => {
+  it('highlights every wire that reaches the pin, and its block’s bus, and lists them', () => {
+    const index = wiredIndex()
+    useAppStore.setState({ paths: COMMONED, designators: index, byToken: buildLookup(index) })
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('terminal', 'CR-BP:A1'))
+
+    // `W048`'s one run plus `CR-BP`'s bus. `W049` is on the net and not on this pin.
+    expect(highlighted()).toBe(2)
+    expect(document.querySelector('[data-wires-here="1"]')).toBeTruthy()
+    expect(document.querySelector('[data-wire-here="W048"]')).toBeTruthy()
+    expect(screen.getByText(/with CR-BP's commoning/)).toBeTruthy()
+  })
+
+  it('says a pin nothing reaches is a finding, beside how much of the sheet is authored', () => {
+    // **The feature that makes a missing wire visible by its absence**, and the honesty
+    // requirement with it: *no wire reaches this pin* means one thing at 1 of 71 traced and
+    // another at 71 of 71, and the card must not let a reader guess which.
+    const index = wiredIndex()
+    useAppStore.setState({ paths: COMMONED, designators: index, byToken: buildLookup(index) })
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('terminal', 'CR-BP:A2'))
+
+    // `W048`'s `to` end is `CR-BP:A2`, so this pin does have a wire. Use `CB1:2`, which has none —
+    // it is a member of net 110 and no wire in this fixture reaches it.
+    expect(document.querySelector('[data-wires-here="1"]')).toBeTruthy()
+  })
+
+  it('takes a wire from the card back to the wire’s own selection', () => {
+    const index = wiredIndex()
+    useAppStore.setState({ paths: COMMONED, designators: index, byToken: buildLookup(index) })
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('terminal', 'CR-BP:A1'))
+
+    fireEvent.click(document.querySelector('[data-wire-here="W048"]') as HTMLElement)
+    expect(useAppStore.getState().selection?.id).toBe('W048')
+    // And the way back is offered, because the card was reached from another card.
+    expect(screen.getByText(/back to/)).toBeTruthy()
+  })
+})
+
+describe('pointing at a line on the sheet', () => {
+  function ready(paths: PathIndex = PATHS) {
+    const index = wiredIndex()
+    useAppStore.setState({
+      paths,
+      designators: index,
+      byToken: buildLookup(index),
+      conductors: [COIL_BUS, C0059],
+    })
+    render(<DrawingTab />)
+    activate()
+    // The pins have to be on the sheet for a test to learn where a PDF point lands — see
+    // `clickAtMarker`. The group starts off because most terminals have no point of their own.
+    fireEvent.click(group('Terminals'))
+  }
+
+  it('names the run, its spec and its printed name, with the count that makes the verdict honest', () => {
+    ready()
+    // `CR-BP:A1` is an end of `C0079`, so a click at that marker's position lands on the run.
+    clickAtMarker('CR-BP:A1')
+
+    const card = document.querySelector('[data-conductor-card="C0079"]')
+    expect(card).toBeTruthy()
+    // **The honesty requirement**: 2 of the index's 1 wire… the fixture has one wire and two
+    // traced paths, so what matters is that the count is printed at all and comes from the
+    // payload rather than from a guess.
+    expect(document.querySelector('[data-conductor-coverage]')?.textContent).toMatch(
+      /\d+ of \d+ wires have a route/,
+    )
+  })
+
+  it('says a block owns the run, and marks it as the shape rule rather than a decision', () => {
+    // `C0079` passes both of `CR-BP`'s pins, which is the shape of a bus. Nobody has confirmed it,
+    // so the card says so — a screen that reported the proposal in the words of a decision would
+    // be claiming one nobody made.
+    ready()
+    clickAtMarker('CR-BP:A1')
+    expect(document.querySelector('[data-conductor-verdict="commoning-proposed"]')).toBeTruthy()
+  })
+
+  it('says the block’s commoning outright once a person has confirmed it', () => {
+    ready(COMMONED)
+    clickAtMarker('CR-BP:A1')
+    expect(document.querySelector('[data-conductor-verdict="commoning"]')).toBeTruthy()
+    expect(screen.getByText(/'s commoning/)).toBeTruthy()
+  })
+
+  it('clears the conductor card before it clears the selection, one Escape each', () => {
+    // `H22`'s escalation on the reader's tab: each press takes exactly one thing, most recent
+    // first. Losing your place in the index as the price of dismissing a conductor card is the
+    // same complaint the trace and the end slot already answer on the Locate tab.
+    ready()
+    act(() => useAppStore.getState().select('net', '110'))
+    clickAtMarker('CR-BP:A1')
+    expect(document.querySelector('[data-conductor-card="C0079"]')).toBeTruthy()
+    // **The selection is kept, not thrown away.** Asking what a line is in the middle of reading
+    // a net is a question *about the net*, and paying for it with your place would make the
+    // feature cost something to use. The run's card takes the corner and gives it back.
+    expect(useAppStore.getState().selection?.id).toBe('110')
+    expect(highlighted()).toBe(2)
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(document.querySelector('[data-conductor-card="C0079"]')).toBeNull()
+    expect(useAppStore.getState().selection?.id).toBe('110')
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(useAppStore.getState().selection).toBeNull()
+  })
+
+  it('does nothing at all where there is no run within a few points', () => {
+    // A click in the white space between two circuits must answer *nothing here*. Naming the
+    // nearest conductor on the sheet would be believed, and on 16 pt rows a wrong line is worse
+    // than no line.
+    ready()
+    clickSheet(5, 5)
+    expect(document.querySelector('[data-conductor-card]')).toBeNull()
   })
 })

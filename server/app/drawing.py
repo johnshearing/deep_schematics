@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from .locations import EndLabel, Spot, resolve_geometry
+from .wiring import resolve_wiring
 
 #: The one fact about this drawing that a careful reader still gets wrong. The title block
 #: has no revision field; the `D` in the side tab and the SIZE box is the sheet size. §12 Q21
@@ -280,12 +281,13 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
 
 
 def paths_index(drawing_dir: Path) -> dict[str, Any]:
-    """Where each traced wire runs, and which wires each net is made of.
+    """Where each traced wire runs, which wires each net is made of, and each block's own bus.
 
-    Two maps, because a highlight is two different questions:
+    Three maps, because a highlight is three different questions:
 
-        wires   W052 → the polylines somebody has traced, and how they know them
-        nets    120  → ["W052", "W053", "W063", "W068"]
+        wires      W052   → the polylines somebody has traced, and how they know them
+        nets       120    → ["W052", "W053", "W063", "W068"]
+        commoning  TB-0V  → the polylines of the block's own vertical, and how they are known
 
     **A net stores nothing.** Its highlight is the union of its wires' paths, so this endpoint
     publishes the membership and lets the client take the union — which is also what lets a net
@@ -296,11 +298,20 @@ def paths_index(drawing_dir: Path) -> dict[str, Any]:
     **A wire with no path is absent, not null.** The client asks "is there one", and a key whose
     value is null is a third state to explain for no gain.
 
+    **`commoning` comes out of `wiring.json` and is published here rather than on
+    `/api/wiring`**, which looks like a layering mistake and is the rule `H20` states. That route
+    is gated because it says *what connects to what* — the claim the model answers from. A block's
+    bus is the opposite kind of thing: **display geometry that never enters the netlist**, and the
+    reader with no password is exactly who wants it, because *net `0V` is these eleven runs and
+    the vertical they land on* is what makes the net legible on paper. So this endpoint publishes
+    the one section of that file which is geometry and **not a single wire's endpoints** — a
+    property worth a test rather than a comment, and it has one.
+
     Separate from `/api/designators` and, like it, deliberately **uncached**: it is a few dozen
-    dictionary lookups over two already-cached parses, and a client that fails to load it loses
-    the highlight and nothing else. Free of the editor gate on purpose — a path is display
-    geometry, a reader is exactly who wants to see which line is which, and this reads
-    `locations.json` rather than `geometry.json`, so there is nothing here a reader may not have.
+    dictionary lookups over already-cached parses, and a client that fails to load it loses the
+    highlight and nothing else. Free of the editor gate on purpose — a path is display geometry, a
+    reader is exactly who wants to see which line is which, and nothing here reads
+    `geometry.json`.
     """
     doc = load_circuit_logic(drawing_dir)
     manifest = tile_manifest(drawing_dir)
@@ -326,7 +337,22 @@ def paths_index(drawing_dir: Path) -> dict[str, Any]:
         if isinstance(wid, str) and isinstance(net, str):
             nets.setdefault(net, []).append(wid)
 
-    return {"wires": wires, "nets": nets}
+    commoning: dict[str, Any] = {}
+    for block, bus in resolve_wiring(drawing_dir, doc).commoning.items():
+        published = {
+            "runs": [[[x, y] for x, y in run] for run in bus.runs],
+            "geometry": bus.geometry,
+            "attribution": bus.attribution,
+        }
+        # Absent on a hand trace, and absent on a single-sheet drawing. Both absences are the
+        # record: there was no conductor to lift, and there is only one page for it to be on.
+        if bus.conductors:
+            published["conductors"] = list(bus.conductors)
+        if bus.page is not None:
+            published["page"] = bus.page
+        commoning[block] = published
+
+    return {"wires": wires, "nets": nets, "commoning": commoning}
 
 
 def _entry(

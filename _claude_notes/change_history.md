@@ -64,8 +64,9 @@ have not disagreed once.**
 census could not have been measured without every phase that shipped — 131 placed points, 654 review
 decisions and `/api/conductors` are what made it possible.
 
-**Four sessions plus the user's authoring run** (plan §13). **Sessions 1 and 2 have landed** — see
-the two dated entries below.
+**Four sessions plus the user's authoring run** (plan §13). **Sessions 1, 2 and 3 have landed** —
+see the three dated entries below. **The authoring run starts now**, and §13 says so: after
+Session 3 every question the user asked has a screen.
 
 **Session 1, 2026-09-07 — Phase 0.** The wire ids are frozen, the endpoints are in `wiring.json`,
 the generator reads it and refuses to run without it. Nothing on screen changed and the artifact is
@@ -87,30 +88,37 @@ counted as confirmed, because **six wires land on a relay coil's `A2` and the in
 of those dots**; and §3.6's *"8 conductors across 7 blocks"* is **six** blocks, as that section's own
 table says.
 
-**Next is Session 3: Phases C and D.** Author a terminal block's **commoning** and union it into a
-net's highlight — the change the user asked for on 2026-09-06, *"when we highlight a net the
-commoning needs to be highlighted too"* — then `pathsFor`'s third case, the **terminal → wires**
-reverse index in `lib/designators.ts`, the sheet hit-test for *is there a wire here*, and
-`GET /api/conductors` **losing the password**. **Server change, so a restart.** The deliverable
-document is `16_tests_terminal_wires_and_commoning.md`, T-1100–T-1160, and its acceptance criterion
-is `/api/conductors` with **`SWUI_ALLOW_EDITS=false`**.
+**Session 3, 2026-09-09 — Phases C and D.** A terminal block's **commoning** is authored from a
+seventh **`Commoning`** filter and a net's highlight includes it; clicking a terminal on the
+**Drawing** tab highlights every wire that reaches it; a click on bare paper names the run of ink
+and says *claimed by `W063`*, *`TB-120`'s commoning* or *no wire claims this run* **beside the count
+of how many wires have a route**; and **`GET /api/conductors` lost the editor password**, which is
+the acceptance criterion. Hazard `H20` was rewritten round it: the line is now **geometry is free
+and connectivity is not**. `16_tests_terminal_wires_and_commoning.md`, T-1100–T-1160, none walked.
 
-**Phase C starts from something already built.** `wiring.ts`'s landing rule finds all eight
-commoning conductors by shape, with nothing told to it about this drawing, and `isCommoning` already
-answers *no wire may claim this run*. The `commoning` section of `wiring.json` is parsed, its key is
-refused by name if it is not a component, and its body is carried through untouched — so Phase C's
-job is the geometry (`runs` rather than just `conductors`, because `C0105` and `C0008` are each half
-wire and half bus), the screen that accepts them, and the one-net assertion §7 of the plan asks for.
+**A commoning save leaves `circuit_logic.json` current, proved in bytes and then proved again on
+the real drawing** — a record written through the running server, the generator re-run, the same
+md5, and `git checkout` leaving no mark. That is the difference between the two sections of
+`wiring.json`: an endpoint **is** the netlist, a block's bus is display geometry.
 
-**Session 3 is where the authoring run should start.** §13 says so: after it, every question the
-user asked has a screen.
+**The `W063` repair went in with Session 3 rather than waiting for the run**, because Phase C's
+work made it executable rather than a documentation fix: `paths.ts` `candidates()` now **refuses**
+to offer a run that is nothing but a block's bus, and `14_tests_path_editor.md` T-915 had been
+*instructing* a person to add `TB-120`'s bus to `W063`'s route. The fixture, the drawing-facts row
+and that instruction are all corrected, and the assertion that carries the finding was added — plan
+§4 q10 warned that the fixture alone would not go red.
 
-**The seven sentences are already corrected** — *"the netlist is already right"* was pulled forward
-out of Phase F on 2026-09-07, because Session 2 reads two of the documents it was wrong in. **Still
-waiting on the authoring run:** the `W063` fixture in `paths.test.ts` and the `W063` row in
-`07_drawing_facts.md` (`C0092` is `TB-120`'s commoning, not the second half of an L). Plan §4
-question 10 has the exact wording, and warns that both of that test's assertions still hold after
-the correction — so a fixture corrected carelessly there will not go red.
+**Next is Session 4, and it comes after the run.** Phase E — `Add a wire` and `Retire this wire` —
+plus whatever the run turns up. §3.7 measured **0** genuinely missing field wires, so Phase E is
+insurance for drawing number two rather than work this sheet needs, and if a session runs short it
+is the one to drop.
+
+**Three questions are waiting on the user's eyes** and two of them are now in the way of finishing
+Phase C rather than merely interesting: **`TB-130`** has two points 71 pt apart with no conductor
+between them, so the ink can propose no bus and this screen cannot author one; **`TB-120:3`** sits
+24 pt below `:2`, off the end of `C0092`, and may be a third landing rather than a separate point;
+and which of `W044`, `W050` and `W057` belongs on `TB-0V:8`, `:9` and `:11`, which is the run's own
+work. T-1115 and T-1130 are the two screens that show them.
 
 ### Still true, and not part of that plan
 
@@ -261,6 +269,262 @@ a specific question needs them.
 
 Semicolons, not `&&`, so one failure does not hide the state of the other three. Run
 `npm run build` **and restart the server** at the end; see the state block above for why both.
+
+---
+
+## 2026-09-09 — Session 3 of the authoring-the-wires plan: a net you can see, and *is there a wire here*
+
+**Phases C and D.** The plan is `_claude_notes/authoring_the_wires.md`; its §13 says the user's
+authoring run starts after this session, and it does. **Server change — restart needed**, and the
+client is a rebuilt bundle. **245 server · 433 web · ruff clean · tsc clean** (was 229 · 392).
+
+### What the session was for
+
+Everything built before it was an **editor**. Nothing let the user *look* at the sheet and see
+whether a net was complete, whether a terminal had the wires it should, or whether a line he was
+pointing at belonged to anything. This is the reader's half, and it is the instrument the authoring
+run needs rather than a prerequisite for it.
+
+### The commoning, and why a record stores polylines
+
+The change asked for on 2026-09-06, in the user's words: *"these vertical lines are the block's own
+commoning, but when we highlight a net the commoning needs to be highlighted too — this will make
+it easier to see the net."*
+
+A seventh **`Commoning`** filter on the Locate tab lists the **six** blocks the ink can offer a bus
+for; one press confirms one, and a net's highlight gains it immediately. The record stores
+**`runs` — polylines — and not conductor ids**, and that is the whole of the format: `C0105` is
+`DISCHARGE1:2`'s wire **and** all 279.6 pt of `TB-0V`'s vertical fused into one conductor, because
+the extractor splits a conductor at a crossover hop and a T-junction is not one. Accepting *the
+conductor* would claim that wire as part of the bus — the same mistake, one layer up, that had
+`07_drawing_facts.md` calling `C0092` the second half of `W063`'s L.
+
+`derived` is refused **by name** on both provenance axes, exactly as it is on a path, and that
+refusal is doing work rather than being tidy: the shape rule *finds* a bus and finding is not
+deciding. It is already known to be incomplete on this sheet (`TB-130`, `TB-120:3`), which is why
+there is a button.
+
+**An optional `page` is on the record from the start**, at the user's request. Everything else in
+`wiring.json` is a terminal designator, which names the same terminal whichever sheet prints it; a
+polyline is the one thing in the file that needs a page, and it would be a schema change on the
+first circuit that needs two.
+
+### And a commoning save does not move the netlist
+
+`wiring.json`'s two sections are opposites. An endpoint **is** the netlist — the `CONNECTS_TO` edge
+the model answers from, and its save names two commands. A block's bus never enters it: no `W###`,
+no edge, no entity. The generator does not read the section, and
+`test_commoning_does_not_reach_the_netlist` compares the output with and without one.
+
+Proved again on the real drawing rather than only in a fixture: a record written through the
+running server, the generator re-run, **the same md5**, and `git checkout -- schematic_extraction/`
+coming back empty. That is the procedure Session 2 used and it is the right one — this session
+authored nothing that outlived the check, which is the standing instruction.
+
+### A terminal's wires, and a missing wire visible by its absence
+
+Clicking a terminal on the **Drawing** tab now highlights every wire that reaches it, plus its
+block's bus — no password, no draft, nothing to move. That is decision 7, and it is a change to
+what the selection **paints** rather than to what the click **means**: on the Locate tab the same
+click still places or moves, which is what keeps `H10`'s collision from getting a third occupant.
+
+The reverse index, *terminal → wires*, is `wiresByTerminal` in `lib/designators.ts` — **one pass
+over the payload the client already has**, and plan §4 q7 is explicit that it must not become a
+second endpoint.
+
+**The empty case is the feature.** A pin no wire reaches says so in as many words, beside the count
+of how much of the drawing has been authored. `TB-0V:8`, `:9` and `:11` are three holes the run has
+to fill, and this is the only view of the sheet that shows the defect as a **gap** rather than as a
+plausible-looking wire somewhere else.
+
+### The sheet hit-test, and `H20` rewritten
+
+A click on bare paper hit-tests the 149 polylines in **point space**, through the same
+`tileDestRect` projection every marker uses, at a tolerance of **6 pt of paper** so the target is
+the same width at 11% and at 400%. The card names the run and gives one of three verdicts —
+*claimed by `W063`*, *`TB-120`'s commoning*, *no wire claims this run* — and prints **how many
+wires have a route so far beside every one of them**. That last part is not decoration: until the
+run is finished the third verdict is right for around **90 of the 149**, and a card that gave the
+verdict alone would teach a false fact on its first use.
+
+The commoning verdict distinguishes *a person confirmed this* from *the shape rule found it*,
+because they are different claims and a screen that printed one sentence for both would be
+reporting a decision nobody made.
+
+**`GET /api/conductors` lost the editor password**, which is the acceptance criterion §11 names,
+and `H20` was **rewritten rather than deleted**. The old argument was about *who is asking* and it
+was right for the only reader there was. The new line is about **what is published**: geometry is
+free — a route, a bus, a run of ink — and **connectivity is not**, so `/api/wiring` is still 404 on
+a reader's server. What survived is the property rather than the gate, and it is `H17`: what a
+reader may not have is a section of `geometry.json` nobody narrowed, and
+`test_a_conductor_carries_only_what_tracing_needs` is *more* load-bearing now, not less.
+
+### The `W063` repair, and the decision that came with it
+
+Plan §4 q10 asked whether `candidates()` should stop offering an authored bus as a wire's route.
+**It does now, and it is keyed on the shape rule rather than on the authored records.** The reason
+is measurable: a record stores *stretches*, and `C0105` and `C0008` are each partly a wire, so
+excluding by the conductor ids a record names would take `DISCHARGE1:2`'s and `RECEPT1:5`'s **real
+routes** out of the list. `isCommoning` answers the narrower question the ranking needs — *is the
+whole of this run a bus* — and answers it before anybody has authored anything, which matters
+because the run starts now.
+
+Removed rather than tagged, because a tag on a row somebody can still press is not enforcement and
+the failure being prevented is a click. **And named**, because *nothing refused is silent*: the
+panel says `not offered: C0092 is TB-120's own commoning`.
+
+That made the `W063` repair executable rather than a documentation fix, so it went in here instead
+of waiting for Phase F: the `paths.test.ts` fixture, the `07_drawing_facts.md` row and the sentence
+under it, and **`14_tests_path_editor.md` T-915, which had been instructing the user to add
+`TB-120`'s bus to `W063`'s route.** The assertion that carries the finding was added — §4 q10
+warned that correcting the fixture alone would not go red, and it would not have.
+
+### The one-net assertion, while it is still true
+
+§7 asked for it and it is measured against the real drawing: **every block with a bus has all its
+terminals on one net.** That is what makes painting a whole vertical for net `0V` honest. A block
+spanning two nets would have its entire bus painted for both with nothing saying which part
+belonged to which — confidently wrong, which is the failure this project keeps finding. The test
+says so the day it stops being true, and what the highlight should do then is a decision for a
+person rather than a guess for this session.
+
+### Where the execution departed from the plan
+
+1. **A wire's highlight does *not* include the commoning.** §9 asks for *"a net's highlight unions
+   it in; a wire's and a terminal's do too."* Two of the three shipped. `W063` is the reason:
+   `C0092` is `TB-120`'s bus and was recorded as the second half of that wire's L for a week.
+   Painting a block's bus in the highlight colour underneath a selected wire is exactly that
+   picture, and it would teach the error on every wire that lands on a block. A net and a terminal
+   are questions about a **place in the circuit**, where the bus is part of the answer; a wire is a
+   claim about **one piece of ink**, and it is not.
+
+2. **The commoning is published on `/api/paths`, which is free, out of `wiring.json`, which is
+   gated.** The plan does not say where it should travel. This looks like a layering mistake and is
+   the rewritten `H20`'s rule; `test_no_wires_endpoints_travel_with_it` asserts the other half.
+
+3. **The `Commoning` count's total comes from the ink, not from the netlist.** Every other count on
+   that screen has a denominator out of `circuit_logic.json`. Nothing in the netlist says which
+   components have a commoning line, so the honest total is *blocks the ink offers plus blocks
+   already authored* — a set that can be finished, which is `K7` avoided the way the `Paths` count
+   avoided it. The consequence is that a block the ink cannot see cannot be authored here at all,
+   and `TB-130` is that block.
+
+4. **The conductor card keeps the selection rather than replacing it.** Not in the plan either way.
+   Asking *what is this line* in the middle of reading a net is a question **about** the net, so the
+   card takes the corner and `Escape` gives it back — `H22`'s escalation on the reader's tab.
+
+5. **`lib/polyline.ts` is new and was not asked for.** The hit-test needed point-to-polyline
+   distance, `wiring.ts` already had it privately, and two copies of *how far is this point from
+   that run* on a sheet with 16 pt rows is how a hit-test comes to name a conductor the landing rule
+   says a pin is not on. One module, three callers.
+
+6. **`wiringStore.save` now refreshes `/api/paths`.** It deliberately refreshed nothing before, and
+   the argument still holds for the half it was about: an endpoint changes nothing visible until the
+   generator runs. A bus is the opposite — never in the netlist, published on that route — so it has
+   to appear on the sheet without a reload.
+
+### What is left for the user
+
+**The authoring run.** About 100 gestures for the wires, plus **six clicks** for the blocks'
+commoning and **three zooms** for the questions only his eyes can close (`TB-130`, `TB-120:3`, and
+which of `W044`/`W050`/`W057` goes on `TB-0V:8`, `:9` and `:11`).
+
+One honest measurement to set expectations: the acceptance criterion says *net `0V` paints eleven
+wire runs and the vertical they land on*. **The vertical is there and the eleven are not** — only 3
+of net `0V`'s 13 wires have a route authored, which is the `Paths` queue and is his work. The
+number climbs on its own as he traces them; nothing else needs building.
+
+---
+
+## 2026-09-09 — Housekeeping: four tests that could not survive the authoring run
+
+**No feature.** John walked `15_tests_wiring_editor.md`, reported that everything worked, and while
+walking it **used the screen for real** — confirming `W042` unchanged and correcting `W019` and
+`W063`, then regenerating and committing (`a510f1b`). Three decisions, and **four tests went red or
+would have.** They are fixed. **229 server / 392 web, ruff and tsc clean.**
+
+### What was wrong, and it is one mistake made twice
+
+**A test that asserts an absolute count against an authored file is really asserting *nobody has
+authored anything yet*.** That is true right up until the screen the test was written for gets
+used — which, for a queue of 71, means it is false for the next several weeks.
+
+- **Session 1's**, both in `test_extraction_generator.py`:
+  `test_a_confirmed_correction_reaches_the_netlist_and_says_who_made_it` asserted the generator's
+  summary said *"1 confirmed by a person"* while building its fixture from the **live**
+  `wiring.json`; and `test_a_wire_nobody_has_confirmed_carries_no_provenance_at_all` ran against
+  the live file and asserted **no** wire carries an `endpoints` block. Three wires now do.
+- **Session 2's**, both in `wiring.test.ts` and both mine: *"does not even offer the screw the
+  netlist claims"* and *"agrees with the netlist on 48 wires"* anchored to the netlist's **current**
+  endpoints. `circuit_logic.json` is *generated from* `wiring.json`, so correcting `W019` made the
+  netlist stop claiming the wrong screw — and the first assertion inverted while the second climbed
+  to 50.
+
+**The second pair is the more instructive failure**, because the whole-drawing tests were written
+against the real files *on purpose*, so that re-measuring the sheet could never leave a green suite
+behind a stale answer. That reasoning was right. What was wrong was anchoring to a **generated**
+artifact that an authored file feeds, which makes the test's premise something the user can edit
+away.
+
+### The cure, and it is the same both times
+
+**Reconstruct the indexing pass's own answer from `was`, and assert against that.** `was` keeps the
+machine's answer forever — that is what the field is *for* — so a claim about *what the machine
+guessed* stays true however far the run has got. `INDEXED` in `test_extraction_generator.py` and
+`loadReal` in `wiring.test.ts` are the two implementations and both carry the reasoning at length.
+A retired record is **omitted** rather than reset, because a wire with no record falls back to the
+`W` table, which is the index's answer.
+
+Proved rather than asserted: two further decisions were simulated on top of John's three — one more
+of the eleven with a `was`, and one plain confirmation — the generator re-run, both suites run
+green at **5 confirmed**, and then `git checkout -- schematic_extraction/` restored his data with
+`git status` coming back empty.
+
+**Session 1's §15 had already spotted this once.** It recorded that its one *standing* test —
+*"every record still saying `source: index` reproduces the table exactly"* — was *"written that way
+so it stays green through the authoring run instead of going red on the first correction."* The two
+tests beside it were not written that way, and neither were two of mine. The lesson is now trap 4
+in `claude.md`: **assume John will confirm all 71 and correct twenty-two, and write accordingly.**
+
+### One test added, because the run makes it stronger rather than weaker
+
+`test_every_correction_keeps_the_endpoints_the_table_actually_said`. A `was` has to be the **`W`
+table's** pair, not whatever the record held a moment before — the editor gets this right by
+stamping `was` once and never overwriting it, and this asserts the same property against the file
+on disk, so a hand edit or a future writer that got it wrong is caught. It checked John's two
+corrections and both are exactly right. It prints its count rather than requiring one, because zero
+is a legitimate answer and was the state Session 1 left the file in.
+
+### Where the authoring run actually stands
+
+    3 of 71 confirmed  ·  2 of the eleven corrected  ·  68 records still `source: index`
+    W019  PS1:-2 → TB-GND-B:2   was TB-0V:2    net_mismatch {0V, GND} in the artifact
+    W063  INFEED1:3 → TB-120:1  was TB-120:2
+    W042  PB2:3 → TB-0V:6       no was — the ink is wrong and the data is right
+
+**Nothing on the drawing is stale.** `W014`, `W018`, `W019` and `W063` carry a `labels` entry and no
+`path`, which is §4 q9's finding holding up exactly as predicted — *no path was authored for any of
+the thirteen flagged wires* — so `path may be stale` still has **no live instance**. It is asserted
+six ways in `wiringModel.test.ts` and once end to end in `WiringPanel.test.tsx`, and it has never
+fired on real data. Recorded because *tested but never seen* is worth knowing before trusting it.
+
+### And a result about the documents rather than the code
+
+John's report on walking T-1000–T-1090 was *"I am convinced that everything is working"* and also
+*"I didn't understand everything that I was being shown."* Both are in `08_results_log.md`. The
+second is a finding: a lesson document worked through successfully and not fully understood has
+taught the gestures and not the reasons, because the reasons were woven into the instructions rather
+than sitting under them. `16_tests_terminal_wires_and_commoning.md` is to be written plainer —
+shorter sentences, the *why* marked skippable, the arguments left in the code where a future session
+needs them. `claude.md` carries the ask.
+
+    tests             229 server (was 228), 392 web (unchanged), ruff and tsc clean.
+                      New: test_every_correction_keeps_the_endpoints_the_table_
+                      actually_said. What moved: INDEXED and a rebuilt wired() in
+                      test_extraction_generator.py; loadReal in wiring.test.ts now
+                      reconstructs endpoints from `was`; two test names changed from
+                      "the netlist claims" to "the indexing pass allocated", which is
+                      the durable claim. claude.md rewritten for Session 3.
 
 ---
 

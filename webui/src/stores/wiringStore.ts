@@ -37,6 +37,7 @@
 import { create } from 'zustand'
 
 import { ApiError, getWiring, putWiring } from '@/api/client'
+import { useAppStore } from '@/stores/appStore'
 import type { WiringDocument, WiringReport } from '@/api/types'
 import * as model from '@/features/locate/wiringModel'
 import type { End } from '@/features/locate/wiringModel'
@@ -139,11 +140,22 @@ export const useWiringStore = create<WiringState>()((set, get) => ({
         saveState: state.document === document ? 'saved' : 'pending',
       }))
       if (get().saveState === 'pending') saveTimer = setTimeout(() => void get().save(), 0)
-      // **Nothing is refreshed on the reader's side, and that is correct.** A saved point makes
-      // `/api/designators` one save stale and `locateStore` reaches across to refresh it. An
-      // endpoint does not: the index is generated from `circuit_logic.json`, which does not move
-      // until somebody runs the generator, so re-reading it here would fetch the same bytes and
-      // imply the screen and the artifact now agree. The banner is the honest answer instead.
+      /**
+       * **The index is not refreshed, and the paths are** — and the two halves of that are the
+       * two halves of this file.
+       *
+       * A saved **endpoint** changes nothing a reader can see until the generator runs:
+       * `/api/designators` is built from `circuit_logic.json`, so re-reading it would fetch the
+       * same bytes and imply the screen and the artifact now agree. The stale banner is the
+       * honest answer instead, and that is why this store has one when `reviewStore` does not.
+       *
+       * A saved **commoning record** is the opposite and it arrived with Phase C. It never
+       * reaches the netlist — the generator does not read the section, asserted in bytes — but it
+       * is published on `/api/paths`, so a net's highlight gains the block's bus as soon as it is
+       * written. Re-reading the paths is what makes the change the user asked for on 2026-09-06
+       * visible on the sheet without a reload.
+       */
+      void useAppStore.getState().refreshPaths()
     } catch (error) {
       set({ saveState: 'error', saveError: message(error) })
     }

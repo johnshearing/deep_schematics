@@ -29,6 +29,12 @@ interface Props {
   onSelectMember: (componentId: string) => void
   /** Fly to one of the member terminals and select it. */
   onSelectTerminal: (terminalId: string) => void
+  /** Select one of the wires that reach the selected terminal. */
+  onSelectWire?: (wireId: string) => void
+  /** How much of the drawing has a route at all. **The honesty requirement**, and it is the same
+   * one the conductor card carries: *no wire reaches this pin* is a different claim at 3 of 71
+   * from at 71 of 71, and a card that did not say which would teach a false fact. */
+  coverage?: { wires: number; traced: number }
   /** What sent the reader to this card, when something did. Null for a citation, a click on a
    * dot, or a net nobody arrived at from anywhere. */
   back?: { kind: DesignatorKind; id: string } | null
@@ -58,6 +64,8 @@ export function SelectionCard({
   canSelect,
   onSelectMember,
   onSelectTerminal,
+  onSelectWire,
+  coverage,
   back = null,
   onBack,
   onPlaceTerminal,
@@ -122,7 +130,11 @@ export function SelectionCard({
         </Button>
       </div>
 
-      {path && <PathNote entry={entry} path={path} />}
+      {path && <PathNote entry={entry} path={path} coverage={coverage} />}
+
+      {entry.kind === 'terminal' && path && (
+        <WiresHere path={path} onSelectWire={onSelectWire} coverage={coverage} />
+      )}
 
       {terminals.length > 0 && (
         <div className="mt-2">
@@ -190,10 +202,21 @@ export function SelectionCard({
  * is the PDF's own vector strokes; `hand-traced` is a person following the printed run, and it
  * says so **everywhere it appears** — that was a condition of allowing hand tracing at all.
  */
-function PathNote({ entry, path }: { entry: Designator; path: PathSummary }) {
-  const wires = entry.kind === 'net' ? `${path.wires} wire${path.wires === 1 ? '' : 's'}` : null
+function PathNote({
+  entry,
+  path,
+  coverage,
+}: {
+  entry: Designator
+  path: PathSummary
+  coverage?: { wires: number; traced: number }
+}) {
+  const wires =
+    entry.kind === 'net' || entry.kind === 'terminal'
+      ? `${path.wires} wire${path.wires === 1 ? '' : 's'}`
+      : null
 
-  if (path.traced === 0) {
+  if (path.traced === 0 && path.commoning.length === 0) {
     return (
       <p className="mt-2 text-[11px] text-muted-foreground">
         no path yet
@@ -208,6 +231,24 @@ function PathNote({ entry, path }: { entry: Designator; path: PathSummary }) {
         highlighted
         {wires ? `: ${path.traced} of its ${wires}` : ''}
       </span>
+      {/* **The change asked for on 2026-09-06**, said out loud on the card as well as painted:
+          a net is its wires *and* the vertical they land on, and a reader who cannot see why an
+          extra line is lit would reasonably think the highlight had overreached. */}
+      {path.commoning.length > 0 && (
+        <span
+          data-commoning-note
+          title="A terminal block joins its own screws with a length of vertical conductor. It is the block's own, not field wire — no wire may claim it — and highlighting it with the net is what makes the net legible on paper."
+        >
+          {path.commoning.length === 1
+            ? `with ${path.commoning[0]}'s commoning`
+            : `with the commoning of ${path.commoning.join(', ')}`}
+        </span>
+      )}
+      {coverage && path.traced < path.wires && (
+        <span title="How much of this drawing has a route at all. Until every wire is traced, an unhighlighted wire may simply be one nobody has got to.">
+          ({coverage.traced} of {coverage.wires} wires traced on this sheet)
+        </span>
+      )}
       <Badge
         title={
           path.geometry === 'human'
@@ -235,6 +276,66 @@ function PathNote({ entry, path }: { entry: Designator; path: PathSummary }) {
           {path.conductors.join(' ')}
         </span>
       )}
+    </div>
+  )
+}
+
+/**
+ * **What reaches this pin** — the reader's half of Phase D, and the feature that makes a missing
+ * wire visible **by its absence.**
+ *
+ * Clicking a terminal on this tab used to select it and say what it was; now it also highlights
+ * every wire attached to it. That is decision 7 and it is a change to what the selection *paints*
+ * rather than to what the click *means* — on the Locate tab the same click still places or moves,
+ * which is what keeps `H10`'s collision from getting a third occupant.
+ *
+ * **The empty case is the point.** `TB-0V:8`, `:9` and `:11` have no wire on them in the ink and
+ * three wires that have to be assigned to them, and `TB-0V:6` has `W042`, which the drawing itself
+ * draws short. So *nothing reaches this pin* is a finding a person can act on — but only beside
+ * the count of how much of the drawing has been authored, or it is a false fact.
+ */
+function WiresHere({
+  path,
+  onSelectWire,
+  coverage,
+}: {
+  path: PathSummary
+  onSelectWire?: (wireId: string) => void
+  coverage?: { wires: number; traced: number }
+}) {
+  if (path.here.length === 0) {
+    return (
+      <p className="mt-2 text-[11px] text-muted-foreground" data-wires-here="none">
+        <span className="font-medium">No wire in the index reaches this pin.</span>{' '}
+        {coverage
+          ? `That is a finding rather than a blank: every one of the drawing's ${coverage.wires} wires has two endpoints recorded, so a pin with none is a pin nothing was assigned to.`
+          : 'That is a finding rather than a blank.'}
+      </p>
+    )
+  }
+  return (
+    <div className="mt-2" data-wires-here={path.here.length}>
+      <p className="text-[11px] text-muted-foreground">
+        {path.here.length === 1 ? 'one wire lands here' : `${path.here.length} wires land here`}
+      </p>
+      <div className="mt-1 flex flex-wrap gap-1">
+        {path.here.map((wire) => (
+          <button
+            key={wire}
+            type="button"
+            data-wire-here={wire}
+            disabled={!onSelectWire}
+            onClick={() => onSelectWire?.(wire)}
+            title={`Select ${wire} and highlight its whole route`}
+            className={cn(
+              'rounded border px-1 py-px font-mono text-[10px]',
+              onSelectWire && 'hover:bg-accent hover:text-accent-foreground',
+            )}
+          >
+            {wire}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

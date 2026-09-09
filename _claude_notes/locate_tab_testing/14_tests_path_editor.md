@@ -166,12 +166,17 @@ check, and it takes two minutes.
 
 | Wire | Expected at the top | Also expected in the list |
 |---|---|---|
-| `W052` | **`C0109`**, `both ends`, fit ≈ 3.5 pt | `C0091`, `C0092` below it, both `one end` |
+| `W052` | **`C0109`**, `both ends`, fit ≈ 3.5 pt | `C0091` below it, `one end` |
 | `W053` | **`C0080`**, `both ends`, fit ≈ 1.7 pt | the other three `120` runs, `printed name` only |
-| `W063` | **`C0091`**, `one end` | **`C0092`** — `one end`, and **no printed name at all** |
+| `W063` | **`C0091`**, `both ends` | nothing else it reaches — see T-915 |
 | `W068` | **`C0081`**, `one end` | **`C0057`** — `one end`, three segments, no name |
 
 **Expected.** Every one of the four. In particular `W052` gets **`C0109`** and not `C0080`.
+
+*(Two rows changed on 2026-09-09. `W063` reaches **both** its pins with `C0091` alone, because its
+far end is `TB-120:1` and not `:2`; and `C0092` is no longer in anybody's list, because it is
+`TB-120`'s own commoning. Underneath each of these lists the panel now says which runs it kept out
+and whose bus they are — nothing refused is silent.)*
 
 **Why that last sentence is in bold everywhere.** Every document in this project paired `W052` with
 `C0080` for nine days, including the plan's §3 and §6 and this manual's §8. It was written from
@@ -213,12 +218,31 @@ a 312 pt chord**, and a line underneath explaining the gap. On the sheet: two st
 conductors cross and are not connected*, and a highlight that bridged them would be asserting a
 connection the sheet denies — on the one screen whose job is to tell you which line is which.
 
-**Do.** Do the same for **`W063`**: accept `C0091`, then add **`C0092`**.
+**Do.** Arm **`W063`** and accept **`C0091`**. **That is the whole route — do not add a second
+piece.**
 
-**Expected.** An L — 261 pt west along the row, then 73 pt down. And note what `C0092` is:
-**a conductor with no printed net label at all**. If the ranking had trusted the printed name over
-the geometry, this piece would have been nowhere in the list, and half of `W063` would be
-unfindable.
+**Expected.** One stripe, 261 pt west along y = 563.4, reaching **both** of `W063`'s pins. The
+panel says `One run along C0091` and offers nothing further; underneath the list it says
+
+    not offered: C0092 is TB-120's own commoning
+
+> **Corrected 2026-09-09, and it is worth knowing why this instruction changed.** This step used to
+> read *"accept `C0091`, then add `C0092`"*, and it described the result as an L — 261 pt west,
+> then 73 pt down. **It was wrong, and following it would have authored a route that includes a
+> terminal block's own bus.**
+>
+> `C0092` is 72.7 pt of vertical joining `TB-120:1` to `TB-120:2`. It is **`TB-120`'s commoning** —
+> the block joining its own screws — and *that* is why it carries no printed net label: the sheet
+> writes a colour and gauge beside a wire and nothing beside a bus. `W063` ends at `TB-120:1`, so
+> `C0091` alone reaches both of its pins and there is no second half to add.
+>
+> The document said otherwise because `07_drawing_facts.md` did, and that measurement was made on
+> 2026-09-02 without knowing that a block's commoning gets **fused into a wire's polyline**. Both
+> are corrected, and since Phase C the ranking does not offer a run that is nothing but a bus at
+> all — so the instruction cannot be followed even by somebody reading an old copy of this page.
+>
+> **`W068` above is still the crossover-hop example and it is untouched.** It is the better one:
+> its two pieces are a real gap in the ink, and `C0057` genuinely has no printed name.
 
 ---
 
@@ -242,11 +266,15 @@ again.
 the printed name in the same record are answers to different questions, and taking them away as a
 side effect of *Clear* would silently undo work nobody asked about.
 
-**Do.** Accept `C0091`, then — without clearing — click the `C0092` row in the main list.
+**Do.** Accept `C0091`, then — without clearing — click a **different** candidate row in the main
+list (`C0109` will do).
 
 **Expected.** It **replaces** the route rather than adding to it. Clicking a candidate always means
 *this is the route*; `Add a run` is the only thing that continues one. Two hit targets, two verbs,
 and `Ctrl+Z` if you press the wrong one.
+
+*(This step used to say `C0092`, which is `TB-120`'s commoning and is no longer offered to
+anything — 2026-09-09. Any other row makes the same point.)*
 
 ---
 

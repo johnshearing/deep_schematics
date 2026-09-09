@@ -24,6 +24,7 @@ from app.config import Settings
 from app.drawing import load_circuit_logic, paths_index
 from app.locations import load_locations
 from app.main import create_app
+from app.wiring import load_wiring
 
 #: The plan's §6 block, with this fixture's ids. Two points of ink, the conductor it came from,
 #: and the two axes that say how we know it.
@@ -181,6 +182,92 @@ def test_the_answer_is_empty_and_not_an_error_before_anybody_has_traced_anything
     body = client.get("/api/paths").json()
     assert body["wires"] == {}
     assert body["nets"] == {"110": ["W047"]}
+
+
+# -- Phase C: a block's own bus travels on this route ---------------------------------------
+
+
+def write_wiring(drawing_dir: Path, commoning: dict[str, Any], wires: dict[str, Any]) -> None:
+    (drawing_dir / "wiring.json").write_text(
+        json.dumps(
+            {
+                "drawing_number": "PS20115MLM4-2",
+                "schema": 1,
+                "wires": wires,
+                "commoning": commoning,
+            }
+        ),
+        encoding="utf-8",
+    )
+    load_wiring.cache_clear()
+
+
+#: `TB-110`'s bus, with this fixture's component. Two pieces, because the real one is.
+BUS: dict[str, Any] = {
+    "runs": [[[790.8, 537.4], [790.8, 550.2]], [[790.8, 550.2], [790.8, 561.3]]],
+    "conductors": ["C0060", "C0077"],
+    "geometry": "extracted",
+    "attribution": "human",
+}
+
+
+def test_a_blocks_bus_is_published_here_and_not_behind_the_editor(
+    settings: Settings, drawing_dir: Path
+) -> None:
+    """**The change the user asked for on 2026-09-06, and the reason it lands on this route.**
+
+    *"When we highlight a net the commoning needs to be highlighted too — this will make it easier
+    to see the net."* Net `0V` is eleven wire runs **and** the 279.6 pt vertical they all land on,
+    and a technician with the paper and no password is exactly who that is for. So a block's bus
+    is published beside the paths, free, and the client takes the union — the same arrangement a
+    net's wires already have and for the same reason.
+
+    It comes out of `wiring.json`, whose own route is gated. That is not a leak and it is `H20`
+    rewritten: **geometry is free and connectivity is not.** The next test is the other half.
+    """
+    write_wiring(drawing_dir, {"TB-110": BUS}, {})
+    reader = Settings(**{**settings.model_dump(), "allow_edits": False})
+    with TestClient(create_app(reader)) as client:
+        body = client.get("/api/paths").json()
+
+    assert body["commoning"]["TB-110"]["runs"] == [
+        [[790.8, 537.4], [790.8, 550.2]],
+        [[790.8, 550.2], [790.8, 561.3]],
+    ]
+    assert body["commoning"]["TB-110"]["conductors"] == ["C0060", "C0077"]
+    assert body["commoning"]["TB-110"]["geometry"] == "extracted"
+    # Absent rather than null on a one-page drawing, exactly as `conductors` is on a hand trace.
+    assert "page" not in body["commoning"]["TB-110"]
+
+
+def test_no_wires_endpoints_travel_with_it(client, drawing_dir: Path) -> None:
+    """**The line `H20` draws now, asserted rather than described.**
+
+    `wiring.json` holds two sections and they are not alike. `commoning` is display geometry that
+    never enters the netlist. `wires` is *what connects to what* — the `CONNECTS_TO` edge the
+    model answers questions from, and the one authored claim whose save makes `circuit_logic.json`
+    stale. Publishing the first here is the point of the phase; publishing the second would put
+    the netlist's own source on a route with no password, one field at a time.
+    """
+    write_wiring(
+        drawing_dir,
+        {"TB-110": BUS},
+        {"W047": {"from": "CR1:A1", "to": "CB1:2", "source": "human", "was": ["CR1:A1", "CB1:1"]}},
+    )
+    text = client.get("/api/paths").text
+    assert "TB-110" in text
+    for leaked in ("CR1:A1", "CB1:2", '"was"', '"source"', '"from"', '"to"'):
+        assert leaked not in text, f"/api/paths published {leaked}"
+
+
+def test_a_bus_on_a_block_the_netlist_does_not_have_is_absent_here(
+    client, drawing_dir: Path
+) -> None:
+    """*Nothing refused is silent*, on the third route that inherits it. The refusal happens once,
+    in `resolve_wiring`, so this endpoint and the editor's red strip cannot come to disagree about
+    which records are real."""
+    write_wiring(drawing_dir, {"TB-999": BUS}, {})
+    assert client.get("/api/paths").json()["commoning"] == {}
 
 
 def test_a_refused_path_is_absent_here_and_named_in_the_locations_report(

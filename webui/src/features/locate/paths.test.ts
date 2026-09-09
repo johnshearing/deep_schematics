@@ -15,7 +15,7 @@
  *
  *     W052   CR2:14 → TB-120:1        C0109            one run, both ends within 4 pt
  *     W053   TB-120:3 → BYPASS-CB:1   C0080            one run, both ends within 1.7 pt
- *     W063   INFEED1:3 → TB-120:2     C0091 + C0092    an L, the second piece unlabelled
+ *     W063   INFEED1:3 → TB-120:1     C0091            one run; C0092 is TB-120's own bus
  *     W068   DISCHARGE1:3 → TB-120:2  C0081 + C0057    the crossover hop, 3.5 pt of gap
  *
  * ### The faults each of the rest prevents
@@ -88,7 +88,7 @@ function run(
 
 const W052 = wire('W052', 'BLUE 18AWG', ['CR2:14', [236.1, 563.4]], ['TB-120:1', [300.1, 563.3]])
 const W053 = wire('W053', 'BLUE 18AWG', ['TB-120:3', [300.1, 663.7]], ['BYPASS-CB:1', [381.5, 663.8]])
-const W063 = wire('W063', 'RED 16AWG', ['INFEED1:3', [563.6, 563.5]], ['TB-120:2', [300.1, 639.6]])
+const W063 = wire('W063', 'RED 16AWG', ['INFEED1:3', [563.6, 563.5]], ['TB-120:1', [300.1, 563.3]])
 const W068 = wire('W068', 'RED 16AWG', ['DISCHARGE1:3', [602.7, 563.6]], ['TB-120:2', [300.1, 639.6]])
 
 const BLUE = { net_label: '120', spec_label: 'BLUE 18AWG', color: 'BLUE', gauge: '18AWG' }
@@ -98,8 +98,14 @@ const C0080 = run('C0080', [[379.8, 663.7], [301.8, 663.7]], BLUE)
 const C0081 = run('C0081', [[301.8, 639.6], [426.3, 639.6]], RED)
 const C0091 = run('C0091', [[562.9, 563.4], [301.9, 563.4]], RED)
 const C0109 = run('C0109', [[232.6, 563.4], [298.2, 563.4]], BLUE)
-/** The vertical 73 pt piece that makes `W063` an L, and it carries **no printed label** — which is
- * the whole reason the geometry outranks the name. */
+/**
+ * **`TB-120`'s own commoning**, and it carries no printed label because a bus is not a wire.
+ *
+ * *Corrected 2026-09-09, with Phase C.* This comment used to read *"the vertical 73 pt piece that
+ * makes `W063` an L"*, and `07_drawing_facts.md` said the same thing — measured off the ink on
+ * 2026-09-02 and still wrong, because the measurement did not know that a block's commoning gets
+ * fused into a wire's polyline. `W063` is **one** run, `C0091`, ending at `TB-120:1`. Plan §4 q10.
+ */
 const C0092 = run('C0092', [[300.1, 565.2], [300.1, 637.9]])
 /** The other side of `W068`'s crossover hop: three segments out to x = 798 and back. */
 const C0057 = run('C0057', [
@@ -145,21 +151,42 @@ describe('the four pairings measured off the sheet', () => {
     expect(list[0].fit).toBeLessThan(2)
   })
 
-  it('offers `C0091` and `C0092` for `W063` — and `C0092` carries no printed name', () => {
+  it('offers `C0091` alone for `W063`, and never `C0092`, which is `TB-120`\u2019s commoning', () => {
     /**
-     * The lesson `07_drawing_facts.md` draws out of this table in as many words: *the second half
-     * of a real path is routinely a conductor with no printed net label, so ranking on the printed
-     * name alone finds one end of a wire and not the other.*
+     * **The repair, and the trap that goes with it.** *Corrected 2026-09-09.*
+     *
+     * This fixture said `W063` ends on `TB-120:2` and this test was called *"offers `C0091` and
+     * `C0092` for `W063`"*. Both were wrong, and had been since 2026-09-02: the wire ends on
+     * **`TB-120:1`**, and `C0092` — the 72.7 pt vertical joining `:1` to `:2` — is not the second
+     * piece of an L. It is `TB-120`'s **own commoning**, which is why it carries no printed name:
+     * a bus is not a wire, and the sheet writes a colour and gauge beside wires.
+     *
+     * Plan §4 q10 warns that correcting the fixture carelessly here **would not go red**: `C0091`
+     * ranks first *more* strongly afterwards, because it now reaches both pins instead of one, and
+     * `C0092` would stay in the list on proximity to `TB-120:1`. So the assertion that carries the
+     * finding is the one below, and it is why this test was touched at all: *`C0092` is
+     * `TB-120`'s commoning and no wire may claim it* — a predicate now, rather than a sentence in
+     * a document.
      */
     const list = candidates(W063, NET120, { net: '120' })
     expect(list[0].conductor.id).toBe('C0091')
-    const c0092 = list.find((c) => c.conductor.id === 'C0092')
-    expect(c0092).toBeDefined()
-    expect(c0092?.reasons).toContain('one end')
-    expect(c0092?.conductor.net_label).toBeUndefined()
-    // Neither piece reaches both pins, which is what half a route looks like from here: 33 of the
-    // 71 wires are in this shape.
-    expect(list.every((c) => !c.reasons.includes('both ends'))).toBe(true)
+    // One run, and it reaches **both** of the corrected wire's pins — where the old fixture had it
+    // reaching one. That is the correction visible in the ranking rather than only in a comment.
+    expect(list[0].reasons).toContain('both ends')
+
+    // Handed the shape rule's answer, the ranking does not offer the bus at all…
+    const enforced = candidates(W063, NET120, { net: '120', commoning: new Set(['C0092']) })
+    expect(enforced.map((c) => c.conductor.id)).not.toContain('C0092')
+    // …and it takes nothing else with it: `C0091` is still first and every other run is untouched.
+    expect(enforced[0].conductor.id).toBe('C0091')
+    expect(enforced.length).toBe(list.length - 1)
+
+    // Left in the list otherwise, and this is the trap made visible: without the exclusion the bus
+    // sits there looking exactly like the second half of an L, near the right pin, with no printed
+    // name to contradict it. `14_tests_path_editor.md` T-915 told a person to accept it.
+    const loose = list.find((c) => c.conductor.id === 'C0092')
+    expect(loose?.reasons).toContain('one end')
+    expect(loose?.conductor.net_label).toBeUndefined()
   })
 
   it('offers `C0081` and `C0057` for `W068`, the crossover hop', () => {

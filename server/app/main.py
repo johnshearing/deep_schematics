@@ -277,6 +277,51 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except DrawingUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+    @app.get("/api/conductors")
+    async def conductors() -> dict[str, Any]:
+        """The 149 runs of ink, reduced to what tracing a wire needs — **and to answering *is
+        there a wire here*.**
+
+        **Free of the editor password since 2026-09-09, and hazard `H20` was rewritten for it.**
+        It was gated from 2026-09-03, on the argument that 149 candidate polylines are no use to
+        somebody who cannot accept one of them into an authored file. That argument was sound and
+        it was about the *only reader there was*. Phase D added a second: a technician points at a
+        line on the sheet and asks **what is this, and does any wire claim it** — which is a
+        reader's question in exactly the sense *which of these lines is the one I care about*
+        already was, and it cannot be answered without the polylines.
+
+        So the gate moved and the property did not. What a reader may not have is **a section of
+        `geometry.json` nobody narrowed**, and that is `H17` rather than `H20`: `ink.load_ink`
+        keeps named fields behind an `lru_cache` and drops the rest at the parse boundary, and
+        `_traceable` below narrows again key by key with **no `**rest`**.
+        `test_a_conductor_carries_only_what_tracing_needs` pins the set, and it is *more*
+        load-bearing now that anybody may call this, not less.
+
+        What is left of `H20`'s pair is the sharper half: `/api/wiring` is still gated, because it
+        says *what connects to what* — the claim the model answers from — while everything free
+        here and on `/api/paths` is geometry. That is the line, and it is a better one than *who
+        is asking*.
+
+        `net_label` is **what the run reads now**, with every Phase F correction applied, which is
+        the whole reason Phase F came first: 30 of this sheet's 70 printed net names were read at
+        confidence 0.4 and nine were wrong. `was` appears only where a person changed it, so a
+        card can say a name was corrected rather than printed.
+        """
+        ink, _, readings = resolve_corrections(settings.drawing_dir)
+        settled = corrected_text(readings)
+        runs = [
+            _traceable(conductor, settled.get(conductor.id))
+            for conductor in ink.conductors.values()
+        ]
+        return {
+            "counts": {
+                "conductors": len(runs),
+                "named": sum(1 for run in runs if run.get("net_label")),
+            },
+            "conductors": runs,
+            "problems": list(ink.problems),
+        }
+
     @app.get("/api/source")
     async def source() -> FileResponse:
         """The original vector sheet — now the escape hatch rather than the viewer.
@@ -503,46 +548,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # keyed on an id that is not on this sheet, which is otherwise silent.
             ink, corrections, _ = resolve_corrections(settings.drawing_dir)
             return {"saved": True, "report": _review_report(corrections, ink.problems)}
-
-        @app.get("/api/conductors")
-        async def conductors(
-            x_editor_password: Annotated[str | None, Header()] = None,
-        ) -> dict[str, Any]:
-            """The 149 runs of ink, reduced to what tracing a wire needs.
-
-            **Behind `allow_edits`, and `/api/paths` deliberately is not** — the two are the
-            opposite case and hazard `H20` is the reasoning. A path is *authored display
-            geometry* out of `locations.json`, and *which of these lines is the one I care about*
-            is a reader's question. This is the raw ink: 149 candidate polylines out of
-            `geometry.json`, useful only to somebody who is about to accept one of them into an
-            authored file. Nobody without an editor has any use for it, and the two must not be
-            merged for convenience.
-
-            **`geometry.json` still never leaves this process.** `ink.load_ink` narrows it to
-            named fields behind an `lru_cache` — the polylines and the endpoint bindings joined
-            that set on 2026-09-03, named, for this route — and `_traceable` below narrows it
-            again, key by key, with no `**rest`. `H17`.
-
-            `net_label` is **what the run reads now**, with every Phase F correction applied,
-            which is the whole reason Phase F came first: 30 of this sheet's 70 printed net names
-            were read at confidence 0.4 and nine were wrong. `was` appears only where a person
-            changed it, so the panel can say a name was corrected rather than printed.
-            """
-            _require_editor(app.state.settings, x_editor_password)
-            ink, _, readings = resolve_corrections(settings.drawing_dir)
-            settled = corrected_text(readings)
-            runs = [
-                _traceable(conductor, settled.get(conductor.id))
-                for conductor in ink.conductors.values()
-            ]
-            return {
-                "counts": {
-                    "conductors": len(runs),
-                    "named": sum(1 for run in runs if run.get("net_label")),
-                },
-                "conductors": runs,
-                "problems": list(ink.problems),
-            }
 
         @app.get("/api/wiring")
         async def get_wiring(

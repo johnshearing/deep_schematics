@@ -44,8 +44,11 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **228 server, 392 web, ruff clean, tsc clean** *(2026-09-08, after Session 2 of
-the authoring-the-wires plan; it was 184 and 320 after its Session 1, 172 and 318 after Session 6 of
+Expected right now: **245 server, 433 web, ruff clean, tsc clean** *(2026-09-09, after Session 3
+of the authoring-the-wires plan — Phases C and D; it was 229 and 392 after the housekeeping entry
+in `change_history.md` that made four tests survive the authoring run — read it
+before writing a whole-drawing test; it was 228 and 392 after Session 2 of the authoring-the-wires
+plan, 184 and 320 after its Session 1, 172 and 318 after Session 6 of
 the wires-and-nets plan, 157 and 251 after its Session 5, 141 and 232 after Session 4, 117 and 192
 after Session 3, 117 and 185 after Session 2, 111 and 155 after Session 1, and 106 and 127 before
 that)* — except
@@ -61,6 +64,13 @@ correcting a label, something is very wrong.
 filter, a queue of 71, and two end slots per wire. It writes `wiring.json`, which is the one
 authored file whose save really does make `circuit_logic.json` stale — and unlike a placement run it
 also wants `build_kg.py` afterwards. See §5i and `15_tests_wiring_editor.md`.
+
+**And since 2026-09-09 the Drawing tab answers two questions it never could**: *what wires reach
+this pin* and *what is this line I am pointing at* — **both with no password at all**, because
+`GET /api/conductors` lost its editor gate. The Locate tab gained a seventh filter, `Commoning`,
+which writes the **other** section of `wiring.json`: a terminal block's own bus, which is display
+geometry and — unlike a wire's endpoints beside it — **leaves `circuit_logic.json` current**. See
+§5j and `16_tests_terminal_wires_and_commoning.md`.
 
 **And since 2026-09-07 the generator refuses to run at all without `wiring.json`.** If it exits with
 `REFUSED:` and writes nothing, read the message: it names the file and the wire. That is deliberate
@@ -118,6 +128,7 @@ Read the index (this file) plus **only** what the symptom calls for.
 | `13_tests_paths_highlight.md` | **T-800–T-840.** A wire highlighted **along the PDF's own conductor strokes** rather than between its ends: `GET /api/paths`, the stroke on the canvas, a net as the union of its wires' runs, the highlight surviving its own layer switch, and the two triggers — an Ask-tab citation and an armed row on the Locate tab. **It begins with a hand edit**, because the path editor is Session 6 and without one there is nothing to look at; the document says so and says what to keep. **Both tabs; the highlight itself needs no password.** | Anything about a wire's route: nothing highlighted, the wrong conductor highlighted, a highlight that vanishes when a switch is pressed, or `locations.json` refusing a path you pasted. |
 | `14_tests_path_editor.md` | **T-900–T-960.** The path editor: the ranked candidate runs and what each row's tags mean, one click to accept, `Add a run` across a crossover hop, **Clear** and re-pick, the conversion an extracted run needs before a corner may be dragged, **Trace** with all four keys, *no path on this sheet*, the `Paths` filter and the count that reaches 71 — and **`K10`**, which was worth two nets. **T-910 is the acceptance criterion**: the ranking has to reproduce the four pairings measured by hand in `07_drawing_facts.md`. **Needs the editor password and a restart.** | Anything about a candidate list — nothing offered, the wrong run at the top, a route that will not clear, a corner that will not move, or the count and the filter disagreeing. |
 | `15_tests_wiring_editor.md` | **T-1000–T-1090.** The **`Wiring`** queue and the count that reaches 71 · the two end slots and what `from the index` means · the ink's proposal and its five tag words · `Pick from the sheet`, and `Escape` taking the slot before the trace before the row · **confirming a wire that was already right, which is the phase's whole point** · **`W042`, where the ink is wrong and the data is right** · the net-mismatch flag on `W019` · `was`, and a correction taken back · `path may be stale` · the commoning fused into a wire's polyline, and why `C0092` may never be offered. **Needs the editor password and a restart.** | Anything about a wire's two terminals: a proposal you do not believe, an empty proposal list, a count and a queue that disagree, a slot that will not arm, or a red strip naming a wiring record. |
+| `16_tests_terminal_wires_and_commoning.md` | **T-1100–T-1160.** The reader's half, and it needs **no password**: clicking a terminal to see every wire that reaches it · a pin nothing reaches, which is a **missing wire visible by its absence** · a net highlighted **with its block's commoning** · the sheet hit-test and its three verdicts — *claimed by `W063`*, *`TB-120`'s commoning*, *no wire claims this run* — beside the count of how many wires have a route · and **`/api/conductors` answering with `SWUI_ALLOW_EDITS=false`**, which is the acceptance criterion. Plus the one part that does need the password: **authoring a block's commoning** from the new `Commoning` filter, and proving in bytes that it does not move the netlist. **Written plainer than its siblings** — *do* and *expected* short and first, the reasoning underneath and marked skippable. | Anything about a highlight that includes too much or too little, a click on the sheet that names nothing or names the wrong run, a block whose bus you cannot author, or a card that says *no wire claims this run* about a wire you can see. |
 | `06_code_map.md` | Every behaviour → the file and function that owns it. The data flow end to end. The known hazards, with reasoning. | Always, when troubleshooting. Never needed to *run* a test. |
 | `07_drawing_facts.md` | The concrete ids and coordinates on `PS20115MLM4-2` the tests refer to — relay pin lists, the three `CR-BP` sites, `W048`, net `110`. | When a test names an id and you need to know what it is. |
 | `08_results_log.md` | Every test id in a table, blank, for the user to mark up. | **A troubleshooting session should read this first** — it says what is actually broken. |
@@ -746,6 +757,95 @@ rebuilt bundle. `15_tests_wiring_editor.md` is the new lesson document, T-1000�
                       `test_extraction_generator.py`. Hazards **H22** and **H18**
                       extended, new hazard **H24**.
 
+### 5j. Session 3 of the authoring-the-wires plan, 2026-09-09
+
+**Phases C and D — the commoning, a net you can see, a terminal's wires, and the sheet hit-test.**
+The plan is `_claude_notes/authoring_the_wires.md`; its §13 says Session 4 is Phase E and the
+repairs, and that **the authoring run starts after this session**. **Server change — restart
+needed**, and the client is a rebuilt bundle. `16_tests_terminal_wires_and_commoning.md` is the new
+lesson document, T-1100–T-1160, none walked.
+
+49. **A terminal block's own bus is authored, and a net's highlight includes it.** This is the
+    change asked for on 2026-09-06: *"these vertical lines are the block's own commoning, but when
+    we highlight a net the commoning needs to be highlighted too."* A seventh filter,
+    **`Commoning`**, lists the **six** blocks the ink can offer a bus for; one press confirms one.
+    The record stores **`runs` — polylines — and not conductor ids**, because `C0105` is
+    `DISCHARGE1:2`'s wire *and* all 279.6 pt of `TB-0V`'s vertical fused into one conductor, and
+    accepting the conductor would claim that wire as part of the bus. `derived` is refused by name
+    on both provenance axes, exactly as it is on a path: the shape rule **finds** a bus and finding
+    is not deciding. An optional **`page`** is on the record from the start — it is the one page
+    number in a file that otherwise holds only designators, and it would be a schema change on the
+    first circuit that needs two sheets.
+
+50. **A commoning save leaves `circuit_logic.json` current, and that is asserted in bytes.** The
+    two sections of `wiring.json` are opposites: an endpoint **is** the netlist and its save names
+    two commands, while a block's bus never enters it — no `W###`, no `CONNECTS_TO` edge, no
+    entity. The generator does not read the section, and
+    `test_commoning_does_not_reach_the_netlist` compares its output with and without one. Proved on
+    the real drawing too: a record written through the running server, the generator re-run, the
+    same md5, and `git checkout` leaving no mark.
+
+51. **Clicking a terminal on the Drawing tab highlights every wire that reaches it** — with no
+    password, no draft and nothing to move. That is decision 7, and it is a change to what the
+    selection **paints** rather than to what the click **means**: on the Locate tab the same click
+    still places or moves. The reverse index, *terminal → wires*, is **one pass over the payload
+    the client already has** and lives in `lib/designators.ts` beside `readerRowState`; §4 q7 is
+    explicit that it must not become a second endpoint. **The empty case is the feature**: a pin no
+    wire reaches says so in as many words, which is a missing wire visible by its absence, and it
+    is the instrument for the authoring run rather than a prerequisite for it.
+
+52. **The sheet answers *is there a wire here*, and `GET /api/conductors` lost its password.** A
+    click on bare paper hit-tests the 149 polylines in **point space**, through the same
+    `tileDestRect` projection every marker uses, and the card says `C0092 · 72.7 pt` and then one
+    of *claimed by `W063`*, *`TB-120`'s commoning*, or *no wire claims this run* — **beside the
+    count of how many wires have a route yet**, because until the authoring run is finished the
+    third verdict is right for around 90 of the 149 and would otherwise teach a false fact. The
+    commoning verdict distinguishes *a person confirmed this* from *the shape rule found it*, which
+    are two different claims. `H20` was **rewritten** rather than deleted, and the line it draws
+    now is **geometry is free and connectivity is not**: `/api/paths` and `/api/conductors` are
+    both free, `/api/wiring` is still gated, and what a reader may not have is a section of
+    `geometry.json` nobody narrowed — which is `H17`, and is *more* load-bearing now.
+
+53. **A block's own commoning is no longer offered as a wire's route, and the panel says which runs
+    it kept out.** That was the deliberate decision §4 q10 asked for, and it shipped keyed on the
+    **shape rule** rather than on the authored records — because a record stores *stretches*, and
+    `C0105` and `C0008` are each partly a wire, so excluding by the conductor ids a record names
+    would take `DISCHARGE1:2`'s and `RECEPT1:5`'s **real routes** out of the list. `isCommoning`
+    answers the narrower question the ranking needs, and answers it before anybody has authored
+    anything. **The `W063` repair went in with it**: the fixture, the drawing-facts row and
+    `14_tests_path_editor.md` T-915 — which had been *instructing* a person to add `TB-120`'s bus
+    to `W063`'s route.
+
+54. **`/api/paths` publishes the commoning, and a save re-reads it.** A block's bus is authored in
+    a gated file and published on a free route, which looks like a layering mistake and is `H20`'s
+    rule: it is display geometry and the reader with the paper is exactly who wants it. A test
+    asserts the other half — **no wire's endpoints travel with it**. And `wiringStore.save` now
+    refreshes the paths, so a confirmed bus appears on the sheet without a reload; it still does
+    **not** refresh the designator index, because an endpoint changes nothing visible until the
+    generator runs.
+
+    tests             245 server (was 229), 433 web (was 392), ruff and tsc clean.
+                      New: `features/drawing/hitTest.test.ts` (6), plus 11 in
+                      test_wiring.py (55), 3 in test_paths.py (10), 2 in
+                      test_extraction_generator.py (21), 8 in lib/paths.test.ts
+                      (14), 5 in locate/wiring.test.ts (28), 11 in
+                      DrawingTab.test.tsx (58), 8 in WiringPanel.test.tsx (30),
+                      3 in lib/designators.test.ts (16). New files:
+                      `webui/src/lib/polyline.ts` (the point-space arithmetic all
+                      three measurements now share),
+                      `webui/src/features/drawing/{hitTest.ts,ConductorCard.tsx}`,
+                      `webui/src/features/locate/CommoningPanel.tsx`, and
+                      `16_tests_terminal_wires_and_commoning.md`. What moved:
+                      `Commoning` and `_commoning` in `server/app/wiring.py`;
+                      `paths_index` publishes `commoning`; `/api/conductors` left
+                      the `allow_edits` block; `pathsFor` takes a context and has a
+                      **terminal** case; `PathIndex.commoning` and
+                      `StoredCommoning` in `types.ts`; `wiresByTerminal` and
+                      `blockOf` in `lib/designators.ts`; `commoningFor` exported
+                      from `features/locate/wiring.ts`; `candidates()` takes the
+                      runs it may not offer. Hazard **H20** rewritten, **H22** and
+                      **H24** extended.
+
 ### 5a. What is in the files, 2026-08-24
 
 **The counts below replaced a stale block that still described 6 components and 18 terminals.**
@@ -826,7 +926,18 @@ against the files, not remembered:
                       callouts, which is a different claim. Its **net is not here
                       at all**: it is derived from the two ends' own nets, and a
                       wire whose ends are on different nets is flagged rather than
-                      fixed. `commoning` is present and empty; Phase C fills it with
+                      fixed. `commoning` **has a format since 2026-09-09** and is
+                      still empty: one record per block, keyed on the block's
+                      component id, holding `runs` — **polylines, not conductor
+                      ids** — the conductors they were cut out of, the same two
+                      provenance axes a path carries with `derived` refused by name
+                      on both, and an optional `page`, which is the one page number
+                      in this file because a polyline is the one thing in it that
+                      needs a sheet. **Saving one does not move
+                      `circuit_logic.json`**: the generator does not read the
+                      section and a test compares bytes, so this is the one thing
+                      here that behaves like a path rather than like an endpoint.
+                      Phase C fills it with
                       the 8 conductors across **6** blocks that are a terminal
                       block's own bus rather than field wire — the plan's §3.6
                       heading says 7 and its own table says 6, and 6 is right.
@@ -837,8 +948,12 @@ against the files, not remembered:
                       writes this file, and the *only* thing that ever wrote an
                       `index` value was the bootstrap.
                       **The endpoints are terminal designators and not coordinates**,
-                      so there is no page in this file — which is what will make it
-                      survive a circuit that needs several sheets.
+                      which is what will make this file survive a circuit that needs
+                      several sheets: `CR-BP:A2` names the same terminal whichever
+                      page prints it. The **one** exception is a `commoning`
+                      record's polyline, and it carries an optional `page` for
+                      exactly that reason — added 2026-09-09, before it was needed,
+                      because it would be a schema change afterwards.
                       Authored content git cannot regenerate, so it wants a commit.
     custom_kg.json    generated from circuit_logic.json by
                       schematic_skills/scripts/build_kg.py, and **re-run 2026-09-03**
@@ -909,6 +1024,12 @@ The first column is what the user says. Use this to pick one leaf document, not 
 | The red strip on the Review tab names an id I do not recognise | `12_tests_label_corrections.md` — hand-editing | a correction keyed on something not in `geometry.json` is refused **by name**, because its symptom would otherwise be nothing at all. Same reasoning as `H14` |
 | The generator exits saying `REFUSED:` and writes nothing | §5h; the message names the file and the wire | **deliberate, and the only place a missing authored file stops the work.** `wiring.json` is absent, unreadable, or names a terminal or a wire that is not in the netlist. `read_wiring` / `build_wires` in `author_circuit_logic.py`. Falling back to the `W` table would regenerate the artifact the model answers from using the guesses this project measured as wrong |
 | The artifact test is red and I do not know which file is ahead | §7 **K12** | **it says so now.** Two files can make it red — `locations.json` and `wiring.json` — and since 2026-09-08 the failure names the one whose mtime is newer, and adds `build_kg.py` where that file is the wiring one. Best-effort: an mtime is not provenance. `_whats_ahead` in `test_extraction_generator.py` |
+| Clicking a line on the sheet does nothing | `16_tests_terminal_wires_and_commoning.md` **T-1135** | the toolbar says *the runs of ink did not load* if that is why; otherwise you are more than **6 pt** of paper from the conductor. A click on a **dot** never reaches the hit-test, by design — `features/drawing/hitTest.ts` `PICK_PT` |
+| The card says *no wire claims this run* about a wire I can see | `16_tests_terminal_wires_and_commoning.md` **T-1145** | **almost always right and almost always temporary.** It means no *route* has been authored for that wire. The count beside the verdict says how many have — printed there for exactly this reason |
+| A net's highlight has no commoning in it | `16_tests_terminal_wires_and_commoning.md` **T-1120** | has that block's bus been confirmed (T-1105)? An unconfirmed block is silently absent rather than an error, because until the authoring run every block is one |
+| A block's bus appeared on the Locate tab and not on the Drawing tab | `16_tests_terminal_wires_and_commoning.md` **T-1120** | it should appear at once: `wiringStore.save` calls `appStore.refreshPaths`, because a bus is published on `/api/paths` and never reaches the netlist. If a reload fixes it, that is a real fault |
+| No **This block's commoning** section on a component | `16_tests_terminal_wires_and_commoning.md` **T-1115** | 41 of the 47 components are not terminal blocks. If it *is* a block, the ink joins none of its points — which is `TB-130`, and a question for the user's eyes rather than a gap |
+| Clicking a terminal on the **Locate** tab highlighted something | `16_tests_terminal_wires_and_commoning.md` **T-1125** | a real fault. That tab places, this one paints — decision 7, and it is what keeps `H10`'s collision from getting a third occupant |
 | No **What it joins** section on an armed wire | `15_tests_wiring_editor.md` **T-1005** | is it a **net**? A net is not wired to anything — it *is* the wiring. If it is a wire and the section says *the wiring file did not load*, `GET /api/wiring` failed: check `SWUI_ALLOW_EDITS=true` and **that the server was restarted after `wiring.py` arrived** |
 | The `Wiring` count and the `Wiring` list disagree | `15_tests_wiring_editor.md` **T-1000** | they cannot: one predicate, `wiringModel.ts` `wiringDecided`. If they do, that is a real fault. A wire that is confirmed with one end still `null` is **correctly** still in the queue — *confirmed* and *finished* are two questions |
 | No endpoint is proposed for an armed wire | `15_tests_wiring_editor.md` **T-1030** | **a real answer, and for six wires the expected one.** `W042` is the drawing's own error and the data is right; `W024`, `W025`, `W026`, `W047`, `W048` and `W049` land on a relay coil the ink stops 46 pt short of. `Pick from the sheet` is what those are for |
@@ -1094,17 +1215,19 @@ Nine files in _claude_notes/locate_tab_testing/, with the one you named as the i
 on 2026-08-24, `10_tests_end_labels.md` with Session 2 the same day, `11_tests_drawing_list.md` with
 Session 3 on 2026-08-25, `12_tests_label_corrections.md` with Session 4 the same day,
 `13_tests_paths_highlight.md` with Session 5 on 2026-09-02, `14_tests_path_editor.md` with Session 6
-on 2026-09-03 — the last session of the **wires-and-nets** plan — and **`15_tests_wiring_editor.md`
-with Session 2 of the authoring-the-wires plan on 2026-09-08.** §3 above is the current map; this
-table is kept as written.)*
+on 2026-09-03 — the last session of the **wires-and-nets** plan — **`15_tests_wiring_editor.md`
+with Session 2 of the authoring-the-wires plan on 2026-09-08, and
+`16_tests_terminal_wires_and_commoning.md` with its Session 3 on 2026-09-09.** **Seventeen files.**
+§3 above is the current map; this table is kept as written.)*
 
 *(**38** now — T-425 was added with the `F2` work, T-190 and T-360 with the Drawing tab's layer
 switches, and T-115 and T-335 with changes 11–13, all on 2026-08-19; **T-470–T-490 and T-500–T-520
 came with Session 1 of the wires-and-nets plan on 2026-08-24, T-550–T-590 with Session 2 the same day,
 T-600–T-650 with Session 3 on 2026-08-25, T-700–T-740 with Session 4 the same day, T-800–T-840
 with Session 5 on 2026-09-02, T-745–T-770 plus T-900–T-960 with Session 6 on 2026-09-03, and
-T-1000–T-1090 with Session 2 of the authoring-the-wires plan on 2026-09-08** — **about 110 numbered
-lessons in all.** §5 above is the current count; this section is kept as written.)*
+T-1000–T-1090 with Session 2 of the authoring-the-wires plan on 2026-09-08, and T-1100–T-1160 with
+its Session 3 on 2026-09-09** — **about 123 numbered lessons in all.** §5 above is the current
+count; this section is kept as written.)*
 
 28 numbered tests. Each one doubles as a lesson — what to click, what should happen, and why it matters — so working through them in order teaches the whole screen. Each also says where to look if it fails, so a report of "T-142 failed, the dot landed half an inch left" points straight at paint.ts cssToPoint.
 

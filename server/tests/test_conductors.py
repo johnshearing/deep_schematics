@@ -1,15 +1,17 @@
 """`GET /api/conductors` — the 149 runs of ink, reduced to what tracing a wire needs.
 
-Three properties are why this file exists apart from `test_paths.py`, and the first two are the
-same fact from both sides.
+Three properties are why this file exists apart from `test_paths.py`.
 
-1. **This route is gated and `/api/paths` is not.** They look like a pair and they are opposites.
-   A path is *authored display geometry* out of `locations.json` and a reader is exactly who wants
-   it (`H20`). This is the *raw ink* — 149 candidate polylines out of `geometry.json` — and it is
-   no use at all to somebody who cannot accept one of them into an authored file.
-2. **`geometry.json` still never leaves the process.** The loader narrows it and the route narrows
-   it again, key by key, and the key set is pinned here so a later `**spread` cannot widen it
-   (`H17`).
+1. **This route is free of the password since 2026-09-09, and the property that mattered is not
+   the gate.** It was gated from 2026-09-03 on a sound argument about the only reader there was:
+   149 candidate polylines are no use to somebody who cannot accept one into an authored file.
+   Phase D added a reader who points at a line and asks *what is this* — which needs exactly these
+   polylines and no password. `H20` was rewritten rather than deleted; the line it now draws is
+   **geometry is free and connectivity is not**.
+2. **`geometry.json` still never leaves the process**, and that is the property that survived. The
+   loader narrows it and the route narrows it again, key by key, and the key set is pinned here so
+   a later `**spread` cannot widen it (`H17`) — which matters *more* now that anybody may call
+   this, not less.
 3. **Every Phase F correction is applied.** The ranking compares a run's printed net name against
    a wire's net id, 30 of this sheet's 70 names were read at confidence 0.4 and nine were wrong,
    and correcting them was the entire point of doing Phase F before Phase E. A route that
@@ -160,22 +162,41 @@ def correct(drawing_dir: Path, labels: dict[str, Any]) -> None:
 # -- the gate -------------------------------------------------------------------------------
 
 
-def test_a_reader_never_downloads_the_ink(reader) -> None:
-    """The other half of `H20`, stated from this side.
+def test_a_reader_may_ask_what_a_line_on_the_sheet_is(reader) -> None:
+    """**`H20` rewritten, 2026-09-09, and this test with it.**
 
-    `/api/paths` answers for a reader with no password, because a highlight is display geometry
-    and *which of these lines is the one I care about* is a reader's question. This route hands
-    back 149 candidate polylines out of `geometry.json` — the input to a decision only an editor
-    can take — so it is registered inside `if settings.allow_edits` and there is no handler here
-    to find a bug in. **The two must not be merged for convenience.**
+    Until Phase D these three lines said the opposite: `/api/conductors` **404** and `/api/paths`
+    **200** on the same reader's server, asserted together because the interesting fact was that
+    two sibling-looking routes sat on opposite sides of one gate. The gate was right for the only
+    reader there was — 149 candidate polylines are no use to somebody who cannot accept one into
+    an authored file.
+
+    Phase D added a second reader and a different question. A technician points at a line on the
+    paper and asks **what is this, and does any wire claim it.** That is a reader's question in
+    exactly the sense *which of these lines is the one I care about* already was, and it cannot be
+    answered without the polylines. So the gate came off.
+
+    **What survives is the property, not the gate**, and it is `H17` rather than `H20`: what a
+    reader may not have is a section of `geometry.json` nobody narrowed. The pinned key set below
+    is that property, and freeing this route makes it *more* load-bearing rather than less.
+
+    The line that is left is sharper than *who is asking*: geometry is free — the sheet, the
+    paths, the runs of ink, a block's bus — and **`/api/wiring` is not**, because it says what
+    connects to what, which is the claim the model answers from.
     """
-    assert get(reader).status_code == 404
+    assert get(reader, password=None).status_code == 200
     assert reader.get("/api/paths").status_code == 200
+    # And the line that did not move. `test_wiring.py` asserts this from its own side too; it is
+    # here because this is the file that used to make the opposite argument.
+    assert reader.get("/api/wiring").status_code == 404
 
 
-def test_tracing_without_the_password_is_refused(editor) -> None:
-    assert get(editor, password=None).status_code == 401
-    assert get(editor, password="wrong").status_code == 401
+def test_asking_what_a_line_is_needs_no_password_even_where_there_is_one(editor) -> None:
+    """The same fact on an editing server: the route is not merely ungated, it does not consult
+    the header at all. A reader on a machine that happens to have an editor password set is still
+    a reader."""
+    assert get(editor, password=None).status_code == 200
+    assert get(editor, password="wrong").status_code == 200
     assert get(editor).status_code == 200
 
 

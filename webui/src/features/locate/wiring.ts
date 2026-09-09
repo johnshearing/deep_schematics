@@ -59,6 +59,10 @@
  */
 
 import type { Conductor } from '@/api/types'
+// One answer to *how far is this point from that run, and how far along it* — the same functions
+// the sheet hit-test measures with, so a landing this module refuses cannot be a conductor that
+// one names. `lib/polyline.ts` says why at more length.
+import { atArc, between, gap, polylineLength, project } from '@/lib/polyline'
 
 /**
  * How close a placed pin has to be to the ink, perpendicular, to count as being **on** it.
@@ -136,8 +140,24 @@ export interface Landing {
 export interface InkIndex {
   runs: IndexedRun[]
   /** Component id → the conductors running along that component's bus. §3.6's eight, found by
-   * shape. Phase C will author these; this is what will propose them. */
+   * shape. Phase C authors these, and `commoningFor` below is what proposes them. */
   commoning: Record<string, string[]>
+}
+
+/**
+ * What a block's own bus actually **is**, as geometry a screen can paint and a person can accept.
+ *
+ * The proposal Phase C offers, and the reason it is polylines rather than conductor ids: `C0105`
+ * is one conductor holding `DISCHARGE1:2`'s wire *and* all 279.6 pt of `TB-0V`'s vertical, so
+ * *"conductor `C0105`"* is not a description of that bus — accepting the whole thing would claim
+ * the wire as part of it, which is exactly the mistake §4 q10 is about. `conductors` records which
+ * runs the stretches were lifted from, which is a weaker and different claim.
+ */
+export interface BusProposal {
+  /** The stretch of each run that is this block's bus, in PDF points. */
+  runs: [number, number][][]
+  /** The conductors those stretches came out of, in order. */
+  conductors: string[]
 }
 
 interface IndexedRun {
@@ -156,6 +176,10 @@ interface IndexedRun {
   onlyCommoning: boolean
   /** True where either end had to be moved inward past a commoning stretch. */
   trimmed: boolean
+  /** Component id → `[from, to]` in arc length: which stretches of this run are a block's own
+   * bus. Computed once here rather than per caller, because `commoningFor` and the effective-end
+   * arithmetic below are the same measurement and must not be able to disagree. */
+  spans: Record<string, [number, number]>
 }
 
 interface RunEnd {
@@ -185,11 +209,37 @@ export function inkIndex(
 
   const commoning: Record<string, string[]> = {}
   for (const run of runs) {
-    for (const component of Object.keys(stretches(run))) {
+    for (const component of Object.keys(run.spans)) {
       commoning[component] = [...(commoning[component] ?? []), run.id]
     }
   }
   return { runs, commoning }
+}
+
+/**
+ * **The bus the ink proposes for one block** — the stretch of each run, not the whole conductor.
+ *
+ * This is the exported half of the arithmetic `landingsFrom` has used privately since Phase B, and
+ * exporting it here rather than re-deriving it in Phase C's panel is what keeps **one answer to
+ * *where is this block's bus***. The shape rule that finds it is the one `H24` describes and it is
+ * a statement about shapes: two or more of one component's terminals lying on one run. Nothing
+ * here knows what a `TB-` prefix means and nothing should.
+ *
+ * **It is a proposal and never a decision.** `TB-130`'s two points are 71 pt apart with no
+ * conductor joining them and `TB-120:3` sits off the end of `C0092`, so the rule is already known
+ * to be incomplete on this sheet — which is why `derived` is refused by name on a saved record and
+ * why the screen makes a person press something. Empty for a block the ink says nothing about.
+ */
+export function commoningFor(index: InkIndex, component: string): BusProposal {
+  const runs: [number, number][][] = []
+  const conductors: string[] = []
+  for (const run of index.runs) {
+    const span = run.spans[component]
+    if (!span) continue
+    runs.push(between(run.points, span[0], span[1]))
+    conductors.push(run.id)
+  }
+  return { runs, conductors }
 }
 
 /**
@@ -338,7 +388,9 @@ function index(
     ends: [],
     onlyCommoning: false,
     trimmed: false,
+    spans: {},
   }
+  run.spans = stretches(run)
 
   /**
    * The effective ends — **the whole of the commoning rule.**
@@ -347,7 +399,7 @@ function index(
    * from the far end walk backward the same way, until neither moves. If the two meet or cross,
    * the run is nothing but bus and lands on nothing.
    */
-  const spans = Object.values(stretches(run))
+  const spans = Object.values(run.spans)
   let lo = 0
   for (;;) {
     const next = Math.max(
@@ -437,57 +489,6 @@ function usable(conductor: Conductor): [number, number][] {
     .map((end) => end.point)
     .filter((point): point is [number, number] => Array.isArray(point))
   return ends.length >= 2 ? ends : []
-}
-
-/** Perpendicular distance to the polyline, and how far along the projection falls. */
-function project(
-  point: [number, number],
-  polyline: readonly [number, number][],
-): { off: number; along: number } {
-  let best = { off: Infinity, along: 0 }
-  let arc = 0
-  for (let i = 0; i < polyline.length - 1; i += 1) {
-    const a = polyline[i]
-    const b = polyline[i + 1]
-    const span = gap(a, b)
-    let t = 0
-    let off: number
-    if (span === 0) {
-      off = gap(point, a)
-    } else {
-      t = ((point[0] - a[0]) * (b[0] - a[0]) + (point[1] - a[1]) * (b[1] - a[1])) / (span * span)
-      t = Math.max(0, Math.min(1, t))
-      off = gap(point, [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])])
-    }
-    if (off < best.off) best = { off, along: arc + t * span }
-    arc += span
-  }
-  return best
-}
-
-function atArc(polyline: readonly [number, number][], along: number): [number, number] {
-  let arc = 0
-  for (let i = 0; i < polyline.length - 1; i += 1) {
-    const a = polyline[i]
-    const b = polyline[i + 1]
-    const span = gap(a, b)
-    if (arc + span >= along - 1e-9) {
-      const t = span === 0 ? 0 : Math.max(0, Math.min(1, (along - arc) / span))
-      return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]
-    }
-    arc += span
-  }
-  return polyline[polyline.length - 1]
-}
-
-function polylineLength(polyline: readonly [number, number][]): number {
-  let total = 0
-  for (let i = 1; i < polyline.length; i += 1) total += gap(polyline[i - 1], polyline[i])
-  return total
-}
-
-function gap(a: readonly [number, number], b: readonly [number, number]): number {
-  return Math.hypot(b[0] - a[0], b[1] - a[1])
 }
 
 function round(value: number): number {

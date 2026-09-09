@@ -10,7 +10,15 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Designator, DesignatorIndex } from '@/api/types'
-import { buildLookup, normalise, placesOf, resolve, suggestedQuestion } from './designators'
+import {
+  blockOf,
+  buildLookup,
+  normalise,
+  placesOf,
+  resolve,
+  suggestedQuestion,
+  wiresByTerminal,
+} from './designators'
 
 function entry(id: string, extra: Partial<Designator> = {}): Designator {
   return {
@@ -155,5 +163,66 @@ describe('suggestedQuestion', () => {
     // and the narrower version this replaced ("what does it do, and what is connected to it")
     // got a narrower answer. Pinned because it is a product decision, not a wording accident.
     expect(suggestedQuestion(entry('CR-BP'))).toBe('Please tell me all you can about CR-BP')
+  })
+})
+
+// -- Phase D: the reverse index, and no server change for it -----------------------------------
+
+describe('wiresByTerminal', () => {
+  /** A wire, as the index publishes one: `terminals` is `[from, to]` and the order is content. */
+  function wire(id: string, from: string, to: string): Designator {
+    return {
+      id,
+      kind: 'wire',
+      label: `wire ${id}`,
+      on_sheet: false,
+      members: [],
+      point: null,
+      rect: null,
+      terminals: [
+        { id: from, point: null, placement: null },
+        { id: to, point: null, placement: null },
+      ],
+    }
+  }
+
+  it('turns *what this wire is made of* into *what reaches this pin*', () => {
+    /**
+     * Plan §4 q7, and the reason it is here and not on the server: `/api/designators` publishes
+     * `terminals` on each wire, so the other direction is one pass over a payload already on the
+     * page. A second endpoint for a transposition of the first would be a second answer to one
+     * question — and the Drawing tab reads this with **no editor password**, so it may not come
+     * from a draft or from anything gated.
+     */
+    const found = wiresByTerminal([
+      wire('W052', 'CR2:14', 'TB-120:1'),
+      wire('W063', 'INFEED1:3', 'TB-120:1'),
+      entry('CR2'),
+    ])
+    // Two wires on one pin is the ordinary case at a terminal block, and the order is the index's.
+    expect(found['TB-120:1']).toEqual(['W052', 'W063'])
+    expect(found['CR2:14']).toEqual(['W052'])
+    // A pin nothing reaches is **absent**, not empty: the caller asks *is there one*, and a key
+    // whose value is `[]` is a third state to explain for no gain. `pathsFor` reads it with `??`.
+    expect(found['TB-120:2']).toBeUndefined()
+    // A component is not a wire and contributes nothing, however many terminals hang off it.
+    expect(Object.keys(found).sort()).toEqual(['CR2:14', 'INFEED1:3', 'TB-120:1'])
+  })
+
+  it('names a wire once even if both of its ends are the same terminal', () => {
+    // The sheet has none, and a highlight that painted one run twice for a malformed record would
+    // be a fault nobody could see. Cheap to make impossible.
+    expect(wiresByTerminal([wire('W999', 'TB-0V:1', 'TB-0V:1')])['TB-0V:1']).toEqual(['W999'])
+  })
+})
+
+describe('blockOf', () => {
+  it('reads the block off the designator, which is a shape rule and not a fact about this sheet', () => {
+    // `COMPONENT:PIN` everywhere in this project — the server refuses an endpoint without the
+    // colon **by name** — so this is the same standard the bus detection is held to: nothing in
+    // `webui/src/` knows what a `TB-` prefix means, and the next drawing will not use one.
+    expect(blockOf('TB-0V:12')).toBe('TB-0V')
+    expect(blockOf('CR-BP:A2')).toBe('CR-BP')
+    expect(blockOf('DISC1')).toBe('DISC1')
   })
 })

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 import {
+  getConductors,
   getDesignators,
   getDrawing,
   getHealth,
@@ -10,6 +11,7 @@ import {
   unlock,
 } from '@/api/client'
 import type {
+  Conductor,
   Designator,
   DesignatorIndex,
   DesignatorKind,
@@ -19,6 +21,15 @@ import type {
   StarterQuestion,
 } from '@/api/types'
 import { buildLookup } from '@/lib/designators'
+
+/** Module state, beside the store, so a second activation while the first request is in flight
+ * does not fetch 32 KB twice. The same idiom `locateStore`'s save timer uses and for the same
+ * reason: it is not a fact about the document, so it has no business in one. */
+let conductorsInFlight = false
+
+function message(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 /**
  * What the reader is currently pointing at.
@@ -75,6 +86,21 @@ interface AppState {
    * that could disagree.
    */
   paths: PathIndex | null
+  /**
+   * The 149 runs of ink — **for the reader, since `/api/conductors` lost its password.**
+   *
+   * Loaded lazily by the Drawing tab on its first activation rather than in `loadAll`, because it
+   * is 32 KB nobody who never opens that tab needs, and it answers exactly one question: *what is
+   * this line I am pointing at, and does any wire claim it.* Null while it loads and after a
+   * failure, which the card says out loud rather than reading as *no wire claims this run*.
+   *
+   * The Locate editor keeps its **own** copy in `locateStore`, and that is deliberate rather than
+   * duplication left lying about: the two stores do not know about each other (`H18`), the parse
+   * behind the route is `lru_cache`d so the second fetch costs a serialisation, and the editor's
+   * copy arrives on unlock while this one arrives on first sight of the sheet.
+   */
+  conductors: Conductor[] | null
+  conductorsError: string | null
   /** Every id and unambiguous alias, case-folded. The allowlist a backticked span is matched
    * against; see `lib/designators.ts` for why it is an allowlist. */
   byToken: Map<string, Designator>
@@ -132,6 +158,21 @@ interface AppState {
    * Drawing tab would keep drawing the estimate until the page was reloaded. Both come out of
    * `locations.json`, so one save moves both and one refresh has to fetch both. */
   refreshDesignators: () => Promise<void>
+  /**
+   * Re-read the **paths alone**, which is what a commoning save changes.
+   *
+   * Its own function rather than a call to `refreshDesignators`, because the two saves are not
+   * alike. A placement moves `/api/designators` *and* `/api/paths`, both out of `locations.json`.
+   * A commoning record moves neither the index nor the netlist — it is display geometry, and
+   * `test_commoning_does_not_reach_the_netlist` compares bytes to say so — but it **is** published
+   * on `/api/paths`, so a net's highlight gains the block's bus the moment it is saved rather than
+   * on the next reload. Re-reading the index as well would fetch the same bytes and imply
+   * something had moved.
+   */
+  refreshPaths: () => Promise<void>
+  /** Fetch the runs of ink, once. Safe to call on every activation: it returns immediately if the
+   * payload is already here or a request is in flight. */
+  loadConductors: () => Promise<void>
   submitUnlock: (password: string) => Promise<boolean>
 }
 
@@ -144,6 +185,8 @@ export const useAppStore = create<AppState>()(
       questions: [],
       designators: null,
       paths: null,
+      conductors: null,
+      conductorsError: null,
       byToken: new Map(),
       selection: null,
       model: 'sonnet',
@@ -201,6 +244,30 @@ export const useAppStore = create<AppState>()(
           set({ paths: await getPaths() })
         } catch {
           // As above: the highlight is one save behind, and nothing else changes.
+        }
+      },
+
+      refreshPaths: async () => {
+        try {
+          set({ paths: await getPaths() })
+        } catch {
+          // The highlight is one save behind and nothing else changes — the same degradation the
+          // designator refresh already accepts, and for the same reason.
+        }
+      },
+
+      loadConductors: async () => {
+        if (get().conductors || conductorsInFlight) return
+        conductorsInFlight = true
+        try {
+          set({ conductors: (await getConductors()).conductors, conductorsError: null })
+        } catch (error) {
+          // A reader whose ink did not load can still read the sheet, select anything and see
+          // every highlight. What they lose is *what is this line* — so the card says that,
+          // rather than answering *no wire claims this run*, which would be a false fact.
+          set({ conductors: null, conductorsError: message(error) })
+        } finally {
+          conductorsInFlight = false
         }
       },
 

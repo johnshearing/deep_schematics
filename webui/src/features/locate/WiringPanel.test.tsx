@@ -24,6 +24,15 @@
  *
  * *confirming a wire whose endpoints do not change still writes a record and moves the count.*
  * 47 of the real 71 wires are that case, and before this screen the file could not hold it.
+ *
+ * ### And since 2026-09-09 it covers **both** sections of the fourth authored file
+ *
+ * Phase C's commoning editor is a different component (`CommoningPanel`) on a different kind of
+ * row — a *component* rather than a wire — and it is tested here rather than in a file of its own
+ * because it is the same screen, the same `wiringStore` and the same document. `H18`'s trap is
+ * two whole-document drafts over one file, so the thing worth asserting is that the commoning
+ * panel writes through the store the wiring queue already owns, and that is only visible with the
+ * whole tab rendered.
  */
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -138,8 +147,26 @@ function net(id: string, terminals: string[]): Designator {
   }
 }
 
+/** The blocks themselves. Needed since Phase C, because a commoning record is keyed on a
+ * **component** and the `Commoning` filter's rows are components rather than wires — the only
+ * queue on this screen that is. */
+function block(id: string, point: [number, number]): Designator {
+  return {
+    id,
+    kind: 'component',
+    label: `terminal block ${id}`,
+    on_sheet: true,
+    members: [],
+    point,
+    rect: [point[0], point[1], point[0], point[1]],
+    placement: 'confirmed',
+  }
+}
+
 const ENTRIES: Designator[] = [
   ...PINS,
+  block('TB-0V', [300, 508]),
+  block('TB-GND-B', [300, 700]),
   wire('W019', 'GREEN 12AWG', 'PS1:-2', 'TB-GND-B:2'),
   wire('W042', 'BLUE 22AWG', 'PB2:3', 'TB-0V:6'),
   wire('W045', 'WHITE/BLUE 18AWG', 'CR1:A2', 'TB-0V:2'),
@@ -149,7 +176,7 @@ const ENTRIES: Designator[] = [
 
 const INDEX: DesignatorIndex = {
   drawing_number: 'PS20115MLM4-2',
-  counts: { terminal: 7, wire: 3, net: 2 },
+  counts: { component: 2, terminal: 7, wire: 3, net: 2 },
   located: ENTRIES.length,
   entries: ENTRIES,
 }
@@ -162,7 +189,7 @@ const INDEX: DesignatorIndex = {
  * of `TB-0V:6`: the drawing's own error, and the netlist is right.
  */
 const CONDUCTORS = {
-  counts: { conductors: 2, named: 2 },
+  counts: { conductors: 3, named: 2 },
   problems: [] as string[],
   conductors: [
     {
@@ -184,6 +211,20 @@ const CONDUCTORS = {
       color: 'BLUE',
       gauge: '22AWG',
       length: 120,
+    },
+    /**
+     * **`TB-0V`'s own bus** — the third case, added with Phase C on 2026-09-09.
+     *
+     * 16 pt of vertical joining rows 1 and 2 and nothing else, which is `C0092`'s shape on the
+     * real sheet at a hundredth of the length. It carries **no printed name**, because a block's
+     * commoning is not a wire and nothing writes a net name beside it. It must never be offered as
+     * a wire's route, and `wiring.ts` `isCommoning` is what says so.
+     */
+    {
+      id: 'C0092',
+      points: [[300, 500], [300, 516]] as [number, number][],
+      ends: [{ point: [300, 500] as [number, number] }, { point: [300, 516] as [number, number] }],
+      length: 16,
     },
   ],
 }
@@ -237,6 +278,9 @@ const SIZE = { width: 800, height: 600 }
 
 /** Every wiring document the screen would have written, in order. */
 let savedWiring: Record<string, unknown>[] = []
+/** What the server would publish on `/api/paths` after the last save — the commoning section, as
+ * `paths_index` republishes it. */
+let savedCommoning: Record<string, unknown> = {}
 
 function stubServer(options: { locations?: LocationsDocument; ink?: null } = {}) {
   vi.stubGlobal(
@@ -246,7 +290,9 @@ function stubServer(options: { locations?: LocationsDocument; ink?: null } = {})
         return json({ unlocked: true, password_required: false })
       }
       if (url.endsWith('/api/wiring') && init?.method === 'PUT') {
-        savedWiring.push(JSON.parse(String(init.body)).document)
+        const sent = JSON.parse(String(init.body)).document
+        savedWiring.push(sent)
+        savedCommoning = sent.commoning ?? {}
         return json({
           saved: true,
           report: WIRING_REPORT,
@@ -278,6 +324,9 @@ function stubServer(options: { locations?: LocationsDocument; ink?: null } = {})
         })
       }
       if (url.endsWith('/api/designators')) return json(INDEX)
+      // Answered since Phase C: a commoning save re-reads this, because a block's bus is published
+      // here and a net's highlight has to gain it without a reload.
+      if (url.endsWith('/api/paths')) return json({ ...PATHS, commoning: savedCommoning })
       if (url.endsWith('/api/conductors')) {
         return options.ink === null ? json({ detail: 'no ink' }, 404) : json(CONDUCTORS)
       }
@@ -292,6 +341,7 @@ function json(body: unknown, status = 200) {
 
 beforeEach(() => {
   savedWiring = []
+  savedCommoning = {}
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
     configurable: true, writable: true, value: vi.fn(),
   })
@@ -695,5 +745,161 @@ describe('saving', () => {
       const document_ = await written()
       expect(document_.wires.W019.note).toBe('a 0V-to-ground bond')
     })
+  })
+})
+
+// -- Phase C: a block's own bus, authored from the same screen ---------------------------------
+//
+// **The second section of the same file, written from the same tab and through the same store.**
+// That is `H18`'s narrowest arrangement rather than an accident: `wiringStore` owns `wiring.json`,
+// so a commoning editor with a store of its own would put two whole-document drafts on one file
+// and make `H1` fire *inside* it — a last-write-wins between the wiring queue and the commoning
+// panel, which is exactly what three separate files were supposed to have made impossible.
+
+/** Open the screen on a component, through the `Commoning` filter. */
+async function openBlock(id: string) {
+  render(<LocateTab />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Commoning' }))
+  fireEvent.click(await screen.findByRole('option', { name: new RegExp(`^${id} `) }))
+  return screen.findByText("This block's commoning")
+}
+
+/** The last document the screen sent, read for its commoning section. */
+async function writtenCommoning() {
+  await waitFor(() => expect(savedWiring.length).toBeGreaterThan(0), { timeout: 3000 })
+  return (savedWiring[savedWiring.length - 1] as { commoning: Record<string, Record<string, unknown>> })
+    .commoning
+}
+
+describe("a block's commoning", () => {
+  it('lists only the blocks the ink can offer a bus for', async () => {
+    // **The one filter on this screen whose membership is a measurement.** Nothing in the netlist
+    // says which components have a commoning line; the shape rule finds them — two or more of one
+    // block's terminals on one run — and `C0092` passes `TB-0V:1` and `:2`. `TB-GND-B` has one pin
+    // here and no bus, so it is not in the list and cannot be authored from this screen.
+    render(<LocateTab />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Commoning' }))
+    await screen.findByRole('option', { name: /^TB-0V / })
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    expect(screen.getByText(/0 of 1 blocks commoned/)).toBeTruthy()
+  })
+
+  it('proposes the run and writes it as polylines, with both axes and no `derived`', async () => {
+    await openBlock('TB-0V')
+    expect(screen.getByText('the ink proposes')).toBeTruthy()
+
+    fireEvent.click(screen.getByText("This is TB-0V's commoning"))
+    const commoning = await writtenCommoning()
+
+    // **Polylines, not a conductor id** — because `C0105` on the real sheet is a wire *and* a bus,
+    // and the conductor is not a description of either half.
+    expect(commoning['TB-0V'].runs).toEqual([[[300, 500], [300, 516]]])
+    expect(commoning['TB-0V'].conductors).toEqual(['C0092'])
+    // `extracted` because the polyline is the PDF's own stroke; `human` because a **person** said
+    // it is the block's own bus rather than field wire. Never `derived`, which the server refuses
+    // by name: the shape rule found this, and finding is not deciding.
+    expect(commoning['TB-0V'].geometry).toBe('extracted')
+    expect(commoning['TB-0V'].attribution).toBe('human')
+    expect(commoning['TB-0V'].by).toBe('js')
+  })
+
+  it('moves the count, and the block stays in the list so it can be looked at again', async () => {
+    await openBlock('TB-0V')
+    fireEvent.click(screen.getByText("This is TB-0V's commoning"))
+
+    await waitFor(() => expect(screen.getByText(/1 of 1 blocks commoned/)).toBeTruthy())
+    // Unlike the wiring queue: a wire *leaves* the list when it is confirmed because there are 71
+    // of them and the queue has to shrink. There are six blocks, and a list that emptied under
+    // the click would take away the way back to what you just did.
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+  })
+
+  it('deletes the record on Take it back, which is not what a wire does', async () => {
+    await openBlock('TB-0V')
+    fireEvent.click(screen.getByText("This is TB-0V's commoning"))
+    await waitFor(() => expect(screen.getByText('Take it back')).toBeTruthy())
+
+    fireEvent.click(screen.getByText('Take it back'))
+    await waitFor(async () => expect(await writtenCommoning()).toEqual({}))
+
+    // **The difference from `unconfirm`, and it is about who wrote the record.** All 71 wire
+    // records came from `bootstrap_wiring.py`, so a vanished one reads in `git diff` as a wire
+    // somebody removed and `unconfirm` writes `index` instead. Nothing bootstraps a bus: a
+    // commoning record exists only because a person accepted one, so *no record* and *nobody has
+    // authored this* are the same state and keeping an empty one would invent a third.
+  })
+
+  it('will not take a note before there is a decision for it to ride on', async () => {
+    await openBlock('TB-0V')
+    const note = document.querySelector('[data-commoning-note="TB-0V"]') as HTMLInputElement
+    expect(note.disabled).toBe(true)
+
+    fireEvent.click(screen.getByText("This is TB-0V's commoning"))
+    await waitFor(() =>
+      expect(
+        (document.querySelector('[data-commoning-note="TB-0V"]') as HTMLInputElement).disabled,
+      ).toBe(false),
+    )
+  })
+
+  it('says nothing at all on a component with no bus in the ink', async () => {
+    // 41 of the real drawing's 47 components are not terminal blocks. A section that appeared on
+    // every relay saying *nothing here* would be noise on the busiest panel in the project — and
+    // `TB-130` is the case that matters: two points 71 pt apart with nothing joining them, which
+    // is a question for the user's eyes rather than a gap in this screen.
+    render(<LocateTab />)
+    fireEvent.click(await screen.findByRole('button', { name: 'All' }))
+    fireEvent.click(await screen.findByRole('option', { name: /^TB-GND-B / }))
+    await waitFor(() => expect(screen.queryByText("This block's commoning")).toBeNull())
+  })
+})
+
+describe('the path editor and the bus', () => {
+  it('never offers a block’s own commoning as a wire’s route, and says it did not', async () => {
+    /**
+     * **The decision plan §4 q10 asked for, end to end.** `C0092` lands exactly on `TB-0V:2`,
+     * carries no printed name to contradict it, and looks precisely like the second half of an L —
+     * which is how `07_drawing_facts.md` came to record it as part of `W063` and how
+     * `14_tests_path_editor.md` T-915 came to *instruct* a person to accept it.
+     *
+     * So it is removed from the ranking rather than tagged: a tag on a row somebody can press is
+     * not enforcement, and the failure is a click. And the panel **says so** — *nothing refused is
+     * silent* is invariant 5, and a proposal list that quietly drops runs is one nobody can trust.
+     */
+    render(<LocateTab />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Paths' }))
+    fireEvent.click(await screen.findByRole('option', { name: /^W045 / }))
+    await screen.findByLabelText('Candidate runs for W045')
+
+    const offered = [...document.querySelectorAll('[data-candidate]')].map((row) =>
+      row.getAttribute('data-candidate'),
+    )
+    expect(offered).toContain('C0010')
+    expect(offered).not.toContain('C0092')
+
+    const refused = document.querySelector('[data-path-refused]')
+    expect(refused?.textContent).toContain('C0092')
+    expect(refused?.textContent).toContain("TB-0V's own commoning")
+  })
+})
+
+describe('the sheet sees a bus as soon as it is saved', () => {
+  it('re-reads the paths after a commoning save, so a net gains the bus without a reload', async () => {
+    /**
+     * **The one save on this screen whose effect a reader sees immediately**, and it is the
+     * mirror image of the one beside it.
+     *
+     * A saved *endpoint* changes nothing visible until the generator runs, because the index is
+     * built from `circuit_logic.json` — so this store puts a banner up rather than refreshing
+     * anything. A saved *bus* never reaches the netlist at all, and is published on `/api/paths`
+     * — so the highlight the user asked for on 2026-09-06 has to appear on the drawing now, not
+     * after a reload.
+     */
+    await openBlock('TB-0V')
+    fireEvent.click(screen.getByText("This is TB-0V's commoning"))
+    await waitFor(() =>
+      expect(useAppStore.getState().paths?.commoning?.['TB-0V']).toBeTruthy(),
+      { timeout: 3000 },
+    )
   })
 })

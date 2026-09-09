@@ -79,6 +79,7 @@ import {
 import { TargetPanel } from './TargetPanel'
 import { inkIndex } from './wiring'
 import {
+  commoningCoverage,
   endpointsOf as endsFor,
   setEndpoint as setEndpointInto,
   terminalNets,
@@ -101,6 +102,7 @@ export { LOCATE_TAB_ID }
 type Filter =
   | 'todo'
   | 'wiring'
+  | 'commoning'
   | 'paths'
   | 'components'
   | 'terminals'
@@ -127,6 +129,26 @@ const FILTERS: { id: Filter; label: string; title: string }[] = [
       'Wires whose two terminals nobody has confirmed. For the 40 that land on a multi-point ' +
       'block the far end was allocated rather than read — 11 of the 71 are on the wrong screw. A ' +
       'wire leaves this list when you have looked at its ends, whether or not they change.',
+  },
+  {
+    /**
+     * **The terminal blocks whose own bus is waiting to be confirmed** — the third queue, and the
+     * shortest: six blocks on this sheet against 71 wires and 178 points.
+     *
+     * The rows are *components*, not wires, which makes this the one filter on the screen whose
+     * membership comes from the **ink** rather than from the netlist. Nothing in
+     * `circuit_logic.json` says which components have a commoning line; the shape rule finds them
+     * — two or more of one block's terminals lying on one run — and a block it cannot find is a
+     * block this screen cannot author. `TB-130` is that case and it is a question for the user's
+     * eyes rather than a gap here.
+     */
+    id: 'commoning',
+    label: 'Commoning',
+    title:
+      'Terminal blocks whose own bus the ink can offer you. A block leaves this list when you ' +
+      'say those lengths of ink are its commoning — after which a net’s highlight paints the ' +
+      'vertical its wires land on as well as the wires. It is display geometry: unlike a wire’s ' +
+      'endpoints, saving one leaves circuit_logic.json exactly where it was.',
   },
   {
     /**
@@ -328,6 +350,74 @@ export function LocateTab() {
     [document, wiring],
   )
 
+  /**
+   * The ink, indexed once for the whole drawing — **Phase B's input, built here and not per wire.**
+   *
+   * 149 runs against 131 pins is about twenty thousand projections, which is nothing, but doing it
+   * inside the panel would do it again on every hover. Keyed on the payloads and nothing else, so
+   * it survives every click on this screen.
+   *
+   * Only **confirmed** terminal points go in, and that is load-bearing rather than tidy: a pin
+   * resolved to its parent component's dot (`placement: 'parent'`) is a coordinate nobody chose,
+   * and feeding one to a landing rule that discriminates at 4 pt would invent landings on whatever
+   * ink happens to pass the component. All 131 on this sheet are confirmed; the guard is for the
+   * next drawing, half-placed.
+   *
+   * **It is above the filters since 2026-09-09**, because the `Commoning` list is the one whose
+   * membership this measurement decides.
+   */
+  const ink = useMemo(() => {
+    if (!conductors) return null
+    const pins = entries
+      .filter((entry) => entry.kind === 'terminal' && entry.placement === 'confirmed')
+      .flatMap((entry) => (entry.point ? [{ id: entry.id, point: entry.point }] : []))
+    return inkIndex(conductors, pins)
+  }, [conductors, entries])
+
+  /**
+   * The blocks the ink offers a bus for — six on this sheet, found by shape and told nothing.
+   *
+   * The denominator of the commoning count and the membership of the `Commoning` filter, and it
+   * comes from the **ink** rather than from the netlist because nothing in `circuit_logic.json`
+   * says which components have a commoning line. A block the ink cannot propose one for cannot be
+   * authored here at all — `TB-130` is the sheet's example and it is one of the three questions
+   * §14 leaves for the user's own eyes.
+   *
+   * A block already commoned is in the list too: it is what you press to look at it again, and it
+   * keeps the filter from emptying under the click that finishes it.
+   */
+  const commoningBlocks = useMemo(
+    () => new Set([...Object.keys(ink?.commoning ?? {}), ...Object.keys(wiring?.commoning ?? {})]),
+    [ink, wiring],
+  )
+
+  /**
+   * **The runs no wire may claim** — the ones that are *nothing but* a block's bus.
+   *
+   * This is `paths.ts` `candidates()`'s new input, and the decision behind it is worth reading in
+   * one place. Plan §4 q10 asks whether the path editor should stop offering a block's commoning
+   * once it is authored. The answer shipped is **yes, and keyed on the shape rule rather than on
+   * the authored record** — because a record stores *stretches*, and `C0105` and `C0008` are each
+   * partly a wire and partly a bus, so excluding by the conductor ids a record names would take
+   * `DISCHARGE1:2`'s and `RECEPT1:5`'s **real routes** out of the list. `isCommoning` answers the
+   * narrower question the ranking actually needs — *is the whole of this run a bus* — and it
+   * answers it before anybody has authored anything, which matters because the authoring run
+   * starts now.
+   *
+   * `commonedBy` is only for the sentence that names the refusal: *nothing refused is silent*.
+   */
+  const commoning = useMemo(
+    () => new Set((ink?.runs ?? []).filter((run) => run.onlyCommoning).map((run) => run.id)),
+    [ink],
+  )
+  const commonedBy = useMemo(() => {
+    const out: Record<string, string> = {}
+    for (const [block, runs] of Object.entries(ink?.commoning ?? {})) {
+      for (const id of runs) if (commoning.has(id)) out[id] = block
+    }
+    return out
+  }, [ink, commoning])
+
   const visible = useMemo(() => {
     if (!document) return []
     switch (filter) {
@@ -338,6 +428,13 @@ export function LocateTab() {
         // it rather than 900 ms later. The count below shares this predicate, which is what stops
         // the two from ever disagreeing.
         return wiring ? entries.filter((e) => wiringPending(wiring, e)) : []
+      case 'commoning':
+        // **Components, and from the ink rather than from the netlist** — the only filter here
+        // whose membership is a measurement. A block already authored stays in the list so it can
+        // be looked at again; the count beside it is what says how many are done.
+        return entries.filter(
+          (e) => e.kind === 'component' && commoningBlocks.has(e.id),
+        )
       case 'paths':
         // Read off the **draft**, so a wire leaves the queue under the click that settles it
         // rather than after the save.
@@ -353,11 +450,14 @@ export function LocateTab() {
       default:
         return entries
     }
-  }, [entries, filter, document, wiring, stateOf])
+  }, [entries, filter, document, wiring, commoningBlocks, stateOf])
 
   const done = document ? coverage(entries, document) : null
   /** `n of 71 wires confirmed`. Shares `wiringPending` with the filter above. */
   const wired = wiring ? wiringCoverage(entries, wiring) : null
+  /** `n of 6 blocks commoned`. Its total is the ink's proposals plus whatever is already
+   * authored — `commoningCoverage` says why it cannot come from the netlist. */
+  const commoned = wiring ? commoningCoverage(wiring, [...commoningBlocks]) : null
   /** Terminal id → net id, for the panel's mismatch flag. One pass over the 26 nets. */
   const nets = useMemo(() => terminalNets(entries), [entries])
   const targetEntry = useMemo(
@@ -472,27 +572,6 @@ export function LocateTab() {
     () => (net ? (entries.find((e) => e.kind === 'net' && e.id === net)?.printed ?? null) : null),
     [entries, net],
   )
-
-  /**
-   * The ink, indexed once for the whole drawing — **Phase B's input, built here and not per wire.**
-   *
-   * 149 runs against 131 pins is about twenty thousand projections, which is nothing, but doing it
-   * inside the panel would do it again on every hover. Keyed on the payloads and nothing else, so
-   * it survives every click on this screen.
-   *
-   * Only **confirmed** terminal points go in, and that is load-bearing rather than tidy: a pin
-   * resolved to its parent component's dot (`placement: 'parent'`) is a coordinate nobody chose,
-   * and feeding one to a landing rule that discriminates at 4 pt would invent landings on whatever
-   * ink happens to pass the component. All 131 on this sheet are confirmed; the guard is for the
-   * next drawing, half-placed.
-   */
-  const ink = useMemo(() => {
-    if (!conductors) return null
-    const pins = entries
-      .filter((entry) => entry.kind === 'terminal' && entry.placement === 'confirmed')
-      .flatMap((entry) => (entry.point ? [{ id: entry.id, point: entry.point }] : []))
-    return inkIndex(conductors, pins)
-  }, [conductors, entries])
 
   /**
    * The corners a person may move: a hand-traced route's, and nothing else.
@@ -899,6 +978,22 @@ export function LocateTab() {
             {wired.corrected > 0 && ` · ${wired.corrected} corrected`}
           </span>
         )}
+        {commoned && (
+          <span
+            className="text-muted-foreground tabular-nums"
+            title={
+              'Terminal blocks whose own bus you have confirmed. **The total is what the ink ' +
+              'offers**, not a number out of the netlist: nothing in `circuit_logic.json` says ' +
+              'which components have a commoning line, and `TB-130`’s two points are 71 pt apart ' +
+              'with no conductor joining them — so the ink cannot propose one there and this ' +
+              'screen cannot author one. A net’s highlight gains a block’s bus the moment you ' +
+              'confirm it, and none of this moves the netlist.'
+            }
+            data-commoning-count
+          >
+            {`${commoned.commoned} of ${commoned.blocks} blocks commoned`}
+          </span>
+        )}
         {armed && loaded < total && (
           <span className="text-muted-foreground">
             loading {loaded}/{total}…
@@ -1071,6 +1166,8 @@ export function LocateTab() {
                 wiring={wiring}
                 nets={nets}
                 ink={ink}
+                commoning={commoning}
+                commonedBy={commonedBy}
                 armedEnd={armedSlot?.wire === targetEntry.id ? armedSlot.end : null}
                 onArmEnd={(end) => arm(end ? { wire: targetEntry.id, end } : null)}
                 onEditWiring={editWiring}

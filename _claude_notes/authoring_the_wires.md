@@ -1196,3 +1196,93 @@ button. The **six coil wires are slower**: the ink offers nothing for `W024`, `W
 to do deliberately** — press `I looked and it was right` on a wire the ink says nothing about, and
 notice that the screen did not try to talk you out of correct data.
 
+### Session 3 — Phases C and D. **Done, 2026-09-09.**
+
+A terminal block's commoning is authored and a net's highlight includes it; clicking a terminal on
+the Drawing tab highlights every wire that reaches it; a click on bare paper names the run of ink
+and gives one of three verdicts; and `GET /api/conductors` has lost the editor password.
+**245 server tests, 433 web, ruff and tsc clean.** `16_tests_terminal_wires_and_commoning.md` is the
+lesson document, T-1100–T-1160.
+
+**Both acceptance criteria are met, and one of them is met with a caveat worth stating.**
+
+| | |
+|---|---|
+| A commoning save leaves `circuit_logic.json` current, asserted in bytes | **yes** — `test_commoning_does_not_reach_the_netlist`, and proved again on the real drawing: written through the running server, generator re-run, same md5, `git checkout` empty |
+| `/api/conductors` answers with `SWUI_ALLOW_EDITS=false` | **yes**, verified live: 200 against `/api/wiring`'s 404 |
+| Clicking `TB-0V:6` highlights `W042` and the bus and says so | **yes** |
+| Clicking `C0092` says *`TB-120`'s commoning* | **yes** — and it distinguishes the shape rule's answer from a person's |
+| Clicking a label leader says *no wire claims this run*, beside the route count | **yes** |
+| Selecting net `0V` paints eleven wire runs **and** the vertical | **the vertical, yes. Eleven runs, not yet** — see below |
+
+**The one criterion that is only half true, and it is data rather than code.** Net `0V` has 13
+wires and **3** of them have a route authored. The union works and the vertical is painted; the
+number of wire runs is whatever the `Paths` queue has reached, and it climbs on its own during the
+authoring run. Nothing further needs building for the eleven to appear.
+
+**Six places where the execution departed from §7 and §9, each with its reason:**
+
+1. **A wire's highlight does not include the commoning.** §9 asks for all three cases; a net's and
+   a terminal's shipped. `C0092` is `TB-120`'s bus and `07_drawing_facts.md` called it *"the second
+   piece of `W063`'s L"* for a week — painting a block's bus in the highlight colour underneath a
+   selected wire is that picture exactly, and it would teach the error on every wire that lands on
+   a block. A net and a terminal are questions about a **place in the circuit**, where the bus
+   belongs in the answer; a wire is a claim about **one piece of ink**.
+
+2. **The commoning is published on `/api/paths`.** §6 does not say where it travels, and the
+   obvious home — `/api/wiring` — is gated, which would have put the reader's half of Phase C
+   behind the editor password. `H20` was rewritten round it and the line it draws now is **geometry
+   is free and connectivity is not**; `test_no_wires_endpoints_travel_with_it` asserts the other
+   half.
+
+3. **The `Commoning` count's denominator comes from the ink.** Every other count on that screen is
+   out of `circuit_logic.json`, and nothing in the netlist says which components have a bus. The
+   honest total is *blocks the ink offers plus blocks already authored* — a set that can be
+   finished, so `K7` is avoided. The cost is that **a block the ink cannot see cannot be authored
+   here at all**, which is `TB-130` and is §14's first question.
+
+4. **`candidates()` excludes a bus by the shape rule, not by the authored record.** §4 q10 asks for
+   the exclusion *once a block's commoning is authored*. Keyed that way it would be **wrong**: a
+   record stores stretches, `C0105` and `C0008` are each partly a wire, and excluding by the
+   conductor ids a record names would take `DISCHARGE1:2`'s and `RECEPT1:5`'s real routes out of
+   the list. `isCommoning` answers the narrower question the ranking needs and answers it before
+   anything is authored — which matters, because the run starts now. The runs are **removed** and
+   the panel **names them**: a tag on a row somebody can press is not enforcement, and a list that
+   drops things silently is one nobody can trust.
+
+5. **The conductor card keeps the selection rather than replacing it**, and `Escape` takes the card
+   before the selection. `H22`'s escalation on the reader's tab. Asking *what is this line* while
+   reading a net is a question about the net.
+
+6. **`lib/polyline.ts` was not asked for.** The hit-test needed point-to-polyline distance and
+   `wiring.ts` already had it privately. Two copies of *how far is this point from that run*, on a
+   sheet whose rows are 16 pt apart, is how a hit-test comes to name a conductor the landing rule
+   says a pin is not on. One module, three callers: the proposal, the bus, and the hit-test.
+
+**Two things built that the plan did not ask for:**
+
+- **An optional `page` on a commoning record**, at the user's request in the session brief. It is
+  the one page number in a file that otherwise holds only designators, it costs nothing on a
+  one-page drawing, and it would be a schema change on the first two-page one.
+- **`wiringStore.save` refreshes `/api/paths`.** That store deliberately refreshed nothing, and the
+  argument holds for the half it was about — an endpoint changes nothing visible until the
+  generator runs. A bus is the opposite, so the highlight the user asked for appears without a
+  reload.
+
+**The `W063` repair went in here rather than in Phase F**, because item 4 made it executable rather
+than a documentation fix. The fixture, the `07_drawing_facts.md` row, the sentence under that table
+(*"`C0057` still makes the point and `C0092` never did"*), and **`14_tests_path_editor.md` T-915 —
+which had been instructing the user to add `TB-120`'s bus to `W063`'s route.** The assertion that
+carries the finding was added, exactly as q10 warned it must be.
+
+**And §7's one-net assertion is written and green**: every block with a bus has all its terminals on
+one net, measured against the real drawing. It is what makes painting a whole vertical for one net
+honest, and the day it stops being true a test says so rather than a highlight.
+
+### What §14 now costs
+
+**About 100 gestures for the wires, unchanged, plus six and three.** Six clicks confirm the six
+blocks' commoning. Three zooms close the questions only the user's eyes can close — `TB-130`,
+`TB-120:3`, and which of `W044`/`W050`/`W057` belongs on `TB-0V:8`, `:9` and `:11`. **T-1115 and
+T-1130 are the two screens that show them**, and the second is the one to use throughout the run:
+a pin nothing reaches now says so in as many words.
