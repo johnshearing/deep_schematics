@@ -1339,7 +1339,7 @@
       "chunk_order_index": 222
     },
     {
-      "content": "Wire W019 is a WHITE/BLUE 12AWG conductor. It runs from PS1:-2 to TB-0V:2. It carries net 0V.",
+      "content": "Wire W019 is a WHITE/BLUE 12AWG conductor. It runs from PS1:-2 to TB-GND-B:2. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W019",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 223
@@ -1603,7 +1603,7 @@
       "chunk_order_index": 266
     },
     {
-      "content": "Wire W063 is a RED 16AWG conductor. It runs from INFEED1:3 to TB-120:2. It is part of cable CABLE-INFEED1. It carries net 120.",
+      "content": "Wire W063 is a RED 16AWG conductor. It runs from INFEED1:3 to TB-120:1. It is part of cable CABLE-INFEED1. It carries net 120.",
       "source_id": "PS20115MLM4-2::entity::W063",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 267
@@ -3403,7 +3403,7 @@
       "chunk_order_index": 566
     },
     {
-      "content": "PS1:-2 connects to TB-0V:2 via wire W019, a WHITE/BLUE 12AWG conductor on net 0V.",
+      "content": "PS1:-2 connects to TB-GND-B:2 via wire W019, a WHITE/BLUE 12AWG conductor on net 0V.",
       "source_id": "PS20115MLM4-2::rel::00277",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 567
@@ -3667,7 +3667,7 @@
       "chunk_order_index": 610
     },
     {
-      "content": "INFEED1:3 connects to TB-120:2 via wire W063, a RED 16AWG conductor on net 120. It is part of cable CABLE-INFEED1.",
+      "content": "INFEED1:3 connects to TB-120:1 via wire W063, a RED 16AWG conductor on net 120. It is part of cable CABLE-INFEED1.",
       "source_id": "PS20115MLM4-2::rel::00321",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 611
@@ -5724,7 +5724,7 @@
     {
       "entity_name": "W019",
       "entity_type": "wire",
-      "description": "Wire W019 is a WHITE/BLUE 12AWG conductor. It runs from PS1:-2 to TB-0V:2. It carries net 0V.",
+      "description": "Wire W019 is a WHITE/BLUE 12AWG conductor. It runs from PS1:-2 to TB-GND-B:2. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W019",
       "file_path": "circuit_logic.json"
     },
@@ -6032,7 +6032,7 @@
     {
       "entity_name": "W063",
       "entity_type": "wire",
-      "description": "Wire W063 is a RED 16AWG conductor. It runs from INFEED1:3 to TB-120:2. It is part of cable CABLE-INFEED1. It carries net 120.",
+      "description": "Wire W063 is a RED 16AWG conductor. It runs from INFEED1:3 to TB-120:1. It is part of cable CABLE-INFEED1. It carries net 120.",
       "source_id": "PS20115MLM4-2::entity::W063",
       "file_path": "circuit_logic.json"
     },
@@ -8685,8 +8685,8 @@
     },
     {
       "src_id": "PS1:-2",
-      "tgt_id": "TB-0V:2",
-      "description": "PS1:-2 connects to TB-0V:2 via wire W019, a WHITE/BLUE 12AWG conductor on net 0V.",
+      "tgt_id": "TB-GND-B:2",
+      "description": "PS1:-2 connects to TB-GND-B:2 via wire W019, a WHITE/BLUE 12AWG conductor on net 0V.",
       "keywords": "connects to, wire: W019, wire_color: WHITE/BLUE, wire_gauge: 12AWG, net: 0V",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00277",
@@ -9081,8 +9081,8 @@
     },
     {
       "src_id": "INFEED1:3",
-      "tgt_id": "TB-120:2",
-      "description": "INFEED1:3 connects to TB-120:2 via wire W063, a RED 16AWG conductor on net 120. It is part of cable CABLE-INFEED1.",
+      "tgt_id": "TB-120:1",
+      "description": "INFEED1:3 connects to TB-120:1 via wire W063, a RED 16AWG conductor on net 120. It is part of cable CABLE-INFEED1.",
       "keywords": "connects to, wire: W063, wire_color: RED, wire_gauge: 16AWG, net: 120, cable: CABLE-INFEED1",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00321",

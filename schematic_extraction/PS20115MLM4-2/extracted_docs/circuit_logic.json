@@ -3732,10 +3732,23 @@
       "color": "WHITE/BLUE",
       "gauge": "12AWG",
       "from_terminal": "PS1:-2",
-      "to_terminal": "TB-0V:2",
+      "to_terminal": "TB-GND-B:2",
       "cable": null,
       "net": "0V",
-      "description": ""
+      "description": "",
+      "net_mismatch": {
+        "from": "0V",
+        "to": "GND"
+      },
+      "endpoints": {
+        "source": "human",
+        "by": "js",
+        "at": "2026-09-08T23:42:20.950Z",
+        "was": [
+          "PS1:-2",
+          "TB-0V:2"
+        ]
+      }
     },
     {
       "id": "W020",
@@ -3965,7 +3978,12 @@
       "to_terminal": "TB-0V:6",
       "cable": "CABLE-PB2-START-STOP",
       "net": "0V",
-      "description": ""
+      "description": "",
+      "endpoints": {
+        "source": "human",
+        "by": "js",
+        "at": "2026-09-08T15:07:58.066Z"
+      }
     },
     {
       "id": "W043",
@@ -4172,10 +4190,19 @@
       "color": "RED",
       "gauge": "16AWG",
       "from_terminal": "INFEED1:3",
-      "to_terminal": "TB-120:2",
+      "to_terminal": "TB-120:1",
       "cable": "CABLE-INFEED1",
       "net": "120",
-      "description": ""
+      "description": "",
+      "endpoints": {
+        "source": "human",
+        "by": "js",
+        "at": "2026-09-08T22:49:33.275Z",
+        "was": [
+          "INFEED1:3",
+          "TB-120:2"
+        ]
+      }
     },
     {
       "id": "W064",
@@ -6469,8 +6496,8 @@
     {
       "type": "CONNECTS_TO",
       "src": "PS1:-2",
-      "tgt": "TB-0V:2",
-      "description": "PS1:-2 connects to TB-0V:2 via wire W019, a WHITE/BLUE 12AWG conductor on net 0V.",
+      "tgt": "TB-GND-B:2",
+      "description": "PS1:-2 connects to TB-GND-B:2 via wire W019, a WHITE/BLUE 12AWG conductor on net 0V.",
       "properties": {
         "wire": "W019",
         "wire_color": "WHITE/BLUE",
@@ -7041,8 +7068,8 @@
     {
       "type": "CONNECTS_TO",
       "src": "INFEED1:3",
-      "tgt": "TB-120:2",
-      "description": "INFEED1:3 connects to TB-120:2 via wire W063, a RED 16AWG conductor on net 120. It is part of cable CABLE-INFEED1.",
+      "tgt": "TB-120:1",
+      "description": "INFEED1:3 connects to TB-120:1 via wire W063, a RED 16AWG conductor on net 120. It is part of cable CABLE-INFEED1.",
       "properties": {
         "wire": "W063",
         "wire_color": "RED",

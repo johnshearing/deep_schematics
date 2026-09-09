@@ -2210,13 +2210,6 @@
         ]
       }
     },
-    "W063": {
-      "labels": {
-        "INFEED1:3": {
-          "dir": "e"
-        }
-      }
-    },
     "W001": {
       "labels": {
         "PLG1:B": {
@@ -4344,6 +4337,19 @@
           "PB1:2",
           "TB-PB1SP:1"
         ]
+      }
+    },
+    "W063": {
+      "labels": {
+        "INFEED1:3": {
+          "hidden": true
+        },
+        "TB-120:2": {
+          "hidden": true
+        },
+        "TB-120:1": {
+          "hidden": true
+        }
       }
     }
   },

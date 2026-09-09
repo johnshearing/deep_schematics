@@ -94,8 +94,14 @@
     },
     "W019": {
       "from": "PS1:-2",
-      "to": "TB-0V:2",
-      "source": "index"
+      "to": "TB-GND-B:2",
+      "source": "human",
+      "by": "js",
+      "at": "2026-09-08T23:42:20.950Z",
+      "was": [
+        "PS1:-2",
+        "TB-0V:2"
+      ]
     },
     "W020": {
       "from": "TB-24E1-A:2",
@@ -210,7 +216,9 @@
     "W042": {
       "from": "PB2:3",
       "to": "TB-0V:6",
-      "source": "index"
+      "source": "human",
+      "by": "js",
+      "at": "2026-09-08T15:07:58.066Z"
     },
     "W043": {
       "from": "PB2:4",
@@ -314,8 +322,14 @@
     },
     "W063": {
       "from": "INFEED1:3",
-      "to": "TB-120:2",
-      "source": "index"
+      "to": "TB-120:1",
+      "source": "human",
+      "by": "js",
+      "at": "2026-09-08T22:49:33.275Z",
+      "was": [
+        "INFEED1:3",
+        "TB-120:2"
+      ]
     },
     "W064": {
       "from": "INFEED1:4",
