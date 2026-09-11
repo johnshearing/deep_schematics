@@ -32,7 +32,8 @@ wire's endpoints and **two of the three hold, plus a fourth that settles it**:
                 "by": "js", "at": "2026-09-07T14:22:03.118Z",
                 "was": ["INFEED1:3", "TB-120:2"],
                 "note": "the ink runs C0091 west along y=563.4 and stops at point 1" },
-      "W072": { "from": null, "to": null, "source": "human", "by": "js", "at": "..." },
+      "W072": { "from": null, "to": null, "source": "human", "added": true,
+                "by": "js", "at": "..." },
       "W099": { "retired": "duplicated W014" }
     }
 
@@ -52,6 +53,25 @@ wire's endpoints and **two of the three hold, plus a fourth that settles it**:
   callouts, which is a reading of the ink rather than a claim about connectivity.
 - **`retired`** is a tombstone with a reason, in place of `from`/`to`, so an id is never reused and
   a stale path or a stale citation gets an answer rather than silence.
+- **`added`** is `true` on a wire **a person put there**, at an id the `W` table does not have, and
+  it is absent everywhere else. It is not `false` on the other 71: absent is how this file says
+  *no*, the same way `was` is absent where nothing was replaced.
+
+### Why `added` is a field and not something the ids could have told us
+
+Without it, an id past the end of the `W` table is indistinguishable from a typo — which is
+precisely why `resolve_wiring` and the generator refused every one of them until Phase E, and the
+refusal was right for as long as adding a wire was impossible. Opening that door needs something
+that says *this id was allocated by a person*, and it needs it for a second reason that only bites
+later: the `W` table is hand-maintained. A wire added on screen at `W072` and a 72nd row typed into
+that table afterwards are **two different wires with one id**, and folded together they would
+produce one wire carrying the added record's endpoints and the table row's colour — with the other
+wire gone and nothing anywhere saying so. `build_wires` refuses that pair **by name**, and it can
+only do so because the record says which kind of wire it is.
+
+The server cannot make that check and does not try: it is handed the netlist, which is *generated
+from* this file, so `W072` is legitimately in it the moment the generator has run. Knowing what the
+`W` table holds is the generator's half of the split, and the refusal lives there.
 
 **There are no coordinates in this file, and that is what will make it survive a circuit that needs
 several sheets**: `CR-BP:A2` names the same terminal whichever page prints it. The one thing that
@@ -182,6 +202,10 @@ class Wire:
     only honest one for a wire somebody started and has not finished. `retired` is the tombstone,
     and a retired wire has no ends at all rather than keeping the ones it used to have: saying
     where a wire went while saying it does not exist is two claims at once.
+
+    `added` is the other end of the same life: a wire that exists **because a person said so**,
+    at an id the indexing pass never allocated. The two are not exclusive — a wire added by
+    mistake is retired like any other, and the record then says both.
     """
 
     from_terminal: str | None = None
@@ -193,6 +217,9 @@ class Wire:
     by: str | None = None
     at: str | None = None
     retired: str | None = None
+    #: A wire a person put on the drawing, at an id the `W` table does not have. See the module
+    #: docstring on why this is a field rather than something the id could imply.
+    added: bool = False
 
     @property
     def confirmed(self) -> bool:
@@ -259,6 +286,10 @@ class Wiring:
             "corrected": sum(1 for w in live if w.corrected),
             "unset": sum(1 for w in live if not w.settled),
             "retired": sum(1 for w in self.wires.values() if w.retired is not None),
+            # Counted over **every** record, tombstones included: an added wire that was then
+            # retired still spent an id, and the count that says how many ids a person allocated
+            # must not go down when one of them is withdrawn.
+            "added": sum(1 for w in self.wires.values() if w.added),
             "commoning": len(self.commoning),
         }
 
@@ -350,6 +381,17 @@ def _wire(identifier: Any, body: Any, problems: list[str]) -> Wire | None:
             problems.append(f"{where} has {key} {value!r}, which is not a string")
             return None
 
+    # `added` is written only where it is true, so `false` is refused rather than read as *no*.
+    # The other 71 records do not carry it, and a key that can be present-and-meaning-nothing is
+    # one a reader of the file has to check twice.
+    added = body.get("added")
+    if added is not None and added is not True:
+        problems.append(
+            f"{where} has added {added!r}: it is written only on a wire a person put there, and "
+            "only as true — the wires the indexing pass found have no such key"
+        )
+        return None
+
     retired = body.get("retired")
     if retired is not None:
         if not isinstance(retired, str) or not retired.strip():
@@ -362,7 +404,14 @@ def _wire(identifier: Any, body: Any, problems: list[str]) -> Wire | None:
                 f"{where} is retired and still names endpoints; a retired wire joins nothing"
             )
             return None
-        return Wire(retired=retired.strip(), source=str(body.get("source") or "human"))
+        return Wire(
+            retired=retired.strip(),
+            source=str(body.get("source") or "human"),
+            added=added is True,
+            note=body.get("note"),
+            by=body.get("by"),
+            at=body.get("at"),
+        )
 
     ends: list[str | None] = []
     for key in ENDS:
@@ -408,6 +457,7 @@ def _wire(identifier: Any, body: Any, problems: list[str]) -> Wire | None:
         note=body.get("note"),
         by=body.get("by"),
         at=body.get("at"),
+        added=added is True,
     )
 
 
@@ -609,13 +659,20 @@ def resolve_wiring(drawing_dir: Path, doc: dict[str, Any]) -> Wiring:
 
     - **an endpoint that is not a terminal in the netlist.** It connects nothing, is never drawn,
       and the generator would refuse it hours later in a command about an edit nobody remembers.
-    - **a record for a wire the netlist does not have.** Adding a wire is Phase E; until then an id
-      the netlist has never heard of is a typo, and a typo here would invent a connection.
+    - **a record for a wire the netlist does not have and that does not say `added`.** An id the
+      netlist has never heard of is a typo, and a typo here would invent a connection.
     - **a `commoning` key that is not a component.** A block's bus keyed on nothing would be
       authored, saved, and never highlighted.
 
     The refused record is **dropped** and reported, so the screen shows the person exactly what the
     next reader will ignore.
+
+    **Phase E opened the second of those, and opened it exactly as wide as `added` is.** A wire a
+    person adds does not reach `circuit_logic.json` until the generator runs, so between the save
+    and the re-run its record is legitimately for an id the netlist does not have — that window is
+    the normal state of an added wire and it can last as long as the person wants it to. What is
+    still refused is the *unmarked* unknown id, which is the typo the check was written for. The
+    two are one word apart in the file and the word is the whole of the difference.
     """
     stored = load_wiring(drawing_dir)
     terminals = {t.get("id") for t in doc.get("terminals", []) if isinstance(t, dict)}
@@ -625,9 +682,10 @@ def resolve_wiring(drawing_dir: Path, doc: dict[str, Any]) -> Wiring:
     problems = list(stored.problems)
     wires: dict[str, Wire] = {}
     for identifier, wire in stored.wires.items():
-        if identifier not in wire_ids:
+        if identifier not in wire_ids and not wire.added:
             problems.append(
-                f"{FILENAME} has a record for {identifier!r}, which is not a wire in this netlist"
+                f"{FILENAME} has a record for {identifier!r}, which is not a wire in this netlist "
+                "and does not say it is one somebody added"
             )
             continue
         bad = [

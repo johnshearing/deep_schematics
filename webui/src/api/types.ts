@@ -582,6 +582,17 @@ export interface StoredWire {
   at?: string
   /** A tombstone with a reason, in place of the two ends, so an id is never reused. */
   retired?: string
+  /**
+   * **`true` on a wire a person put on the drawing**, at an id the `W` table does not have, and
+   * absent on every other record — absent is how this file says *no*, the same way `was` is
+   * absent where nothing was replaced.
+   *
+   * It is what lets an id the netlist has never heard of be told from a typo, and the typo is
+   * still refused by name. It also survives into `circuit_logic.json` on the wire's `endpoints`
+   * block, so a reader of the artifact can tell a wire somebody added from one the indexing pass
+   * found.
+   */
+  added?: true
   [key: string]: unknown
 }
 
@@ -596,6 +607,9 @@ export interface WiringReport {
   /** Records with an end nobody has set. */
   unset: number
   retired: number
+  /** Wire ids a person allocated, tombstones included: an added wire that was then retired still
+   * spent its id, and this number must not go down when one is withdrawn. */
+  added: number
   commoning: number
   problems: string[]
 }

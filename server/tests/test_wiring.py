@@ -167,6 +167,8 @@ def test_a_retired_wire_is_a_tombstone_with_a_reason_and_no_ends(drawing_dir: Pa
         ({"from": "CR1:A1", "to": "CB1:2", "source": "human", "was": ["CR1:A1"]}, "has was"),
         ({"retired": "  "}, "a tombstone needs a reason"),
         ({"retired": "gone", "from": "CR1:A1", "to": "CB1:2"}, "still names endpoints"),
+        ({"from": "CR1:A1", "to": "CB1:2", "source": "human", "added": False}, "added False"),
+        ({"from": "CR1:A1", "to": "CB1:2", "source": "human", "added": "yes"}, "added 'yes'"),
         ({"from": "CR1:A1", "to": "CB1:2", "source": "human", "note": 7}, "has note 7"),
         ("not an object", "is not an object"),
     ],
@@ -223,13 +225,70 @@ def test_an_endpoint_on_a_terminal_the_netlist_does_not_have_is_refused_by_name(
 
 
 def test_a_record_for_a_wire_the_netlist_does_not_have_is_refused_by_name(drawing_dir: Path):
-    """Adding a wire is Phase E. Until then an id the netlist has never heard of is a typo, and a
-    typo here would **invent a connection** — which is exactly the class of defect this whole plan
-    exists to remove."""
+    """An id the netlist has never heard of, with nothing saying it is one somebody added, is a
+    typo — and a typo here would **invent a connection**, which is exactly the class of defect
+    this whole plan exists to remove."""
     write(drawing_dir, {"W999": CONFIRMED})
     wiring = resolved(drawing_dir)
     assert not wiring.wires
     assert any("'W999'" in p and "not a wire" in p for p in wiring.problems)
+
+
+# -- Phase E: a wire a person adds, and a wire a person takes away ----------------------------
+#
+# The door this opens was shut on purpose until now, and it opens exactly as wide as one word:
+# `added: true` says *a person allocated this id*, and without it an unknown id is still the typo
+# the test above describes. §3.7 measured **0** genuinely missing field wires on this drawing, so
+# none of this is repair — it is what drawing number two starts from.
+
+
+def test_a_wire_somebody_added_survives_an_id_the_netlist_has_never_had(drawing_dir: Path):
+    """**Phase E's acceptance criterion on the server's side**, and the window it has to survive.
+
+    A wire a person adds is in `wiring.json` the moment it is saved and in `circuit_logic.json`
+    only after somebody re-runs the generator. In between — which can last as long as the person
+    wants it to — its record is legitimately for an id the netlist does not have, and dropping it
+    would lose the wire under the very save that created it.
+
+    Its endpoints are still checked against the netlist. Being new is not being exempt: a wire
+    added onto a terminal that does not exist is the same *nothing at all* symptom as any other.
+    """
+    write(
+        drawing_dir,
+        {"W900": {"from": "CR1:A1", "to": "CB1:2", "source": "human", "added": True}},
+    )
+    wiring = resolved(drawing_dir)
+    assert wiring.wires["W900"].added
+    assert wiring.wires["W900"].confirmed and wiring.wires["W900"].settled
+    assert not wiring.problems
+    assert wiring.counts()["added"] == 1
+
+
+def test_an_added_wire_on_a_terminal_that_does_not_exist_is_still_refused(drawing_dir: Path):
+    """The door opened for the id, not for the endpoints."""
+    write(
+        drawing_dir,
+        {"W900": {"from": "CR1:A1", "to": "TB-110:9", "source": "human", "added": True}},
+    )
+    wiring = resolved(drawing_dir)
+    assert "W900" not in wiring.wires
+    assert any("'TB-110:9'" in p and "not a terminal" in p for p in wiring.problems)
+
+
+def test_a_wire_added_and_then_retired_still_says_a_person_spent_that_id(drawing_dir: Path):
+    """Both markers on one record, and the count of ids allocated does not go back down.
+
+    That is the whole of *an id is never reused*: 58 authored paths key on `W###`, and a number
+    handed back would reattach one of them to a different wire with nothing on screen looking any
+    different. `retired` counts the wires withdrawn; `added` counts the ids spent, tombstones
+    included, and the editor's `nextWireId` reads the second.
+    """
+    write(drawing_dir, {"W900": {"added": True, "retired": "added twice by mistake"}})
+    wire = resolved(drawing_dir).wires["W900"]
+    assert wire.added and wire.retired == "added twice by mistake"
+    assert not wire.confirmed and not wire.settled
+    counts = resolved(drawing_dir).counts()
+    assert (counts["added"], counts["retired"], counts["confirmed"]) == (1, 1, 0)
 
 
 # -- Phase C: a block's own bus -------------------------------------------------------------
@@ -464,32 +523,53 @@ EXTRACTION = (
 )
 SCRIPT = EXTRACTION / "author_circuit_logic.py"
 
-#: Every record shape worth putting through both validators: three the two must accept, and six
-#: the two must refuse. Keyed on `W001`, which is a real wire in the extraction's own `W` table.
-AGREED: list[tuple[str, Any]] = [
-    ("an index record", {"from": "PLG1:B", "to": "TB-L1:1", "source": "index"}),
-    ("a confirmation", {"from": "PLG1:B", "to": "TB-L1:1", "source": "human", "by": "js"}),
+#: Every record shape worth putting through both validators: the ones the two must accept, and the
+#: ones the two must refuse.
+#:
+#: Mostly keyed on `W001`, which is a real wire in the extraction's own `W` table. The two **added**
+#: cases have to be keyed on a free id instead, and that is not a detail of the fixture — an
+#: `added` marker on an id the table *does* have is the collision the generator refuses by name
+#: (`test_an_added_wire_the_table_has_grown_to_cover_is_refused_by_name`), which is a check the
+#: server cannot make and so is not one the two can be expected to agree on.
+AGREED: list[tuple[str, str, Any]] = [
+    ("an index record", "W001", {"from": "PLG1:B", "to": "TB-L1:1", "source": "index"}),
+    ("a confirmation", "W001",
+     {"from": "PLG1:B", "to": "TB-L1:1", "source": "human", "by": "js"}),
     (
         "a correction with was",
+        "W001",
         {"from": "PLG1:B", "to": "TB-N:1", "source": "human", "was": ["PLG1:B", "TB-L1:1"]},
     ),
-    ("a half-set wire", {"from": "PLG1:B", "to": None, "source": "human"}),
-    ("a tombstone", {"retired": "duplicated"}),
-    ("no from", {"to": "TB-L1:1", "source": "human"}),
-    ("no source", {"from": "PLG1:B", "to": "TB-L1:1"}),
-    ("source derived", {"from": "PLG1:B", "to": "TB-L1:1", "source": "derived"}),
-    ("a bare component as an end", {"from": "PLG1", "to": "TB-L1:1", "source": "human"}),
-    ("a one-element was", {"from": "PLG1:B", "to": "TB-L1:1", "source": "human", "was": ["x"]}),
-    ("an endpoint that is not a terminal", {"from": "PLG1:B", "to": "TB-L1:9",
-                                            "source": "human"}),
-    ("a tombstone with no reason", {"retired": ""}),
+    ("a half-set wire", "W001", {"from": "PLG1:B", "to": None, "source": "human"}),
+    ("a tombstone", "W001", {"retired": "duplicated"}),
+    ("a wire somebody added", "W072",
+     {"from": "PLG1:B", "to": "TB-L1:1", "source": "human", "added": True}),
+    ("an added wire, retired", "W072", {"added": True, "retired": "added twice"}),
+    ("an added wire onto a terminal that does not exist", "W072",
+     {"from": "PLG1:B", "to": "TB-L1:9", "source": "human", "added": True}),
+    ("an unknown id that does not say added", "W072",
+     {"from": "PLG1:B", "to": "TB-L1:1", "source": "human"}),
+    ("added false", "W001",
+     {"from": "PLG1:B", "to": "TB-L1:1", "source": "human", "added": False}),
+    ("added as a word", "W001",
+     {"from": "PLG1:B", "to": "TB-L1:1", "source": "human", "added": "yes"}),
+    ("no from", "W001", {"to": "TB-L1:1", "source": "human"}),
+    ("no source", "W001", {"from": "PLG1:B", "to": "TB-L1:1"}),
+    ("source derived", "W001", {"from": "PLG1:B", "to": "TB-L1:1", "source": "derived"}),
+    ("a bare component as an end", "W001",
+     {"from": "PLG1", "to": "TB-L1:1", "source": "human"}),
+    ("a one-element was", "W001",
+     {"from": "PLG1:B", "to": "TB-L1:1", "source": "human", "was": ["x"]}),
+    ("an endpoint that is not a terminal", "W001",
+     {"from": "PLG1:B", "to": "TB-L1:9", "source": "human"}),
+    ("a tombstone with no reason", "W001", {"retired": ""}),
 ]
 
 
 @pytest.mark.skipif(not SCRIPT.is_file(), reason="PS20115MLM4-2 is not in this tree")
-@pytest.mark.parametrize(("what", "body"), AGREED, ids=[a for a, _ in AGREED])
+@pytest.mark.parametrize(("what", "wire_id", "body"), AGREED, ids=[a for a, _, _ in AGREED])
 def test_the_editor_cannot_write_a_record_the_generator_refuses(
-    what: str, body: Any, tmp_path: Path
+    what: str, wire_id: str, body: Any, tmp_path: Path
 ):
     """**The guard on a duplication that is deliberate.**
 
@@ -509,7 +589,7 @@ def test_the_editor_cannot_write_a_record_the_generator_refuses(
     work = tmp_path / what.replace(" ", "-")
     work.mkdir()
     (work / SCRIPT.name).write_bytes(SCRIPT.read_bytes())
-    raw = {"drawing_number": "PS20115MLM4-2", "schema": 1, "wires": {"W001": body}}
+    raw = {"drawing_number": "PS20115MLM4-2", "schema": 1, "wires": {wire_id: body}}
     (work / FILENAME).write_text(json.dumps(raw), encoding="utf-8")
 
     done = subprocess.run(  # noqa: S603
@@ -524,12 +604,13 @@ def test_the_editor_cannot_write_a_record_the_generator_refuses(
     # The server's verdict on the same record: `parse` for shape, and — for the netlist-level
     # refusals — the same check `resolve_wiring` makes, using the extraction's own netlist.
     wiring = parse(raw)
-    server_refused = "W001" not in wiring.wires
+    server_refused = wire_id not in wiring.wires
     if not server_refused:
-        wire = wiring.wires["W001"]
+        wire = wiring.wires[wire_id]
         netlist = json.loads((EXTRACTION / "circuit_logic.json").read_text("utf-8"))
         terminals = {t["id"] for t in netlist["terminals"]}
-        server_refused = any(
+        wire_ids = {w["id"] for w in netlist["wires"]}
+        server_refused = (wire_id not in wire_ids and not wire.added) or any(
             end is not None and end not in terminals
             for end in (wire.from_terminal, wire.to_terminal)
         )

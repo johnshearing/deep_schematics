@@ -39,11 +39,16 @@
 
 import type {
   Designator,
+  EntryTerminal,
   LocationsDocument,
   StoredCommoning,
   StoredWire,
   WiringDocument,
 } from '@/api/types'
+// *Which block is this pin on*, one question and one answer — the shape rule `lib/designators.ts`
+// keeps for the three callers that ask it. A value import out of a leaf module the reader's side
+// also uses, which is the direction that is safe: nothing there imports back.
+import { blockOf } from '@/lib/designators'
 // **Type-only**, deliberately. `model.ts` imports `pathStale` from here for one word on a row, so
 // a value import in this direction would close a runtime cycle between the two documents' rule
 // modules — which is the code-level shape of the coupling `H18` forbids between their stores.
@@ -83,6 +88,18 @@ export function endpointsOf(document: WiringDocument, entry: Designator): Endpoi
   }
   const members = entry.terminals ?? []
   return [members[0]?.id ?? null, members[1]?.id ?? null]
+}
+
+/** **A wire a person put on the drawing**, at an id the indexing pass never allocated. It stays
+ * true after the wire reaches the netlist: it is a fact about where the wire came from, not a
+ * state it grows out of. */
+export function added(document: WiringDocument, wireId: string): boolean {
+  return wireRecord(document, wireId)?.added === true
+}
+
+/** Why this wire was tombstoned, or null for a wire that still exists. */
+export function retiredReason(document: WiringDocument, wireId: string): string | null {
+  return wireRecord(document, wireId)?.retired ?? null
 }
 
 /** Who says these are the two terminals. `index` for a wire with no record, because a wire nobody
@@ -163,7 +180,10 @@ export function setEndpoint(
     record && record.retired === undefined ? [record.from ?? null, record.to ?? null] : before
   const next: Endpoints = end === 'from' ? [terminal, held[1]] : [held[0], terminal]
   const original: Endpoints = (record?.was as Endpoints | undefined) ?? held
-  const moved = original[0] !== next[0] || original[1] !== next[1]
+  // **Never on a wire somebody added.** `was` means *the pair this record replaced*, and an added
+  // wire replaced nothing — its first two clicks would otherwise stamp `was: [null, null]`, which
+  // would read in the file and on the badge as a correction to an answer nobody ever gave.
+  const moved = record?.added !== true && (original[0] !== next[0] || original[1] !== next[1])
 
   return writeWire(document, wireId, (existing) => {
     const written: StoredWire = {
@@ -191,6 +211,11 @@ export function setEndpoint(
  * It exists because the alternative is a text editor. A person who confirms the row above the one
  * they meant needs one press to undo it, on a screen whose whole purpose is that a decision is a
  * person's.
+ *
+ * **Refused on a wire somebody added**, and that is Phase E's one interaction with this function.
+ * `index` means *the indexing pass's own answer*, and the indexing pass never gave one for a wire
+ * a person invented — writing it here would put a guess in the file that nothing ever guessed.
+ * The way out of an added wire is `retireWire`, which says what actually happened.
  */
 export function unconfirm(
   document: WiringDocument,
@@ -198,7 +223,7 @@ export function unconfirm(
   before: Endpoints,
 ): WiringDocument {
   const record = wireRecord(document, wireId)
-  if (!record || record.retired !== undefined) return document
+  if (!record || record.retired !== undefined || record.added === true) return document
   const original: Endpoints = (record.was as Endpoints | undefined) ?? [
     record.from ?? before[0],
     record.to ?? before[1],
@@ -230,6 +255,193 @@ export function setWiringNote(
   })
 }
 
+// -- Phase E: a wire a person adds, and a wire a person takes away ----------------------------
+//
+// Everything above edits the 71 wires the indexing pass found. These four say that the set of
+// wires is itself a thing a person may be wrong about — which §3.7 measured as **0 genuinely
+// missing field wires** on this drawing, so all of it is insurance for drawing number two.
+//
+// The one rule underneath all four: **an id is allocated once and never reused.** A retired
+// record is a tombstone rather than a deletion, `nextWireId` counts past it, and the reason is
+// the 58 authored paths — every one keys on a `W###`, and recycling an id would silently
+// reattach somebody's route to a different wire with nothing on screen looking any different.
+
+/**
+ * **The next id nothing has ever used** — one past the highest the netlist or the draft knows.
+ *
+ * Both sources, and it must be both. The netlist has the 71 the `W` table produced; the draft has
+ * those plus every id a person has allocated since, **including the retired ones**, which is what
+ * makes an id permanent rather than merely unused. A wire added and then withdrawn does not hand
+ * its number back.
+ *
+ * `W###` with three digits, which is what every id in this project is, and it widens rather than
+ * wraps past 999 — a four-digit id is ugly and a duplicate is a bug.
+ */
+export function nextWireId(known: readonly string[], document: WiringDocument): string {
+  let highest = 0
+  for (const id of [...known, ...Object.keys(document.wires ?? {})]) {
+    const digits = /^W(\d+)$/.exec(id)
+    if (digits) highest = Math.max(highest, Number(digits[1]))
+  }
+  const next = highest + 1
+  return `W${String(next).padStart(3, '0')}`
+}
+
+/**
+ * **Add a wire** — a record at a free id with both ends empty, and nothing else.
+ *
+ * `source: 'human'` from the first instant, because there is no other honest value: `index` means
+ * *the indexing pass's own answer* and the indexing pass never saw this wire. That does **not**
+ * make it decided — `wiringDecided` also wants both ends named, so a new wire sits at the top of
+ * the queue with two empty slots until somebody picks them, which is exactly where it belongs.
+ *
+ * `added: true` is the marker the generator needs. Without it an id past the end of the `W` table
+ * is indistinguishable from a typo, which is why every one of them was refused until now — and
+ * the typo is still refused, by name, one word away in the same file.
+ *
+ * Refuses to overwrite an existing record, retired ones included. Allocating an id somebody has
+ * already spent is the one mistake this whole section exists to make impossible, and a caller
+ * that has miscounted should get nothing rather than somebody else's wire.
+ */
+export function addWire(document: WiringDocument, wireId: string, stamp: Stamp): WiringDocument {
+  if (document.wires?.[wireId]) return document
+  return writeWire(document, wireId, () => ({
+    from: null,
+    to: null,
+    source: 'human',
+    added: true,
+    ...(stamp.by ? { by: stamp.by } : {}),
+    at: stamp.at,
+  }))
+}
+
+/**
+ * **Retire this wire** — a tombstone with a reason, in place of the two ends.
+ *
+ * The endpoints go, and that is the format's decision rather than an oversight: saying where a
+ * wire went while saying it does not exist is two claims at once, and both validators refuse a
+ * record that makes them. `unretire` puts the wire back from the netlist, where the netlist still
+ * has it.
+ *
+ * A reason in words is required, and it is required because a wire is not usually retired for
+ * being *absent* — it is retired for being a duplicate, or for being one run somebody read as
+ * two. Six months later *"read twice; `W014` is this run"* is the whole of what a reader needs
+ * and there is nowhere else for it to live.
+ *
+ * `added` survives, so a wire somebody added and then withdrew still says so. The count of ids a
+ * person has allocated is a count of ids spent, and this does not hand one back.
+ */
+export function retireWire(
+  document: WiringDocument,
+  wireId: string,
+  reason: string,
+  stamp: Stamp,
+): WiringDocument {
+  if (!reason.trim()) return document
+  return writeWire(document, wireId, (existing) => {
+    const written: StoredWire = {
+      ...(existing.added ? { added: true as const } : {}),
+      retired: reason.trim(),
+      ...(stamp.by ? { by: stamp.by } : {}),
+      at: stamp.at,
+    }
+    return written
+  })
+}
+
+/**
+ * **Take a retirement back**, and the wire comes back **unconfirmed**.
+ *
+ * `source: 'index'` and both ends from wherever they can be got — which is the netlist for a wire
+ * the generator has not dropped yet, and nowhere at all for one it has. That is the honest
+ * outcome rather than a shortcoming: a tombstone holds a reason and no endpoints, so there is
+ * nothing in the file to put back, and a wire whose retirement you have just reversed is exactly
+ * a wire to look at again. The panel says which of the two happened.
+ *
+ * An **added** wire keeps `added` and comes back with `source: 'human'`: `index` would claim the
+ * indexing pass found a wire a person invented, which is the one thing `source` exists to stop.
+ */
+export function unretire(
+  document: WiringDocument,
+  wireId: string,
+  fromNetlist: Endpoints,
+): WiringDocument {
+  const record = wireRecord(document, wireId)
+  if (!record || record.retired === undefined) return document
+  const wasAdded = record.added === true
+  return writeWire(document, wireId, (existing) => ({
+    ...(existing.added ? { added: true as const } : {}),
+    from: fromNetlist[0],
+    to: fromNetlist[1],
+    source: wasAdded ? 'human' : 'index',
+  }))
+}
+
+/**
+ * **The wires that exist only in the draft**, as rows the editor's list can show.
+ *
+ * A wire a person adds is in `wiring.json` the moment it is saved and in `circuit_logic.json`
+ * only after somebody re-runs the generator, so between the two it has no `/api/designators`
+ * entry — and without one it would be a record with no row, no panel and no way to give it its
+ * two ends. Rather than teach the list about a second kind of thing, this makes the draft's
+ * additions look like what they are about to be.
+ *
+ * **Deliberately in this module and not in `lib/designators.ts`.** That one is the reader's, and
+ * the Drawing tab must not paint a wire the netlist does not have: a reader with no password sees
+ * the artifact, and the artifact is the promise. Here the entries are the *editor's* view of its
+ * own unsaved half, which is what every draft in this project already is.
+ *
+ * `on_sheet: false`, like every other `W###` — the id is one we invented and is printed nowhere.
+ * `point` and `rect` are read off the **ends it has**, exactly the way the server frames a wire:
+ * a wire's geometry is its terminals' and nothing else, so a wire with no ends yet is framed
+ * nowhere and says so on its row.
+ */
+export function draftWireEntries(
+  document: WiringDocument,
+  known: readonly Designator[],
+): Designator[] {
+  const have = new Set(known.map((entry) => entry.id))
+  // The pins, as the index resolved them — **placement carried, never asserted**. A terminal
+  // drawn on its parent component's dot says `parent`, and a row of this list claiming
+  // `confirmed` for it would be the one thing invariant 3 forbids.
+  const at: Record<string, EntryTerminal> = {}
+  for (const entry of known) {
+    if (entry.kind === 'terminal' && entry.point) {
+      at[entry.id] = { id: entry.id, point: entry.point, placement: entry.placement ?? null }
+    }
+  }
+
+  const out: Designator[] = []
+  for (const [id, record] of Object.entries(document.wires ?? {})) {
+    if (have.has(id) || record.added !== true) continue
+    const ends = (
+      record.retired === undefined ? [record.from ?? null, record.to ?? null] : []
+    ).filter((end): end is string => end !== null)
+    const points = ends.flatMap((end) => (at[end]?.point ? [at[end].point as [number, number]] : []))
+    const xs = points.map(([x]) => x)
+    const ys = points.map(([, y]) => y)
+
+    out.push({
+      id,
+      kind: 'wire',
+      label:
+        record.retired === undefined
+          ? 'a wire you added — it reaches the netlist when the generator next runs'
+          : `a wire you added and retired: ${record.retired}`,
+      on_sheet: false,
+      members: [...new Set(ends.map(blockOf))],
+      terminals: ends.map((end) => at[end] ?? { id: end, point: null, placement: null }),
+      point: points.length
+        ? [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2]
+        : null,
+      rect: points.length
+        ? [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
+        : null,
+    })
+  }
+  return out
+}
+
 /**
  * **Has this wire been dealt with** — the one predicate the queue and the count share.
  *
@@ -238,10 +450,11 @@ export function setWiringNote(
  * would let the count reach its own total while a row nobody had finished sat in the list — which
  * is `T-940`'s complaint about the path queue, in a second queue.
  *
- * A **retired** wire is decided about: somebody said it does not exist. Retiring is Phase E's to
- * unlock, and the generator drops a retired wire from the netlist, so this branch is reachable
- * only in the window between the save and the re-run — but leaving it out would have put a
- * tombstoned wire in a queue nobody could empty.
+ * A **retired** wire is decided about: somebody said it does not exist. The generator drops one
+ * from the netlist, so for a wire the `W` table has this branch only matters in the window
+ * between the save and the re-run — but leaving it out would put a tombstoned wire in a queue
+ * nobody could empty, and for a wire somebody *added* and then withdrew the row is the draft's
+ * own and never goes anywhere else.
  */
 export function wiringDecided(document: WiringDocument, entry: Designator): boolean {
   const record = wireRecord(document, entry.id)

@@ -64,9 +64,10 @@ have not disagreed once.**
 census could not have been measured without every phase that shipped — 131 placed points, 654 review
 decisions and `/api/conductors` are what made it possible.
 
-**Four sessions plus the user's authoring run** (plan §13). **Sessions 1, 2 and 3 have landed** —
-see the three dated entries below. **The authoring run starts now**, and §13 says so: after
-Session 3 every question the user asked has a screen.
+**Four sessions plus the user's authoring run** (plan §13). **All four have landed** — see the four
+dated entries below. **The only thing left in the plan is the run, and it is the user's.** Every
+screen it needs exists: the queue, the ink's proposal, a net you can see, a terminal's wires, the
+sheet hit-test, and — since 2026-09-10 — the two controls for a wire the index has not got.
 
 **Session 1, 2026-09-07 — Phase 0.** The wire ids are frozen, the endpoints are in `wiring.json`,
 the generator reads it and refuses to run without it. Nothing on screen changed and the artifact is
@@ -108,10 +109,62 @@ to offer a run that is nothing but a block's bus, and `14_tests_path_editor.md` 
 and that instruction are all corrected, and the assertion that carries the finding was added — plan
 §4 q10 warned that the fixture alone would not go red.
 
-**Next is Session 4, and it comes after the run.** Phase E — `Add a wire` and `Retire this wire` —
-plus whatever the run turns up. §3.7 measured **0** genuinely missing field wires, so Phase E is
-insurance for drawing number two rather than work this sheet needs, and if a session runs short it
-is the one to drop.
+**Session 4, 2026-09-10 — Phase E.** `Add a wire` above the `Wiring` queue and
+`Retire this wire` at the foot of an armed wire's panel. **The `W` table stopped being the list of
+wires that exist**: a record saying `"added": true`, at an id the table does not have, is a wire a
+*person* put on the drawing and the generator folds it in — with **no colour, gauge, cable or
+description**, because those are readings of a printed callout and there is no callout for a wire
+the indexing pass never saw. The refusal that stood there before is not gone: an unknown id with no
+marker is still a typo and is still refused by name. **The door opened one word wide.**
+`17_tests_add_and_retire_a_wire.md`, T-1200–T-1255, none walked.
+
+Four things worth carrying forward from it:
+
+- **A wire can exist on screen before it exists in the netlist**, and the panel says so. The
+  generator writes `circuit_logic.json`, so between the save and the re-run an added wire has no
+  designator entry — `wiringModel.draftWireEntries` gives it a row so it is not a record with
+  nowhere to be, and the `Paths` queue deliberately does not take it, because a route is ranked
+  against the ink reaching two *published* pins.
+- **An id is spent once.** `nextWireId` counts past every id the netlist or the draft has ever
+  held, tombstones included. 58 authored routes key on a `W###` and a recycled id would reattach
+  one of them in silence.
+- **Retiring leaves the wire's authored route alone and stops it being silent.** `locations.json`
+  is a different document in a different store; the route stays, and `resolve_geometry` now reports
+  it in the red strip rather than dropping it without a word. Invariant 5's one exception, closed.
+- **One collision this format can suffer**, and hazard **`H25`** is written for it: a wire added at
+  `W072` and a 72nd row later typed into the `W` table are two wires with one id. `build_wires`
+  refuses that pair by name — the check can only live in the generator, because the server is
+  handed a netlist generated *from* the file it is validating.
+
+**One repair went in on the way past, and it moved the artifact.** Every `CONNECTS_TO` on a wire
+with no printed callout read *"a an unlabelled conductor conductor"* — true of `W012` and `W015`
+since the beginning, and about to be true of every added wire. **`circuit_logic.json` and
+`custom_kg.json` were regenerated: two edges changed and nothing else.**
+
+### The run — what to do first when you sit down to it
+
+The screens are all there and the order that costs least is not the obvious one:
+
+1. **Six clicks first: the `Commoning` filter.** Six blocks, one press each, and every net you look
+   at afterwards paints its bus. It is the cheapest thing on the list and it makes everything after
+   it easier to read.
+2. **Then the three zooms** — `TB-130`, `TB-120:3`, and which of `W044`/`W050`/`W057` is on
+   `TB-0V:8`, `:9` and `:11`. T-1115 and T-1130 are the screens. The first two are format questions
+   waiting on your eyes and nothing else can settle them; the third you will want settled *before*
+   you reach those three wires in the queue rather than in the middle of it.
+3. **Then the queue, in id order, with the `Wiring` filter.** 47 are one glance and one button.
+   The eleven the ink names are read-it, look, one click — `authoring_the_wires.md` §3.2 is the
+   list. The **six coil wires** (`W024`, `W025`, `W026`, `W047`, `W048`, `W049`) are the slow ones:
+   the ink offers nothing, so they are `Pick from the sheet` and judgement.
+4. **Do `W042` deliberately.** Press *I looked and it was right* on a wire the ink says nothing
+   about, and notice the screen did not try to talk you out of correct data. It is the one case in
+   the census where a proposal would have made things worse.
+5. **Then both commands, once, at the end.** `author_circuit_logic.py` and then `build_kg.py` —
+   this work moves connectivity, so unlike the placement run the second one really is needed.
+
+**You should not press `Add a wire` or `Retire this wire` at all during the run.** The census
+measured **0** genuinely missing field wires. If you find yourself reaching for either, that is a
+finding worth telling me about rather than a gesture.
 
 **Three questions are waiting on the user's eyes** and two of them are now in the way of finishing
 Phase C rather than merely interesting: **`TB-130`** has two points 71 pt apart with no conductor
@@ -122,10 +175,14 @@ work. T-1115 and T-1130 are the two screens that show them.
 
 ### Still true, and not part of that plan
 
-- **There are three authored files now and they want committing.** `locations.json`,
-  `label_corrections.json` and — since 2026-09-07 — `wiring.json`. They are what nothing can
-  rebuild, and `label_corrections.json` still holds **654** decisions in the tree against **90** in
-  git. That is the largest piece of unbacked work in the project.
+- **There are four authored files now**, and `author_circuit_logic.py` is the fourth: it is a
+  Python file, but the `W` table and the component, terminal and net tables in it are data rather
+  than code. `locations.json`, `label_corrections.json` and — since 2026-09-07 — `wiring.json` are
+  the other three. They are what nothing can rebuild. **All of it went into git with `a510f1b`**,
+  including `label_corrections.json`'s 654 decisions, so for the first time in weeks the project
+  has no unbacked authored work — and the thing to protect is that state. Anything the user
+  authors while walking a lesson document lands in the same commit as the session's code unless
+  they separate it deliberately.
 - **`K12` is narrowed and `K5` has one place where it helps.** The artifact test's failure names
   which authored file is ahead; what is left of `K12` is that an mtime is not provenance. And *you
   cannot place a point under an existing dot* is now the **mechanism** in the wiring editor, where
@@ -144,7 +201,7 @@ work. T-1115 and T-1130 are the two screens that show them.
 ### What a session picking this up should read
 
 **`authoring_the_wires.md` §0 says.** In short: that plan whole, then
-`locate_tab_testing/locate_tab_instruction_and_test_manual.md` (the index over fifteen leaf
+`locate_tab_testing/locate_tab_instruction_and_test_manual.md` (the index over seventeen leaf
 documents — §5a is what is in the files, §7 the known issues, §8 the rule about routes), then
 `06_code_map.md` for the hazards, then `07_drawing_facts.md`. About 8 k tokens for one symptom
 instead of the whole feature.
@@ -269,6 +326,145 @@ a specific question needs them.
 
 Semicolons, not `&&`, so one failure does not hide the state of the other three. Run
 `npm run build` **and restart the server** at the end; see the state block above for why both.
+
+---
+
+## 2026-09-10 — Session 4 of the authoring-the-wires plan: a wire the index has not got
+
+**Phase E, and the last coding session in the plan.** `Add a wire` and `Retire this wire`. §3.7
+measured **0** genuinely missing field wires on this sheet, so none of this is repair — it is what
+drawing number two starts from, and it is why the phase was last.
+
+**261 server tests, 458 web, ruff and tsc clean.** `17_tests_add_and_retire_a_wire.md` is the
+lesson document, T-1200–T-1255.
+
+### What changed, and why each way round
+
+**1. One word in the file format: `"added": true`.** Until now the set of wires was closed —
+`build_wires` walked the `W` table, ids were `W001`…`W0NN` by position, and a record for anything
+else was refused by name as a typo. That refusal was right for exactly as long as adding a wire was
+impossible, and opening it needs something that says *a person allocated this id*. So the door
+opened **one word wide**: with the marker the record is a wire somebody put there; without it, an
+unknown id is still the typo it always was, refused by name in both validators.
+
+It is a field rather than something the ids could have implied, and the second reason is the one
+that bites later. The `W` table is hand-maintained. A wire added on screen at `W072` and a 72nd row
+typed into that table afterwards are **two different wires with one id**, and folded together they
+would produce one wire carrying the record's endpoints and the row's colour, with the other wire
+gone and nothing anywhere saying so. `build_wires` refuses that pair by name, and it can only do so
+because the record says which kind of wire it is. Hazard **`H25`**.
+
+**2. The refusal lives in the generator and cannot live in the server.** `server/app/wiring.py` is
+handed the **netlist**, which is generated from the file it is validating, so `W072` is legitimately
+in it the moment the generator has run. Only `author_circuit_logic.py` knows what the table holds.
+The server's half is narrower and is the one it can make honestly: an id the netlist does not have
+is kept **iff** the record says `added`, because between the save and the re-run that is the normal
+state of an added wire — and dropping it would lose the wire under the very save that created it.
+
+**3. An added wire gets no colour, gauge, cable or description.** Those four are readings of a
+printed callout, and there is no callout for a wire the indexing pass never saw. Inventing one
+would be the same class of mistake as the allocated screw numbers this whole plan exists to undo: a
+blank presented as a reading. The `W` table stays their home, and the script's header now says how
+an added wire acquires a row — at the id it already has, with `"added"` dropped in the same edit.
+
+**4. A wire can exist on screen before it exists in the netlist.** Every other row on the Locate
+tab comes from `/api/designators`, which is built from `circuit_logic.json`. A wire somebody adds is
+in `wiring.json` at once and in the netlist only after the generator runs, and without a row it
+would be a record with no panel and no way to give it two ends. `wiringModel.draftWireEntries`
+makes the draft's additions look like what they are about to be, framed on the ends they have and
+carrying each pin's own placement rather than asserting one; the panel says **`Not in the netlist
+yet`** and names the command. `entries` stays the netlist's and `listed` is the union, because
+`ink` is memoised on `entries` and folding the draft in there would rebuild 149 × 131 projections on
+every keystroke in the wiring panel.
+
+**5. `Add a wire` is above the queue and not in the panel** — a departure from the plan's §4 q4,
+which listed it beside `Retire this wire` among an armed wire's controls. Adding a wire is not
+something you do *to* the wire you are looking at, and in the panel you would have to arm an
+unrelated row to reach it. It sits over the queue it adds to, on the filter that owns that queue,
+and arms the new wire at once.
+
+**6. An id is spent once, and `nextWireId` counts past every tombstone.** 58 authored routes key on
+a `W###`. A recycled id would reattach one of them to a different wire and nothing on screen would
+look any different — which is the whole reason ids became explicit in Phase 0. The `added` count in
+the wiring report is over **all** records for the same reason: it counts ids spent, not wires alive.
+
+**7. Retiring wants a reason in words, and it is two presses.** A wire is rarely retired for being
+absent; it is retired for being a duplicate, or for being one run somebody read as two. Six months
+later *"read twice; `W014` is this run"* is the whole of what a reader needs and there is nowhere
+else for it to live. The tombstone holds the reason and **no endpoints** — saying where a wire goes
+while saying it does not exist is two claims at once — so `Take it back` returns the netlist's pair
+where the netlist still has it, two empty slots where it does not, and the panel says which before
+you press.
+
+**8. Retiring leaves the wire's authored route alone, and the route stops being silent.**
+`locations.json` is a different document in a different store, and reaching across to delete one
+would be `H18` exactly — as well as destroying authored work over a decision that can be reversed
+in the next press. What changed instead is that `resolve_geometry` now **reports** an orphaned
+route: *`locations.json` has a route for `W0xx`, which is not a wire in this netlist.* It used to be
+filtered out without a word, which was invariant 5's one exception.
+
+**9. `unconfirm` refuses an added wire, and an added wire's first two clicks stamp no `was`.** Both
+are invariant 10 in the fourth file. `source: index` means *the indexing pass's own answer* and the
+indexing pass never gave one for a wire a person invented; `was` means *the pair this record
+replaced* and an added wire replaced nothing — without the guard the first endpoint would write
+`was: [null, null]` and the panel would show `corrected` over an answer nobody ever gave.
+
+### Two standing tests rewritten — trap 4, for the third time
+
+`INDEXED` in `test_extraction_generator.py` is *the extraction's records as the indexing pass left
+them*, and it now drops an **added** record as well as a retired one: there is no machine answer to
+reconstruct for a wire the indexing pass never saw, and carrying one in would put a 72nd wire into
+every test that says *the indexing pass's own answers*.
+`test_wiring_json_covers_every_wire_in_the_netlist_and_invents_none` compared two sets and would
+have gone red on the first retirement; it now compares the **live** records against the netlist and
+asserts separately that the tombstones are absent, which is the property it was always about.
+
+`test_the_editor_cannot_write_a_record_the_generator_refuses` grew a wire id per case. An `added`
+marker on an id the table *does* have is a collision only the generator can see, so it is not a
+verdict the two can be expected to agree on and the added cases are keyed on a free id.
+
+### One repair that moved the artifact
+
+Every `CONNECTS_TO` on a wire with no printed colour or gauge read *"a an unlabelled conductor
+conductor"* — the article was in the sentence rather than in the phrase. True of `W012` and `W015`
+since the beginning, and about to be true of **every** added wire, which is what made it worth
+fixing now. `circuit_logic.json` and `custom_kg.json` were regenerated with both commands: **two
+edges changed and nothing else.**
+
+### Verified against the running server
+
+The write loop end to end, the way Session 2 and Session 3 did it. `wiring.json` backed up, an
+added `W072` written through `PUT /api/wiring` (report: `wires 72, added 1, problems []`, and the
+stale banner naming both commands), the generator run — 72 wires, the edge present, the spec null —
+then the file restored through the same route and checked with `md5sum`. **Byte-identical.** The
+server was stopped in the same turn.
+
+### Files
+
+    server/app/wiring.py                    Wire.added, the `added` count, the parse
+                                            refusal, and resolve_wiring's narrowed check
+    server/app/locations.py                 resolve_geometry reports an orphaned route
+    .../extracted_docs/author_circuit_logic.py
+                                            _wiring_record parses `added`; build_wires folds
+                                            added wires in, refuses the table collision, and
+                                            counts them; the CONNECTS_TO article
+    webui/src/api/types.ts                  StoredWire.added, WiringReport.added
+    webui/src/features/locate/wiringModel.ts
+                                            nextWireId, addWire, retireWire, unretire, added,
+                                            retiredReason, draftWireEntries; setEndpoint and
+                                            unconfirm guarded
+    webui/src/features/locate/WiringPanel.tsx
+                                            RetireBox, the retired panel, the `added` badge,
+                                            the `Not in the netlist yet` line, inNetlist
+    webui/src/features/locate/TargetPanel.tsx   inNetlist threaded
+    webui/src/features/locate/LocateTab.tsx     draftWires, listed, the `Add a wire` row
+    tests                                   test_wiring.py +9, test_extraction_generator.py +4,
+                                            test_locations.py +1, wiringModel.test.ts +12,
+                                            WiringPanel.test.tsx +8
+    _claude_notes/locate_tab_testing/17_tests_add_and_retire_a_wire.md    new
+    _claude_notes/locate_tab_testing/06_code_map.md                       H25, invariant 10
+    _claude_notes/locate_tab_testing/locate_tab_instruction_and_test_manual.md   §1, §3, §5k
+    _claude_notes/authoring_the_wires.md                                  §15 Session 4
 
 ---
 

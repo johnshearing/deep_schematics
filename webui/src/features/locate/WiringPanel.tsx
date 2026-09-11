@@ -30,10 +30,19 @@
  *   `PLG1`/`PLG2` pairs, `CR-ON:14` beside `CR-BP:24` — the nearer run may be the other wire's, and
  *   eleven of this sheet's endpoints are that case. The one that agrees is marked instead, because
  *   a proposal that agreed with the record by construction would be no proposal at all.
+ *
+ * ### And since Phase E, the two controls that change *which wires exist*
+ *
+ * `Retire this wire` is here; `Add a wire` is above the list, because adding one is not a thing
+ * you do *to* the wire you are looking at. Both are insurance rather than repair — §3.7 measured
+ * **0** genuinely missing field wires on this drawing — so both are deliberately harder to reach
+ * than the button beside them: retiring wants a reason in words before it will do anything, and
+ * what it writes is a tombstone rather than a deletion, because the 58 authored paths key on
+ * `W###` and a recycled id would reattach one of them to a different wire in silence.
  */
 
 import { useMemo, useState } from 'react'
-import { Check, Crosshair, RotateCcw } from 'lucide-react'
+import { Check, Crosshair, RotateCcw, Trash2 } from 'lucide-react'
 
 import type { Conductor, Designator, LocationsDocument, Polyline, WiringDocument } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
@@ -44,16 +53,20 @@ import type { Stamp } from './model'
 import type { InkIndex, Landed, Landing } from './wiring'
 import { proposalsFor } from './wiring'
 import {
+  added as isAdded,
   confirmEndpoints,
   confirmed as isConfirmed,
   corrected as isCorrected,
   endpointsOf,
   netsAcross,
   pathStale,
+  retireWire,
+  retiredReason,
   setEndpoint,
   setWiringNote,
   sourceOf,
   unconfirm,
+  unretire,
   wireRecord,
   type End,
   type Endpoints,
@@ -94,6 +107,14 @@ interface Props {
    * `PathPanel`, and the panel says different things about them. */
   ink: InkIndex | null
   conductors: Conductor[] | null
+  /**
+   * Whether `circuit_logic.json` has this wire yet.
+   *
+   * False only for a wire somebody added and has not regenerated for — the row is the draft's own
+   * (`wiringModel.draftWireEntries`), and the panel has to be able to say so plainly, because a
+   * person who adds a wire and then goes looking for it on the Drawing tab will not find it.
+   */
+  inNetlist: boolean
   /** Which of this wire's slots is armed, if either. Only `Pick from the sheet` sets it. */
   armed: End | null
   onArm: (end: End | null) => void
@@ -110,6 +131,7 @@ export function WiringPanel({
   nets,
   ink,
   conductors,
+  inNetlist,
   armed,
   onArm,
   stamp,
@@ -130,7 +152,8 @@ export function WiringPanel({
   return (
     <Ready
       {...{
-        entry, wiring, locations, nets, ink, conductors, armed, onArm, stamp, onEdit, onPreview,
+        entry, wiring, locations, nets, ink, conductors, inNetlist,
+        armed, onArm, stamp, onEdit, onPreview,
       }}
     />
   )
@@ -143,6 +166,7 @@ function Ready({
   nets,
   ink,
   conductors,
+  inNetlist,
   armed,
   onArm,
   stamp,
@@ -155,6 +179,8 @@ function Ready({
   const corrected = isCorrected(wiring, entry.id)
   const across = netsAcross(ends, nets)
   const stale = pathStale(locations, wiring, entry)
+  const added = isAdded(wiring, entry.id)
+  const retired = retiredReason(wiring, entry.id)
 
   const proposals = useMemo(() => (ink ? proposalsFor(ink, ends) : { from: [], to: [] }), [
     ink,
@@ -172,6 +198,55 @@ function Ready({
     onEdit(
       (d) => setEndpoint(d, entry.id, end, terminal, ends, stamp()),
       `put ${entry.id}'s ${end} end on ${terminal}`,
+    )
+  }
+
+  /**
+   * **A tombstoned wire shows its reason and one way back, and nothing else.**
+   *
+   * Not the slots, not the proposals, not the note: every one of them is a claim about two
+   * terminals, and this record says there are none. The id stays spoken for either way — the
+   * record is still here, and `nextWireId` counts past it forever.
+   */
+  if (retired !== null) {
+    return (
+      <div className="space-y-2 border-t pt-1.5" data-wiring-panel={entry.id}>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-medium">What it joins</span>
+          <Badge
+            tone="warning"
+            data-wiring-retired={entry.id}
+            title="Somebody said this wire does not exist. The generator drops it and its CONNECTS_TO edge from the netlist, and its id is never given to anything else."
+          >
+            retired
+          </Badge>
+          {added && <Badge tone="info">you added it</Badge>}
+        </div>
+        <p className="text-[11px] text-foreground">{retired}</p>
+        <p className="text-[10px] text-muted-foreground">
+          Its two ends went with the tombstone — a record cannot say where a wire goes and that it
+          does not exist at the same time.{' '}
+          {inNetlist
+            ? 'Taking it back puts the netlist’s pair in the slots, unconfirmed.'
+            : 'The netlist has already dropped it, so taking it back gives you two empty slots.'}
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-[11px]"
+          data-wiring-unretire={entry.id}
+          title="Put the wire back, unconfirmed. Its id does not change — it never left."
+          onClick={() =>
+            onEdit(
+              (d) => unretire(d, entry.id, [entry.terminals?.[0]?.id ?? null, entry.terminals?.[1]?.id ?? null]),
+              `took back ${entry.id}'s retirement`,
+            )
+          }
+        >
+          <RotateCcw />
+          Take it back
+        </Button>
+      </div>
     )
   }
 
@@ -196,7 +271,28 @@ function Ready({
             corrected
           </Badge>
         )}
+        {added && (
+          <Badge
+            tone="info"
+            data-wiring-added={entry.id}
+            title="You put this wire on the drawing; the indexing pass never saw it. It has no colour or gauge, because those are readings of a printed callout and there is no callout for a wire nobody read."
+          >
+            you added it
+          </Badge>
+        )}
       </div>
+
+      {added && !inNetlist && (
+        <p
+          className="text-[10px] text-[var(--color-warning)]"
+          data-wiring-not-yet={entry.id}
+          title="Every other row on this screen comes from circuit_logic.json. This one comes from the wiring draft, because the netlist has not been written since you added it."
+        >
+          <span className="font-medium">Not in the netlist yet.</span> It appears there — and on
+          the Drawing tab, and in anything the model reads — after{' '}
+          <span className="font-mono">author_circuit_logic.py</span>.
+        </p>
+      )}
 
       {/* The two slots, in the netlist's own order, because `[from, to]` is content. */}
       <ul className="space-y-1.5">
@@ -259,7 +355,10 @@ function Ready({
           <Check />
           {confirmed ? 'Confirm again' : 'I looked and it was right'}
         </Button>
-        {confirmed && (
+        {/* Hidden on a wire somebody added, and `unconfirm` refuses one anyway. There is no
+            confirmation to take back: `index` would say the indexing pass answered for a wire it
+            never saw. `Retire this wire` is the way out of one, and it says what happened. */}
+        {confirmed && !added && (
           <Button
             variant="ghost"
             size="sm"
@@ -284,6 +383,123 @@ function Ready({
           onEdit((d) => setWiringNote(d, entry.id, note), `noted why ${entry.id} joins what it does`)
         }
       />
+
+      <RetireBox
+        wireId={entry.id}
+        hasRoute={Boolean(locations.wires?.[entry.id]?.path)}
+        onRetire={(reason) =>
+          onEdit((d) => retireWire(d, entry.id, reason, stamp()), `retired ${entry.id}: ${reason}`)
+        }
+      />
+    </div>
+  )
+}
+
+/**
+ * **Retire this wire** — two presses and a reason, and it is meant to be two.
+ *
+ * The first press only opens the box. Nothing is written until there is a reason in words, and
+ * the reason is required for a reason of its own: a wire is rarely retired for being *absent* —
+ * it is retired for being a duplicate, or for being one run somebody read as two — and six months
+ * later *"read twice; `W014` is this run"* is the whole of what a reader needs.
+ *
+ * **It warns about an authored route and does not touch it.** A path lives in `locations.json`,
+ * which is a different document in a different store, and reaching across to delete one would be
+ * exactly the coupling `H18` exists to forbid. It would also destroy authored work on the
+ * strength of a decision somebody may take back in the next press. So the route stays, the
+ * `locations.json` red strip names it as a label for a wire the netlist no longer has once the
+ * generator runs, and the person decides.
+ */
+function RetireBox({
+  wireId,
+  hasRoute,
+  onRetire,
+}: {
+  wireId: string
+  hasRoute: boolean
+  onRetire: (reason: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('')
+
+  if (!open) {
+    return (
+      <div className="border-t pt-1.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-[11px] text-muted-foreground"
+          data-wiring-retire={wireId}
+          title="Say this wire does not exist. It leaves the netlist, its id is never reused, and the reason you type is kept forever."
+          onClick={() => setOpen(true)}
+        >
+          <Trash2 />
+          Retire this wire
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-1 border-t pt-1.5">
+      <p className="text-[10px] text-muted-foreground">
+        <span className="font-medium text-foreground">Why does {wireId} not exist?</span> It is
+        kept forever, in place of the two ends. The id is never given to anything else.
+      </p>
+      {hasRoute && (
+        <p className="text-[10px] text-[var(--color-warning)]" data-wiring-retire-route={wireId}>
+          This wire has a route you authored. Retiring it leaves the route in{' '}
+          <span className="font-mono">locations.json</span> — nothing here deletes your work.
+        </p>
+      )}
+      <input
+        value={reason}
+        autoFocus
+        data-wiring-retire-reason={wireId}
+        aria-label={`Why ${wireId} does not exist`}
+        placeholder="read twice; W014 is this run"
+        className="w-full rounded-md border bg-background px-2 py-0.5 text-[11px]"
+        onChange={(event) => setReason(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && reason.trim()) {
+            event.preventDefault()
+            onRetire(reason)
+            setOpen(false)
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            setOpen(false)
+            setReason('')
+          }
+        }}
+      />
+      <div className="flex items-center gap-1">
+        <Button
+          variant="default"
+          size="sm"
+          className="h-6 px-2 text-[11px]"
+          disabled={!reason.trim()}
+          data-wiring-retire-confirm={wireId}
+          onClick={() => {
+            onRetire(reason)
+            setOpen(false)
+          }}
+        >
+          <Trash2 />
+          Retire it
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-[11px]"
+          onClick={() => {
+            setOpen(false)
+            setReason('')
+          }}
+        >
+          Cancel
+        </Button>
+      </div>
     </div>
   )
 }

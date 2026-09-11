@@ -372,5 +372,27 @@
       "source": "index"
     }
   },
-  "commoning": {}
+  "commoning": {
+    "TB-0V": {
+      "runs": [
+        [
+          [
+            954.4,
+            267.3
+          ],
+          [
+            954.4,
+            546.7
+          ]
+        ]
+      ],
+      "geometry": "extracted",
+      "attribution": "human",
+      "conductors": [
+        "C0105"
+      ],
+      "by": "js",
+      "at": "2026-09-10T00:24:15.735Z"
+    }
+  }
 }

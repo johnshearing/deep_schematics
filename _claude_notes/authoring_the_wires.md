@@ -1286,3 +1286,95 @@ blocks' commoning. Three zooms close the questions only the user's eyes can clos
 `TB-120:3`, and which of `W044`/`W050`/`W057` belongs on `TB-0V:8`, `:9` and `:11`. **T-1115 and
 T-1130 are the two screens that show them**, and the second is the one to use throughout the run:
 a pin nothing reaches now says so in as many words.
+
+### Session 4 — Phase E. **Done, 2026-09-10.**
+
+`Add a wire` above the `Wiring` queue and `Retire this wire` at the foot of an armed wire's panel.
+The `W` table stopped being the list of wires that exist: a record saying **`"added": true`**, at
+an id the table does not have, is a wire a person put on the drawing and the generator folds it in.
+**261 server tests, 458 web, ruff and tsc clean.**
+`17_tests_add_and_retire_a_wire.md` is the lesson document, T-1200–T-1255.
+
+**§9's acceptance is met in both halves**, and there is nothing in this phase that could only be
+half-met, because §3.7 measured **0** genuinely missing field wires — nothing on this sheet needs
+it and nothing on this sheet tests it in anger.
+
+| | |
+|---|---|
+| `Add a wire` at the next free id | **yes**, and the id counts past every tombstone as well as every live record |
+| `Retire this wire` with a tombstone | **yes**, and it will not write one without a reason in words |
+| The generator handling both | **yes** — an added wire becomes a netlist wire with an edge and no spec; a retired one leaves |
+| Verified end to end against the running server | **yes** — `W072` written through `PUT /api/wiring`, generator run, 72 wires, then restored and `md5sum`-checked byte-identical |
+
+**Six places where the execution departed from §4 q4, §6 and §9, each with its reason:**
+
+1. **A record carries `"added": true`, which §6's own example does not have.** §6 shows an added
+   wire as `{ "from": null, "to": null, "source": "human", ... }` and nothing more. Written that
+   way the id past the end of the table *is* the marker — and it cannot be, for two reasons that
+   only appear together. The first is that an unmarked unknown id is exactly the typo `resolve` and
+   `build_wires` refuse by name, so opening the door with no marker opens it for the typo too. The
+   second is worse: the `W` table is hand-maintained, and a wire added at `W072` plus a 72nd row
+   typed into that table afterwards are **two different wires with one id**. Folded together they
+   make one wire with the record's endpoints and the row's colour, the other wire gone and nothing
+   saying so. With the marker that pair is refused by name. Hazard **`H25`**.
+
+2. **`Add a wire` is above the queue, not in the panel.** §4 q4 lists it beside `Retire this wire`
+   among an armed wire's controls. Adding a wire is not something you do *to* the wire you are
+   looking at, and in the panel you would have to arm an unrelated row to reach it. It sits over
+   the queue it adds to, on the filter that owns that queue.
+
+3. **An added wire is born `source: 'human'` and is confirmed by picking its two ends**, with no
+   separate *I looked and it was right* to press. `index` means *the indexing pass's own answer*
+   and the indexing pass never saw this wire, so there is no third value it could honestly take.
+   And there is nothing to confirm *against*: the button exists for wires whose ends the machine
+   proposed. `wiringDecided` still wants both ends named, so a new wire sits at the top of the
+   queue with two empty slots until somebody fills them — which is where it belongs.
+
+4. **`unconfirm` refuses an added wire and the button is hidden**, which §7's `Take it back` does
+   not anticipate. Writing `source: index` there would claim the indexing pass answered for a wire
+   it never saw. The way out of an added wire is to retire it, which says what actually happened.
+
+5. **A tombstone keeps no endpoints, so `Take it back` may return two empty slots.** §6 says a
+   retired wire has no ends and the plan does not say what undoing one restores. It restores from
+   the **netlist**, which still has the wire until the generator next runs — and after that it
+   restores nothing, and the panel says so *before* you press. The alternative was a second field
+   holding the pair, and it would have collided with `was`: retiring a corrected wire would either
+   overwrite the machine's original answer or need a third key for the same shape of fact.
+
+6. **Retiring does not touch the wire's authored route, and the route is now *reported*.** §9 says
+   nothing about this and it is the one interaction between the two authored files that Phase E
+   creates. Deleting the route would be `H18` exactly — a wiring decision reaching into
+   `locations.json` — and it would destroy authored work over a decision reversible in the next
+   press. So the route stays, the panel warns before you retire, and `resolve_geometry` names the
+   orphan in the red strip. It used to be filtered out silently, which was invariant 5's one
+   exception.
+
+**Two things built that the plan did not ask for:**
+
+- **`draftWireEntries` — the editor's own row for a wire the netlist has not got yet.** Nothing in
+  §9 says where an added wire *appears*, and the answer turned out to be a small piece of design
+  rather than a detail: `/api/designators` is built from `circuit_logic.json`, so between the save
+  and the re-run an added wire has no entry, and without a row it is a record with no panel and no
+  way to give it two ends. `entries` stays the netlist's and `listed` is the union — `ink` is
+  memoised on `entries`, and folding the draft in there would rebuild 149 × 131 projections on
+  every keystroke in the wiring panel.
+- **One sentence in the artifact, repaired.** Every `CONNECTS_TO` on a wire with no printed callout
+  read *"a an unlabelled conductor conductor"* — true of `W012` and `W015` since the beginning, and
+  about to be true of every added wire, which is what made it this session's. `circuit_logic.json`
+  and `custom_kg.json` were regenerated: **two edges changed and nothing else.**
+
+**And trap 4 was paid a third time, in advance of the run rather than after it.** `INDEXED` now
+drops an added record as well as a retired one — there is no machine answer to reconstruct for a
+wire the indexing pass never saw — and
+`test_wiring_json_covers_every_wire_in_the_netlist_and_invents_none` compares the **live** records
+against the netlist and asserts the tombstones are absent, instead of comparing one set against
+another. Both would have gone red on the user's first retirement.
+
+### What §14 now costs
+
+**Unchanged, and this phase adds nothing to it.** About 100 gestures for the wires, six clicks for
+the commoning, three zooms for the questions only the user's eyes can close. The expected number of
+times either of Phase E's controls is pressed during the authoring run is **zero** — §3.7 measured
+no missing field wires — and if one of them *is* pressed, that is a finding rather than a gesture.
+
+**The plan is now finished except for the run**, which is §13's Phase F and is the user's.

@@ -375,7 +375,7 @@ So you do not go looking for it, and so nobody builds it by accident:
 | Not built | Why, and when |
 |---|---|
 | **Hand-tracing a block's bus** | Every commoning record is a stretch of a real conductor. `TB-130` has none, and whether the answer is *trace one* or *say this block has no bus* is **T-1115's question for you**. |
-| **`Add a wire` / `Retire this wire`** | **Phase E.** §3.7 measured **0** genuinely missing field wires, so it is insurance for drawing number two. The format is ready and the door is deliberately shut. |
+| **`Add a wire` / `Retire this wire`** | **Was Phase E, and it landed 2026-09-10** — `17_tests_add_and_retire_a_wire.md`. §3.7 measured **0** genuinely missing field wires, so it is insurance for drawing number two and you should not need it during your run. |
 | **A wire's highlight including the bus** | Decided against, deliberately — see T-1120's second *Why*. Plan §9 asked for it; `W063` is the reason it is not there. |
 | **The `Ask` tab reasoning about highlighted wires** | **Next**, and it is your own note at the end of the plan. Everything it needs now exists: a terminal's wires, the commoning on the sheet, and a hit-test that can name what a line belongs to. |
 

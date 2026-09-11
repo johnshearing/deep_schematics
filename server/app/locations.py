@@ -974,6 +974,18 @@ def resolve_geometry(
             problems.append(
                 f"{FILENAME} places a label for {lid!r}, which is not a wire or net in the netlist"
             )
+    # **A route for a wire that is not there any more**, which since Phase E is a thing that
+    # happens rather than a hand-edit: retiring a wire drops it from the netlist and deliberately
+    # leaves its authored route alone — `wiring.json` and `locations.json` are two documents and
+    # nothing may reach across to delete the other's work. Filtered out below either way; reported
+    # here because *nothing refused is silent*, and because the route is real work the person now
+    # has to decide about: take the retirement back, or delete the route on the `Paths` filter.
+    for wid in stored.paths:
+        if wid not in known_wires:
+            problems.append(
+                f"{FILENAME} has a route for {wid!r}, which is not a wire in this netlist — a "
+                "retired wire keeps its id but loses its entry, and its route is still here"
+            )
 
     # The end labels, checked against the membership. This is the only refusal in the file whose
     # symptom would otherwise be *nothing at all*: a side stored against a pin the wire does not

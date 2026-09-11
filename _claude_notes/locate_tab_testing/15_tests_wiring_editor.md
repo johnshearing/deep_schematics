@@ -656,7 +656,7 @@ So you do not go looking for it, and so nobody builds it by accident:
 
 | Not built | Why, and when |
 |---|---|
-| **`Add a wire`** and **`Retire this wire`** | **Phase E.** §3.7 measured **0** genuinely missing field wires, so it is insurance for drawing number two rather than work this sheet needs. The *format* is ready — `from`/`to` may be `null`, a `retired` tombstone is validated and removes the wire's edge, and a record for an id the `W` table lacks is refused by name so the door stays deliberately shut. |
+| **`Add a wire`** and **`Retire this wire`** | **Was Phase E, and it landed 2026-09-10** — `17_tests_add_and_retire_a_wire.md`, T-1200–T-1255. §3.7 measured **0** genuinely missing field wires, so it is insurance for drawing number two rather than work this sheet needs, and you should not need either during your run. The door opened **one word wide**: a record saying `"added": true` is a wire you put there, and an unknown id without it is still a typo and still refused by name. |
 | ~~**Authoring the commoning**~~ | **Built 2026-09-09**, Phase C — the `Commoning` filter, `16_tests_terminal_wires_and_commoning.md` T-1105. |
 | ~~**A net's highlight including the commoning**~~ | **Built 2026-09-09.** T-1120. |
 | ~~**Clicking a terminal to highlight its wires**~~ | **Built 2026-09-09**, on the Drawing tab with no password. T-1125, and T-1130 is the missing wire visible by its absence. |

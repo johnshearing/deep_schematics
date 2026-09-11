@@ -244,8 +244,8 @@ const WIRING = {
 }
 
 const WIRING_REPORT = {
-  file: true, wires: 3, confirmed: 0, corrected: 0, unset: 0, retired: 0, commoning: 0,
-  problems: [] as string[],
+  file: true, wires: 3, confirmed: 0, corrected: 0, unset: 0, retired: 0, added: 0,
+  commoning: 0, problems: [] as string[],
 }
 
 const LOCATIONS_REPORT = {
@@ -901,5 +901,158 @@ describe('the sheet sees a bus as soon as it is saved', () => {
       expect(useAppStore.getState().paths?.commoning?.['TB-0V']).toBeTruthy(),
       { timeout: 3000 },
     )
+  })
+})
+
+// -- Phase E: a wire a person adds, and a wire a person takes away ----------------------------
+//
+// §3.7 measured **0** genuinely missing field wires on this drawing, so neither of these is
+// repair. What they are is the two ways the set of wires can itself be wrong, and drawing number
+// two will need both.
+
+describe('adding a wire', () => {
+  it('gives it the next free id, arms it, and puts it in the queue with two empty ends', async () => {
+    render(<LocateTab />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Wiring' }))
+    await screen.findByRole('option', { name: /^W045 / })
+
+    fireEvent.click(screen.getByTitle(/Put a wire on the drawing/))
+
+    // `W046`, because the fixture's netlist stops at `W045`. It is armed at once — a wire with no
+    // ends is nothing until somebody gives it two, so there is only one useful next thing.
+    await screen.findByText('What it joins')
+    expect(screen.getByText(/0 of 4 wires confirmed/)).toBeTruthy()
+    expect(screen.getByRole('option', { name: /^W046 / })).toBeTruthy()
+    expect(slot('W046', 'from').textContent).toContain('nobody has set this end')
+    expect(slot('W046', 'to').textContent).toContain('nobody has set this end')
+  })
+
+  it('says it is not in the netlist yet, and names the command that puts it there', async () => {
+    render(<LocateTab />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Wiring' }))
+    await screen.findByRole('option', { name: /^W045 / })
+    fireEvent.click(screen.getByTitle(/Put a wire on the drawing/))
+    await screen.findByText('What it joins')
+
+    // The one thing a person will otherwise be confused by: they add a wire, go to the Drawing
+    // tab, and it is not there. Every other row on this screen comes from `circuit_logic.json`.
+    const note = document.querySelector('[data-wiring-not-yet="W046"]') as HTMLElement
+    expect(note.textContent).toContain('Not in the netlist yet')
+    expect(note.textContent).toContain('author_circuit_logic.py')
+    expect(document.querySelector('[data-wiring-added="W046"]')).toBeTruthy()
+  })
+
+  it('writes `added` and no `was`, and picking its ends does not make it a correction', async () => {
+    render(<LocateTab />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Wiring' }))
+    await screen.findByRole('option', { name: /^W045 / })
+    fireEvent.click(screen.getByTitle(/Put a wire on the drawing/))
+    await screen.findByText('What it joins')
+
+    fireEvent.click(
+      slot('W046', 'from').querySelector('[data-wiring-pick="W046@from"]') as HTMLElement,
+    )
+    fireEvent.click(marker('PB2:3'))
+
+    const written_ = await written()
+    expect(written_.wires.W046).toMatchObject({ from: 'PB2:3', to: null, added: true })
+    // `was` means *the pair this record replaced*, and an added wire replaced nothing. Without
+    // the guard the first click would write `was: [null, null]` and the badge would read
+    // `corrected` over an answer nobody ever gave.
+    expect(written_.wires.W046).not.toHaveProperty('was')
+    expect(panel().textContent).not.toContain('corrected')
+  })
+
+  it('offers no `Take it back`, because there is no index answer to go back to', async () => {
+    render(<LocateTab />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Wiring' }))
+    await screen.findByRole('option', { name: /^W045 / })
+    fireEvent.click(screen.getByTitle(/Put a wire on the drawing/))
+    await screen.findByText('What it joins')
+
+    expect(document.querySelector('[data-wiring-unconfirm="W046"]')).toBeNull()
+    expect(document.querySelector('[data-wiring-retire="W046"]')).toBeTruthy()
+  })
+})
+
+describe('retiring a wire', () => {
+  it('needs a reason, and writes a tombstone with no endpoints', async () => {
+    await open('W019')
+    fireEvent.click(screen.getByTitle(/Say this wire does not exist/))
+
+    const confirm = document.querySelector(
+      '[data-wiring-retire-confirm="W019"]',
+    ) as HTMLButtonElement
+    expect(confirm.hasAttribute('disabled')).toBe(true)
+
+    fireEvent.change(document.querySelector('[data-wiring-retire-reason="W019"]') as HTMLElement, {
+      target: { value: 'read twice; W014 is this run' },
+    })
+    fireEvent.click(document.querySelector('[data-wiring-retire-confirm="W019"]') as HTMLElement)
+
+    const written_ = await written()
+    expect(written_.wires.W019).toMatchObject({ retired: 'read twice; W014 is this run' })
+    expect(written_.wires.W019).not.toHaveProperty('from')
+    expect(written_.wires.W019).not.toHaveProperty('to')
+  })
+
+  it('takes the wire out of the queue and shows the reason instead of the slots', async () => {
+    useWiringStore.setState({
+      document: {
+        ...WIRING,
+        wires: { ...WIRING.wires, W019: { retired: 'duplicated W014' } },
+      },
+    })
+    render(<LocateTab />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Wiring' }))
+    await screen.findByRole('option', { name: /^W045 / })
+
+    // Decided about — somebody said it does not exist — so it is out of the queue and *counted*
+    // as dealt with. A tombstone that sat in the list forever would be a queue nobody can empty.
+    expect(screen.getByText(/1 of 3 wires confirmed/)).toBeTruthy()
+    expect(screen.queryByRole('option', { name: /^W019 / })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'All' }))
+    fireEvent.click(await screen.findByRole('option', { name: /^W019 / }))
+    await screen.findByText('What it joins')
+    expect(document.querySelector('[data-wiring-retired="W019"]')).toBeTruthy()
+    expect(panel().textContent).toContain('duplicated W014')
+    // Every one of the slots is a claim about two terminals, and this record says there are none.
+    expect(slot('W019', 'from')).toBeNull()
+  })
+
+  it('warns that an authored route stays behind, and does not touch it', async () => {
+    // `locations.json` is a different document in a different store, and reaching across to
+    // delete a route would be exactly the coupling `H18` forbids — as well as destroying authored
+    // work on the strength of a decision somebody may take back in the next press.
+    stubServer({ locations: LOCATIONS_WITH_PATH })
+    await open('W045')
+    fireEvent.click(screen.getByTitle(/Say this wire does not exist/))
+    expect(
+      (document.querySelector('[data-wiring-retire-route="W045"]') as HTMLElement).textContent,
+    ).toContain('locations.json')
+  })
+
+  it('can be taken back, and the wire comes back unconfirmed', async () => {
+    useWiringStore.setState({
+      document: {
+        ...WIRING,
+        wires: { ...WIRING.wires, W019: { retired: 'duplicated W014' } },
+      },
+    })
+    render(<LocateTab />)
+    fireEvent.click(await screen.findByRole('button', { name: 'All' }))
+    fireEvent.click(await screen.findByRole('option', { name: /^W019 / }))
+    await screen.findByText('What it joins')
+
+    fireEvent.click(document.querySelector('[data-wiring-unretire="W019"]') as HTMLElement)
+
+    const written_ = await written()
+    expect(written_.wires.W019).toEqual({
+      from: 'PS1:-2',
+      to: 'TB-GND-B:2',
+      source: 'index',
+    })
+    await waitFor(() => expect(screen.getByText(/0 of 3 wires confirmed/)).toBeTruthy())
   })
 })

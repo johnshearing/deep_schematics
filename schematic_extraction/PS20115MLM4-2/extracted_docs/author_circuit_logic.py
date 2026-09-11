@@ -51,6 +51,20 @@ with the derived value is reported rather than silently preferred.
 worse drawing; a missing endpoint makes a different netlist, and the model answers questions off
 this file. See `_claude_notes/authoring_the_wires.md` §4 q1.
 
+AND SINCE 2026-09-10, THE `W` TABLE IS NO LONGER THE LIST OF WIRES THAT EXIST
+-----------------------------------------------------------------------------
+A record in `wiring.json` saying `"added": true`, at an id past the end of this table, is a wire
+a **person** put on the drawing, and it becomes a netlist wire like any other - with no colour,
+gauge, cable or description, because there is no printed callout for a wire the indexing pass
+never saw. A record saying `"retired": "<reason>"` takes one away and keeps its id spoken for.
+
+So the table is now *what the indexing pass read off the printed callouts*, which is all it ever
+honestly was. If you later want to give an added wire a colour and a gauge, add its row here at
+the id it already has **and take `"added"` off its record in the same edit** - the two together
+mean the table has caught up with it. Doing only the first is refused by name: an added wire at
+`W072` and a 72nd row in this table are two different wires with one id, and folding them into
+one would keep one wire's endpoints, the other's colour, and lose the rest without a word.
+
 Re-run after correcting any reading, after editing locations.json, and **always** after editing
 wiring.json:
 
@@ -928,6 +942,17 @@ def _wiring_record(wid, body):
         if body.get(key) is not None and not isinstance(body[key], str):
             raise WiringRefused(f"{where} has {key} {body[key]!r}, which is not a string")
 
+    # `added` marks a wire a *person* put on the drawing, at an id the `W` table does not have.
+    # Written only where it is true - absent is how this file says no, the same way `was` is
+    # absent where nothing was replaced - so `false` is a hand edit and is refused rather than
+    # read as agreement.
+    added = body.get("added")
+    if added is not None and added is not True:
+        raise WiringRefused(
+            f"{where} has added {added!r}: it is written only on a wire a person put there, and "
+            "only as true - the wires the indexing pass found have no such key"
+        )
+
     retired = body.get("retired")
     if retired is not None:
         # A tombstone, so an id is never reused and a stale path or citation gets an answer
@@ -941,7 +966,7 @@ def _wiring_record(wid, body):
             raise WiringRefused(
                 f"{where} is retired and still names endpoints; a retired wire joins nothing"
             )
-        return {"retired": retired.strip()}
+        return {"retired": retired.strip(), **({"added": True} if added else {})}
 
     for key in ("from", "to"):
         if key not in body:
@@ -970,7 +995,8 @@ def _wiring_record(wid, body):
 
     return {"from": body["from"], "to": body["to"], "source": source,
             **{k: body[k] for k in ("by", "at", "note") if body.get(k) is not None},
-            **({"was": was} if was is not None else {})}
+            **({"was": was} if was is not None else {}),
+            **({"added": True} if added else {})}
 
 
 def build_wires(table, authored, terminal_nets):
@@ -993,31 +1019,52 @@ def build_wires(table, authored, terminal_nets):
 
     **A retired wire leaves the netlist**, and its id is never reused.
 
+    **And since Phase E a wire may exist that the `W` table has never heard of.** A record saying
+    `added: true` at an id past the end of the table is a wire a *person* put on the drawing, and
+    it becomes a netlist wire with its endpoints, its derived net and its `endpoints` provenance -
+    and with **no colour, gauge, cable or description**, because those four are readings of a
+    printed callout and there is no callout for a wire the indexing pass never saw. The spec stays
+    in the `W` table, which is where §4 q4 put it; adding a row there afterwards is how an added
+    wire acquires one, and the check below is what makes that safe.
+
     Refusals are raised, not collected. An endpoint naming a terminal that does not exist is the
     one hand-edit mistake here whose symptom would otherwise be nothing at all, which is the same
     argument `H14` makes about an end label on a pin its wire does not touch.
     """
     known = {f"W{i:03d}" for i in range(1, len(table) + 1)}
+    extra = []
     for wid in sorted(authored):
-        if wid not in known:
+        record = authored[wid]
+        if wid in known:
+            if record.get("added"):
+                # **The one collision this format can suffer, and it is silent without this.**
+                # `W072` was allocated on screen, and then a 72nd row was typed into the `W`
+                # table. Folded together they make one wire carrying the record's endpoints and
+                # the row's colour - and the other wire is simply gone, with nothing anywhere
+                # saying which one survived.
+                raise WiringRefused(
+                    f"{WIRING.name} says {wid!r} is a wire somebody added, and the W table now "
+                    f"has {len(table)} rows, so {wid!r} is also a row in the table. One id, two "
+                    "different wires. Take the row out of the table, or move the added wire to a "
+                    "free id - and if the table row *is* that wire, drop the record's 'added'."
+                )
+            continue
+        if not record.get("added"):
             raise WiringRefused(
-                f"{WIRING.name} has a record for {wid!r}, which is not a wire in the W table. "
-                "Adding a wire is Phase E and this generator does not do it yet, so an id that "
-                "is not in the table is a typo - and a typo here would invent a connection."
+                f"{WIRING.name} has a record for {wid!r}, which is not a wire in the W table and "
+                "does not say it is one somebody added. An id that is not in the table and is "
+                "not marked is a typo - and a typo here would invent a connection."
             )
+        extra.append(wid)
 
     out = []
-    counts = {"records": 0, "confirmed": 0, "retired": 0, "mismatched": 0, "unset": 0}
+    counts = {"records": 0, "confirmed": 0, "retired": 0, "mismatched": 0, "unset": 0,
+              "added": 0}
     notes = []
-    for index, (frm, to, colour, gauge, printed_net, cable, note) in enumerate(table, start=1):
-        wid = f"W{index:03d}"
-        record = authored.get(wid)
+
+    def fold(wid, record, colour, gauge, printed_net, cable, note, frm, to):
+        """One netlist wire: the spec from wherever it came from, the endpoints from the record."""
         if record is not None:
-            counts["records"] += 1
-            if record.get("retired"):
-                counts["retired"] += 1
-                notes.append(f"    {wid} retired: {record['retired']}")
-                continue
             frm, to = record["from"], record["to"]
             if record["source"] == "human":
                 counts["confirmed"] += 1
@@ -1053,8 +1100,39 @@ def build_wires(table, authored, terminal_nets):
                 "source": "human",
                 **{k: record[k] for k in ("by", "at", "note") if k in record},
                 **({"was": list(record["was"])} if "was" in record else {}),
+                # In the artifact the model reads, so *a person put this wire here* survives the
+                # trip out of the authored file. It is the same claim `location.source: human`
+                # makes about a coordinate, one layer up.
+                **({"added": True} if record.get("added") else {}),
             }
         out.append(wire)
+
+    for index, row in enumerate(table, start=1):
+        frm, to, colour, gauge, printed_net, cable, note = row
+        wid = f"W{index:03d}"
+        record = authored.get(wid)
+        if record is not None:
+            counts["records"] += 1
+            if record.get("retired"):
+                counts["retired"] += 1
+                notes.append(f"    {wid} retired: {record['retired']}")
+                continue
+        fold(wid, record, colour, gauge, printed_net, cable, note, frm, to)
+
+    # The added wires, after the table's and in id order. **No colour, gauge, cable or
+    # description**: those are readings of a printed callout, and there is no callout for a wire
+    # the indexing pass never saw. `CONNECTS_TO` already words a wire with neither as *an
+    # unlabelled conductor*, which is exactly what this is.
+    for wid in extra:
+        record = authored[wid]
+        counts["added"] += 1
+        if record.get("retired"):
+            counts["retired"] += 1
+            notes.append(f"    {wid} retired: {record['retired']}")
+            continue
+        notes.append(f"    {wid} is a wire you added; it has no printed colour or gauge")
+        fold(wid, record, None, None, None, None, None, None, None)
+
     return out, counts, notes
 
 
@@ -1237,12 +1315,18 @@ for w in wires:
     # somebody has started - and it earns its edge when its second end is settled.
     if not w["from_terminal"] or not w["to_terminal"]:
         continue
-    spec = " ".join(x for x in [w["color"], w["gauge"]] if x) or "an unlabelled conductor"
+    # The article belongs to the phrase and not to the sentence: "an unlabelled conductor" already
+    # has one, and gluing "a" in front of it produced "a an unlabelled conductor conductor" on
+    # W012 and W015 - the two wires this sheet prints no callout beside. Phase E makes that the
+    # normal case rather than a curiosity, because a wire a person adds has no printed spec at
+    # all, so the sentence is built round the phrase instead.
+    spec = " ".join(x for x in [w["color"], w["gauge"]] if x)
+    described = f"a {spec} conductor" if spec else "an unlabelled conductor"
     extra = f" {w['description']}" if w["description"] else ""
     cable = f" It is part of cable {w['cable']}." if w["cable"] else ""
     rel("CONNECTS_TO", w["from_terminal"], w["to_terminal"],
         f"{w['from_terminal']} connects to {w['to_terminal']} via wire {w['id']}, "
-        f"a {spec} conductor on net {w['net']}.{cable}{extra}",
+        f"{described} on net {w['net']}.{cable}{extra}",
         {"wire": w["id"], "wire_color": w["color"], "wire_gauge": w["gauge"],
          "net": w["net"], "cable": w["cable"]})
 
@@ -1382,7 +1466,8 @@ print(
 print(
     f"  from wiring.json: {wired_counts['records']} of {len(W)} wires have a record, "
     f"{wired_counts['confirmed']} confirmed by a person, {wired_counts['retired']} retired, "
-    f"{wired_counts['mismatched']} joining two nets, {wired_counts['unset']} half-set"
+    f"{wired_counts['mismatched']} joining two nets, {wired_counts['unset']} half-set, "
+    f"{wired_counts['added']} added by hand"
 )
 for line in wired_notes:
     print(line)

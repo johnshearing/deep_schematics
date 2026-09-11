@@ -6406,7 +6406,7 @@
       "type": "CONNECTS_TO",
       "src": "TB-GND-A:1",
       "tgt": "EARTH:1",
-      "description": "TB-GND-A:1 connects to EARTH:1 via wire W012, a an unlabelled conductor conductor on net GND. Earth ground symbol.",
+      "description": "TB-GND-A:1 connects to EARTH:1 via wire W012, an unlabelled conductor on net GND. Earth ground symbol.",
       "properties": {
         "wire": "W012",
         "wire_color": null,
@@ -6445,7 +6445,7 @@
       "type": "CONNECTS_TO",
       "src": "TB-GND-B:2",
       "tgt": "EARTH:2",
-      "description": "TB-GND-B:2 connects to EARTH:2 via wire W015, a an unlabelled conductor conductor on net GND. Earth ground symbol.",
+      "description": "TB-GND-B:2 connects to EARTH:2 via wire W015, an unlabelled conductor on net GND. Earth ground symbol.",
       "properties": {
         "wire": "W015",
         "wire_color": null,

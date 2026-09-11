@@ -79,8 +79,11 @@ import {
 import { TargetPanel } from './TargetPanel'
 import { inkIndex } from './wiring'
 import {
+  addWire,
   commoningCoverage,
+  draftWireEntries,
   endpointsOf as endsFor,
+  nextWireId,
   setEndpoint as setEndpointInto,
   terminalNets,
   wiringCoverage,
@@ -344,6 +347,31 @@ export function LocateTab() {
     [designators],
   )
 
+  /**
+   * **The wires that exist only in the draft**, and the list that has them — Phase E.
+   *
+   * A wire somebody adds is in `wiring.json` at once and in `circuit_logic.json` only after the
+   * generator runs, so in between it has no `/api/designators` entry and would otherwise be a
+   * record with no row: nothing to arm, no panel, no way to give it its two ends.
+   *
+   * **`entries` is left alone and `listed` is the union**, deliberately. `ink` is memoised on
+   * `entries` — 149 runs against 131 pins — and folding the draft in there would rebuild that
+   * index on every keystroke in the wiring panel. Only the lists that are *about wires* read
+   * `listed`; every measurement over the drawing keeps reading the netlist, which is where the
+   * 131 placed pins are and always were.
+   */
+  const draftWires = useMemo(
+    () => (wiring ? draftWireEntries(wiring, entries) : []),
+    [wiring, entries],
+  )
+  const listed = useMemo(
+    () =>
+      draftWires.length
+        ? [...entries, ...draftWires].sort((a, b) => BY_ID.compare(a.id, b.id))
+        : entries,
+    [entries, draftWires],
+  )
+
   const stateOf = useCallback(
     (entry: Designator) =>
       document ? rowState(document, entry, wiring) : (entry.placement ?? 'none'),
@@ -426,8 +454,9 @@ export function LocateTab() {
       case 'wiring':
         // Read off the wiring **draft**, so a wire leaves the queue under the click that confirms
         // it rather than 900 ms later. The count below shares this predicate, which is what stops
-        // the two from ever disagreeing.
-        return wiring ? entries.filter((e) => wiringPending(wiring, e)) : []
+        // the two from ever disagreeing. Over `listed`, so a wire you have just added is at the
+        // top of the queue it belongs in rather than nowhere.
+        return wiring ? listed.filter((e) => wiringPending(wiring, e)) : []
       case 'commoning':
         // **Components, and from the ink rather than from the netlist** — the only filter here
         // whose membership is a measurement. A block already authored stays in the list so it can
@@ -437,32 +466,41 @@ export function LocateTab() {
         )
       case 'paths':
         // Read off the **draft**, so a wire leaves the queue under the click that settles it
-        // rather than after the save.
+        // rather than after the save. Over `entries` and not `listed`: a route is ranked against
+        // the ink reaching a wire's two pins, and a wire the netlist has not got yet has no
+        // published pins to rank against. It joins this queue when the generator runs.
         return entries.filter((e) => e.kind === 'wire' && !pathSettled(document, e.id))
       case 'components':
         return entries.filter((e) => e.kind === 'component')
       case 'terminals':
         return entries.filter((e) => e.kind === 'terminal')
       case 'wires':
-        return entries.filter((e) => e.kind === 'wire')
+        return listed.filter((e) => e.kind === 'wire')
       case 'nets':
         return entries.filter((e) => e.kind === 'net')
       default:
-        return entries
+        return listed
     }
-  }, [entries, filter, document, wiring, commoningBlocks, stateOf])
+  }, [entries, listed, filter, document, wiring, commoningBlocks, stateOf])
 
   const done = document ? coverage(entries, document) : null
-  /** `n of 71 wires confirmed`. Shares `wiringPending` with the filter above. */
-  const wired = wiring ? wiringCoverage(entries, wiring) : null
+  /** `n of 71 wires confirmed`, and `of 72` the moment you add one. Shares `wiringPending` with
+   * the filter above, over the same list, which is what stops the two from disagreeing. */
+  const wired = wiring ? wiringCoverage(listed, wiring) : null
   /** `n of 6 blocks commoned`. Its total is the ink's proposals plus whatever is already
    * authored — `commoningCoverage` says why it cannot come from the netlist. */
   const commoned = wiring ? commoningCoverage(wiring, [...commoningBlocks]) : null
   /** Terminal id → net id, for the panel's mismatch flag. One pass over the 26 nets. */
   const nets = useMemo(() => terminalNets(entries), [entries])
   const targetEntry = useMemo(
-    () => (target ? (entries.find((e) => e.id === target.id) ?? null) : null),
-    [entries, target],
+    () => (target ? (listed.find((e) => e.id === target.id) ?? null) : null),
+    [listed, target],
+  )
+  /** False only for a wire somebody added and has not regenerated for. The panel says so, because
+   * a person who adds a wire and then goes looking for it on the Drawing tab will not find it. */
+  const inNetlist = useMemo(
+    () => !targetEntry || entries.some((e) => e.id === targetEntry.id),
+    [entries, targetEntry],
   )
 
   const pinsOf = useCallback(
@@ -1124,6 +1162,51 @@ export function LocateTab() {
             ))}
           </div>
 
+          {/**
+            * **`Add a wire`** — Phase E, and it lives above the list rather than in the panel.
+            *
+            * Plan §4 q4 put it beside `Retire this wire` among the armed wire's controls, and
+            * that is the one place it cannot go: adding a wire is not something you do *to* the
+            * wire you are looking at, and reaching it would mean arming an unrelated row first.
+            * It sits over the queue it adds to, on the filter that owns that queue, and the new
+            * wire is armed the instant it exists — which is the only useful next thing.
+            *
+            * The id comes from `nextWireId`, which counts past every id the netlist or the draft
+            * has ever held, **tombstones included**. Nothing recycles a number: 58 authored paths
+            * key on `W###`, and a reused id would silently reattach one of them.
+            */}
+          {filter === 'wiring' && wiring && (
+            <div className="flex items-center gap-2 border-b px-2 py-1.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[11px]"
+                data-wiring-add
+                title={
+                  'Put a wire on the drawing that the indexing pass never saw. It gets the next ' +
+                  'id nothing has ever used, two empty ends for you to pick, and no colour or ' +
+                  'gauge — those are readings of a printed callout, and there is no callout for ' +
+                  'a wire nobody read. It reaches circuit_logic.json when you next run the ' +
+                  'generator.'
+                }
+                onClick={() => {
+                  const id = nextWireId(
+                    entries.filter((e) => e.kind === 'wire').map((e) => e.id),
+                    wiring,
+                  )
+                  editWiring((d) => addWire(d, id, stamp()))
+                  setTarget({ id, site: null, label: true })
+                }}
+              >
+                <Plus />
+                Add a wire
+              </Button>
+              <span className="text-[10px] text-muted-foreground">
+                only if the sheet shows one the index has not got — the census found none
+              </span>
+            </div>
+          )}
+
           <div className="min-h-0 flex-1 overflow-y-auto">
             <DesignatorList
               entries={visible}
@@ -1164,6 +1247,7 @@ export function LocateTab() {
                 printedNet={printedNet}
                 tracing={tracing}
                 wiring={wiring}
+                inNetlist={inNetlist}
                 nets={nets}
                 ink={ink}
                 commoning={commoning}
@@ -1281,7 +1365,7 @@ export function LocateTab() {
                  */
                 if (armedSlot) {
                   if (entry.kind !== 'terminal') return
-                  const wire = entries.find((e) => e.id === armedSlot.wire)
+                  const wire = listed.find((e) => e.id === armedSlot.wire)
                   if (!wire) return
                   arm(null)
                   setPreview(null)

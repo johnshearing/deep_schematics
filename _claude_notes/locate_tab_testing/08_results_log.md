@@ -270,7 +270,7 @@ screen that trains you to accept the proposal is worse than no screen.
 | T-1075 | With `SWUI_ALLOW_EDITS=false`: `/api/wiring` is **404** and `/api/paths` is **200** | | |
 | T-1080 | Hand-editing: eight refusals, every one **by name** · the three that are checked against the netlist because their symptom would otherwise be nothing at all · the generator says `REFUSED:` and writes nothing | | |
 | T-1085 | **228 server · 392 web · ruff clean · tsc clean** · the artifact test's failure **names which authored file is ahead** (`K12` narrowed) | | |
-| T-1090 | What is deliberately **not** here: `Add a wire`, `Retire this wire`, authoring the commoning, a net's highlight including it, a terminal's wires, `/api/conductors` losing its password *(the last four landed 2026-09-09 — see the next table)* | | |
+| T-1090 | What is deliberately **not** here: `Add a wire`, `Retire this wire`, authoring the commoning, a net's highlight including it, a terminal's wires, `/api/conductors` losing its password *(the last four landed 2026-09-09 and the first two on 2026-09-10 — see the next two tables; nothing on that row is still unbuilt)* | | |
 
 ---
 
@@ -297,7 +297,33 @@ T-1145 (the route count printed beside every verdict, without which the card tea
 | T-1145 | Verdict 3: **no wire claims this run**, and *`n` of 71 wires have a route so far* beside it | | |
 | T-1150 | One corner, two cards · `Escape` takes the run of ink **before** the selection, one thing per press | | |
 | T-1155 | **`C0092` is never offered as a route**, and the panel says which runs it kept out and whose bus they are | | |
-| T-1160 | What is deliberately **not** here: hand-tracing a bus, `Add a wire`/`Retire this wire`, a wire's highlight including the bus, the Ask tab reasoning about highlights | | |
+| T-1160 | What is deliberately **not** here: hand-tracing a bus, `Add a wire`/`Retire this wire` *(these two landed 2026-09-10 — see the next table)*, a wire's highlight including the bus, the Ask tab reasoning about highlights | | |
+
+---
+
+## T-120x–T-125x — adding a wire, and taking one away — `17_tests_add_and_retire_a_wire.md`
+
+Added 2026-09-10 with Phase E. **Needs the editor password**, and **T-1250 puts your file back with
+`git checkout` — commit before you start.**
+
+**None of this is repair.** §3.7 measured **0** genuinely missing field wires on this sheet, so the
+expected number of times either control is used during the authoring run is zero. What is worth
+reporting loudly is **T-1200** if the id offered is one something already holds, and **T-1250** if
+`git status --short` is not empty at the end.
+
+| Test | What it checks | Result | Notes |
+|---|---|---|---|
+| T-1200 | **`Add a wire`** above the queue · it offers **`W072`** · both slots empty, the badge reads `you added it`, the count goes to `of 72` | | |
+| T-1205 | **`Not in the netlist yet`**, and it is really not — absent from the Drawing tab and from the `Paths` queue until the generator runs | | |
+| T-1210 | Picking its two ends · **no `was` and no `corrected` badge** · it leaves the queue with no *I looked and it was right* to press · **no `Take it back`** on an added wire | | |
+| T-1215 | The generator folds it in: 72 wires, an edge, and **`color`, `gauge`, `cable`, `description` all null** | | |
+| T-1220 | **`Retire this wire` wants a reason** — `Retire it` disabled until there is one · the tombstone has no `from` or `to` · the count goes **up**, because it is dealt with | | |
+| T-1225 | A retired wire leaves the netlist, **nothing is renumbered**, and the next `Add a wire` offers **`W073`** | | |
+| T-1230 | `Take it back` returns it **unconfirmed** — the netlist's pair where there is one, two empty slots where there is not, and the panel said which before you pressed | | |
+| T-1235 | **Retiring does not delete your route** · the warning before, and the red strip after: *`locations.json` has a route for `W0xx`, which is not a wire in this netlist* | | |
+| T-1240 | Two refusals if you hand-edit: an unknown id with **no `added`**, and `"added": false` | | |
+| T-1250 | **`git status --short` is empty** after putting the file back | | |
+| T-1255 | What is deliberately **not** here: a spec on an added wire, deleting outright, bulk retiring, adding from the Drawing tab, renumbering | | |
 
 ---
 

@@ -19,27 +19,39 @@
  * - a wire across two nets quietly resolved to one of them, which would hide the only interesting
  *   thing about `W019`;
  * - `path may be stale` fired by a swap that moved neither end, or missed when an end really moved.
+ *
+ * **And since Phase E, the two that would be worst of all**: an id handed out twice, which would
+ * reattach somebody's authored route to a different wire in silence; and a wire a person invented
+ * quietly relabelled as something the indexing pass guessed.
  */
 
 import { describe, expect, it } from 'vitest'
 
 import type { Designator, LocationsDocument, WiringDocument } from '@/api/types'
 import {
+  added,
+  addWire,
   confirmEndpoints,
   confirmed,
   corrected,
+  draftWireEntries,
   emptyWiring,
   endpointsOf,
   netsAcross,
+  nextWireId,
   pathStale,
+  retireWire,
+  retiredReason,
   setEndpoint,
   setWiringNote,
   settled,
   sourceOf,
   terminalNets,
   unconfirm,
+  unretire,
   wireRecord,
   wiringCoverage,
+  wiringDecided,
   wiringPending,
 } from './wiringModel'
 
@@ -430,5 +442,212 @@ describe('`path may be stale`', () => {
       STAMP,
     )
     expect(pathStale(withPath(['INFEED1:3', 'TB-120:2']), wiring, W063)).toBe(false)
+  })
+})
+
+// -- Phase E: a wire a person adds, and a wire a person takes away ----------------------------
+
+describe('adding a wire', () => {
+  it('takes the next id nothing has ever used, and counts past a tombstone', () => {
+    // The point of the whole section. 58 authored paths key on `W###`, so an id handed back would
+    // silently reattach one of them to a different wire — and nothing on screen would differ.
+    const netlist = [wire('W070', 'A:1', 'B:1'), wire('W071', 'A:2', 'B:2')]
+    const empty = emptyWiring('PS20115MLM4-2')
+
+    expect(nextWireId(netlist.map((w) => w.id), empty)).toBe('W072')
+
+    const one = addWire(empty, 'W072', STAMP)
+    expect(nextWireId(netlist.map((w) => w.id), one)).toBe('W073')
+
+    const gone = retireWire(one, 'W072', 'added by mistake', STAMP)
+    expect(nextWireId(netlist.map((w) => w.id), gone)).toBe('W073')
+  })
+
+  it('starts with two empty ends, `added`, and a person’s name on it', () => {
+    const after = addWire(emptyWiring('PS20115MLM4-2'), 'W072', STAMP)
+    expect(wireRecord(after, 'W072')).toEqual({
+      from: null,
+      to: null,
+      source: 'human',
+      added: true,
+      by: 'js',
+      at: STAMP.at,
+    })
+    // `human` from the first instant, because `index` would say the indexing pass answered for a
+    // wire it never saw. That does not make it *decided*: both ends are still nobody's.
+    expect(confirmed(after, 'W072')).toBe(true)
+    expect(added(after, 'W072')).toBe(true)
+    expect(wiringDecided(after, wire('W072', '', ''))).toBe(false)
+  })
+
+  it('never overwrites a record that already exists, tombstones included', () => {
+    const gone = retireWire(addWire(emptyWiring(null), 'W072', STAMP), 'W072', 'oops', STAMP)
+    expect(addWire(gone, 'W072', STAMP)).toBe(gone)
+  })
+
+  it('stamps no `was` on its first two clicks, because it replaced nothing', () => {
+    // Without the guard the first endpoint would write `was: [null, null]`, and the panel would
+    // show a `corrected` badge over an answer nobody ever gave.
+    const one = setEndpoint(
+      addWire(emptyWiring(null), 'W072', STAMP),
+      'W072',
+      'from',
+      'PS1:-1',
+      [null, null],
+      STAMP,
+    )
+    const both = setEndpoint(one, 'W072', 'to', 'TB-0V:1', [null, null], STAMP)
+    expect(wireRecord(both, 'W072')?.was).toBeUndefined()
+    expect(corrected(both, 'W072')).toBe(false)
+    expect(wiringDecided(both, wire('W072', 'PS1:-1', 'TB-0V:1'))).toBe(true)
+  })
+
+  it('refuses to be unconfirmed, because `index` never said anything about it', () => {
+    const one = addWire(emptyWiring(null), 'W072', STAMP)
+    expect(unconfirm(one, 'W072', [null, null])).toBe(one)
+  })
+})
+
+describe('retiring a wire', () => {
+  it('writes a tombstone with the reason and no ends at all', () => {
+    const before = bootstrapped({ W063: ['INFEED1:3', 'TB-120:2'] })
+    const after = retireWire(before, 'W063', 'read twice; W014 is this run', STAMP)
+
+    expect(wireRecord(after, 'W063')).toEqual({
+      retired: 'read twice; W014 is this run',
+      by: 'js',
+      at: STAMP.at,
+    })
+    expect(retiredReason(after, 'W063')).toBe('read twice; W014 is this run')
+    expect(confirmed(after, 'W063')).toBe(false)
+  })
+
+  it('will not do anything without a reason in words', () => {
+    // A wire is rarely retired for being absent — it is retired for being a duplicate, and six
+    // months later the reason is the whole of what a reader needs.
+    const before = bootstrapped({ W063: ['INFEED1:3', 'TB-120:2'] })
+    expect(retireWire(before, 'W063', '   ', STAMP)).toBe(before)
+  })
+
+  it('takes a wire out of the queue, so a tombstone is not something to work through', () => {
+    const after = retireWire(
+      bootstrapped({ W063: ['INFEED1:3', 'TB-120:2'] }),
+      'W063',
+      'duplicate',
+      STAMP,
+    )
+    expect(wiringPending(after, W063)).toBe(false)
+  })
+
+  it('comes back unconfirmed, with the netlist’s pair where there still is one', () => {
+    const after = unretire(
+      retireWire(bootstrapped({ W063: ['INFEED1:3', 'TB-120:2'] }), 'W063', 'duplicate', STAMP),
+      'W063',
+      ['INFEED1:3', 'TB-120:2'],
+    )
+    expect(wireRecord(after, 'W063')).toEqual({
+      from: 'INFEED1:3',
+      to: 'TB-120:2',
+      source: 'index',
+    })
+    expect(wiringPending(after, W063)).toBe(true)
+  })
+
+  it('keeps `added` on the way out and on the way back, and stays a person’s wire', () => {
+    const gone = retireWire(addWire(emptyWiring(null), 'W072', STAMP), 'W072', 'oops', STAMP)
+    expect(wireRecord(gone, 'W072')?.added).toBe(true)
+
+    const back = unretire(gone, 'W072', [null, null])
+    expect(wireRecord(back, 'W072')).toEqual({ added: true, from: null, to: null, source: 'human' })
+  })
+})
+
+describe('the wires that exist only in the draft', () => {
+  const NETLIST = [wire('W070', 'A:1', 'B:1')]
+
+  it('gives an added wire a row, so it is not a record with nowhere to be', () => {
+    const one = addWire(emptyWiring('PS20115MLM4-2'), 'W071', STAMP)
+    const rows = draftWireEntries(one, NETLIST)
+
+    expect(rows.map((r) => r.id)).toEqual(['W071'])
+    expect(rows[0].kind).toBe('wire')
+    expect(rows[0].on_sheet).toBe(false)
+    expect(rows[0].point).toBeNull()
+  })
+
+  it('frames itself on the ends it has, the way the server frames any wire', () => {
+    // So the row does not read `nowhere` next to seventy that read `computed`, and so selecting
+    // it takes the sheet somewhere. A wire's geometry is its terminals' and nothing else — the
+    // placement is **carried** from the pin rather than asserted, because a terminal drawn on its
+    // parent's dot is a coordinate nobody chose.
+    const pin: Designator = {
+      id: 'PS1:-1',
+      kind: 'terminal',
+      label: 'PS1:-1',
+      on_sheet: true,
+      members: [],
+      point: [10, 20],
+      rect: null,
+      placement: 'parent',
+    }
+    const one = setEndpoint(
+      addWire(emptyWiring(null), 'W071', STAMP),
+      'W071',
+      'from',
+      'PS1:-1',
+      [null, null],
+      STAMP,
+    )
+    const [row] = draftWireEntries(one, [...NETLIST, pin])
+    expect(row.point).toEqual([10, 20])
+    expect(row.rect).toEqual([10, 20, 10, 20])
+    expect(row.terminals?.[0].placement).toBe('parent')
+  })
+
+  it('carries the ends it has, so the panel and the count read the same wire', () => {
+    const one = setEndpoint(
+      addWire(emptyWiring(null), 'W071', STAMP),
+      'W071',
+      'from',
+      'PS1:-1',
+      [null, null],
+      STAMP,
+    )
+    const [row] = draftWireEntries(one, NETLIST)
+    expect(row.terminals?.map((t) => t.id)).toEqual(['PS1:-1'])
+    expect(row.members).toEqual(['PS1'])
+    expect(endpointsOf(one, row)).toEqual(['PS1:-1', null])
+  })
+
+  it('says nothing about a wire the netlist already has, however it got there', () => {
+    // After the generator runs, `W070` is published like any other wire and the draft must stop
+    // inventing a second row for it — two rows with one id is the one thing a list cannot survive.
+    const both = addWire(emptyWiring(null), 'W070', STAMP)
+    expect(draftWireEntries(both, NETLIST)).toEqual([])
+  })
+
+  it('says nothing about a record that does not claim to be added', () => {
+    // Which is what keeps a typo out of the list: an unknown id with no marker is refused by the
+    // server and by the generator, and it must not get a row here either.
+    const typo = bootstrapped({ W999: ['A:1', 'B:1'] })
+    expect(draftWireEntries(typo, NETLIST)).toEqual([])
+  })
+
+  it('still lists one that was added and then retired, with the reason on the row', () => {
+    const gone = retireWire(addWire(emptyWiring(null), 'W071', STAMP), 'W071', 'oops', STAMP)
+    const [row] = draftWireEntries(gone, NETLIST)
+    expect(row.label).toContain('oops')
+    expect(row.terminals).toEqual([])
+    // Decided about — somebody said it does not exist — so it does not sit in a queue nobody can
+    // empty. Its id is still spent, which is what `nextWireId` reads.
+    expect(wiringPending(gone, row)).toBe(false)
+  })
+
+  it('adds to the total the queue counts up to', () => {
+    const one = addWire(emptyWiring(null), 'W071', STAMP)
+    const listed = [...NETLIST, ...draftWireEntries(one, NETLIST)]
+    expect(wiringCoverage(NETLIST, one).wires).toBe(1)
+    expect(wiringCoverage(listed, one).wires).toBe(2)
+    expect(wiringCoverage(listed, one).confirmed).toBe(0)
   })
 })

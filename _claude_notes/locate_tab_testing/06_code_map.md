@@ -139,14 +139,31 @@ Two things to hold on to:
 | **What one reading now says**, corrections applied, for the screen and for Phase E | `server/app/label_corrections.py` | `Reading`, `resolve_corrections`, **`corrected_text`** — the function Session 6's candidate ranking reads, put here so the answer is given once |
 | Writing corrections: atomic, whole-file, two refusals | `server/app/label_corrections.py` | `save_corrections`, `CorrectionsRefused`, `skeleton`. **No page-size check**: a string does not stop being true at a different page size, which is the one honest difference from `save_locations` |
 | `GET`/`PUT /api/review`, and what one item may carry | `server/app/main.py` | `get_review`, `put_review`, **`_reading`** (the second half of the boundary — every key explicit, no spread), `_review_report` |
-| **The fourth authored file, and every validation message** | `server/app/wiring.py` | `parse`, `_wire`, `SCHEMA` = 1, `WIRES_SECTION` = `"wires"`, `COMMONING_SECTION` = `"commoning"`, `SOURCES` = `("index","human")`, `ENDS` = `("from","to")`, `Wire`, `Wiring`. `from`/`to` may be **`null`** — a real state — and `source` has two values and deliberately no `derived`: an endpoint is read or it is guessed |
+| **The fourth authored file, and every validation message** | `server/app/wiring.py` | `parse`, `_wire`, `SCHEMA` = 1, `WIRES_SECTION` = `"wires"`, `COMMONING_SECTION` = `"commoning"`, `SOURCES` = `("index","human")`, `ENDS` = `("from","to")`, `Wire`, `Wiring`. `from`/`to` may be **`null`** — a real state — and `source` has two values and deliberately no `derived`: an endpoint is read or it is guessed. Since Phase E, **`added`**, written only as `true` and refused as anything else, marking a wire a person put there at an id the `W` table does not have — see `H25` |
 | **What a person actually did to one wire**, as three separate questions | `server/app/wiring.py` | `Wire.confirmed` (a person looked, **including where nothing changed**), `Wire.settled` (both ends named), `Wire.corrected` (the confirmation moved an endpoint, so `was` is present). Spelled out so no caller writes `source == "human" and from and to` and folds two of them together |
-| **Whether a wiring record is keyed on something this drawing has** | `server/app/wiring.py` | `resolve_wiring` — three refusals **by name**: an endpoint that is not a terminal, a record for a wire the netlist lacks, a `commoning` key that is not a component. Each has a symptom that would otherwise be *nothing at all*. The `H14` treatment in a fourth file |
+| **Whether a wiring record is keyed on something this drawing has** | `server/app/wiring.py` | `resolve_wiring` — three refusals **by name**: an endpoint that is not a terminal, a record for a wire the netlist lacks **and that does not say `added`**, a `commoning` key that is not a component. Each has a symptom that would otherwise be *nothing at all*. The `H14` treatment in a fourth file. Phase E opened the second exactly one word wide: between the save and the re-run, an added wire is legitimately for an id the netlist has not got — the table-growth collision is the generator's to refuse, `H25` |
 | Writing wiring: atomic, whole-file, two refusals | `server/app/wiring.py` | `save_wiring`, `WiringRefused`, `skeleton`. **No page-size check** — this file holds no coordinates, which is the same honest difference `save_corrections` has and the thing that will let it survive a circuit needing several sheets |
 | **A terminal block's own bus, and every validation message** | `server/app/wiring.py` | `Commoning`, `_commoning`, `COMMONING_SECTION`, `GEOMETRIES`, `ATTRIBUTIONS`, `DERIVED` — refused **by name** on both axes, as it is on a path. `runs` is a list of **polylines and not conductor ids**, because `C0105` is `DISCHARGE1:2`'s wire fused with all 279.6 pt of `TB-0V`'s vertical. The unit of refusal is the **whole record**, unlike a wire and like `_paths`. An optional `page` is the one page number in this file, and there is deliberately **no page-size check**: a record may name a sheet this server is not serving |
 | **`GET`/`PUT /api/wiring`** — and the one save that says the netlist is behind | `server/app/main.py` | `get_wiring`, `put_wiring`, `WiringRequest`, `_wiring_report`. Inside `if settings.allow_edits:` and behind `_require_editor`. Its `stale` names **two** commands, because `build_kg.py` emits no coordinates and only moves when connectivity does |
-| **Why this module duplicates the generator's validator** | `server/app/wiring.py` header | `author_circuit_logic.py` cannot import from `server/` — it ships inside an extraction directory. The guard is `test_the_editor_cannot_write_a_record_the_generator_refuses`, which puts twelve record shapes through both and asserts one verdict each. `read_locations()`/`locations.py` have lived that way since the beginning |
+| **Why this module duplicates the generator's validator** | `server/app/wiring.py` header | `author_circuit_logic.py` cannot import from `server/` — it ships inside an extraction directory. The guard is `test_the_editor_cannot_write_a_record_the_generator_refuses`, which puts eighteen record shapes through both and asserts one verdict each — each with its own wire id since Phase E, because an `added` marker on an id the table *does* have is a check only the generator can make. `read_locations()`/`locations.py` have lived that way since the beginning |
 | Settings | `server/app/config.py` | `allow_edits`, `editor_password`, `editor_name`, `editor_password_required`. **All three** editing surfaces are gated on `allow_edits`, and all three take `editor_password` |
+
+**Server tests, after Session 4 of the authoring-the-wires plan, 2026-09-10: 261 over eleven
+files.** No new file. Phase E adds one word to a record and opens one refusal exactly as wide as
+that word. `test_wiring.py` gained **9**: two more refusals in the by-name list (`added` written
+as `false`, and as a word), the added record surviving an id the netlist has never had, its
+endpoints still being checked against the netlist, a wire added and then retired counting on both
+axes, and **four more rows in
+`test_the_editor_cannot_write_a_record_the_generator_refuses`** — whose fixture now carries a wire
+id per case, because an `added` marker on an id the table *does* have is a collision only the
+generator can see. `test_extraction_generator.py` gained **4**: an added wire reaching the netlist
+with no printed spec, the table-grown-to-cover collision refused by name, an added wire retired
+never arriving, and `added: false` refused. `test_locations.py` gained **1**: **a route for a wire
+the netlist no longer has, reported rather than dropped quietly** — which Phase E made reachable
+without a hand edit, because retiring a wire deliberately leaves its authored route alone. **Two existing tests were rewritten for trap 4** —
+`INDEXED` now drops an added record as well as a retired one, and
+`test_wiring_json_covers_every_wire_in_the_netlist_and_invents_none` compares the **live** records
+against the netlist and asserts the tombstones are absent, rather than comparing one set.
 
 **Server tests, after Session 3 of the authoring-the-wires plan, 2026-09-09: 245 over eleven
 files.** No new file: Phases C and D add a *format* to a file that already had a validator and take
@@ -230,8 +247,8 @@ of `circuit_logic.json`.
 | **Which runs of ink might be this wire** — the ranking, and the whole of it | `webui/src/features/locate/paths.ts` | `candidates`, `Candidate`, `Reason`, `compare`, `NEAR_PT` = 8 (half a conductor row), `NEARBY_PT` = 24, `MIN_RUN_PT` = 15, `netNames` (both forms — `K10`), `netOf`, `endsOf`, `chordOf`, `lengthOf`, `runsOf`, `draftRuns`. Pure, 19 unit tests, and four of them are the pairings measured off the sheet in `07_drawing_facts.md`. **The geometry outranks the printed name**, because a pin against a vector stroke has no reading of the paper in between and because the second half of a real route routinely carries no name at all |
 | **Which terminal a wire's end actually lands on** — the proposal, and the whole of it | `webui/src/features/locate/wiring.ts` | `inkIndex`, `proposalsFor`, `landingsFrom`, `isCommoning`, `Landing`, `Landed`, `ON_INK_PT` = 4 (a quarter of a conductor row), `LANDING_PT` = 30, `JOIN_PT` = 6 (`W069`'s measured 3.5 pt hop, plus a little). Pure, 23 unit tests, nine of which read the **real drawing** rather than a fixture of it. **The one rule that makes it correct: a run's landing is where it *leaves* a block's commoning, not where its polyline ends** — `C0105` holds `DISCHARGE1:2`'s wire *and* all 279.6 pt of `TB-0V`'s bus, so its polyline ends beside row 1 while the wire joins at row 12. The test for a bus is a **shape** — two or more of one component's terminals on one run — and it finds §3.6's eight conductors having been told nothing |
 | **Why the printed name is carried and not ranked on** | `webui/src/features/locate/wiring.ts` header | The opposite of `paths.ts`, and for a reason rather than an inconsistency: a run's printed name is its **net**, and every point of a block is on the same net, so `0V` cannot tell row 3 from row 8. The screw number is printed nowhere. Ordering is **fit** and then id |
-| **Every rule the wiring editor applies** | `webui/src/features/locate/wiringModel.ts` | `confirmEndpoints` (the acceptance criterion: a record with no `was`), `setEndpoint` (`was` stamped **once** and dropped when a correction is taken back), `unconfirm`, `setWiringNote`, `endpointsOf`, `sourceOf`, `confirmed`/`corrected`/`settled`, `wiringDecided`, `wiringPending`, `wiringCoverage`, `terminalNets`, `netsAcross`, `pathStale`, `SCHEMA` = 1. Pure, 27 unit tests. Its import of `model.ts` is **type-only**, deliberately: `model.ts` imports `pathStale` from here, so a value import back would close a runtime cycle between the two documents' rule modules |
-| **The wiring panel** — two end slots, the proposal, and the button that changes nothing | `webui/src/features/locate/WiringPanel.tsx` | `WiringPanel`, `Ready`, `EndSlot`, `ProposalRow`, `NetsAcross`, `NoteBox`, `WHY`, `SHOWN` = 4. `data-wiring-panel`, `data-wiring-end`, `data-wiring-pick`, `data-wiring-proposal`, `data-wiring-confirm`, `data-wiring-mismatch`, `data-wiring-stale` and `data-wiring-note` are how a test finds them |
+| **Every rule the wiring editor applies** | `webui/src/features/locate/wiringModel.ts` | `confirmEndpoints` (the acceptance criterion: a record with no `was`), `setEndpoint` (`was` stamped **once** and dropped when a correction is taken back), `unconfirm`, `setWiringNote`, `endpointsOf`, `sourceOf`, `confirmed`/`corrected`/`settled`, `wiringDecided`, `wiringPending`, `wiringCoverage`, `terminalNets`, `netsAcross`, `pathStale`, `SCHEMA` = 1 — and since Phase E `nextWireId`, `addWire`, `retireWire`, `unretire`, `added`, `retiredReason` and `draftWireEntries`, which is the editor's own row for a wire the netlist has not got yet. Pure, 44 unit tests. Its import of `model.ts` is **type-only**, deliberately: `model.ts` imports `pathStale` from here, so a value import back would close a runtime cycle between the two documents' rule modules |
+| **The wiring panel** — two end slots, the proposal, and the button that changes nothing | `webui/src/features/locate/WiringPanel.tsx` | `WiringPanel`, `Ready`, `EndSlot`, `ProposalRow`, `NetsAcross`, `NoteBox`, `WHY`, `SHOWN` = 4. `data-wiring-panel`, `data-wiring-end`, `data-wiring-pick`, `data-wiring-proposal`, `data-wiring-confirm`, `data-wiring-mismatch`, `data-wiring-stale` and `data-wiring-note` are how a test finds them. **Phase E added `RetireBox`** and with it `data-wiring-retire`, `-retire-reason`, `-retire-confirm`, `-retire-route`, `data-wiring-retired`, `data-wiring-unretire`, `data-wiring-added` and `data-wiring-not-yet`; `Add a wire` is **not** here — it is over the queue in `LocateTab.tsx` (`data-wiring-add`), because adding a wire is not something you do to the wire you are looking at |
 | **Which end slot the next terminal click fills**, and the draft it writes into | `webui/src/stores/wiringStore.ts` | `document`, `report`, `armed`, `edit`, `load`, `save`, `arm`, `reset`, `SAVE_DEBOUNCE_MS` = 900. **No undo stack** — `reviewStore`'s argument, and its header says why: an endpoint is one of 131 named terminals, `was` keeps what it replaced forever, and `unconfirm` is one press. **A `stale` banner, unlike `reviewStore`** — an endpoint *is* the netlist |
 | **The three endpoint/placement words, in one module** | `webui/src/lib/designators.ts` | `PLACEMENT_LABEL`, and beside it `ENDPOINT_LABEL` / `endpointLabel` — `from the index` and `you, on 2026-09-08`. The **claim** is the same distinction one file down (the machine guessed against a person looked); the **words** differ because an endpoint is not *placed*. Same module so the two tables cannot drift into different English |
 | **The wire panel** — propose, accept, assemble, convert, trace | `webui/src/features/locate/PathPanel.tsx` | `PathPanel`, `CandidateRow`, `Accepted`, `AddRun`, `Tracing`, `WHY`, `SHOWN` = 6. `data-path-panel`, `data-candidate` and `data-add-run` are how a test finds them |
@@ -343,6 +360,13 @@ feature's. **127 tests.**
 | `components/Markdown.test.tsx` | 13 | |
 | `components/UnlockButton.test.tsx` | 4 | |
 | `App.test.tsx` | 8 | the tabs, and the `F2` effect |
+
+**After Session 4 of the authoring-the-wires plan, 2026-09-10: 458 web tests over 20 files.** No
+new file. `features/locate/wiringModel.test.ts` (**44**, +12 — `nextWireId` counting past a
+tombstone, an added wire stamping no `was`, `unconfirm` refusing one, retiring needing a reason,
+and the draft's own rows) and `features/locate/WiringPanel.test.tsx` (**38**, +8 — `Add a wire` end
+to end, *not in the netlist yet*, the two-press retirement with its reason, the authored-route
+warning, and taking a retirement back).
 
 **After Session 3 of the authoring-the-wires plan, 2026-09-09: 433 web tests over 20 files.**
 One new file, **`features/drawing/hitTest.test.ts`** (**6** — the three verdicts as arithmetic,
@@ -987,6 +1011,50 @@ ends:
   legitimate routes for `DISCHARGE1:2` and `RECEPT1:5`. The narrow question — *is the whole of this
   run a bus* — is the only one safe to exclude on.
 
+### H25 — the `W` table stopped being the list of wires, and one id can now name two things *(added 2026-09-10)*
+
+The hazard of Phase E **of the wiring plan** — not the 2026-09-03 Phase E of the wires-and-nets
+plan, which was the path editor and is what invariant 1 below refers to; the two plans reuse the
+letters. It is a **silent merge** rather than a crash.
+
+Until 2026-09-10 the set of wires was closed: `build_wires` walked the `W` table, ids were
+`W001`…`W0NN` by position, and a record for anything else was refused by name as a typo. Phase E
+opens that, and it opens it exactly one word wide — **`"added": true`** on the record. Without the
+marker an unknown id is still the typo it always was; with it, the record is a wire a person put on
+the drawing, and it becomes a netlist wire with no colour, gauge, cable or description.
+
+**The collision.** `W072` is allocated on screen. Somebody later types a 72nd row into the `W`
+table — the ordinary way a spec gets recorded, and the script's header now tells you to drop
+`added` in the same edit. Do only the first and `W072` names two different wires: folded together
+they make one, carrying the record's endpoints and the row's colour, and the other wire is simply
+gone. `build_wires` **refuses that pair by name.**
+
+**Three things to keep straight if this moves.**
+
+1. **The refusal lives in the generator and cannot live in the server.** `server/app/wiring.py` is
+   handed the **netlist**, which is generated from this file, so `W072` is legitimately in it the
+   moment the generator has run. Only `author_circuit_logic.py` knows what the table holds. What
+   the server does instead is narrower and is the whole of its half: an id the netlist does not
+   have is kept **iff** the record says `added`, because between the save and the re-run that is
+   the normal state of an added wire and dropping it would lose the wire under the save that
+   created it.
+2. **`added` is written only as `true`.** Both validators refuse `false` and refuse a string.
+   Absent is how this file says *no* — the same way `was` is absent where nothing was replaced —
+   and a key that can be present and mean nothing is one that has to be checked twice at the exact
+   place where the answer decides whether an unknown id is a wire or a typo.
+3. **An id is spent once.** `nextWireId` counts past **every** id the netlist or the draft has ever
+   held, tombstones included, so a wire added and withdrawn does not hand its number back. The
+   reason is the 58 authored paths: every one keys on a `W###`, and a recycled id would reattach
+   somebody's route to a different wire with nothing on screen looking any different. The
+   `Wiring` report's `added` count is over all records for the same reason — it counts ids spent,
+   not wires alive.
+
+**And one thing that is a warning rather than a rule.** Retiring a wire does **not** delete its
+authored route: `locations.json` is a different document in a different store and reaching across
+would be `H18` exactly. The panel says so, the route stays, and after the generator runs
+`resolve_geometry` reports it as *a label for something that is not a wire or net in the netlist*
+— which is the honest place for it, in the red strip, where the person decides.
+
 ---
 
 ## 5. Invariants — if one of these is violated, that is the bug
@@ -1065,6 +1133,16 @@ ends:
    clothes: a file that cannot distinguish *nobody has looked at this* from *a person decided this*
    has stopped being a record of who said what, which is the only thing it is for. T-570 walks it,
    and it is the one assertion in that document worth reporting loudly.
+
+   *Extended 2026-09-10 with Phase E, and it is the same rule applied to a wire's existence.* A
+   wire a person adds says `added: true` **forever**, and `unconfirm` refuses one by name: writing
+   `source: index` there would claim the indexing pass gave an answer about a wire it never saw,
+   which is the one thing `source` exists to prevent. Its first two endpoint clicks stamp **no
+   `was`** — an added wire replaced nothing, and `was: [null, null]` would read as a correction to
+   an answer nobody gave. A **tombstone** keeps `added` too, because the count of ids a person has
+   spent must not go down when one is withdrawn. Owners: `addWire`, `retireWire`, `unretire`,
+   `setEndpoint`, `unconfirm` (`features/locate/wiringModel.ts`), `_wire` and `resolve_wiring`
+   (`server/app/wiring.py`), `build_wires` (the generator) — and `H25`.
 
    *Extended 2026-09-08 to the fourth file, and it is the same distinction one layer down.* A
    **confirmation** of a wire's two endpoints is **kept** even where nothing changed — `source:

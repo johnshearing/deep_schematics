@@ -89,6 +89,9 @@ interface Props {
    * two whole-document drafts from meeting anywhere but in this component's props — `H18`.
    */
   wiring?: WiringDocument | null
+  /** Whether `circuit_logic.json` has this wire yet. False only for a wire somebody added and has
+   * not regenerated for — the row is the wiring draft's own, and the panel says so. */
+  inNetlist?: boolean
   /** Terminal id → net id, the reverse pass over the index, for the net-mismatch flag. */
   nets?: Record<string, string>
   ink?: InkIndex | null
@@ -146,6 +149,7 @@ export function TargetPanel({
   printedNet,
   tracing,
   wiring,
+  inNetlist,
   nets,
   ink,
   commoning,
@@ -167,7 +171,7 @@ export function TargetPanel({
       <LabelPanel
         {...{
           entry, document, target, endLabels, conductors, net, printedNet, tracing, stamp,
-          wiring, nets, ink, commoning, commonedBy, armedEnd, onArmEnd, onEditWiring,
+          wiring, inNetlist, nets, ink, commoning, commonedBy, armedEnd, onArmEnd, onEditWiring,
           onEdit, onLabelDir, onClear, onClose, onPreview, onTrace,
         }}
       />
@@ -211,6 +215,7 @@ function LabelPanel({
   printedNet,
   tracing,
   wiring,
+  inNetlist,
   nets,
   ink,
   commoning,
@@ -236,6 +241,7 @@ function LabelPanel({
   | 'printedNet'
   | 'tracing'
   | 'wiring'
+  | 'inNetlist'
   | 'nets'
   | 'ink'
   | 'commoning'
@@ -319,6 +325,7 @@ function LabelPanel({
           nets={nets ?? {}}
           ink={ink ?? null}
           conductors={conductors ?? null}
+          inNetlist={inNetlist ?? true}
           armed={armedEnd ?? null}
           onArm={onArmEnd}
           stamp={stamp}

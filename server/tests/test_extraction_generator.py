@@ -111,6 +111,12 @@ def refuse(work: Path, wiring: dict | str | None) -> str:
 #: A **retired** record is omitted rather than reset. There is no machine answer in the file for a
 #: wire somebody tombstoned, and a wire with no record falls back to the `W` table — which *is*
 #: the index's answer, so omitting it is the honest reconstruction rather than a gap.
+#:
+#: An **added** record is omitted for the stronger version of the same reason, and it is the third
+#: time trap 4 has had to be paid: a wire a person put on the drawing has no machine answer to
+#: reconstruct, because the indexing pass never saw it. Carrying one in here would put a 72nd wire
+#: into every test that says *the indexing pass's own answers* — and `test_the_generator_output_is
+#: _byte_identical_when_the_file_only_repeats_the_table` would then compare 72 wires against 71.
 INDEXED = (
     {
         **REAL_WIRING,
@@ -121,7 +127,7 @@ INDEXED = (
                 "source": "index",
             }
             for wid, record in REAL_WIRING["wires"].items()
-            if "retired" not in record
+            if "retired" not in record and "added" not in record
         },
     }
     if REAL_WIRING
@@ -360,9 +366,19 @@ def test_wiring_json_covers_every_wire_in_the_netlist_and_invents_none(tmp_path:
     state this file exists to end.
 
     It also means the 58 authored paths need no migration, because no id moves.
+
+    **Written as two claims rather than one set comparison, so Phase E cannot make it lie.** A
+    retired record is deliberately in the file and deliberately not in the netlist, and that is a
+    tombstone doing its job rather than a wire nobody can see — so the equality is over the
+    records that are *live*, and the tombstones get their own assertion saying the opposite.
     """
     netlist = json.loads((EXTRACTION / "circuit_logic.json").read_text("utf-8"))
-    assert set(REAL_WIRING["wires"]) == {w["id"] for w in netlist["wires"]}
+    in_netlist = {w["id"] for w in netlist["wires"]}
+    live = {wid for wid, r in REAL_WIRING["wires"].items() if "retired" not in r}
+    tombstoned = set(REAL_WIRING["wires"]) - live
+
+    assert live == in_netlist
+    assert not (tombstoned & in_netlist), "a retired wire is still in the netlist"
     assert REAL_WIRING["drawing_number"] == netlist["drawing"]["drawing_number"]
 
 
@@ -545,16 +561,158 @@ def test_an_endpoint_on_a_terminal_that_does_not_exist_is_refused_by_name(
 def test_a_record_for_a_wire_that_is_not_in_the_table_is_refused_by_name(
     tmp_path: Path,
 ) -> None:
-    """Adding a wire is Phase E and this generator does not do it yet, so an unknown id is a typo.
+    """An id the `W` table does not have and that does not say `added` is a **typo**.
 
     Refused rather than tolerated: a tolerated `W07` would appear in the netlist as a wire with no
     colour, no gauge and no cable, and a phantom connection is the one thing worse than a missing
-    one. When Phase E arrives it lifts this refusal deliberately, which is the right way round.
+    one.
+
+    **Phase E lifted this refusal exactly as wide as one word.** A record saying `added: true` is
+    a wire a person put there and is folded in (below); a record without it is still this, and the
+    two are one key apart in the same file. Adding a wire is a decision the file records, not a
+    thing that happens because an id was mistyped.
     """
     said = refuse(
         tmp_path, wired(W072={"from": "PS1:-1", "to": "TB-0V:1", "source": "human"})
     )
     assert "'W072'" in said and "not a wire in the W table" in said
+    assert "does not say it is one somebody added" in said
+
+
+# -- Phase E: a wire a person adds, and a wire a person takes away ----------------------------
+#
+# §3.7 measured **0** genuinely missing field wires on this drawing, so none of this is repair —
+# it is what drawing number two starts from, and it is why the phase is last.
+
+
+def test_a_wire_you_added_reaches_the_netlist_and_carries_no_printed_spec(
+    tmp_path: Path,
+) -> None:
+    """**Phase E's acceptance criterion on the generator's side.**
+
+    A record at an id past the end of the `W` table, saying `added`, becomes a netlist wire: two
+    endpoints, a net derived from them, an edge, and `endpoints` saying a person put it there.
+
+    What it does **not** get is a colour, a gauge, a cable or a description — those four are
+    readings of a printed callout, and there is no callout for a wire the indexing pass never saw.
+    Inventing one would be the same class of mistake as the allocated screw numbers this whole
+    plan exists to undo: a blank presented as a reading.
+    """
+    doc, out = run(
+        tmp_path,
+        wiring=wired(
+            W072={
+                "from": "PS1:-1",
+                "to": "TB-0V:1",
+                "source": "human",
+                "added": True,
+                "by": "js",
+                "at": "2026-09-10T09:00:00.000Z",
+            }
+        ),
+    )
+
+    wire = find(doc["wires"], "W072")
+    assert (wire["from_terminal"], wire["to_terminal"]) == ("PS1:-1", "TB-0V:1")
+    assert wire["net"] == "0V", "its net is derived from its two ends, like every other wire's"
+    assert (wire["color"], wire["gauge"], wire["cable"], wire["description"]) == (
+        None,
+        None,
+        None,
+        None,
+    )
+    assert wire["endpoints"] == {
+        "source": "human",
+        "by": "js",
+        "at": "2026-09-10T09:00:00.000Z",
+        "added": True,
+    }
+
+    edge = next(
+        r
+        for r in doc["relationships"]
+        if r["type"] == "CONNECTS_TO" and r["properties"]["wire"] == "W072"
+    )
+    assert (edge["src"], edge["tgt"]) == ("PS1:-1", "TB-0V:1")
+    assert "an unlabelled conductor" in edge["description"], (
+        "a wire with no printed callout already has words for that; it does not need new ones"
+    )
+    assert "1 added by hand" in out
+
+
+def test_an_added_wire_the_table_has_grown_to_cover_is_refused_by_name(tmp_path: Path) -> None:
+    """**The one collision this format can suffer, and without this check it is silent.**
+
+    `W072` is allocated on screen. Somebody later types a 72nd row into the `W` table — which is
+    the ordinary way a spec gets recorded, and the header now says to drop `added` in the same
+    edit. Do only the first and the id names two different wires: folded together they make one
+    wire carrying the record's endpoints and the row's colour, with the other wire simply gone.
+
+    The refusal has to live here rather than in `server/app/wiring.py`, and that is the layering
+    working as intended: the server is handed the **netlist**, which is generated from this file,
+    so `W072` is legitimately in it the moment the generator has run. Only this script knows what
+    the table holds.
+    """
+    # One more row on the end of the `W` table, so `W072` becomes a table wire as well as an
+    # added one. Anchored on the table's closing bracket; if that ever moves, this fails loudly
+    # here rather than quietly asserting nothing.
+    source = SCRIPT.read_text("utf-8")
+    ends_at = "\n]\n\nCABLES"
+    assert source.count(ends_at) == 1, "the W table no longer ends where this test thinks it does"
+    grown = source.replace(
+        ends_at,
+        '\n    ("PS1:-1", "TB-0V:1", "RED", "18AWG", None, None, None),' + ends_at,
+        1,
+    )
+    work = tmp_path / "grown"
+    work.mkdir()
+    (work / SCRIPT.name).write_text(grown, encoding="utf-8")
+
+    payload = wired(
+        W072={"from": "PS1:-1", "to": "TB-0V:1", "source": "human", "added": True}
+    )
+    (work / "wiring.json").write_text(json.dumps(payload), encoding="utf-8")
+    done = subprocess.run(  # noqa: S603
+        [sys.executable, str(work / SCRIPT.name)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+    assert done.returncode != 0, done.stdout
+    assert not (work / "circuit_logic.json").exists(), "it wrote a netlist anyway"
+    assert "'W072'" in done.stderr and "One id, two different wires" in done.stderr
+
+
+def test_an_added_wire_that_was_then_retired_never_reaches_the_netlist(tmp_path: Path) -> None:
+    """A wire somebody added by mistake is withdrawn like any other — **and keeps its id.**
+
+    Both markers on one record: `added` because a person put the id there, `retired` because a
+    person took the wire away. The count of ids allocated does not go down when one is withdrawn,
+    which is the whole of *never reused* — `nextWireId` in the editor counts past the tombstone.
+    """
+    doc, out = run(
+        tmp_path,
+        wiring=wired(W072={"added": True, "retired": "added twice by mistake"}),
+    )
+    assert not any(w["id"] == "W072" for w in doc["wires"])
+    assert "1 retired" in out and "1 added by hand" in out
+    assert "W072 retired: added twice by mistake" in out
+
+
+def test_added_is_written_only_as_true(tmp_path: Path) -> None:
+    """`false` is refused rather than read as *no*, and absent is how the file says no.
+
+    The other 71 records do not carry the key at all, the same way `was` is absent where nothing
+    was replaced. A key that can be present and mean nothing is one a reader has to check twice —
+    and here the check decides whether an unknown id is a wire or a typo.
+    """
+    said = refuse(
+        tmp_path,
+        wired(W072={"from": "PS1:-1", "to": "TB-0V:1", "source": "human", "added": False}),
+    )
+    assert "W072" in said and "added False" in said
 
 
 def test_a_confirmed_correction_reaches_the_netlist_and_says_who_made_it(

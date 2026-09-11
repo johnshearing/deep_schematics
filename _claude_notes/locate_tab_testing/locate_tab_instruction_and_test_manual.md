@@ -44,8 +44,8 @@ Verify all four tests pass before blaming the UI:
     cd server && .venv/bin/python -m pytest -q; .venv/bin/python -m ruff check .; \
       cd ../webui && npx vitest run; npx tsc -b --noEmit
 
-Expected right now: **245 server, 433 web, ruff clean, tsc clean** *(2026-09-09, after Session 3
-of the authoring-the-wires plan — Phases C and D; it was 229 and 392 after the housekeeping entry
+Expected right now: **261 server, 458 web, ruff clean, tsc clean** *(2026-09-10, after Session 4
+of the authoring-the-wires plan — Phase E; it was 245 and 433 after Session 3 — Phases C and D; it was 229 and 392 after the housekeeping entry
 in `change_history.md` that made four tests survive the authoring run — read it
 before writing a whole-drawing test; it was 228 and 392 after Session 2 of the authoring-the-wires
 plan, 184 and 320 after its Session 1, 172 and 318 after Session 6 of
@@ -129,6 +129,7 @@ Read the index (this file) plus **only** what the symptom calls for.
 | `14_tests_path_editor.md` | **T-900–T-960.** The path editor: the ranked candidate runs and what each row's tags mean, one click to accept, `Add a run` across a crossover hop, **Clear** and re-pick, the conversion an extracted run needs before a corner may be dragged, **Trace** with all four keys, *no path on this sheet*, the `Paths` filter and the count that reaches 71 — and **`K10`**, which was worth two nets. **T-910 is the acceptance criterion**: the ranking has to reproduce the four pairings measured by hand in `07_drawing_facts.md`. **Needs the editor password and a restart.** | Anything about a candidate list — nothing offered, the wrong run at the top, a route that will not clear, a corner that will not move, or the count and the filter disagreeing. |
 | `15_tests_wiring_editor.md` | **T-1000–T-1090.** The **`Wiring`** queue and the count that reaches 71 · the two end slots and what `from the index` means · the ink's proposal and its five tag words · `Pick from the sheet`, and `Escape` taking the slot before the trace before the row · **confirming a wire that was already right, which is the phase's whole point** · **`W042`, where the ink is wrong and the data is right** · the net-mismatch flag on `W019` · `was`, and a correction taken back · `path may be stale` · the commoning fused into a wire's polyline, and why `C0092` may never be offered. **Needs the editor password and a restart.** | Anything about a wire's two terminals: a proposal you do not believe, an empty proposal list, a count and a queue that disagree, a slot that will not arm, or a red strip naming a wiring record. |
 | `16_tests_terminal_wires_and_commoning.md` | **T-1100–T-1160.** The reader's half, and it needs **no password**: clicking a terminal to see every wire that reaches it · a pin nothing reaches, which is a **missing wire visible by its absence** · a net highlighted **with its block's commoning** · the sheet hit-test and its three verdicts — *claimed by `W063`*, *`TB-120`'s commoning*, *no wire claims this run* — beside the count of how many wires have a route · and **`/api/conductors` answering with `SWUI_ALLOW_EDITS=false`**, which is the acceptance criterion. Plus the one part that does need the password: **authoring a block's commoning** from the new `Commoning` filter, and proving in bytes that it does not move the netlist. **Written plainer than its siblings** — *do* and *expected* short and first, the reasoning underneath and marked skippable. | Anything about a highlight that includes too much or too little, a click on the sheet that names nothing or names the wrong run, a block whose bus you cannot author, or a card that says *no wire claims this run* about a wire you can see. |
+| `17_tests_add_and_retire_a_wire.md` | **T-1200–T-1255.** **`Add a wire`** above the `Wiring` queue and **`Retire this wire`** at the foot of the panel: the next id, which counts past every tombstone · a wire that exists on screen before it exists in the netlist, and the line that says so · picking its two ends, which stamps no `was` because it replaced nothing · running the generator and getting a wire with **no printed colour or gauge** · a tombstone that needs a reason in words · a retirement taken back · **an authored route that is left alone and named in the red strip rather than deleted** · and **T-1250, which puts your file back**. **Needs the editor password and a restart.** Written plain, like its sibling. | Anything about a wire the index has not got, an id you think was reused, a wire you added that the Drawing tab cannot see, or the generator refusing with *One id, two different wires*. |
 | `06_code_map.md` | Every behaviour → the file and function that owns it. The data flow end to end. The known hazards, with reasoning. | Always, when troubleshooting. Never needed to *run* a test. |
 | `07_drawing_facts.md` | The concrete ids and coordinates on `PS20115MLM4-2` the tests refer to — relay pin lists, the three `CR-BP` sites, `W048`, net `110`. | When a test names an id and you need to know what it is. |
 | `08_results_log.md` | Every test id in a table, blank, for the user to mark up. | **A troubleshooting session should read this first** — it says what is actually broken. |
@@ -756,6 +757,91 @@ rebuilt bundle. `15_tests_wiring_editor.md` is the new lesson document, T-1000�
                       sixth entry; `_whats_ahead` in
                       `test_extraction_generator.py`. Hazards **H22** and **H18**
                       extended, new hazard **H24**.
+
+### 5k. Session 4 of the authoring-the-wires plan, 2026-09-10
+
+**Phase E — adding a wire, and taking one away.** The plan is
+`_claude_notes/authoring_the_wires.md`; its §13 makes this the last coding session before the
+authoring run, and §3.7 measured **0** genuinely missing field wires on this sheet, so all of it is
+insurance for drawing number two. **Server change — restart needed**, and the client is a rebuilt
+bundle. `17_tests_add_and_retire_a_wire.md` is the new lesson document, T-1200–T-1255, none walked.
+
+55. **The `W` table stopped being the list of wires that exist.** A record in `wiring.json` saying
+    **`"added": true`**, at an id the table does not have, is a wire a *person* put on the drawing,
+    and the generator folds it in like any other — endpoints, a derived net, a `CONNECTS_TO` edge,
+    and an `endpoints` block that carries `added` into the artifact the model reads. What it does
+    **not** get is colour, gauge, cable or description: those four are readings of a printed
+    callout and there is no callout for a wire the indexing pass never saw. The refusal that stood
+    there before is **not** gone — an unknown id with no marker is still a typo and is still
+    refused by name. The door opened exactly one word wide.
+
+56. **`Add a wire` sits above the queue, not in the panel**, which is a departure from the plan's
+    §4 q4 and the reason is one sentence: adding a wire is not something you do *to* the wire you
+    are looking at, and in the panel you would have to arm an unrelated row to reach it. It
+    allocates from `nextWireId`, which counts past **every** id the netlist or the draft has ever
+    held, tombstones included. Nothing recycles a number, because 58 authored routes key on a
+    `W###`.
+
+57. **A wire can now exist on screen before it exists in the netlist**, and the screen says so in
+    as many words. `circuit_logic.json` is only written when somebody runs the generator, so
+    between the save and the re-run an added wire has no `/api/designators` entry — and without a
+    row it would be a record with no panel and no way to give it two ends.
+    `wiringModel.draftWireEntries` makes the draft's additions look like what they are about to be,
+    and the panel carries **`Not in the netlist yet`** until they are. The `Paths` queue
+    deliberately does not take them: a route is ranked against the ink reaching two *published*
+    pins.
+
+58. **`Retire this wire` wants a reason in words, and writes a tombstone with no endpoints.** Two
+    presses, and `Retire it` stays disabled until there is something to save. A wire is rarely
+    retired for being absent — it is retired for being a duplicate — and the reason is the whole of
+    what a reader needs six months later. `Take it back` returns it **unconfirmed**, with the
+    netlist's pair where the netlist still has it and two empty slots where it does not, and the
+    panel says which of the two will happen before you press.
+
+59. **Retiring does not delete the wire's authored route, and the route stops being silent.**
+    `locations.json` is a different document in a different store and reaching across would be
+    `H18` exactly — as well as destroying authored work over a decision that can be reversed in the
+    next press. So the route stays, and `resolve_geometry` now **reports** it: *`locations.json`
+    has a route for `W0xx`, which is not a wire in this netlist.* It used to be dropped without a
+    word, which is invariant 5's one exception closed.
+
+60. **The collision that Phase E creates, refused by name.** A wire added at `W072` and a 72nd row
+    later typed into the `W` table are two different wires with one id, and folded together they
+    would make one — the record's endpoints, the row's colour, and the other wire simply gone.
+    `build_wires` refuses that pair and says how to fix it either way. The check has to live in the
+    generator: the server is handed the netlist, which is generated from this file, so `W072` is
+    legitimately in it the moment the generator has run. Hazard **H25**.
+
+61. **Two standing tests were rewritten so the authoring run cannot turn them red** — trap 4 for
+    the third time. `INDEXED` in `test_extraction_generator.py` now drops an **added** record as
+    well as a retired one, because there is no machine answer to reconstruct for a wire the
+    indexing pass never saw; and
+    `test_wiring_json_covers_every_wire_in_the_netlist_and_invents_none` compares the **live**
+    records against the netlist and asserts the tombstones are absent, instead of comparing one set
+    against another.
+
+62. **One sentence in the artifact was repaired on the way past.** Every `CONNECTS_TO` on a wire
+    with no printed callout read *"a an unlabelled conductor conductor"* — true of `W012` and
+    `W015` since the beginning, and about to be true of every added wire. The article now belongs
+    to the phrase. **`circuit_logic.json` and `custom_kg.json` were regenerated**: two edges
+    changed and nothing else.
+
+    tests             261 server (was 245), 458 web (was 433), ruff and tsc clean.
+                      No new test file. 9 in test_wiring.py (64), 4 in
+                      test_extraction_generator.py (25), 1 in test_locations.py;
+                      12 in locate/wiringModel.test.ts (44), 8 in
+                      WiringPanel.test.tsx (38). New file:
+                      `17_tests_add_and_retire_a_wire.md`. What moved: `Wire.added`
+                      and the `added` count in `server/app/wiring.py`;
+                      `resolve_wiring` keeps an unknown id **iff** it says `added`;
+                      `build_wires` folds added wires in and refuses the table
+                      collision; `resolve_geometry` reports an orphaned route;
+                      `nextWireId`, `addWire`, `retireWire`, `unretire`, `added`,
+                      `retiredReason` and `draftWireEntries` in `wiringModel.ts`;
+                      `RetireBox` and the `inNetlist` prop in `WiringPanel.tsx`;
+                      `listed` and the `Add a wire` row in `LocateTab.tsx`;
+                      `StoredWire.added` and `WiringReport.added` in `types.ts`.
+                      Hazard **H25** added, invariant **10** extended.
 
 ### 5j. Session 3 of the authoring-the-wires plan, 2026-09-09
 

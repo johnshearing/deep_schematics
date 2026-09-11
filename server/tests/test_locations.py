@@ -508,6 +508,22 @@ def test_a_label_for_something_that_is_not_a_wire_or_net_is_reported(drawing_dir
     assert any("W999" in p and "not a wire or net" in p for p in problems)
 
 
+def test_a_route_for_a_wire_the_netlist_no_longer_has_is_reported(drawing_dir: Path) -> None:
+    """**Phase E made this reachable without a hand edit.** Retiring a wire drops it from the
+    netlist and deliberately leaves its authored route where it is: `wiring.json` and
+    `locations.json` are two documents in two stores, and reaching across to delete the other's
+    work — on the strength of a decision the person may reverse in the next press — is exactly the
+    coupling `H18` forbids.
+
+    So the route is dropped from what is *resolved*, and it is **named** rather than dropped
+    quietly. Invariant 5, and it is a real decision the person now owes: take the retirement back,
+    or delete the route on the `Paths` filter."""
+    write_locations(drawing_dir, {**LOCATIONS, "wires": {"W999": {"path": PATH}}})
+    problems = report(drawing_dir)["problems"]
+    assert any("W999" in p and "not a wire in this netlist" in p for p in problems)
+    assert "W999" not in paths(drawing_dir)
+
+
 def test_a_label_with_no_point_costs_the_label_and_says_so(drawing_dir: Path) -> None:
     """The message names `label_point`, not `point`, because that is the key the human typed."""
     write_locations(drawing_dir, {**LOCATIONS, "nets": {"110": {"source": "human"}}})

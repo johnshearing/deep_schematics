@@ -3361,7 +3361,7 @@
       "chunk_order_index": 559
     },
     {
-      "content": "TB-GND-A:1 connects to EARTH:1 via wire W012, a an unlabelled conductor conductor on net GND. Earth ground symbol.",
+      "content": "TB-GND-A:1 connects to EARTH:1 via wire W012, an unlabelled conductor on net GND. Earth ground symbol.",
       "source_id": "PS20115MLM4-2::rel::00270",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 560
@@ -3379,7 +3379,7 @@
       "chunk_order_index": 562
     },
     {
-      "content": "TB-GND-B:2 connects to EARTH:2 via wire W015, a an unlabelled conductor conductor on net GND. Earth ground symbol.",
+      "content": "TB-GND-B:2 connects to EARTH:2 via wire W015, an unlabelled conductor on net GND. Earth ground symbol.",
       "source_id": "PS20115MLM4-2::rel::00273",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 563
@@ -8623,7 +8623,7 @@
     {
       "src_id": "TB-GND-A:1",
       "tgt_id": "EARTH:1",
-      "description": "TB-GND-A:1 connects to EARTH:1 via wire W012, a an unlabelled conductor conductor on net GND. Earth ground symbol.",
+      "description": "TB-GND-A:1 connects to EARTH:1 via wire W012, an unlabelled conductor on net GND. Earth ground symbol.",
       "keywords": "connects to, wire: W012, net: GND",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00270",
@@ -8650,7 +8650,7 @@
     {
       "src_id": "TB-GND-B:2",
       "tgt_id": "EARTH:2",
-      "description": "TB-GND-B:2 connects to EARTH:2 via wire W015, a an unlabelled conductor conductor on net GND. Earth ground symbol.",
+      "description": "TB-GND-B:2 connects to EARTH:2 via wire W015, an unlabelled conductor on net GND. Earth ground symbol.",
       "keywords": "connects to, wire: W015, net: GND",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00273",
