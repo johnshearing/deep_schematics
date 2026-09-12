@@ -1,0 +1,463 @@
+
+
+!!!! The following were my requests from a previous session: !!!! 
+
+1. 
+I am on the "Locate" tab.  
+Commoning is the selected filter over the list.  
+TB-110 is the list item selected.  
+This is seen in the following screen shot:  
+/home/js/schematics/_claude_notes/paint/TB-110_dialog_box.jpg  
+
+My problem is seen in the following screenshot:  
+/home/js/schematics/_claude_notes/paint/TB-110_common_highlight.jpg  
+I am trying to create the common wire that runs down terminal block TB-110.  
+Notice that there is blue ink between TB-110:2 and TB-110:4 but there is no blue ink between TB-110:1 and TB-110:2  
+Please tell me the procedure to create the common wire that runs down terminal block TB-110 such that it runs from TB-110:1 to TB-110:4  
+
+2. 
+Also while on the "Locate" tab, I see two banners running horozontally across the screen near the top with the following messages:  
+locations.json puts a label on 'TB-0V:2' for W019, which W019 does not touch  
+locations.json puts a label on 'TB-120:2' for W063, which W063 does not touch  
+
+What do I need to do to clear those messages?  
+Please guide me through the steps. 
+
+
+
+
+
+
+!!!! The following were your responses from a previous session !!!!
+
+
+
+I'll read the project instructions first.
+
+  Searched for 10 patterns, read 5 files, listed 1 directory, ran 40 shell commands
+
+I have both answers, and finding the cause of #1 turned up something bigger. Let me record the finding before writing it up.
+
+  Recalled 1 memory, wrote 2 memories
+
+First, the short answer to both — and then something you need to know
+
+Request 1 — the common wire down TB-110
+
+The screen cannot do what you are asking, and it is right not to be able to. CommoningPanel has exactly two buttons: take the ink's proposal and take it back. There is no hand-trace control. So the most the button can give you is the 2 runs / 23.8 pt it is offering, which is :2→:4 only.
+
+But the ink is not the problem. The extraction is. I read the PDF directly, and there is a stroke between TB-110:1 and TB-110:2:
+
+line (781.45, 485.28) → (781.45, 498.05)   12.76 pt   layer "0"
+
+C0060 (:2→:3) and C0077 (:3→:4) are on layer SCHEMATIC. That one is on layer "0", and EXTRACTION_NOTES.md records that geometry.json was built with extract.py --layers SCHEMATIC. In collect_primitives only conductors are restricted to the wanted layers — terminal dots and glyph strokes are kept from every layer, which is why you can see all four screws but not the ink joining the top two.
+
+So your eye is correct, the draughtsman drew it, and geometry.json never saw it.
+
+The procedure, today. wiring.json's commoning format was built for exactly this: conductors is documented as "empty on a hand trace", and geometry/attribution of "human" is what says a person traced it. I put this record through app.wiring._commoning and it validates clean:
+
+"TB-110": {
+  "runs": [[[781.45, 483.5], [781.45, 530.3]]],
+  "conductors": ["C0060", "C0077"],
+  "geometry": "human",
+  "attribution": "human",
+  "by": "js",
+  "at": "2026-09-11T14:00:00.000Z"
+}
+
+One run, :1 centre to :4 centre, 46.8 pt. conductors keeps the honest, weaker claim — two of the three stretches came out of these runs — while geometry: "human" says the polyline itself is yours.
+
+Order of operations matters, because of H18:
+
+1. Close the Locate tab, or reload it, first. wiringStore holds a whole-document draft and its next save writes the whole file. A hand edit made while that tab is open is overwritten by your next button press.
+2. Add the block above to the commoning object in wiring.json.
+3. Reload the browser page. No server restart — wiring.json is read per request.
+4. The panel will then read you, on 2026-09-11 · 1 run · hand-traced · 46.8 pt, the note box will be live so you can type the why through the screen, and every net that lands on TB-110 will paint the full vertical.
+
+The other two blocks are the same bug, so you may as well do all three in one edit. These are the last two on your commoning list and I have the numbers:
+
+"TB-120": {
+  "runs": [[[300.05, 563.3], [300.05, 663.7]]],
+  "conductors": ["C0092"],
+  "geometry": "human", "attribution": "human", "by": "js", "at": "..."
+},
+"TB-130": {
+  "runs": [[[818.66, 579.9], [818.66, 650.9]]],
+  "conductors": [],
+  "geometry": "human", "attribution": "human", "by": "js", "at": "..."
+}
+
+C0092 covers TB-120:1→:2 (565.24→637.93). The layer-0 line at x 300.05, y 641.35→662.02 carries it on to :3 — which answers your open question: TB-120:3 is a third landing, and the bus reaches it. And TB-130's famous "two points 71 pt apart with no conductor between them" is a layer-0 line at x 818.66, y 581.72→648.93. Nothing was ever missing from the paper.
+
+Request 2 — the two banners
+
+Those come from resolve_geometry in server/app/locations.py:1005. They are hygiene, not damage: the orphaned label is dropped rather than drawn, so nothing on the sheet is wrong. What they are is leftovers from before you corrected two endpoints:
+
+┌──────┬─────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────┐
+│      │                       locations.json still holds                        │    because wiring.json now says     │
+├──────┼─────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────┤
+│ W019 │ labels: { "PS1:-2": hidden, "TB-0V:2": hidden }                         │ PS1:-2 → TB-GND-B:2 (was TB-0V:2)   │
+├──────┼─────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────┤
+│ W063 │ labels: { "INFEED1:3": hidden, "TB-120:2": hidden, "TB-120:1": hidden } │ INFEED1:3 → TB-120:1 (was TB-120:2) │
+└──────┴─────────────────────────────────────────────────────────────────────────┴─────────────────────────────────────┘
+
+No screen can reach them. TargetPanel builds one EndLabelRow per entry.terminals — the wire's current members. TB-0V:2 is not a member of W019 any more, so there is no row and no eye icon to press. The compass control you used to hide it has no way back to it.
+
+So this one is a hand edit too, and it is two keys:
+
+1. Close or reload the Locate tab (same H18 reason).
+2. In locations.json, under wires.W019.labels, delete "TB-0V:2": { "hidden": true }.
+3. Under wires.W063.labels, delete "TB-120:2": { "hidden": true }.
+4. Reload the page. Both banners go.
+
+Leave PS1:-2, INFEED1:3 and TB-120:1 alone — those are live overrides on ends the wires do touch.
+
+This is a genuine gap and worth fixing properly. The clean fix stays inside one document, so it does not offend H18: TargetPanel already computes overrides = endLabelsOf(document, entry.id), so it can render any override key that is not in members as an extra row — "W019 does not touch this any more" with a single reset button. That turns the banner from a dead end into a thing you can press. It is small; say the word and I will plan it.
+
+---
+
+The finding, which is bigger than either question
+
+Chasing TB-110 turned up 41 lines of ≥ 6 pt on PDF layer "0" that never became conductors. Sixteen of them land on placed terminals. Every case in the project where "the ink says nothing" has this one cause:
+
+┌─────────────────────────────────────────────┬───────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────┐
+│                 Layer-0 ink                 │               Lands on                │                          What the notes currently call it                          │
+├─────────────────────────────────────────────┼───────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────┤
+│ x 818.66, y 581.72→648.93                   │ TB-130:1, :2                          │ "two points 71 pt apart with no conductor between them" — a question for your eyes │
+├─────────────────────────────────────────────┼───────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────┤
+│ x 300.05, y 641.35→662.02                   │ TB-120:2, :3                          │ ":3 sits 24 pt below :2, off the end of C0092" — may be a third landing            │
+├─────────────────────────────────────────────┼───────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────┤
+│ x 781.45, y 485.28→498.05                   │ TB-110:1, :2                          │ your question today                                                                │
+├─────────────────────────────────────────────┼───────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────┤
+│ y 399.55, 416.09, 449.16 (long horizontals) │ TB-0V:8, :9, :11                      │ "which of W044/W050/W057 is on :8, :9, :11" — the run's own work                   │
+├─────────────────────────────────────────────┼───────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────┤
+│ y 464.04, 679.02, 703.83 + their stubs      │ CR-ON:A1/A2, CR-SW:A1/A2, CR-BP:A1/A2 │ "six wires land on a relay coil's A2 and the ink stops 46 pt short of those dots"  │
+└─────────────────────────────────────────────┴───────────────────────────────────────┴────────────────────────────────────────────────────────────────────────────────────┘
+
+All three questions change_history.md says are waiting on your eyes were never questions for a person, and the six slow coil wires are slow for an avoidable reason. If you have not reached W024/W025/W026/W047/W048/W049 yet, I would not spend judgement on them until this is settled — re-extraction would very likely hand you a proposal for all six.
+
+It is plan-sized, not session-sized, and this is the part I want to be straight about. Re-extracting renumbers every C####. What survives and what does not:
+
+- Your authored work survives. All 58 routes and all 5 commoning records store polylines — real coordinates — with conductors only as a provenance note. That design decision pays for itself here.
+- What stales is that provenance list, 07_drawing_facts.md, and every fixture and test that names a conductor by id — including the W063 fixture and loadReal in wiring.test.ts.
+- 25 of the 41 layer-0 lines are the page frame and the revision table. Turning the layer on wholesale would put them in /api/conductors and the Drawing tab's hit-test. They touch no terminal, so they propose nothing, but they are noise and want a filter.
+
+I have not written anything. If you want it, the next step is a plan document, not a session.
+
+---
+
+State of the tree
+
+I wrote no code. I ran only the artifact check, which is red as expected and naming both files:
+
+locations.json and wiring.json is ahead of circuit_logic.json
+
+That is K6 doing its job, but only one of the two is really ahead. Today's wiring.json diff is commoning only — TB-24E1-A, TB-24E1-B, TB-GND-B added and TB-0V re-taken — and commoning never reaches the netlist. The thing that actually moved the artifact is in locations.json: TB-110's main site went from (790.8, 537.4) to (790.7, 537.3) at 13:30 today. A 0.1 pt nudge, and in your dialog-box screenshot the placing button is lit — I think you re-placed it by accident with arm-mode on. Your call: git checkout that one hunk, or re-run author_circuit_logic.py to absorb it.
+
+Wants committing: wiring.json (four commoning decisions, real work) and _claude_notes/paint/ plus _claude_notes/prompts/claude_last_phase_07.md if you want them tracked. locations.json is the 0.1 pt nudge alone — revert rather than commit, unless you meant it. I have touched none of it.
+
+---
+
+On what you asked me to read (standing instruction 3)
+
+Did not earn their tokens this session. The change_history.md snippet in claude.md was the only orienting text I needed, and it was enough on its own. I read 06_code_map.md for H18 only — two of its 25 hazards were relevant and I went straight to them by grep. locate_tab_instruction_and_test_manual.md and authoring_the_wires.md §0/§1/§15 I did not open at all: both questions were answered by the code and the data, and opening them would have cost tokens for an answer already in hand. For a question shaped like "why does this screen not do X", the source is cheaper and more current than the notes about it.
+
+Needed and was not on your list:
+
+1. server/app/wiring.py — _commoning, and the docstring that says conductors is "empty on a hand trace". This is the whole of request 1's answer and nothing else states it.
+2. webui/src/features/locate/CommoningPanel.tsx and TargetPanel.tsx — the only way to know what the two screens can and cannot do.
+3. server/app/locations.py around line 1005 — the exact banner text and the fact that the orphan is dropped.
+4. schematic_skills/scripts/extract.py collect_primitives and EXTRACTION_NOTES.md line 7 — the layer filter and the --layers SCHEMATIC record. The finding lives in the gap between these two.
+5. The PDF itself. Worth adding a line to claude.md: /home/js/schematics/.venv/bin/python is the only venv here with pymupdf — server/.venv does not have it, and neither does system python3. Reading page.get_drawings() with a clip is cheap, exact, and is the one thing that can settle "is the ink there or did we miss it". That question has now cost the project three open items.
+
+✻ Brewed for 8m 50s · done 7:47 PM
+
+※ recap: Goal is authoring TB-110's commoning bus down the block; the ink between :1 and :2 is missing because extraction skipped PDF layer 0. Next: hand-add the TB-110 commoning record to wiring.json, then reload the page. (disable recaps in /config)
+
+
+
+
+!!!! The following was a new request based on your response above !!!!
+
+I did not take any action such as editing files as was recommended above.
+That is because we are making a WebUI that is supposed to allow a human make any required edits to the highlighted wiring, commoning, paths, nets and so on.
+If I had made those edits to the file then we lose the opportunity to create the use and utility required to make something that other humans will be able to use.
+While we are working on specific schematic drawing, the drawing itself is not what we are trying to understand. 
+Rather we are trying experimenting with this particular drawing in order to figure out what features are required for a system where an ai model can understand any schematic drawing and then answer questions about it in a graphical way rather than responding in text only. 
+
+The human user is capable of seeing and point at what is on schematic drawings.
+The ai models are not good at this.
+But ai models are very good and reasoning about schematic drawings if they can be converted to json.
+Somehow, we need to create a graphical user interface that a human can use to point out all the feature on the drawings and then these features will be registered in a json file. 
+
+Clearly, we have made progress together but this progress has been slow and expensive because the goal is either not understood or perhaps because what has been built so far is drifting from what is required to meet the goals. 
+
+How shall we proceed? Do we start from scratch building upon what we have learned from our work together or can we use what we have built already to meet our goals?
+Please comment.
+
+
+
+!!!! The following was your response to my request above !!!!
+
+I'll read the project's claude.md file.
+
+  Read 2 files
+
+I'll orient on what's actually built before commenting — a strategic answer is only worth anything if it's grounded in the real surfaces.
+
+  Searched for 1 pattern, listed 2 directories, ran 11 shell commands
+
+I have what I need. Recording the durable part of your framing first, then my comment.
+
+  Read 1 file, recalled 1 memory, wrote 2 memories
+
+Short answer
+
+Don't start from scratch. I checked the actual surfaces rather than the notes, and the part that would be expensive to rebuild is sound. What's drifting is narrower and more fixable than "the architecture" — it has one name, and you found it yourself last session.
+
+What you're sitting on
+
+┌─────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                         │                                                                                                     │
+├─────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ server/app/             │ 5,787 lines Python                                                                                  │
+├─────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ webui/src/              │ 25,632 lines TS/TSX                                                                                 │
+├─────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Authored, unrebuildable │ 131 placed points · 62 wire routes · 654 label decisions · 71 endpoint records · 4 commoning blocks │
+└─────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+Three design decisions in there are the real assets, and each is the kind of thing that is normally got wrong and discovered late:
+
+1. wiring.json stores designators, not coordinates. That's what lets connectivity survive re-extraction, a second sheet, and a renumbering of every C####.
+2. Authored geometry is stored as polylines with conductors as provenance only. Which is why the layer-0 extraction bug I found is annoying rather than catastrophic — nothing you've authored dies.
+3. The loop is already closed, one click wide. I had assumed it wasn't. It is: prompts.py makes the model spell every identifier as CR-BP:A1, Markdown.tsx renders those as Citation, and a click calls select(kind, id) and switches to the Drawing tab, which paints it. The model already answers graphically — just one identifier per click, driven by your finger.
+
+A rewrite throws those three away and you would rediscover them over months. The question isn't whether to keep this; it's what to stop doing.
+
+The drift, named
+
+Every editor was built as a confirmation surface, not an authoring surface. Each panel gets its list of editable objects from something the machine found, and gets its edit affordance from a proposal the machine computed. Where the machine found nothing, there is no row and no button.
+
+That is not five problems. It's one problem, five times:
+
+- TB-110's bus — no conductor between :1 and :2 → no proposal → CommoningPanel has exactly one button, and it renders a proposal. Nothing else.
+- TB-130 — same, and here the screen actually says it out loud: "That is a question for your eyes rather than a gap in this screen." It is a gap in the screen. The panel is blaming you for its own missing control.
+- The two orphan banners — the label isn't a member, so TargetPanel builds no row, so there's no eye icon and no way back.
+- The six coil wires — the ink stops short, so nothing is offered, and the notes call that "judgement" when what it really is, is no tool.
+- Add a wire — Phase E fixed exactly this, for exactly one object type. The change history's own phrase was "the door opened one word wide."
+
+And the counter-example proves the pattern is already understood here: paths have both halves. PathPanel has Trace by hand, convertPath to take an ink route and make it yours, and PathHandles with draggable corners and geometry: "human". Commoning has neither half. End-labels have neither. So the asymmetry isn't a philosophy problem — it's three object types that never got the treatment paths and wires got.
+
+That's also why the layer-0 bug hid for so long. A screen with no way to say "the ink here is missing or wrong" makes an extraction bug look like a hard question about the drawing. It generated three open items the notes have been carrying as questions for your eyes for a week.
+
+What I'd change about how we work, not just what we build
+
+Two things are genuinely costing you money:
+
+- The notes. change_history.md, authoring_the_wires.md, seventeen leaf test documents, a plan per session. That was the right call while continuity across sessions was the binding constraint. It does not survive drawing number two — you cannot write that volume of prose per drawing. And last session I told you honestly that most of what you asked me to read didn't earn its tokens; I went to the source instead. That's a signal about the notes, not about the reading list.
+- Drawing-specific knowledge in generic code. claude.md says stop if you find yourself typing TB- into the server or client. It's already there: CommoningPanel names TB-130, C0105 and DISCHARGE1:2 in user-visible copy, and prompts.py teaches the model this sheet's terminal conventions across ~50 lines. For drawing two, that prompt needs a per-drawing section fed from the extraction, not a rewrite per sheet.
+
+How I'd proceed, in order
+
+1. Fix the extraction layer gap. Smallest change, largest unblock: the ink between TB-110:1 and :2 is on the paper, so after this the panel proposes your bus and last session's question answers itself with one button. It also kills the TB-120:3 and TB-130 questions and very likely hands you proposals for all six coil wires. Plan-sized because C#### renumbers and every fixture naming one stales — but a small plan.
+2. Generalise the Phase E pattern to commoning and to orphan labels. Hand-trace a bus; reset an override on a terminal a wire no longer touches. This is the direct answer to "the human must be able to do it through the screen," and paths already show exactly what it looks like.
+3. Widen the answer→drawing channel from one click to a whole net. The model explains a path; the sheet paints the whole thing while it's talking. Every piece exists — select, pathsFor, the hit-test, the streaming answer. This is claude.md's option 2 and it's the only item on the list that is the goal rather than preparation for it.
+4. Then drawing number two, as the test of everything above.
+
+One argument for swapping 3 ahead of 2, and it's a real one: you have 3 of 71 wires marked source: human. You are at the very start of a 71-wire run, and nobody has ever checked whether the model's answers get better between wire 3 and wire 71. If step 3 comes first, it can tell you which fields actually change an answer — and that could cut the run, or tell you it matters and you'd author it knowing why. That is the experiment you described, and running it before the data-entry rather than after is the cheaper order.
+
+Say which and I'll write the plan document and stop — I won't start building in the same sitting.
+
+---
+
+Housekeeping
+
+On last session's advice: the file edits were correct as data and wrong as an answer. You're right that taking them would have destroyed the finding. I've recorded that as a standing rule so it doesn't recur — gaps get named as gaps from here on.
+
+Nothing in the tree changed this session. I wrote no code and ran no server. git status still shows what it showed at the start: wiring.json (your four commoning decisions — real work, worth committing), locations.json (still just the 0.1 pt TB-110 nudge — revert unless you meant it), claude.md, _claude_notes/authoring_the_wires.md, and untracked _claude_notes/paint/ and prompts/.
+
+On standing instruction 3. What you asked me to read was exactly right this time — claude.md alone, and the change_history.md snippet inside it, was enough to orient. I did not need any _claude_notes file and did not open one.
+
+What I needed and had to find myself, worth adding to claude.md for next time:
+
+- webui/src/features/locate/PathPanel.tsx and PathHandles.tsx — the existing hand-authoring pattern. This is the single most useful file pair in the repo for any "the screen can't do X" question, because it shows what "can do X" looks like here.
+- webui/src/components/Citation.tsx + Markdown.tsx — the answer→drawing channel. I would have mis-told you the loop was unbuilt without these.
+- server/app/prompts.py — what the model is actually told about this drawing.
+- A one-line inventory of API routes (grep '@app.get\|@app.post' server/app/main.py) is a cheap map and I'd have read less without it.
+
+
+
+!!!! Then I asked the following !!!! 
+
+Thanks. With regard to your comment "How I'd proceed, in order", Your original suggestion seems best to me. Item 2 should be accomplished before item 3. This is because we need to have a WebUI that a human can use to easily convert an electrical schematic to json in such a way that the heighlighting proves that the json is a perfect representation of the schematic. We need to be sure that the json accurately shows every feature on the schematic that the json tracks in it's correct location on the drawing. The heighlighting is the tool that allows us to check. So if this step is not accomplished first then there is no point in proceeding further. So yes, I want you to write the plan. Please save the plan as "/home/js/schematics/_claude_notes/highlighting_wires_and_nets_02.md". But before you write the plan, I need and estimate of how much it will cost in dollars.  Then, if I have the funds then I will put that much in my account. Otherwise, this work will have to wait until more funds are available.
+
+
+!!!! Then you responded with the following !!!!
+
+Good — that order makes sense: the highlighting is the proof, so it has to exist before anything depends on it being trustworthy.
+
+For the estimate I'd rather measure than guess. This project has session transcripts on disk, so I can price the real work instead of a hypothetical.
+
+● Skill(claude-api)
+Successfully loaded skill · 1 tool allowed
+
+  Ran 1 shell command
+
+I have current pricing. Now let me measure what this project's sessions have actually cost, from the transcripts.
+
+  Ran 3 shell commands
+
+Real numbers, which change the shape of the answer. Two more cheap checks before I quote.
+
+  Ran 2 shell commands
+
+One measurement that decides the biggest cost risk, then I'll quote.
+
+  Searched for 1 pattern
+
+I measured this rather than guessing it — 26 session transcripts for this project are on disk with full token accounting.
+
+What the project has actually cost
+
+┌───────────────────────────────────────────────────────┬─────────────────┐
+│                                                       │                 │
+├───────────────────────────────────────────────────────┼─────────────────┤
+│ Sessions logged                                       │ 26              │
+├───────────────────────────────────────────────────────┼─────────────────┤
+│ Total spent to date                                   │ $1,031.76       │
+├───────────────────────────────────────────────────────┼─────────────────┤
+│ Mean / median per session                             │ $39.68 / $29.28 │
+├───────────────────────────────────────────────────────┼─────────────────┤
+│ Cheapest / dearest                                    │ $1.19 / $121.34 │
+├───────────────────────────────────────────────────────┼─────────────────┤
+│ The authoring_the_wires plan, all four build sessions │ $254.42         │
+└───────────────────────────────────────────────────────┴─────────────────┘
+
+At current Opus 5 API rates: $5/M input, $25/M output, $6.25/M cache write, $0.50/M cache read. (If you're billing through a Claude subscription rather than API credits, these are notional — but you said "account," so I've priced credits.)
+
+Where the money actually goes — this is the important part
+
+It is not the code. It is re-reading context:
+
+┌───────────────────────────┬───────┬──────────────────┬──────────────────────────┬─────────┐
+│          Session          │ Calls │ Avg context/call │       Cache reads        │  Total  │
+├───────────────────────────┼───────┼──────────────────┼──────────────────────────┼─────────┤
+│ 2026-09-09 (Phases C+D)   │ 409   │ 407K             │ $82.60 — 84% of the bill │ $98.51  │
+├───────────────────────────┼───────┼──────────────────┼──────────────────────────┼─────────┤
+│ 2026-09-07 (Phase 0/A/B)  │ 367   │ 407K             │ $73.23                   │ $107.40 │
+├───────────────────────────┼───────┼──────────────────┼──────────────────────────┼─────────┤
+│ 2026-09-11 (last session) │ 99    │ 65K              │ $3.13                    │ $6.27   │
+├───────────────────────────┼───────┼──────────────────┼──────────────────────────┼─────────┤
+│ 2026-09-12 (this session) │ 44    │ 57K              │ $1.03                    │ $5.30   │
+└───────────────────────────┴───────┴──────────────────┴──────────────────────────┴─────────┘
+
+Two $100 sessions ran at 407,000 tokens of context, four hundred times over. A cache read is cheap per token and ruinous multiplied by that. The spread between a 400K-context session and a 60K-context one is roughly 7× for the same amount of thinking. That is the single biggest lever on what this project costs, and it is a process choice, not a technical limit.
+
+The quote
+
+Priced at disciplined context (~100–150K), which is what I've held this session:
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────┐
+│                                                     Work                                                     │    Est.    │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────────┤
+│ The plan document you asked for                                                                              │ $10 – $20  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────────┤
+│ 2a. CommoningPanel gets PathPanel's treatment — trace a bus by hand, draggable corners, ink→human conversion │ $25 – $55  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────────┤
+│ 2b. TargetPanel renders orphaned override rows with a reset button (kills your two banners, properly)        │ $12 – $28  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────────┤
+│ 1-cheap. Fix extract.py's layer handling + frame/revision-table filter, without re-extracting this drawing   │ $10 – $20  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────────┤
+│ 1-full. Re-extract PS20115MLM4-2 and re-baseline every stale conductor id                                    │ $60 – $140 │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┴────────────┘
+
+Two caveats, both honest:
+
+- If sessions run the way the two $100 ones ran, multiply by 2–3. I can hold context down, but only if the reading list stays short — which cuts against how the notes are currently structured.
+- The 1-full range is wide because I measured its blast radius: 957 mentions of a C#### conductor id across 30+ files, including 20 WebUI files and 10 server files. Renumbering breaks fixtures in paths.test.ts, wiring.test.ts, hitTest.test.ts, test_conductors.py and more. That is mechanical work, and mechanical work at 150K context is where money disappears.
+
+One re-ordering, on the strength of that measurement
+
+I now recommend deferring 1-full and doing item 2 first — which inverts what I told you an hour ago, and the 957 is why.
+
+The hand-trace format (geometry: "human", conductors: []) lets you author the missing TB-110, TB-120 and TB-130 buses without re-extracting anything. So item 2 delivers the actual capability you're asking for — a human can point at every feature and the highlighting proves it. Item 1 only makes the machine's proposals better; it buys you convenience on this drawing, at the price of re-baselining 957 identifiers.
+
+And 1-cheap captures most of item 1's long-term value anyway: fix the extractor so drawing number two never has this gap, and leave this drawing's C#### ids frozen. Pay for the re-extraction when drawing two forces a re-run regardless.
+
+What I'd fund
+
+┌──────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│          Amount          │                                                                 Buys                                                                 │
+├──────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ $20                      │ The plan document, in hand. You can act on it or shelve it — it's a standalone artifact.                                             │
+├──────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ $150 — my recommendation │ Plan + 2a + 2b + 1-cheap, with headroom. This is the full "a human can author every feature and prove it on the drawing" capability. │
+├──────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ $300                     │ The above plus the full re-extraction and re-baseline.                                                                               │
+└──────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+The $150 package is the one that gets you to the state you described as the precondition for everything else.
+
+I have not written the plan. Say the word and the first $20 of it buys you /home/js/schematics/_claude_notes/highlighting_wires_and_nets_02.md — and I'll write it and stop, so executing it is a separate decision with a separate bill.
+
+One scope question worth settling before I write, because it moves the number: per-object highlighting proves each thing you've authored is correct. It does not prove the JSON is complete — for that you'd want a view that paints every run of ink nothing has claimed, so unaccounted-for features are visible at a glance rather than found by clicking. hitTest already knows how to answer that per-line. Making it a coverage overlay is roughly one more session (+$25–50). Tell me whether that's in scope for _02 or a later document.
+
+Also worth knowing: _claude_notes/highlighting_wires_and_nets.md already exists at 99 KB (~25K tokens). Reading it whole would cost a meaningful slice of the plan's budget, so unless you tell me otherwise I'll read only the sections that bear on commoning and end-labels.
+
+
+
+
+!!!! The following was my latest request !!!!
+
+Thanks. Above you said the following: "I now recommend deferring 1-full and doing item 2 first — which inverts what I told you an hour ago, and the 957 is why. The hand-trace format (geometry: "human", conductors: []) lets you author the missing TB-110, TB-120 and TB-130 buses without re-extracting anything. So item 2 delivers the actual capability you're asking for — a human can point at every feature and the highlighting proves it. Item 1 only makes the machine's proposals better; it buys you convenience on this drawing, at the price of re-baselining 957 identifiers.". Yes that makes good sense. When making the plan please do item 2 first. Above you said the following: " $150 — my recommendation │ Plan + 2a + 2b + 1-cheap, with headroom. This is the full "a human can author every feature and prove it on the drawing" capability.". Thanks. this is what I want you to plan for when you write the plan. Above, you said the following: "One scope question worth settling before I write, because it moves the number: per-object highlighting proves each thing you've authored is correct. It does not prove the JSON is complete — for that you'd want a view that paints every run of ink nothing has claimed, so unaccounted-for features are visible at a glance rather than found by clicking. hitTest already knows how to answer that per-line. Making it a coverage overlay is roughly one more session (+$25–50). Tell me whether that's in scope for _02 or a later document.". Yes, please plan for that as well. Above you said the following: "a human can author every feature and prove it on the drawing" capability.". Yes that is the goal. That is exactly what is needed. Please plan for exactly that. Please make the plan stand on it's own. This way I can point you to that file in our next session and you will know exactly what to do and you will know where to find everything that you need. In the plan please create a strategy to keep token usage as low as possible. Thanks for all of this.
+
+
+
+!!!! You responded to my request as follows !!!!
+
+Plan is written. Let me report its cost and the tree state.
+
+  Read 1 file, ran 2 shell commands, recalled 1 memory, wrote 1 memory
+
+The plan is written: /home/js/schematics/_claude_notes/highlighting_wires_and_nets_02.md — 30 KB, self-contained.
+
+What it contains
+
+§0 is a do-not-read list with sizes. change_history.md, authoring_the_wires.md and the 01 document are ~106 k tokens between them, and the plan quotes everything it needs from them so a future session opens none of the three.
+
+§1–§2 state the diagnosis and the goal test in your words, so the why survives without the history.
+
+§3 is the measured inventory — every file and line number a session needs, read out of the files today rather than recalled. The most valuable single finding in it: server/app/wiring.py:182 already has GEOMETRIES = ("extracted", "human"), and _commoning's own docstring says a bus is "lifted from the ink or traced by a person." Phase 2a needs no server change and no schema change — the format anticipated the hand trace; only the screen never offered it.
+
+§4–§7 are the four phases in your order, each with its own reading list in line ranges.
+
+Three things the plan settles that I did not know when I quoted you:
+
+1. Phase 2a has a hidden dependency on 2c, and it's in §4.2. A hand-traced bus with conductors: [] claims no conductor ids — so claimsFrom would leave the ink under TB-110's new bus reading unclaimed in the coverage view, forever, reporting a gap exactly where you'd just done the work. So a hand trace must record the conductors it runs along, by proximity, as the weaker provenance claim beside the polyline. Caught in planning; it would have been a confusing bug in §6.
+2. The panel gate in §4.4 is where the generalise rule is easiest to break. CommoningPanel.tsx:72 hides the panel wherever the ink proposes nothing — which is why TB-130 is unauthorable. Removing it naively puts a panel on all 47 components. The test has to be structural (two or more terminals), not TB-. The plan says so, and notes that file already breaks your rule twice in user-visible copy.
+3. §7 and §6 have to ship together. Without the furniture filter, the coverage overlay would light up the page border permanently — 25 of the 41 layer-0 lines are frame and revision table.
+
+§10 is the token strategy, built on the measurement rather than on good intentions: cost ≈ $0.50 × context(MTok) × calls, seven numbered rules, and a mid-session budget check so a session can tell it's drifting before it costs $100.
+
+This session
+
+$15.88 — 79 calls at 92 K average context. Inside the $10–20 I quoted. Cache writes ($9.10) were the largest line, not reads, which is what a session that reads new files once rather than re-reading old ones looks like.
+
+Against your ~$150: $134 left for the four phases, which the §9 table estimates at $72–153. The honest read is that it fits if the per-session discipline holds and is tight if it doesn't — §7 is the one to cut first if it comes to that, since it buys convenience rather than capability.
+
+Wants committing
+
+- _claude_notes/highlighting_wires_and_nets_02.md — new, the plan.
+- wiring.json — your four commoning decisions. Real authored work, still uncommitted.
+- locations.json — still only the 0.1 pt TB-110 nudge from yesterday. Revert rather than commit unless you meant it.
+- claude.md, _claude_notes/authoring_the_wires.md — your edits, your call.
+- Untracked: _claude_notes/paint/, claude_answer_01.txt, prompts/claude_last_phase_07.md if you want them tracked.
+
+I wrote no code and started no server. The tree is otherwise as you left it.
+
+On standing instruction 3
+
+claude.md was the right and sufficient orientation for both this session and the last. For the plan I needed eleven files you hadn't named — CommoningPanel.tsx, TargetPanel.tsx, PathPanel.tsx, LocateTab.tsx, wiringModel.ts, model.ts, hitTest.ts, paint.ts, DrawingTab.tsx, wiring.py, extract.py — and they're now all named in the plan's §3 with line numbers, so the next session doesn't rediscover them.
+
+Worth adding to claude.md: /home/js/schematics/.venv/bin/python is the only venv with pymupdf (server/.venv doesn't have it), and session cost is measurable from ~/.claude/projects/-home-js-schematics/*.jsonl — that's how the §10 numbers were derived, and it's the fastest way to check whether a session is on budget.

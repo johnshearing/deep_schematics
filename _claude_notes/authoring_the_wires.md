@@ -60,13 +60,7 @@ in a session that has written no code means something else is wrong — say so l
 which is `K8`'s shape rather than a placement. **Every number in §3 was measured against the
 committed value, (300.1, 663.7)**, which is the one the ink agrees with: `C0080` lands there and it is
 `W053`'s run. If that point is still at (111.5, 625.5) when you read this, it wants putting back
-before anything else — `git diff` on `locations.json` names it exactly.
-
-!!!! This is an edit to this document by John, your human coworker                                 
-!!!! I had moved `TB-120:3 accidentally but later put it back very close to its original position.  
-!!!! Also, I executed the following commmands after this document was written:                     
-!!!! cd schematic_extraction/PS20115MLM4-2/extracted_docs && python author_circuit_logic.py         
-!!!!  End of human edit                                                                             
+before anything else — `git diff` on `locations.json` names it exactly.                                                                            
 
 
 **Build one session only.** §13 is the schedule. The user walks the lessons between sessions and the
