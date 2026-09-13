@@ -243,6 +243,84 @@ export function commoningFor(index: InkIndex, component: string): BusProposal {
 }
 
 /**
+ * How much of a run a hand trace must share before it is running **along** that run rather than
+ * merely across it.
+ *
+ * `2 × ON_INK_PT`, and the reasoning is the band's own width: inside a corridor that wide an
+ * overlap shorter than the corridor could be a line *crossing* the ink rather than following it,
+ * and claiming a conductor a trace only stepped over would be the same class of mistake as a
+ * landing read one row out.
+ *
+ * Measured on the real sheet, the discrimination is not close. A trace down `TB-110` from its
+ * first screw to its fourth, 46.8 pt, shares **12.8 pt** of one run and **11.1 pt** of another —
+ * the two stretches of ink that make up that block's bus — while the four wires that cross the bus
+ * on their way to those screws share **0.0 pt** each: they meet it at a right angle, so every
+ * sample of the trace projects onto the same point of them.
+ */
+export const ALONG_PT = 2 * ON_INK_PT
+
+/** How finely a traced polyline is sampled before being projected: half `ON_INK_PT`, so no run can
+ * cross the corridor between two samples without a sample seeing it. */
+const SAMPLE_PT = ON_INK_PT / 2
+
+/**
+ * **Which runs of ink a hand-traced polyline runs along** — the weaker claim that rides along with
+ * a person's own geometry.
+ *
+ * A hand trace's `runs` are the claim, and they say *these corners are mine*. `conductors` says
+ * something different and weaker — *and they follow this ink* — and a record that left it out
+ * would leave real ink reading **unclaimed** on a block where a person has just done the work,
+ * because `claimsFrom` maps conductor id → block out of `bus.conductors` and out of nothing else.
+ * So a finished trace computes this and stores it beside the polyline.
+ *
+ * **It proposes nothing.** The geometry was decided by the person who drew it; this only records
+ * what that geometry happens to lie along. Where the ink genuinely is not there the list comes
+ * back empty and `hand-traced` is the right word on screen — two points 71 pt apart with nothing
+ * between them is the case this sheet has, and a trace across them returns `[]`.
+ *
+ * The projection is `lib/polyline`'s, which is the one in this application: the same arithmetic
+ * the sheet hit-tests with and the landing rule measures with, so a run this claims cannot be a
+ * run the sheet says the pointer missed.
+ */
+export function conductorsAlong(
+  index: InkIndex,
+  corners: readonly [number, number][],
+): string[] {
+  if (corners.length < 2) return []
+  const samples = sampled(corners)
+  const along: string[] = []
+  for (const run of index.runs) {
+    let first = Infinity
+    let last = -Infinity
+    for (const point of samples) {
+      const hit = project(point, run.points)
+      if (hit.off > ON_INK_PT) continue
+      first = Math.min(first, hit.along)
+      last = Math.max(last, hit.along)
+    }
+    if (last - first >= ALONG_PT) along.push(run.id)
+  }
+  return along
+}
+
+/** A polyline as points every `SAMPLE_PT` along it, its own corners included. */
+function sampled(corners: readonly [number, number][]): [number, number][] {
+  const points: [number, number][] = [[corners[0][0], corners[0][1]]]
+  for (let i = 1; i < corners.length; i += 1) {
+    const from = corners[i - 1]
+    const to = corners[i]
+    const steps = Math.max(1, Math.ceil(gap(from, to) / SAMPLE_PT))
+    for (let step = 1; step <= steps; step += 1) {
+      points.push([
+        from[0] + ((to[0] - from[0]) * step) / steps,
+        from[1] + ((to[1] - from[1]) * step) / steps,
+      ])
+    }
+  }
+  return points
+}
+
+/**
  * What the ink says about a wire's two ends, given whatever they are today.
  *
  * **The proposal for one end comes from walking the ink that starts at the other**, which is the

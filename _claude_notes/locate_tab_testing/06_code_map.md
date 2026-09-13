@@ -264,7 +264,8 @@ of `circuit_logic.json`.
 | **Point-space arithmetic, and there is one of it** | `webui/src/lib/polyline.ts` | `project`, `atArc`, `between`, `polylineLength`, `gap`. Not a screen projection — that is `paint.ts` and invariant 2. This is *how far is this pin from that run, and how far along*, and it had one caller until Phase D gave it three: the endpoint proposal, the bus a commoning record is cut out of, and the sheet hit-test. A hit-test with its own distance function could name a run the landing rule says a pin is not on |
 | **What line am I pointing at** — the sheet hit-test and its three verdicts | `webui/src/features/drawing/hitTest.ts` | `pickRun`, `claimsFrom`, `Pick`, `Claims`, `PICK_PT` = 6 (a third of a conductor row, in **points**, so the target is the same width of paper at every zoom). Nearest **and** within tolerance: a click on blank paper answers *nothing here* rather than reaching for the closest run. A confirmed bus and one the shape rule merely found are kept **apart**, because they are different claims |
 | **The card that names a run of ink** | `webui/src/features/drawing/ConductorCard.tsx` | `ConductorCard`, `Verdict`. `data-conductor-card`, `data-conductor-verdict` and `data-conductor-coverage` find it. It prints *`n` of 71 wires have a route so far* beside **every** verdict — the honesty requirement, because until the authoring run *no wire claims this run* is right for about 90 of the 149 |
-| **Authoring a block's commoning** | `webui/src/features/locate/CommoningPanel.tsx` | `CommoningPanel`, `NoteBox`. On a **component** row, through `wiringStore` — `H18`, and the reason it is not a store of its own. `data-commoning-panel`, `-accept`, `-clear`, `-runs`, `-note` |
+| **Authoring a block's commoning** | `webui/src/features/locate/CommoningPanel.tsx` | `CommoningPanel`, `NoteBox`. On a **component** row, through `wiringStore` — `H18`, and the reason it is not a store of its own. `data-commoning-panel`, `-accept`, `-clear`, `-runs`, `-note`, and since 2026-09-12 `-trace`. **Whether the panel appears at all** is `commonable` — *two or more of this component's terminals on one net*, read off `terminalNets`, which is the netlist and not a second draft. It replaced *the ink proposed something*, which hid the panel on exactly the blocks that needed authoring |
+| **Drawing a block's bus by hand** | `features/locate/wiringModel.ts` · `features/locate/wiring.ts` · `features/locate/Tracing.tsx` | `traceCommoning` — the second writer, `geometry: 'human'` because the corners are the person's, beside `setCommoning`'s `'extracted'`. A stale `conductors` list is **deleted** on a re-trace and the `note` survives one. `conductorsAlong` + `ALONG_PT` (= `2 × ON_INK_PT`) compute the weaker claim — *and the line follows this ink* — by shared course, so a wire crossing the bus square-on is not claimed. `Tracing` is the in-progress panel, shared by both traced object types and knowing neither file: `H26` |
 | **Every rule the commoning editor applies** | `webui/src/features/locate/wiringModel.ts` | `commoningOf`, `setCommoning`, `clearCommoning`, `setCommoningNote`, `commonedBlocks`, `commoningCoverage`. `setCommoning` writes `extracted`/`human` and never `derived`; `clearCommoning` **deletes**, unlike `unconfirm` one section up, because nothing bootstrapped a bus and *no record* is the same state as *nobody authored this* |
 | **The runs a wire may not be offered**, and the sentence that says which | `webui/src/features/locate/paths.ts` · `PathPanel.tsx` | `candidates()`'s `commoning` option, and `Refused`. Keyed on the **shape rule** (`isCommoning`) and **not** on the authored records: a record stores stretches, and `C0105`/`C0008` are each partly a wire, so excluding by a record's conductor ids would take two real routes out of the list. Removed rather than tagged — the failure is a click — and named, because invariant 5 |
 | **What the card says about a path**, including that there is none | `webui/src/features/drawing/SelectionCard.tsx` | `PathNote`, `GEOMETRY_WORD`, `ATTRIBUTION_WORD`. *`no path yet`* is load-bearing while 70 of 71 wires have none: an unhighlighted sheet cannot say which of *not traced* and *broken* it is |
@@ -1054,6 +1055,39 @@ authored route: `locations.json` is a different document in a different store an
 would be `H18` exactly. The panel says so, the route stays, and after the generator runs
 `resolve_geometry` reports it as *a label for something that is not a wire or net in the netlist*
 — which is the honest place for it, in the red strip, where the person decides.
+
+### H26 — one gesture, two authored files, and a tag is the only thing keeping them apart *(added 2026-09-12)*
+
+`H18` says the three whole-document drafts must not learn about each other, and that
+`wiringModel.pathStale` is the one place two of them meet — **as arguments**. Since 2026-09-12
+there is a second such place, and it is a *gesture* rather than a function.
+
+The hand trace is one state machine in `LocateTab`: the corners land on the sheet, `Enter`
+finishes, `Backspace` un-corners, `Esc` abandons. Two different objects are drawn with it, and they
+are written into **two different files**:
+
+    { kind: 'path',      wire: 'W047' }   → model.tracePath      → locations.json
+    { kind: 'commoning', block: 'TB-110' } → wiringModel.traceCommoning → wiring.json
+
+**The tag is set when the trace starts and read when it finishes**, and it holds an **id, never a
+document**. Three things follow, and each is a way this could go wrong:
+
+1. **`trace('finish')` dispatches on the tag and not on the armed row.** A trace begun on one
+   object and finished after the selection moved still writes the object it was begun on. Reading
+   `targetEntry` there would mean the file a gesture edits is decided by what the panel happens to
+   be showing at the moment a key lands.
+2. **Each panel is handed only the corners that are its own.** `tracing` and `tracingBus` are two
+   props rather than one prop and a flag, so the path panel cannot render a trace bound for
+   `wiring.json` and the commoning panel cannot render one bound for `locations.json`.
+3. **`Tracing` (its own module since this session) knows neither file.** It takes corners and a
+   line of wording. A shared panel that knew which document it was for would be the first crack in
+   all of the above.
+
+**What would go wrong.** Not a crash — a save into the wrong authored file, with the right-looking
+thing on screen. The client-side guard is
+`keeps the two documents apart: a block's trace never reaches the path editor` in
+`WiringPanel.test.tsx`, which asserts that finishing a bus trace writes `wiring.json` and sends
+**nothing at all** to `/api/locations`.
 
 ---
 

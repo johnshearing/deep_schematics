@@ -30,20 +30,30 @@
  * ### And it proposes, exactly like everything else on this screen
  *
  * The shape rule is *two or more of one component's terminals on one run*, and it is already known
- * to be incomplete on this sheet: `TB-130`'s two points are 71 pt apart with nothing joining them,
- * and `TB-120:3` sits 24 pt below the end of `C0092`. So there is a button, `derived` is refused
- * by name on a saved record, and a block the ink says nothing about says so rather than being
- * given a line nobody drew.
+ * to be incomplete on this sheet: two of one block's points are 71 pt apart with nothing joining
+ * them, and another block's third screw sits 24 pt below the end of the run serving the first two.
+ * So there is a button, `derived` is refused by name on a saved record, and a block the ink says
+ * nothing about says so rather than being given a line nobody drew.
+ *
+ * ### And since 2026-09-12, a person can draw one the ink does not offer
+ *
+ * **That is the point of the second button.** Until then this panel rendered a proposal and
+ * nothing else, so where the shape rule found nothing there was no control at all and the copy
+ * blamed the reader's eyes for a gap in the screen. A bus the ink cannot propose is exactly the
+ * case a human is here for: they can see that two screws are strapped together and a rule cannot.
+ * `Trace by hand` is `PathPanel`'s gesture on this object, and `traceCommoning` is the writer —
+ * `geometry: 'human'`, because the corners are the person's own.
  */
 
 import { useMemo, useState } from 'react'
-import { Check, RotateCcw } from 'lucide-react'
+import { Check, PencilLine, RotateCcw } from 'lucide-react'
 
 import type { Designator, Polyline, WiringDocument } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { Stamp } from './model'
+import { splitTerminal, type Stamp } from './model'
+import { Tracing } from './Tracing'
 import { commoningFor, type InkIndex } from './wiring'
 import { clearCommoning, commoningOf, setCommoning, setCommoningNote } from './wiringModel'
 
@@ -54,25 +64,92 @@ interface Props {
   /** The ink, indexed once for the whole drawing. Null until `/api/conductors` has arrived and
    * null again if it failed — two different states from *the ink joins nothing here*. */
   ink: InkIndex | null
+  /** Terminal id → the net it is on, out of the **netlist** — `terminalNets`, the same map the
+   * wiring panel reads. Not a draft of an authored file, which is what keeps `H18` intact: this
+   * panel writes `wiring.json` and must not be handed a second whole document. */
+  nets: Record<string, string>
+  /** The corners of a hand trace **of this block's bus**, or null when no trace of this block is
+   * running. Owned by the tab, because the clicks that add corners land on the sheet. */
+  tracing: [number, number][] | null
   stamp: () => Stamp
   onEdit: (change: (document: WiringDocument) => WiringDocument, note?: string) => void
   /** Light the proposal on the sheet while the pointer is over it. `null` puts the sheet back. */
   onPreview: (runs: Polyline[] | null) => void
+  /** Start a hand trace of this block's bus, or abandon the running one. What a finished trace
+   * writes is the tab's business and not this panel's — see `H26`. */
+  onTrace: (start: boolean) => void
 }
 
-export function CommoningPanel({ entry, wiring, ink, stamp, onEdit, onPreview }: Props) {
+export function CommoningPanel({
+  entry,
+  wiring,
+  ink,
+  nets,
+  tracing,
+  stamp,
+  onEdit,
+  onPreview,
+  onTrace,
+}: Props) {
   const proposal = useMemo(
     () => (ink ? commoningFor(ink, entry.id) : { runs: [], conductors: [] }),
     [ink, entry.id],
   )
   const record = wiring ? commoningOf(wiring, entry.id) : undefined
 
-  // Nothing to say and nothing to author: not every component is a terminal block, and a panel
-  // that appeared on all 47 of them would be noise on the 41 that have no bus and never will.
-  if (!wiring || (!record && proposal.runs.length === 0 && ink !== null)) return null
+  /**
+   * **Whether this component is the kind of thing that can have a bus at all** — and the test is a
+   * statement about shapes, not a prefix.
+   *
+   * *Two or more of this component's terminals on one net*, which is the same sentence the ink's
+   * own rule makes about one *run*: a bus is what makes a net legible on paper, so points that are
+   * not on one net have nothing to common. Nothing here knows what a terminal-block designator
+   * looks like and nothing should — that rule is the user's, and this gate is where it would have
+   * been easiest to break.
+   *
+   * It replaced *"the ink proposed something"*, which hid the panel on exactly the blocks that
+   * needed authoring most. Measured on this drawing it opens the panel on 12 components rather
+   * than all 47, and on 6 of them the ink proposes nothing at all.
+   */
+  const commonable = useMemo(() => {
+    const perNet = new Map<string, number>()
+    for (const [terminal, net] of Object.entries(nets)) {
+      if (splitTerminal(terminal)[0] !== entry.id) continue
+      perNet.set(net, (perNet.get(net) ?? 0) + 1)
+    }
+    return [...perNet.values()].some((count) => count >= 2)
+  }, [nets, entry.id])
+
+  // Nothing to author and nothing to say: not every component can have a bus, and a panel on all
+  // 47 of them would be noise on the 35 with no two points on one net. A record already written
+  // keeps its panel whatever the netlist says now — it is somebody's decision, and it must stay
+  // reachable to be taken back.
+  if (!wiring || (!record && !commonable)) return null
+
+  /**
+   * **A trace in progress takes the whole panel**, exactly as it does on a wire's path.
+   *
+   * Everything else here is a claim about this block, and while a line is being drawn none of it
+   * is true yet: the proposal must not be one click away from being accepted by a person aiming at
+   * the sheet, and `Take it back` has nothing to take back. The keys and the corner count are the
+   * only things worth saying until `Enter`.
+   */
+  if (tracing)
+    return (
+      <div className="space-y-1.5 border-t pt-1.5" data-commoning-panel={entry.id}>
+        <p className="text-[11px] font-medium">This block&apos;s commoning</p>
+        <Tracing
+          corners={tracing}
+          chord={null}
+          guide="down the points this block straps together"
+        />
+      </div>
+    )
 
   const painted = record?.runs ?? proposal.runs
   const total = painted.reduce((sum, run) => sum + lengthOf(run), 0)
+  /** A record whose polyline the **person** drew, which is a third thing this badge can say. */
+  const drawn = record?.geometry === 'human'
 
   return (
     <div className="space-y-1.5 border-t pt-1.5" data-commoning-panel={entry.id}>
@@ -82,13 +159,19 @@ export function CommoningPanel({ entry, wiring, ink, stamp, onEdit, onPreview }:
           tone={record ? 'success' : 'warning'}
           title={
             record
-              ? 'A person said these lengths of ink are the block’s own bus rather than field wire.'
+              ? drawn
+                ? 'A person drew this line corner by corner: the polyline is theirs rather than ' +
+                  'the drawing’s, which is what `geometry: human` records. Any conductors named ' +
+                  'beside it are ink the line happens to follow — the weaker claim, riding along.'
+                : 'A person said these lengths of ink are the block’s own bus rather than field wire.'
               : 'The ink joins two or more of this block’s points along one run. Nobody has said ' +
                 'that is the block’s own commoning yet, and until somebody does a net’s highlight ' +
                 'stops at the screws.'
           }
         >
-          {record ? `you, on ${(record.at ?? '').slice(0, 10) || 'a day nobody stamped'}` : 'the ink proposes'}
+          {record
+            ? `${drawn ? 'you drew it' : 'you'}, on ${(record.at ?? '').slice(0, 10) || 'a day nobody stamped'}`
+            : 'the ink proposes'}
         </Badge>
         {record?.page !== undefined && (
           <Badge tone="info" title="Which sheet these polylines are on. A designator names the same terminal on any page; a polyline does not.">
@@ -105,8 +188,9 @@ export function CommoningPanel({ entry, wiring, ink, stamp, onEdit, onPreview }:
         <p className="text-[10px] text-muted-foreground">
           <span className="font-medium">The ink joins none of this block&apos;s points to each
           other.</span>{' '}
-          `TB-130` is the sheet&apos;s example: two points 71 pt apart with no conductor between
-          them. That is a question for your eyes rather than a gap in this screen.
+          Either nothing straps them together, or the line that does is not in the extracted
+          geometry. If you can see one on the sheet, draw it — the polyline is then yours rather
+          than the drawing&apos;s, and the record says so.
         </p>
       ) : (
         <button
@@ -165,6 +249,25 @@ export function CommoningPanel({ entry, wiring, ink, stamp, onEdit, onPreview }:
             {record ? 'Take the ink again' : `This is ${entry.id}'s commoning`}
           </Button>
         )}
+        <Button
+          variant={proposal.runs.length > 0 ? 'outline' : 'default'}
+          size="sm"
+          className="h-6 px-2 text-[11px]"
+          data-commoning-trace={entry.id}
+          title={
+            'Draw this block’s bus corner by corner. Click each corner, Enter to finish, ' +
+            'Backspace to take one back, Esc to abandon. The line is then yours rather than the ' +
+            'drawing’s — which is the honest record where the extracted ink stops short of a ' +
+            'point, or was never there to begin with.'
+          }
+          onClick={() => {
+            onPreview(null)
+            onTrace(true)
+          }}
+        >
+          <PencilLine />
+          Trace by hand
+        </Button>
         {record && (
           <Button
             variant="ghost"

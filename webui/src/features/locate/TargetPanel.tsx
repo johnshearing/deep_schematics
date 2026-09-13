@@ -114,10 +114,20 @@ interface Props {
   /** Corners so far, when a hand trace is in progress — owned by the tab, because the clicks that
    * add them land on the sheet. */
   tracing?: [number, number][] | null
+  /**
+   * The same, for a trace of **this component's own bus** — a second prop rather than a flag on
+   * the first, and that is `H26`.
+   *
+   * One gesture, two destinations: a wire's route is `locations.json` and a block's bus is
+   * `wiring.json`. The tab holds the tag that says which, and hands each panel only the corners
+   * that are its own, so neither panel can be looking at a trace bound for the other file.
+   */
+  tracingBus?: [number, number][] | null
   stamp?: () => Stamp
   /** Light one proposal on the sheet while the pointer is over it. `null` puts the sheet back. */
   onPreview?: (runs: Polyline[] | null) => void
   onTrace?: (start: boolean) => void
+  onTraceBus?: (start: boolean) => void
   /**
    * Arm something else. `fly` asks the sheet to come too, and only the site buttons set it: a
    * rename has not moved anything, and a site that does not exist yet has nowhere to go.
@@ -165,6 +175,8 @@ export function TargetPanel({
   onClose,
   onPreview,
   onTrace,
+  tracingBus,
+  onTraceBus,
 }: Props) {
   if (LABELLABLE.has(entry.kind)) {
     return (
@@ -180,8 +192,8 @@ export function TargetPanel({
   return entry.kind === 'component' ? (
     <ComponentPanel
       {...{
-        entry, document, target, pinsOf, wiring, ink, stamp, onEditWiring, onPreview,
-        onTarget, onEdit, onLabelDir, onClear, onClose,
+        entry, document, target, pinsOf, wiring, ink, nets, stamp, onEditWiring, onPreview,
+        onTarget, onEdit, onLabelDir, onClear, onClose, tracingBus, onTraceBus,
       }}
     />
   ) : (
@@ -465,6 +477,7 @@ function ComponentPanel({
   pinsOf,
   wiring,
   ink,
+  nets,
   stamp,
   onEditWiring,
   onPreview,
@@ -473,6 +486,8 @@ function ComponentPanel({
   onLabelDir,
   onClear,
   onClose,
+  tracingBus,
+  onTraceBus,
 }: Props) {
   const sites = sitesOf(document, entry.id)
   const pins = pinsOf(entry.id)
@@ -600,14 +615,17 @@ function ComponentPanel({
       {/* **The second authored file this panel writes into**, and the only place on this screen a
           *component* row does. It renders itself away on the 41 components that are not terminal
           blocks — see `CommoningPanel`'s own guard — so this is not a section on every relay. */}
-      {onEditWiring && stamp && onPreview && (
+      {onEditWiring && stamp && onPreview && onTraceBus && (
         <CommoningPanel
           entry={entry}
           wiring={wiring ?? null}
           ink={ink ?? null}
+          nets={nets ?? {}}
+          tracing={tracingBus ?? null}
           stamp={stamp}
           onEdit={onEditWiring}
           onPreview={onPreview}
+          onTrace={onTraceBus}
         />
       )}
     </div>

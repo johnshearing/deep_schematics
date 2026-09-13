@@ -1,6 +1,6 @@
 # Highlighting wires and nets, 02 — *a human can author every feature and prove it on the drawing*
 
-Written 2026-09-12. Supersedes nothing; `highlighting_wires_and_nets.md` (the 01) is the paint and
+Written 2026-09-12. Supersedes nothing; `highlighting_wires_and_nets_01.md` is the paint and
 hit-test work that shipped, and **you do not need to read it to execute this.**
 
 ---
@@ -38,7 +38,7 @@ to `wiring.json` and `locations.json`:
 
 And the goal, in the same message:
 
-> *"we are trying experimenting with this particular drawing in order to figure out what features are
+> *"we are experimenting with this particular drawing in order to figure out what features are
 > required for a system where an ai model can understand any schematic drawing... The human user is
 > capable of seeing and pointing at what is on schematic drawings. The ai models are not."*
 

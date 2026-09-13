@@ -59,6 +59,7 @@ import {
   storedLabel,
   type Stamp,
 } from './model'
+import { Tracing } from './Tracing'
 
 /**
  * How many proposals the list shows before it says *and N more*.
@@ -151,7 +152,8 @@ export function PathPanel({
 
   const chord = chordOf(entry)
 
-  if (tracing) return <Tracing corners={tracing} chord={chord} />
+  if (tracing)
+    return <Tracing corners={tracing} chord={chord} guide="following the printed conductor" />
 
   return (
     <div className="space-y-1.5 border-t pt-1.5" data-path-panel={entry.id}>
@@ -625,32 +627,3 @@ function AddRun({
   )
 }
 
-/** A hand trace in progress: the count, and the four keys. Nothing is written until `Enter`. */
-function Tracing({ corners, chord }: { corners: [number, number][]; chord: number | null }) {
-  return (
-    <div className="space-y-1 border-t pt-1.5" data-tracing>
-      <p className="text-[11px] font-medium">Tracing by hand</p>
-      <p className="text-[11px] text-muted-foreground">
-        {corners.length === 0
-          ? 'Click the first corner on the sheet, following the printed conductor.'
-          : `${corners.length} corner${corners.length === 1 ? '' : 's'} so far` +
-            (corners.length > 1 ? ` · ${lengthOf([corners])} pt of line` : '')}
-        {chord !== null && corners.length > 1 && (
-          <span> against a {chord} pt straight line between the pins.</span>
-        )}
-      </p>
-      <p className="text-[10px] text-muted-foreground">
-        <Key>Enter</Key> finishes · <Key>Backspace</Key> takes back a corner · <Key>Esc</Key>{' '}
-        abandons it. Two corners is the minimum: one point is not a run.
-      </p>
-    </div>
-  )
-}
-
-function Key({ children }: { children: string }) {
-  return (
-    <kbd className="rounded border px-1 py-px font-mono text-[10px] text-foreground">
-      {children}
-    </kbd>
-  )
-}

@@ -128,6 +128,14 @@ const PINS: Designator[] = [
   terminal('TB-0V:2', [300, 516], 'TB-0V'),
   terminal('TB-0V:6', [300, 600], 'TB-0V'),
   terminal('TB-GND-B:2', [300, 700], 'TB-GND-B'),
+  /**
+   * **Two screws of a block the ink joins nowhere**, 71 pt apart as the real sheet has them, and
+   * the case the pencil exists for. No conductor comes near either of them: the shape rule can
+   * propose nothing here, which before 2026-09-12 meant the panel rendered no control at all and
+   * told the reader their eyes were the problem.
+   */
+  terminal('TB-130:1', [700, 500], 'TB-130'),
+  terminal('TB-130:2', [700, 571], 'TB-130'),
 ]
 
 function net(id: string, terminals: string[]): Designator {
@@ -167,16 +175,20 @@ const ENTRIES: Designator[] = [
   ...PINS,
   block('TB-0V', [300, 508]),
   block('TB-GND-B', [300, 700]),
+  block('TB-130', [700, 535]),
   wire('W019', 'GREEN 12AWG', 'PS1:-2', 'TB-GND-B:2'),
   wire('W042', 'BLUE 22AWG', 'PB2:3', 'TB-0V:6'),
   wire('W045', 'WHITE/BLUE 18AWG', 'CR1:A2', 'TB-0V:2'),
   net('0V', ['CR1:A2', 'PB2:3', 'PS1:-2', 'TB-0V:1', 'TB-0V:2', 'TB-0V:6']),
   net('GND', ['TB-GND-B:2']),
+  /** Two of one block's points on one net — which is what *this thing can have a bus* means, and
+   * the whole of the gate that decides whether the commoning panel appears. */
+  net('130', ['TB-130:1', 'TB-130:2']),
 ]
 
 const INDEX: DesignatorIndex = {
   drawing_number: 'PS20115MLM4-2',
-  counts: { component: 2, terminal: 7, wire: 3, net: 2 },
+  counts: { component: 3, terminal: 9, wire: 3, net: 3 },
   located: ENTRIES.length,
   entries: ENTRIES,
 }
@@ -278,6 +290,9 @@ const SIZE = { width: 800, height: 600 }
 
 /** Every wiring document the screen would have written, in order. */
 let savedWiring: Record<string, unknown>[] = []
+/** Every **locations** document it would have written — empty in every test in this file, which
+ * is the whole content of the `H26` one: one gesture must not reach two authored files. */
+let savedLocations: Record<string, unknown>[] = []
 /** What the server would publish on `/api/paths` after the last save — the commoning section, as
  * `paths_index` republishes it. */
 let savedCommoning: Record<string, unknown> = {}
@@ -306,6 +321,7 @@ function stubServer(options: { locations?: LocationsDocument; ink?: null } = {})
         return json({ present: true, document: WIRING, report: WIRING_REPORT })
       }
       if (url.endsWith('/api/locations') && init?.method === 'PUT') {
+        savedLocations.push(JSON.parse(String(init.body)).document)
         return json({ saved: true, report: LOCATIONS_REPORT, stale: 'behind' })
       }
       if (url.endsWith('/api/locations')) {
@@ -341,6 +357,7 @@ function json(body: unknown, status = 200) {
 
 beforeEach(() => {
   savedWiring = []
+  savedLocations = []
   savedCommoning = {}
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
     configurable: true, writable: true, value: vi.fn(),
@@ -756,12 +773,53 @@ describe('saving', () => {
 // and make `H1` fire *inside* it — a last-write-wins between the wiring queue and the commoning
 // panel, which is exactly what three separate files were supposed to have made impossible.
 
-/** Open the screen on a component, through the `Commoning` filter. */
-async function openBlock(id: string) {
+/**
+ * Open the screen on a component.
+ *
+ * Through the `Commoning` filter for a block the ink proposes a bus for, and through `All` for one
+ * it does not — **that list's membership is a measurement** and it is deliberately not the same
+ * set as *the blocks a person may author*. A block the shape rule cannot see is reached as an
+ * ordinary component row, and it joins the filter the moment somebody draws its bus.
+ */
+async function openBlock(id: string, filter: 'Commoning' | 'All') {
   render(<LocateTab />)
-  fireEvent.click(await screen.findByRole('button', { name: 'Commoning' }))
+  fireEvent.click(await screen.findByRole('button', { name: filter }))
   fireEvent.click(await screen.findByRole('option', { name: new RegExp(`^${id} `) }))
   return screen.findByText("This block's commoning")
+}
+
+function sheet() {
+  return screen.getByRole('application')
+}
+
+/** The pencil on the commoning panel, by its data hook rather than its words: the panel says
+ * *Trace by hand* in the same words the path editor does, on purpose. */
+function traceButton(): HTMLElement {
+  const button = document.querySelector('[data-commoning-trace]')
+  if (!button) throw new Error('no Trace by hand button on the commoning panel')
+  return button as HTMLElement
+}
+
+/**
+ * Where a PDF point lands on the sheet, in the CSS pixels a click carries.
+ *
+ * The viewport fits 1224 × 792 pt into this suite's 800 × 600 container with 12 pt of padding:
+ * `776 / 1224 = 0.63399` px/pt, origin `(12, 48.94)`. jsdom gives every element a zero rect, so a
+ * client coordinate *is* an offset into the sheet. Computed rather than guessed because the
+ * conductor a traced line may claim depends on where the line actually is — within 4 pt of the
+ * ink, which is two and a half pixels here.
+ */
+function css(x: number, y: number): [number, number] {
+  const scale = (800 - 24) / 1224
+  return [12 + x * scale, (600 - 792 * scale) / 2 + y * scale]
+}
+
+/** Click a point on the sheet. The press matters: a click that moved the sheet is a pan, so the
+ * tab snapshots the viewport on `pointerdown` and compares. */
+function clickSheet(x: number, y: number) {
+  fireEvent.pointerDown(sheet(), { pointerId: 1, button: 0 })
+  fireEvent.pointerUp(sheet(), { pointerId: 1 })
+  fireEvent.click(sheet(), { clientX: x, clientY: y })
 }
 
 /** The last document the screen sent, read for its commoning section. */
@@ -785,7 +843,7 @@ describe("a block's commoning", () => {
   })
 
   it('proposes the run and writes it as polylines, with both axes and no `derived`', async () => {
-    await openBlock('TB-0V')
+    await openBlock('TB-0V', 'Commoning')
     expect(screen.getByText('the ink proposes')).toBeTruthy()
 
     fireEvent.click(screen.getByText("This is TB-0V's commoning"))
@@ -804,7 +862,7 @@ describe("a block's commoning", () => {
   })
 
   it('moves the count, and the block stays in the list so it can be looked at again', async () => {
-    await openBlock('TB-0V')
+    await openBlock('TB-0V', 'Commoning')
     fireEvent.click(screen.getByText("This is TB-0V's commoning"))
 
     await waitFor(() => expect(screen.getByText(/1 of 1 blocks commoned/)).toBeTruthy())
@@ -815,7 +873,7 @@ describe("a block's commoning", () => {
   })
 
   it('deletes the record on Take it back, which is not what a wire does', async () => {
-    await openBlock('TB-0V')
+    await openBlock('TB-0V', 'Commoning')
     fireEvent.click(screen.getByText("This is TB-0V's commoning"))
     await waitFor(() => expect(screen.getByText('Take it back')).toBeTruthy())
 
@@ -830,7 +888,7 @@ describe("a block's commoning", () => {
   })
 
   it('will not take a note before there is a decision for it to ride on', async () => {
-    await openBlock('TB-0V')
+    await openBlock('TB-0V', 'Commoning')
     const note = document.querySelector('[data-commoning-note="TB-0V"]') as HTMLInputElement
     expect(note.disabled).toBe(true)
 
@@ -842,15 +900,115 @@ describe("a block's commoning", () => {
     )
   })
 
-  it('says nothing at all on a component with no bus in the ink', async () => {
-    // 41 of the real drawing's 47 components are not terminal blocks. A section that appeared on
-    // every relay saying *nothing here* would be noise on the busiest panel in the project — and
-    // `TB-130` is the case that matters: two points 71 pt apart with nothing joining them, which
-    // is a question for the user's eyes rather than a gap in this screen.
+  it('says nothing at all on a component that cannot have a bus', async () => {
+    /**
+     * **The gate, and it is structural.** 35 of the real drawing's 47 components have no two
+     * points on one net, and a section appearing on every relay to say *nothing here* would be
+     * noise on the busiest panel in the project. The test is *two or more of this component's
+     * terminals on one net* — the same sentence the ink's own rule makes about one run — and not
+     * the shape of a designator: nothing in the client may know what a terminal block is called.
+     *
+     * `TB-GND-B` has one point here, so there is nothing for a bus to join.
+     */
     render(<LocateTab />)
     fireEvent.click(await screen.findByRole('button', { name: 'All' }))
     fireEvent.click(await screen.findByRole('option', { name: /^TB-GND-B / }))
     await waitFor(() => expect(screen.queryByText("This block's commoning")).toBeNull())
+  })
+
+  it('opens the panel on a block the ink says nothing about, and offers the pencil', async () => {
+    /**
+     * **The defect this phase exists to fix.** The panel used to render only where the shape rule
+     * had found something, so on the one block that most needed authoring there was no row and no
+     * button — and the copy said *that is a question for your eyes rather than a gap in this
+     * screen*, which was exactly backwards. A person can see two screws strapped together; a rule
+     * over extracted vectors cannot.
+     */
+    await openBlock('TB-130', 'All')
+    expect(screen.getByText(/The ink joins none of this block/)).toBeTruthy()
+    // No proposal, so nothing to accept — and the one control offered is the one that works.
+    expect(screen.queryByText(/This is TB-130's commoning/)).toBeNull()
+    expect(document.querySelector('[data-commoning-trace="TB-130"]')).toBeTruthy()
+  })
+
+  it("writes a hand-traced bus as the person's own geometry, with the ink it follows named", async () => {
+    /**
+     * **The whole gesture, end to end, into the second authored file.** Two clicks down the bus
+     * and `Enter`: `geometry: human`, because the corners are the person's and not the PDF's, and
+     * `attribution: human`, because a person said this is the block's own bus rather than field
+     * wire. `derived` is refused by name from the server on both axes.
+     *
+     * `conductors` is the **weaker claim riding along** — *and the line follows this ink*,
+     * computed from the corners at finish-trace time. It matters because `claimsFrom` maps
+     * conductor id → block out of that list and nothing else, so a hand trace that named no
+     * conductor would leave ink a person has just accounted for reading as unclaimed.
+     */
+    await openBlock('TB-0V', 'Commoning')
+    fireEvent.click(traceButton())
+    expect(document.querySelector('[data-tracing]')).toBeTruthy()
+
+    clickSheet(...css(300, 500))
+    clickSheet(...css(300, 516))
+    expect(screen.getByText(/2 corners so far/)).toBeTruthy()
+    expect(savedWiring).toHaveLength(0)
+
+    fireEvent.keyDown(window, { key: 'Enter' })
+    const record = (await writtenCommoning())['TB-0V']
+    expect(record.geometry).toBe('human')
+    expect(record.attribution).toBe('human')
+    expect(record.runs).toEqual([[[300, 500], [300, 516]]])
+    // `C0092` is the 16 pt vertical between rows 1 and 2. `C0010` ends *on* row 1 and runs away
+    // west at a right angle, so the trace crosses it and claims none of it.
+    expect(record.conductors).toEqual(['C0092'])
+  })
+
+  it('names no conductor where the person drew a bus the ink does not have', async () => {
+    // The empty list is the record: the polyline is the whole claim, and the panel says
+    // `hand-traced` rather than naming ink that is not there.
+    await openBlock('TB-130', 'All')
+    fireEvent.click(traceButton())
+    clickSheet(...css(700, 500))
+    clickSheet(...css(700, 571))
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    const record = (await writtenCommoning())['TB-130']
+    expect(record.runs).toEqual([[[700, 500], [700, 571]]])
+    expect(record).not.toHaveProperty('conductors')
+    await waitFor(() => expect(screen.getByText('hand-traced')).toBeTruthy())
+    expect(screen.getByText(/^you drew it, on 2026/)).toBeTruthy()
+  })
+
+  it('abandons a traced bus on Escape and writes nothing at all', async () => {
+    // The same guarantee the path editor gives: nothing is written until `Enter`, so `wiring.json`
+    // is byte-identical after an abandoned trace and `Esc` is safe to press.
+    await openBlock('TB-130', 'All')
+    fireEvent.click(traceButton())
+    clickSheet(...css(700, 500))
+    clickSheet(...css(700, 571))
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(document.querySelector('[data-tracing]')).toBeNull()
+    expect(savedWiring).toHaveLength(0)
+    // Still armed on the block, ready to draw it again: one press takes one thing away.
+    expect(document.querySelector('[data-commoning-panel="TB-130"]')).toBeTruthy()
+  })
+
+  it('keeps the two documents apart: a block’s trace never reaches the path editor', async () => {
+    /**
+     * **`H26`.** One gesture, two destinations — a wire's route is `locations.json` and a block's
+     * bus is `wiring.json` — and the tag set when the trace starts is the only thing keeping them
+     * apart. So a trace begun on a block must be invisible to the wire panel, and finishing it
+     * must write the wiring file and leave the locations file alone.
+     */
+    await openBlock('TB-130', 'All')
+    fireEvent.click(traceButton())
+    clickSheet(...css(700, 500))
+    clickSheet(...css(700, 571))
+    fireEvent.keyDown(window, { key: 'Enter' })
+    await writtenCommoning()
+
+    // The wiring file moved; nothing was written to the locations file at all.
+    expect(savedLocations).toHaveLength(0)
   })
 })
 
@@ -895,7 +1053,7 @@ describe('the sheet sees a bus as soon as it is saved', () => {
      * — so the highlight the user asked for on 2026-09-06 has to appear on the drawing now, not
      * after a reload.
      */
-    await openBlock('TB-0V')
+    await openBlock('TB-0V', 'Commoning')
     fireEvent.click(screen.getByText("This is TB-0V's commoning"))
     await waitFor(() =>
       expect(useAppStore.getState().paths?.commoning?.['TB-0V']).toBeTruthy(),

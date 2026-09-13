@@ -42,11 +42,14 @@ import {
   pathStale,
   retireWire,
   retiredReason,
+  setCommoning,
+  setCommoningNote,
   setEndpoint,
   setWiringNote,
   settled,
   sourceOf,
   terminalNets,
+  traceCommoning,
   unconfirm,
   unretire,
   wireRecord,
@@ -649,5 +652,94 @@ describe('the wires that exist only in the draft', () => {
     expect(wiringCoverage(NETLIST, one).wires).toBe(1)
     expect(wiringCoverage(listed, one).wires).toBe(2)
     expect(wiringCoverage(listed, one).confirmed).toBe(0)
+  })
+})
+
+// -- a block's bus, drawn by a person — plan 02 §4 --------------------------------------------
+
+describe("tracing a block's bus by hand", () => {
+  it("records the polyline as the person's own, on both axes", () => {
+    /**
+     * **The distinction this writer exists to make.** `setCommoning` says *these stretches of the
+     * drawing's ink are the bus*; this says *these corners are mine*. `geometry` is the axis for
+     * exactly that question, and a file that could not tell the two apart would be a file where a
+     * line somebody drew is indistinguishable from a line the PDF contains.
+     */
+    const traced = traceCommoning(
+      bootstrapped({ W063: ['INFEED1:3', 'TB-120:2'] }),
+      'TB-110',
+      [
+        [781.44, 483.52],
+        [781.45, 530.31],
+      ],
+      STAMP,
+      ['C0060', 'C0077'],
+    )
+
+    const record = traced.commoning!['TB-110']
+    expect(record.geometry).toBe('human')
+    expect(record.attribution).toBe('human')
+    // One run, two corners, rounded to the tenth of a point every authored coordinate uses.
+    expect(record.runs).toEqual([[[781.4, 483.5], [781.5, 530.3]]])
+    expect(record.conductors).toEqual(['C0060', 'C0077'])
+    expect(record.by).toBe('js')
+    expect(record.at).toBe(STAMP.at)
+  })
+
+  it('refuses one corner, because one point is not a run', () => {
+    const before = bootstrapped({})
+    expect(traceCommoning(before, 'TB-110', [[781.4, 483.5]], STAMP)).toBe(before)
+  })
+
+  it('names no conductor where the line follows no ink', () => {
+    // Two screws 71 pt apart with nothing between them: the polyline is the whole claim, and an
+    // empty `conductors` key would be a claim about ink rather than the absence of one.
+    const traced = traceCommoning(
+      bootstrapped({}),
+      'TB-130',
+      [
+        [818.6, 579.9],
+        [818.7, 650.9],
+      ],
+      STAMP,
+    )
+    expect(traced.commoning!['TB-130']).not.toHaveProperty('conductors')
+  })
+
+  it('drops a conductor list the new line no longer follows', () => {
+    /**
+     * **The one thing a spread-over-the-old-record writer gets wrong.** A block commoned off the
+     * ink and then re-drawn somewhere else would otherwise keep the old conductor ids under the
+     * new polyline — geometry saying it follows ink it does not touch, which is the same class of
+     * lie as `extracted` standing over corners a person moved.
+     */
+    const off = setCommoning(
+      bootstrapped({}),
+      'TB-120',
+      { runs: [[[300.1, 563.3], [300.1, 639.6]]], conductors: ['C0092'] },
+      STAMP,
+    )
+    const redrawn = traceCommoning(off, 'TB-120', [[10, 10], [10, 90]], STAMP)
+    expect(redrawn.commoning!['TB-120']).not.toHaveProperty('conductors')
+    expect(redrawn.commoning!['TB-120'].geometry).toBe('human')
+  })
+
+  it('keeps the note, because re-drawing a line is not changing your mind about it', () => {
+    const noted = setCommoningNote(
+      traceCommoning(bootstrapped({}), 'TB-130', [[0, 0], [0, 71]], STAMP),
+      'TB-130',
+      'strapped at the back, not visible in the vectors',
+    )
+    const again = traceCommoning(noted, 'TB-130', [[0, 0], [0, 72]], STAMP)
+    expect(again.commoning!['TB-130'].note).toBe('strapped at the back, not visible in the vectors')
+  })
+
+  it('leaves the wires section alone, which is what keeps the netlist current', () => {
+    // The two claims in one file, and the reason a bus is display geometry: no `CONNECTS_TO` edge,
+    // no entity, and `circuit_logic.json` stays current — asserted in bytes on the server side by
+    // `test_commoning_does_not_reach_the_netlist`.
+    const before = bootstrapped({ W063: ['INFEED1:3', 'TB-120:2'] })
+    const traced = traceCommoning(before, 'TB-110', [[0, 0], [0, 47]], STAMP)
+    expect(traced.wires).toEqual(before.wires)
   })
 })

@@ -77,7 +77,7 @@ import {
   type Target,
 } from './model'
 import { TargetPanel } from './TargetPanel'
-import { inkIndex } from './wiring'
+import { conductorsAlong, inkIndex } from './wiring'
 import {
   addWire,
   commoningCoverage,
@@ -86,6 +86,7 @@ import {
   nextWireId,
   setEndpoint as setEndpointInto,
   terminalNets,
+  traceCommoning,
   wiringCoverage,
   wiringPending,
 } from './wiringModel'
@@ -112,6 +113,28 @@ type Filter =
   | 'wires'
   | 'nets'
   | 'all'
+
+/**
+ * **What a hand trace is for** — the tag, and the whole of `H26`.
+ *
+ * Two object types are traced by the same four keys and the same clicks on the sheet, and they are
+ * written into two different authored files by two different functions. This is the discriminator
+ * that says which, decided when the trace *starts* and read when it finishes, so the writer cannot
+ * be chosen by whatever the panel is showing at the moment `Enter` lands.
+ *
+ * It holds an **id**, never a document. `tracePath` and `traceCommoning` each take their own draft
+ * as an argument, which is the arrangement `H18` requires of every place two of the three
+ * whole-document drafts meet.
+ */
+type TraceTarget =
+  | { kind: 'path'; wire: string }
+  | { kind: 'commoning'; block: string }
+
+/** A trace in progress: what it is for, and the corners so far. */
+interface Trace {
+  target: TraceTarget
+  corners: [number, number][]
+}
 
 const FILTERS: { id: Filter; label: string; title: string }[] = [
   { id: 'todo', label: 'To do', title: 'Components and terminals nobody has placed yet' },
@@ -290,14 +313,22 @@ export function LocateTab() {
   const viewer = useTileViewport({ width, height, dpi: tiles?.dpi ?? 400 })
   const [filter, setFilter] = useState<Filter>('todo')
   /**
-   * A hand trace in progress: the corners so far, or `null` for *not tracing*.
+   * A hand trace in progress: **what is being traced**, and the corners so far. `null` for *not
+   * tracing*.
    *
    * **Here rather than in the panel**, because the clicks that add corners land on the *sheet* and
    * the sheet is this component's. It is deliberately not in the store either: it is a gesture, it
    * dies with the page, and nothing is written until `Enter` — so an abandoned trace leaves no
    * trace, which is the whole point of `Esc`.
+   *
+   * **The tag is what keeps two authored files apart, and it is `H26`.** One gesture, two
+   * destinations: a wire's route goes into `locations.json` and a block's bus into `wiring.json`.
+   * The state machine holds a *tagged id* and hands it to exactly one writer, the same way
+   * `pathStale` meets two documents as arguments rather than as state. It must never hold both —
+   * a trace that could write either file would be one gesture editing two files, and which one it
+   * edited would depend on what the panel happened to be showing when `Enter` was pressed.
    */
-  const [tracing, setTracing] = useState<[number, number][] | null>(null)
+  const [tracing, setTracing] = useState<Trace | null>(null)
   /** One proposal, lit on the sheet while the pointer is over its row. Never written anywhere. */
   const [preview, setPreview] = useState<Polyline[] | null>(null)
   const [settled, setSettled] = useState<Record<string, boolean>>({})
@@ -792,17 +823,24 @@ export function LocateTab() {
   )
 
   /**
-   * Start, finish or abandon a hand trace.
+   * Start, finish or abandon a hand trace — **of either of the two things that can be traced.**
    *
    * Nothing is written until it finishes, and finishing needs **two** corners: one point is not a
    * run, and `locations.py` refuses one by name from the other side. Abandoning writes nothing at
    * all, which is what makes `Esc` safe to press.
+   *
+   * `finish` is the only place the two documents are told apart, and it tells them apart by the
+   * tag the trace was started with rather than by the armed row — so a trace begun on one object
+   * and finished after the selection moved still writes the object it was begun on, into that
+   * object's own file. `Esc`, `Backspace` and the click-to-corner path on the sheet are
+   * document-agnostic and know nothing about any of this.
    */
   const trace = useCallback(
-    (action: 'start' | 'finish' | 'abandon' | 'back') => {
+    (action: 'start' | 'finish' | 'abandon' | 'back', target?: TraceTarget) => {
       if (action === 'start') {
+        if (!target) return
         setPreview(null)
-        setTracing([])
+        setTracing({ target, corners: [] })
         return
       }
       if (action === 'abandon') {
@@ -810,18 +848,35 @@ export function LocateTab() {
         return
       }
       if (action === 'back') {
-        setTracing((corners) => (corners ? corners.slice(0, -1) : corners))
+        setTracing((run) => (run ? { ...run, corners: run.corners.slice(0, -1) } : run))
         return
       }
-      const corners = tracing
+      const run = tracing
       setTracing(null)
-      if (!corners || corners.length < 2 || !targetEntry) return
-      edit(
-        (d) => tracePathInto(d, targetEntry.id, corners, stamp(), endPinsOf(targetEntry)),
-        `traced ${targetEntry.id} by hand, ${corners.length} corners`,
+      if (!run || run.corners.length < 2) return
+      const into = run.target
+      if (into.kind === 'path') {
+        const wire = listed.find((e) => e.id === into.wire)
+        if (!wire) return
+        edit(
+          (d) => tracePathInto(d, wire.id, run.corners, stamp(), endPinsOf(wire)),
+          `traced ${wire.id} by hand, ${run.corners.length} corners`,
+        )
+        return
+      }
+      /**
+       * The bus is the person's polyline; the conductor list is the **weaker claim riding along**
+       * with it, computed from the corners and never offered for acceptance. `conductorsAlong`
+       * says why it is stored at all: without it, ink a person has just claimed would read as
+       * unaccounted-for. It comes back empty where the ink is genuinely not there, and empty is
+       * the honest answer then.
+       */
+      const block = into.block
+      editWiring((d) =>
+        traceCommoning(d, block, run.corners, stamp(), ink ? conductorsAlong(ink, run.corners) : []),
       )
     },
-    [tracing, targetEntry, edit, stamp],
+    [tracing, listed, ink, edit, editWiring, stamp],
   )
 
   /**
@@ -1245,7 +1300,19 @@ export function LocateTab() {
                 conductors={conductors}
                 net={net}
                 printedNet={printedNet}
-                tracing={tracing}
+                /* Each panel is handed **only the corners that are its own** — a wire's path panel
+                   never sees a bus being traced, and the block's panel never sees a route. The tag
+                   is read here and nowhere below: `H26`. */
+                tracing={
+                  tracing?.target.kind === 'path' && tracing.target.wire === targetEntry.id
+                    ? tracing.corners
+                    : null
+                }
+                tracingBus={
+                  tracing?.target.kind === 'commoning' && tracing.target.block === targetEntry.id
+                    ? tracing.corners
+                    : null
+                }
                 wiring={wiring}
                 inNetlist={inNetlist}
                 nets={nets}
@@ -1257,7 +1324,12 @@ export function LocateTab() {
                 onEditWiring={editWiring}
                 stamp={stamp}
                 onPreview={setPreview}
-                onTrace={(start) => trace(start ? 'start' : 'abandon')}
+                onTrace={(start) =>
+                  trace(start ? 'start' : 'abandon', { kind: 'path', wire: targetEntry.id })
+                }
+                onTraceBus={(start) =>
+                  trace(start ? 'start' : 'abandon', { kind: 'commoning', block: targetEntry.id })
+                }
                 /* `fly` is set by the site buttons and by nothing else. Retargeting also happens
                    after a rename and when a new site is started, and neither is a request to be
                    taken anywhere — one has not moved and the other has nowhere to go yet. */
@@ -1311,7 +1383,7 @@ export function LocateTab() {
             )
             /* While tracing, a click is a **corner** and not a placement. Nothing is written
                until Enter, so an abandoned trace leaves the file exactly as it was. */
-            if (tracing) setTracing([...tracing, at])
+            if (tracing) setTracing({ ...tracing, corners: [...tracing.corners, at] })
             /* And while an end slot is armed, bare paper is **nothing at all**. Only a terminal
                fills a slot (`onSelect` below), and the armed row is a wire — so placing here
                would write the wire's `label_point` in the middle of an endpoint decision, into
@@ -1331,7 +1403,11 @@ export function LocateTab() {
               /* A hovered proposal, or the trace as it is being drawn — one layer, because the
                  two cannot happen at once. Painted under `runs` in its own colour, so a
                  proposal is never mistaken for a decision. */
-              candidates={tracing && tracing.length > 1 ? [tracing] : (preview ?? undefined)}
+              candidates={
+                tracing && tracing.corners.length > 1
+                  ? [tracing.corners]
+                  : (preview ?? undefined)
+              }
               onTileSettled={onTileSettled}
             />
           )}

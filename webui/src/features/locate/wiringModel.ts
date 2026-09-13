@@ -615,6 +615,53 @@ export function setCommoning(
 }
 
 /**
+ * **A block's bus drawn corner by corner by a person** — the second writer, and the second claim.
+ *
+ * `setCommoning` above says *these stretches of the drawing's own ink are the bus*. This one says
+ * *these corners are mine*, and the file can tell the two apart because `geometry` is the axis for
+ * exactly that question: `extracted` means the polyline came out of the PDF's vector strokes,
+ * `human` means a person drew it. That distinction is already load-bearing on a wire's path —
+ * `convertPath` exists because an extracted corner may not be dragged — and it is what makes this
+ * a record of a decision rather than a record of a measurement.
+ *
+ * **It exists because the shape rule is incomplete and a screen that only rendered proposals made
+ * that the reader's fault.** A block whose points the ink does not join had no row and no button,
+ * and the panel told the person their eyes were the problem; two points 71 pt apart with nothing
+ * between them is a thing a person can see and a rule cannot, which is the whole reason this
+ * application has a human in it.
+ *
+ * `conductors` is `wiring.ts`'s `conductorsAlong` — the weaker claim, *and the line follows this
+ * ink*, computed from the corners at finish-trace time and **omitted where it is empty**. It is
+ * deleted rather than left standing when a re-trace finds nothing: a stale conductor list under a
+ * new polyline would be geometry saying it follows ink it no longer touches.
+ *
+ * A note survives a re-trace, because the note is about the block's bus and a person correcting
+ * their own line has not changed their mind about what it is.
+ */
+export function traceCommoning(
+  document: WiringDocument,
+  block: string,
+  corners: readonly [number, number][],
+  stamp: Stamp,
+  conductors: readonly string[] = [],
+  page?: number,
+): WiringDocument {
+  if (corners.length < 2) return document
+  const record: StoredCommoning = {
+    ...(document.commoning?.[block] ?? {}),
+    runs: [corners.map(([x, y]) => [round(x), round(y)] as [number, number])],
+    geometry: 'human',
+    attribution: 'human',
+    ...(page !== undefined ? { page } : {}),
+    ...(stamp.by ? { by: stamp.by } : {}),
+    at: stamp.at,
+  }
+  if (conductors.length) record.conductors = [...conductors]
+  else delete record.conductors
+  return { ...document, commoning: { ...(document.commoning ?? {}), [block]: record } }
+}
+
+/**
  * Take a block's bus back off the file — and here the record really is **deleted**.
  *
  * The opposite of `unconfirm` one section up, and the difference is who wrote the record. Every

@@ -1306,8 +1306,8 @@
       "power_domain": "control_signal",
       "normal_state": "carries the start/stop signal",
       "location": {
-        "x": 790.8,
-        "y": 537.4,
+        "x": 790.7,
+        "y": 537.3,
         "zone": "centre-right",
         "source": "human",
         "site": "main"
@@ -1323,8 +1323,8 @@
         {
           "id": "main",
           "point": [
-            790.8,
-            537.4
+            790.7,
+            537.3
           ],
           "terminals": [],
           "source": "human"

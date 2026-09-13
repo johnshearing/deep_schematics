@@ -40,10 +40,12 @@ import { describe, expect, it } from 'vitest'
 import type { Conductor } from '@/api/types'
 import {
   commoningFor,
+  conductorsAlong,
   inkIndex,
   isCommoning,
   landingsFrom,
   proposalsFor,
+  ALONG_PT,
   JOIN_PT,
   LANDING_PT,
   ON_INK_PT,
@@ -192,6 +194,132 @@ describe('the bus the ink proposes for a block — Phase C', () => {
     // of the three questions §14 leaves for the user's own eyes.
     const index = inkIndex([C0105], [...TB0V, DISCHARGE1_2])
     expect(commoningFor(index, 'TB-130')).toEqual({ runs: [], conductors: [] })
+  })
+})
+
+// -- TB-110, measured 2026-09-12 (plan 02 §4.2) -----------------------------------------------
+//
+// **The block the shape rule cannot finish**, at the real coordinates, because it is the case a
+// hand trace exists for. Four screws 16 pt apart; the ink joins `:2` to `:3` and `:3` to `:4` in
+// two short verticals and joins `:1` to nothing — that stretch of the drawing is on PDF layer `"0"`
+// and never became a conductor (plan §7). So a person draws the whole bus `:1`→`:4`, 46.8 pt, and
+// the question this fixture answers is **which ink that line may honestly claim to follow.**
+//
+// Four wires arrive at the four screws, crossing the bus at a right angle. They must not be
+// claimed, and the measurement is not close: the trace shares 12.8 pt and 11.1 pt of the two
+// verticals and **0.0 pt** of every wire.
+
+const TB110 = [
+  pin('TB-110:1', 781.4, 483.5),
+  pin('TB-110:2', 781.5, 499.6),
+  pin('TB-110:3', 781.5, 515.8),
+  pin('TB-110:4', 781.5, 530.3),
+]
+
+/** The two stretches of bus the extractor did see, between screws 2–3 and 3–4. Unnamed ink: a
+ * block's commoning is not a wire and nothing writes a net name beside it. */
+const BUS_110 = [
+  run('C0060', [
+    [781.45, 501.46],
+    [781.45, 514.23],
+  ]),
+  run('C0077', [
+    [781.45, 517.64],
+    [781.45, 528.69],
+  ]),
+]
+
+/** The four wires onto those screws, each crossing the bus square-on. `C0059` is the awkward one:
+ * it leaves `:2` 1.7 pt west of the traced line and runs 334 pt away, so it is *close* to the
+ * trace and shares none of its course. */
+const ONTO_110 = [
+  run(
+    'C0059',
+    [
+      [779.75, 499.59],
+      [445.39, 499.59],
+      [445.39, 528.53],
+      [561.59, 528.53],
+    ],
+    { spec_label: 'BLUE 16AWG' },
+  ),
+  run(
+    'C0076',
+    [
+      [783.15, 515.76],
+      [925.77, 515.76],
+      [925.77, 464.04],
+    ],
+    { net_label: '110', spec_label: 'BLUE 18AWG' },
+  ),
+  run(
+    'C0098',
+    [
+      [779.74, 483.58],
+      [571.92, 483.58],
+    ],
+    { net_label: '110', spec_label: 'BLUE 18AWG' },
+  ),
+  run(
+    'C0111',
+    [
+      [779.74, 530.4],
+      [716.62, 530.4],
+    ],
+    { net_label: '110', spec_label: 'BLUE 18AWG' },
+  ),
+]
+
+describe('the ink a hand-traced bus runs along — plan 02 §4.2', () => {
+  it('names the runs the line follows and not the wires it crosses', () => {
+    /**
+     * **The weaker claim, and why it is computed rather than asked for.** The polyline is the
+     * person's; this list only records what that polyline lies along, so that ink a person has
+     * just claimed does not read as unaccounted-for in the coverage view. It is never offered for
+     * acceptance — `W042` is the standing reason nothing on this screen accepts itself.
+     */
+    const index = inkIndex([...BUS_110, ...ONTO_110], TB110)
+    const along = conductorsAlong(index, [
+      [781.4, 483.5],
+      [781.5, 530.3],
+    ])
+
+    expect(along).toEqual(['C0060', 'C0077'])
+    // The four wires meet the line square-on, so every sample of it projects onto the same point
+    // of them: `ALONG_PT` of shared course is the test, and a crossing shares none.
+    for (const crossing of ['C0059', 'C0076', 'C0098', 'C0111']) {
+      expect(along).not.toContain(crossing)
+    }
+  })
+
+  it('says nothing where the ink is genuinely not there', () => {
+    // Two screws 71 pt apart with nothing between them. The empty list **is** the record: the
+    // polyline is the whole claim, and `hand-traced` is the right word on screen.
+    const index = inkIndex([...BUS_110, ...ONTO_110], TB110)
+    expect(
+      conductorsAlong(index, [
+        [818.6, 579.9],
+        [818.7, 650.9],
+      ]),
+    ).toEqual([])
+  })
+
+  it('claims nothing from one point, because one point is not a line', () => {
+    const index = inkIndex([...BUS_110, ...ONTO_110], TB110)
+    expect(conductorsAlong(index, [[781.45, 510]])).toEqual([])
+  })
+
+  it('is the tolerance the landing rule uses, and not a second one', () => {
+    // `ALONG_PT` is twice `ON_INK_PT` and nothing new: one projection and one idea of *near* in
+    // this application. A line 6 pt to the side of the bus is beside it, not on it.
+    expect(ALONG_PT).toBe(2 * ON_INK_PT)
+    const index = inkIndex(BUS_110, TB110)
+    expect(
+      conductorsAlong(index, [
+        [787.5, 483.5],
+        [787.5, 530.3],
+      ]),
+    ).toEqual([])
   })
 })
 

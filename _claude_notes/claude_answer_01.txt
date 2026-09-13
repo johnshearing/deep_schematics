@@ -408,7 +408,7 @@ Also worth knowing: _claude_notes/highlighting_wires_and_nets.md already exists 
 
 
 
-!!!! The following was my latest request !!!!
+!!!! The following was my next request !!!!
 
 Thanks. Above you said the following: "I now recommend deferring 1-full and doing item 2 first — which inverts what I told you an hour ago, and the 957 is why. The hand-trace format (geometry: "human", conductors: []) lets you author the missing TB-110, TB-120 and TB-130 buses without re-extracting anything. So item 2 delivers the actual capability you're asking for — a human can point at every feature and the highlighting proves it. Item 1 only makes the machine's proposals better; it buys you convenience on this drawing, at the price of re-baselining 957 identifiers.". Yes that makes good sense. When making the plan please do item 2 first. Above you said the following: " $150 — my recommendation │ Plan + 2a + 2b + 1-cheap, with headroom. This is the full "a human can author every feature and prove it on the drawing" capability.". Thanks. this is what I want you to plan for when you write the plan. Above, you said the following: "One scope question worth settling before I write, because it moves the number: per-object highlighting proves each thing you've authored is correct. It does not prove the JSON is complete — for that you'd want a view that paints every run of ink nothing has claimed, so unaccounted-for features are visible at a glance rather than found by clicking. hitTest already knows how to answer that per-line. Making it a coverage overlay is roughly one more session (+$25–50). Tell me whether that's in scope for _02 or a later document.". Yes, please plan for that as well. Above you said the following: "a human can author every feature and prove it on the drawing" capability.". Yes that is the goal. That is exactly what is needed. Please plan for exactly that. Please make the plan stand on it's own. This way I can point you to that file in our next session and you will know exactly what to do and you will know where to find everything that you need. In the plan please create a strategy to keep token usage as low as possible. Thanks for all of this.
 
@@ -461,3 +461,46 @@ On standing instruction 3
 claude.md was the right and sufficient orientation for both this session and the last. For the plan I needed eleven files you hadn't named — CommoningPanel.tsx, TargetPanel.tsx, PathPanel.tsx, LocateTab.tsx, wiringModel.ts, model.ts, hitTest.ts, paint.ts, DrawingTab.tsx, wiring.py, extract.py — and they're now all named in the plan's §3 with line numbers, so the next session doesn't rediscover them.
 
 Worth adding to claude.md: /home/js/schematics/.venv/bin/python is the only venv with pymupdf (server/.venv doesn't have it), and session cost is measurable from ~/.claude/projects/-home-js-schematics/*.jsonl — that's how the §10 numbers were derived, and it's the fastest way to check whether a session is on budget.
+
+
+!!!! The following was my next request !!!!
+
+Thanks. Above you wrote the following: "Worth adding to claude.md: /home/js/schematics/.venv/bin/python is the only venv with pymupdf (server/.venv doesn't have it), and session cost is measurable from ~/.claude/projects/-home-js-schematics/*.jsonl — that's how the §10 numbers were derived, and it's the fastest way to check whether a session is on budget.". Please make any required edits to /home/js/schematics/claude.md or completely rewrite it if required so that you will have the best start in the next Claude Code session. Please note that my first prompt in the next session will be as follows: "Greetings, Please read /home/js/schematics/claude.md and execute the request."
+
+
+
+!!!! The following was your response !!!!
+
+claude.md is rewritten: 407 lines → 223, 25.4 KB → 12.4 KB.
+
+What I cut
+
+The ~230-line change_history.md snippet. It was the bulk of the file and it was being read in full every session by construction — which is exactly the cost pattern §10 of the plan was written to stop. Everything in it that still bears on the work is now either in the plan's §3 (measured, with line numbers) or in the new §2/§3 of claude.md (three paragraphs). The rest was history: four dated session entries for phases that have all landed, and a NEXT UP block for a plan that is finished except your run.
+
+Also gone: "The four things this session might be / ask me which, do not guess." That block existed because the session had no defined job. It does now, so it moved to §9 as a fallback for a cold start, with the note that anything you've found while working overrides §1.
+
+What it now does
+
+§1 is the request, and it is one instruction: read the plan, execute §4, stop. It tells the next session to trust the plan's reading lists over its instinct to look around, and says why in dollars.
+
+Everything that cost a session to learn is preserved verbatim — the SWUI_ALLOW_EDITS gate and password, no reloader, built bundle, the absolute-count test trap with INDEXED and loadReal named, H18/H20/H23/H24/H25, the four checks, start-from-green with the K6 exception, the don't-author/don't-renumber/don't-auto-accept rules with W042 as the standing reason, the generator commands, and both generalisation requirements.
+
+Three things added, per your instruction and one of my own:
+
+- §4, last paragraph — the two venvs, and that only /home/js/schematics/.venv/bin/python has pymupdf, framed as the answer to is the ink there or did we miss it, which has cost three open items.
+- §7 — the whole budget section: the measured baseline, the context × calls formula, the command to price the current session, and sanity marks ($3–6 by 60 calls; past $25 before tests means cut the phase). Plus the $134 remaining against §9's $72–153.
+- §8.2 — a short list of what is currently uncommitted, so the next session isn't surprised by a dirty tree and doesn't mistake your wiring.json work for its own.
+
+Net effect on the next session
+
+Orientation was ~6.4 k tokens of claude.md. It is now ~3.1 k of claude.md plus ~7.7 k of the plan — call it 11 k, up about 4 k. That trade is deliberate and it's the right way round: the extra 4 k is a specification with real line numbers that replaces the exploring I did this session, and it removes the ~106 k of notes the old file implicitly invited. This session spent roughly 30 k tokens rediscovering where things live; the plan means the next one doesn't.
+
+One thing worth knowing: if you want the next session to do a different phase, change the one line in §1 — it names §4 explicitly, and §6/§5/§7 are listed right after it as the following three sessions.
+
+The old file is backed up at /tmp/claude_md_backup_20260912.md in case you want anything back from it, though git diff claude.md is the better record and survives a reboot.
+
+Wants committing: claude.md (this rewrite) and _claude_notes/highlighting_wires_and_nets_02.md (the plan) are the two new pieces of work. wiring.json is still your four commoning decisions. locations.json is still just the 0.1 pt nudge — revert unless you meant it.
+
+✻ Churned for 1m 50s · done 10:04 AM
+
+※ recap: Goal is a WebUI where a human points at schematic features and highlighting proves the JSON is complete; I wrote the plan for that and rewrote claude.md around it. Next session: execute plan §4, hand-tracing a block's commoning bus. (disable recaps in /config)
