@@ -3,6 +3,11 @@
 Written 2026-09-12. Supersedes nothing; `highlighting_wires_and_nets_01.md` is the paint and
 hit-test work that shipped, and **you do not need to read it to execute this.**
 
+**Status, 2026-09-13.** §4 is **shipped and walked** — the user authored `TB-110` and `TB-130`
+through the screen the same evening, and both records read `geometry: "human"`. §6 is the next
+session, then §5, then §7. §14 is new: an audit of which features a human can author today,
+written against the user's own expanded list of them.
+
 ---
 
 ## §0 How to use this document
@@ -18,6 +23,8 @@ Do **not** open these, and there is a measured reason below:
 | `highlighting_wires_and_nets.md` | 99 KB | ~25 k tokens. The work it describes already shipped. |
 | `geometry.json` | 620 KB | ~150 k tokens. Never. Use a `python3 -c` one-liner. |
 | `circuit_logic.json` | — | Generated. Never read whole. |
+| `locate_tab_testing/18_tests_hand_traced_commoning.md` | 7 KB | §4's lesson document. Written **for the user to walk**, not for you; everything a session needs from it is in §4 below. |
+| `locate_tab_testing/16_tests_…commoning.md` · `15_…wiring_editor.md` | 30 KB+ | Same. Lesson documents are the output of a phase, never its input. |
 
 That is ~106 k tokens of notes this plan exists to replace. **This file is ~25 KB on purpose.**
 
@@ -31,10 +38,19 @@ dollars.
 The user's words, 2026-09-11, after being told the answer to two authoring questions was a hand edit
 to `wiring.json` and `locations.json`:
 
-> *"we are making a WebUI that is supposed to allow a human make any required edits to the
-> highlighted wiring, commoning, paths, nets and so on. If I had made those edits to the file then we
-> lose the opportunity to create the use and utility required to make something that other humans
-> will be able to use."*
+> *"we are making a WebUI that is supposed to allow a human make any required edits to the highlighted 
+> wiring, terminals, commoning, paths, nets and other features of the drawing that is tracked 
+> in the json. If I had made those edits to the file then we lose the opportunity to create the use and 
+> utility required to make something that other humans will be able to use."*
+
+**`conductors` was in that list and the user struck it on 2026-09-13**, after asking what the
+difference between a wire and a conductor is. The reasoning, in one sentence: **a conductor is a
+measurement of the paper, not a claim about the circuit**, so a person drawing one would be
+inventing ink rather than authoring a feature. What a person authors instead is the
+*interpretation* — *this run is that wire's route*, *this stretch is that block's bus* — and where
+the ink is missing they draw the interpretation directly, which is what `geometry: "human"` records.
+Ink the extractor lost is a **bug upstream** (§7), not a gap in the screen. **Do not build a
+conductor editor.**
 
 And the goal, in the same message:
 
@@ -83,17 +99,19 @@ Everything in this plan serves that sentence. Nothing else is in scope.
 Verified by reading the files, not the notes. Line numbers are as of commit `902895f` plus the
 working tree.
 
-**The trace machinery (the pattern to copy for §4):**
+**The trace machinery — re-measured 2026-09-13, after Phase 2a moved it:**
 
 | Thing | Where |
 |---|---|
-| `tracing` state — the corners so far, `null` for not tracing | `webui/src/features/locate/LocateTab.tsx:300` |
-| `trace(start\|finish\|back\|abandon)` — the state machine | `LocateTab.tsx:801-824` |
-| Sheet click appends a corner while tracing | `LocateTab.tsx:1314` |
-| `Enter` finishes, `Backspace` un-corners, `Esc` abandons | `LocateTab.tsx:892-900`, `728-760` |
-| Handles are offered for hand-traced routes only | `LocateTab.tsx:615-624` (gated `kind !== 'wire'`) |
-| `Tracing` — the in-progress panel ("n corners so far") | `PathPanel.tsx:629` |
-| `tracePath` — what a finished trace writes | `features/locate/model.ts:709` |
+| `tracing` state — **`{ target, corners }`**, `null` for not tracing | `webui/src/features/locate/LocateTab.tsx:331` |
+| `TraceTarget` / `Trace` — the tag that keeps two files apart (`H26`) | `LocateTab.tsx:118-135` |
+| `trace(action, target?)` — the state machine, dispatching on the tag | `LocateTab.tsx:838-882` |
+| Sheet click appends a corner while tracing | `LocateTab.tsx:1386` |
+| `Enter` finishes, `Backspace` un-corners, `Esc` abandons | `LocateTab.tsx:947-958`, `786-795` |
+| Handles are offered for hand-traced routes only | `LocateTab.tsx:651-655` |
+| `Tracing` — the in-progress panel, shared and document-agnostic | `features/locate/Tracing.tsx:17` |
+| `tracePath` / `traceCommoning` — the two writers | `model.ts:709` · `wiringModel.ts:641` |
+| `conductorsAlong` + `ALONG_PT` — the ink a hand trace may claim | `wiring.ts:285` · `:260` |
 
 **Commoning, today:**
 
@@ -152,7 +170,36 @@ frame and the revision table. Specific ink: `TB-110:1`–`:2` at x 781.45, y 485
 
 ---
 
-## §4 Phase 2a — trace a block's bus by hand
+## §4 Phase 2a — trace a block's bus by hand — **SHIPPED 2026-09-12**
+
+**What landed, in seven lines.** `traceCommoning` in `wiringModel.ts` (`geometry: 'human'`, a stale
+`conductors` list deleted on a re-trace, the note kept); `conductorsAlong` + `ALONG_PT` in
+`wiring.ts`; `Trace by hand` on `CommoningPanel` with the dead-end copy gone; the tagged trace
+state machine in `LocateTab`; `Tracing` lifted to its own module; `H26` written; T-1300–T-1335 in
+`18_tests_hand_traced_commoning.md`. **473 web tests (+15), 261 server, ruff and tsc clean.**
+Cost **≈ $24**, against an estimate of $25–55.
+
+**Two departures from the plan as written, both deliberate:**
+
+1. **§4.4's gate could not be written as specified.** `Designator.terminals` is *absent on
+   components* (`api/types.ts:170`) and the commoning panel's entry **is** a component, so the test
+   would have read `undefined` and the panel would have vanished everywhere. The gate shipped as
+   *two or more of this component's terminals on **one net***, read off `terminalNets` — the
+   netlist, not a second draft, so `H18` stays intact. Still a shape statement, still no `TB-`.
+   Measured: the panel appears on **12** of 47 components, and on 6 of those the ink proposes
+   nothing.
+2. **A block the ink cannot see is reached through `Components`/`All`, not `Commoning`.** That
+   filter's membership is *ink proposes ∪ somebody authored* (`LocateTab.tsx:448`) and widening it
+   to *could have a bus* would take the denominator from 6 to 12 and re-introduce `K7`. A
+   hand-drawn block joins the filter the moment it is authored, which is what `TB-130` did.
+
+**Confirmed in the user's own file, 2026-09-13** — they walked it the same evening:
+
+    TB-110  geometry human · conductors [C0060, C0077] · 781.5,483.6 → 781.5,530.5  (46.9 pt)
+    TB-130  geometry human · no conductors             · 818.7,580.1 → 818.7,650.8  (70.7 pt)
+
+`wiring.json` now holds **6** commoning records, **2** of them hand-drawn. **Read the section below
+only if you are working on the trace machinery again.**
 
 **The deliverable.** `TB-110`'s commoning is authored as one run from `:1` to `:4`, **through the
 screen, with no file edit.** Same for `TB-130` and `TB-120`. The panel stops telling the reader their
@@ -287,7 +334,12 @@ authorable, including the three the notes have been carrying as *questions for y
 
 **The deliverable.** Both banners clear from the screen.
 
-**Reading list:** `TargetPanel.tsx:250-300` and `390-460`. Nothing else.
+**Reading list:** `TargetPanel.tsx:250-300` and `390-460`; `model.ts` `endLabelsOf`. Nothing else.
+
+**Measured 2026-09-13, so nobody re-derives it:** the overrides live under
+`locations.json` → `wires[id].labels`, keyed by **terminal id** → `{ hidden: true }` or
+`{ dir: … }`. **113 entries across 56 wires; `nets` has none.** The count in §6.3 and in
+`claude.md` said 111 — it moves as the user authors, so compute it, never quote it.
 
 Today (`TargetPanel.tsx:262-263`):
 
@@ -337,7 +389,28 @@ found by clicking 149 times.
 This is the half of §2 that does not exist, and it is the reason the user asked for it in scope.
 
 **Reading list:** `DrawingTab.tsx:160-200`, `270-330`, `450-490`, `780-830`, `900-930`;
-`hitTest.ts:96-150`; `paint.ts:150-250`. Nothing else.
+`hitTest.ts:96-150`; `paint.ts:150-250`. Nothing else. **All seven ranges re-checked 2026-09-13 and
+still right** — `claims` is at `DrawingTab.tsx:477`, the clutter objection at `:281`, `Claims` at
+`hitTest.ts:104-148`, `HIGHLIGHT`/`CANDIDATE`/`paintRuns` at `paint.ts:172`/`:191`/`:229`.
+
+**And the tests go in `19_tests_coverage_overlay.md` plus `DrawingTab.test.tsx`** — that file is
+where the Drawing tab's overlays are already covered; do not start a new spec file for the unit
+half. (§4's equivalent lesson learned: commoning is tested in `WiringPanel.test.tsx`, not
+`LocateTab.test.tsx`, and the plan did not say so.)
+
+**The numbers as they stand, measured 2026-09-13 with a one-liner over the three files:**
+
+| | |
+|---|---|
+| runs of ink on the sheet | **149** |
+| claimed by a wire's route | **44** |
+| claimed by a block's bus | **7** |
+| **unclaimed by either** | **98** |
+| wires with a route at all | **58 of 71** (16 of those hand-traced, naming no conductor) |
+
+**So the overlay will light up 98 of 149 runs on the day it ships, and `H27` is why that number is
+not the scandal it looks like:** 13 wires have no route yet and 16 more are hand-traced, which
+claim no conductor *by design*. Print the denominator beside the count or the view lies.
 
 ### 6.1 The computation — three lines, no new fetch
 
@@ -376,8 +449,9 @@ count; shipped alone it is a number that means the opposite of what it looks lik
    count reconciles against the sheet's total runs of ink (149 at the time of writing — get the number
    with a one-liner, do not hard-code it).
 2. The legend shows unclaimed count **and** `n of m wires have a route`.
-3. Authoring `TB-110`'s bus by hand (§4) **removes** its conductors from the unclaimed set — this is
-   the cross-check on §4.2 and the reason that decision is in §4 rather than here.
+3. **`C0060` and `C0077` are not in the unclaimed set** — the user's `TB-110` record names them and
+   it is already in `wiring.json`, so this is now a check against real authored data rather than a
+   scenario. That is the cross-check on §4.2 and the reason that decision was made in §4.
 4. Off by default; toggling off restores the sheet exactly.
 5. Tests in a new `19_tests_coverage_overlay.md`, T-1400 onward.
 
@@ -458,13 +532,16 @@ page border forever.** Ship them in the same plan and the border never appears.
 
 **Item 2 before item 1**, by the user's decision on 2026-09-12 and for the reason in §7.1.
 
-| # | Phase | Session | Est. |
-|---|---|---|---|
-| 1 | §4 — hand-trace a block's bus | one, whole | $25 – $55 |
-| 2 | §5 — orphaned override rows | half; may share a session with §6 | $12 – $28 |
-| 3 | §6 — the coverage overlay | one | $25 – $50 |
-| 4 | §7 — the extractor fix, no re-extraction | one, short | $10 – $20 |
-| | **Total** | **3–4 sessions** | **$72 – $153** |
+| # | Phase | Session | Est. | Actual |
+|---|---|---|---|---|
+| 1 | §4 — hand-trace a block's bus | one, whole | $25 – $55 | **$24, shipped 2026-09-12** |
+| 2 | §6 — the coverage overlay | one | $25 – $50 | **next** |
+| 3 | §5 — orphaned override rows | half | $12 – $28 | |
+| 4 | §7 — the extractor fix, no re-extraction | one, short | $10 – $20 | |
+| | **Remaining** | **2–3 sessions** | **$47 – $98** | |
+
+**§6 before §5** by the user's ordering in `claude.md` §1, which supersedes the original table: the
+overlay is the half of §2 that does not exist, and the orphan rows are two banners.
 
 Priced at Opus 5 API rates: $5/M in, $25/M out, $6.25/M cache write, $0.50/M cache read. The user
 funded ~$150 for this. **§10 is how it stays inside that**, and it is not advice — the same work has
@@ -485,6 +562,7 @@ Where it goes:
 | 2026-09-07 (Phase 0/A/B) | 367 | **407 K** | $73.23 | $107.40 |
 | 2026-09-11 (analysis only) | 99 | 65 K | $3.13 | $6.27 |
 | 2026-09-12 (this plan) | ~70 | 57 K | ~$1.50 | ~$8 |
+| 2026-09-12 (**§4, executed**) | 228 records | **136 K** | $15.27 | **$23.84** |
 
 **Cost ≈ $0.50 × (context in M tokens) × (number of calls).** Nothing else is close. Two sessions ran
 at 407 K of context four hundred times over. The spread between a 400 K session and a 60 K one is
@@ -503,6 +581,14 @@ at 407 K of context four hundred times over. The spread between a 400 K session 
 5. **Never read `geometry.json` or `circuit_logic.json`.** `python3 -c` printing a summary.
 6. **Do not re-read a file you just edited.** `Edit` fails loudly if it did not apply.
 7. **Independent calls go in one message.** Six greps in one block cost one call's context, not six.
+8. **Measure the drawing with `python3 -c`, never by reading it.** §4 answered *which ink does this
+   line follow* out of `geometry.json` in four one-liners — the conductors around `TB-110`, their
+   exact polylines, the shape rule's six blocks, the coverage census — for a few hundred tokens
+   each. The same four questions asked by reading files would have been the whole budget.
+9. **Do not calibrate a test by guessing.** §4's screen test needed a PDF point to land on a
+   conductor through the viewport transform. Computing it from the documented fit (`776/1224`
+   px/pt, origin `12, 48.94`) worked first time; clicking arbitrary pixels and adjusting would have
+   cost a test run each try, and a test run at 130 K is a dollar.
 
 ### The budget check
 
@@ -523,7 +609,7 @@ measurement is one script.
    a built bundle** — a change under `webui/src/` needs `cd webui && npm run build`. **A rebuilt bundle
    against an unrestarted server is the dangerous combination.**
 3. **If you start the server, stop it in the same turn. The console is the user's.**
-4. **Start from green**, at 261 server · 458 web · ruff clean · tsc clean. The one expected red is
+4. **Start from green**, at 261 server · **473** web · ruff clean · tsc clean. The one expected red is
    `test_the_committed_artifact_is_exactly_what_the_generator_writes`, whenever `locations.json` or
    `wiring.json` is ahead of `circuit_logic.json` — that is `K6` working. Clear it with the generator
    first so you can tell your breakage from the user's.
@@ -542,9 +628,14 @@ measurement is one script.
    Neither §4 nor §5 nor §6 moves the artifact. §7 does not either, because it does not re-extract.
 9. **Nothing drawing-specific in `server/app/` or `webui/src/`.** No `TB-` in a test, a gate or a
    string. §4.4 is where this rule is easiest to break.
-10. **Hazards to read before touching:** `H18` (three drafts, and §4.5 adds a second meeting point),
-    `H24` (the landing rule, before `features/locate/wiring.ts`), `H25` (the `W` table is not the list
-    of wires), `H20` (geometry is free and connectivity is not). New: **`H26`** (§4.5), **`H27`** (§6.3).
+10. **Hazards to read before touching:** `H18` (three drafts), **`H26`** (written 2026-09-12: one
+    gesture, two authored files, and a tag is the only thing keeping them apart), `H24` (the landing
+    rule, before `features/locate/wiring.ts`), `H25` (the `W` table is not the list of wires), `H20`
+    (geometry is free and connectivity is not). Still to write: **`H27`** (§6.3).
+11. **Three things §4 needed that its reading list did not name** — assume the same shape of gap in
+    §5 and §6. `TargetPanel.tsx` is the plumbing for every panel (props interface → sub-panel →
+    call site, three edits); `stores/wiringStore.ts`'s `edit` takes **no note**, unlike the
+    locations store's; and the test file for a panel is not always the file named after the tab.
 
 ---
 
@@ -552,12 +643,12 @@ measurement is one script.
 
 | Phase | Document | T-numbers |
 |---|---|---|
-| §4 | `_claude_notes/locate_tab_testing/18_tests_hand_traced_commoning.md` | T-1300 onward |
+| §4 | `18_tests_hand_traced_commoning.md` — **written, T-1300–T-1335** | done |
 | §5 | append to `10_tests_end_labels.md` | next free |
 | §6 | `_claude_notes/locate_tab_testing/19_tests_coverage_overlay.md` | T-1400 onward |
 | §7 | append to `EXTRACTION_NOTES.md` per §7.3.4 | — |
-| all | `06_code_map.md` — `H26`, `H27` | — |
-| all | `locate_tab_instruction_and_test_manual.md` — index the new leaves in §5a | — |
+| all | `06_code_map.md` — **`H26` written**, `H27` still owed by §6 | — |
+| all | `locate_tab_instruction_and_test_manual.md` — **§4's leaf indexed**, and its stale *no commoning section* troubleshooting row corrected | — |
 
 **Keep them short.** The test manual is an index over seventeen leaf documents already, and the notes
 tax measured in §10 is the reason this plan is 25 KB rather than 99 KB.
@@ -567,12 +658,55 @@ tax measured in §10 is the reason this plan is 25 KB rather than 99 KB.
 ## §13 Open questions — none are blocking
 
 1. **Does a hand-traced bus need draggable corners?** `PathHandles.tsx` would work on it unchanged,
-   since it keys on `geometry === 'human'`. Deliberately left out of §4 to keep the phase one session.
-   Cheap to add later; ask the user whether re-tracing is good enough first.
+   since it keys on `geometry === 'human'`. Left out of §4 to keep the phase one session. **There
+   are now two hand-drawn buses in the real file**, so the user can answer this from experience:
+   is re-tracing good enough, or does a 0.1 pt correction need a drag? Half a session if wanted.
 2. **`CommoningPanel.tsx:123`'s `C0105` tooltip** names this drawing in the client. Out of scope
    above; worth a line when someone is next in that file.
 3. **`server/app/prompts.py`** teaches the model this sheet's terminal conventions across ~50 lines.
    Not a problem until drawing number two, and then it is that plan's first page.
+4. **Should the `Commoning` filter list every block that *could* have a bus?** §4 decided no, to
+   keep the denominator finishable. The cost is that a block the ink cannot see is invisible until
+   somebody thinks to look at it as a component — which is exactly the *completeness* problem §6
+   exists for, one object type over. If §6's overlay makes that feel wrong, revisit it there.
+
+---
+
+## §14 What a human can author today — the audit, against the user's own list
+
+The user's words at the head of this document name the features: *"wiring, terminals, commoning,
+paths, nets and other features of the drawing that is tracked in the json."* This is that list
+against the four authored inputs, **2026-09-13** — with **conductors struck from it that day**, for
+the reason recorded under the quote in §1. It is the roadmap after this plan, and
+it exists so the next plan does not have to rediscover where the holes are.
+
+| Feature | Can a human author it? | Where, or why not |
+|---|---|---|
+| **Wiring** — which two terminals a wire joins | **Yes** | `Wiring` queue: confirm, correct either end, pick from the sheet, add a wire, retire one with a reason. 71 of 71 have a record; 3 confirmed so far |
+| **Paths** — where a wire runs | **Yes** | Lift a ranked run, add a run across a hop, trace by hand, drag a corner, or say *no path on this sheet*. 58 of 71 |
+| **Commoning** — a block's own bus | **Yes, since §4** | Accept the ink's stretch or draw it. 6 blocks, 2 drawn by hand |
+| **What the ink says** — printed readings | **Yes** | `Review` tab → `label_corrections.json`, 654 decisions |
+| **Terminals — where one is drawn** | **Yes** | Place, drag, nudge by 0.1 pt, several sites per component, label side. 131 placed |
+| **End labels — which end, which side, hidden** | **Yes, except one case** | 113 overrides on 56 wires. An override on a terminal the wire no longer touches has **no row** — that is §5, and it is the last known hole in an otherwise complete surface |
+| **Terminals — whether one *exists*** | **No** | The set of terminals comes from the tables in `author_circuit_logic.py`. There is no *add a screw* and no way to say *this pin is not on the drawing* |
+| **Nets — which net a terminal is on** | **No** | Same tables, the `net` field per terminal. **This is the sharpest gap**: net membership is what the highlight paints, so a net the reader can see is wrong can only be fixed in a Python file |
+| **Components — whether one exists, and what it is** | **No** | Same tables: class, description, ratings |
+| **Conductors — the runs of ink** | **No, and not a requirement** — struck 2026-09-13 | `geometry.json` is the extractor's reading of the PDF's own vectors, so it is a measurement rather than a claim, and a person drawing a conductor would be inventing ink. What a person authors is the **interpretation** of that ink: `TB-110`'s bus was drawn straight across a 16 pt gap the PDF's layer `"0"` hid, and the record says `geometry: "human"` so nobody mistakes it for the drawing's own line. Missing ink is a bug in extraction — **§7** — and the coverage overlay in §6 is how it gets noticed |
+
+**The shape of what is left.** `locations.json`, `wiring.json` and `label_corrections.json` each
+have a screen. **`author_circuit_logic.py` — *what each thing is* — has none**, and it is the one
+authored input where the answer to *how do I change this* is still *edit the file*. That is the same
+sentence this whole plan exists to delete, one file over. It wants its own plan, and it is bigger
+than any phase here: adding a terminal changes the netlist, so it needs the `W`-table treatment
+`H25` gave added wires — an *added* marker, a generator that accepts it, and a refusal by name for
+everything else.
+
+**Two honest notes about that plan, for whoever writes it.** First, `circuit_logic.json` is
+generated, so none of this can be authored *into* it — the editor would write a fifth authored
+input that the generator folds in, exactly as `wiring.json` is. Second, the reason it can wait: on
+**this** drawing the tables are right, because the extraction read them off the paper and the user
+has been checking them all along. It becomes urgent on **drawing number two**, where nobody has
+checked anything and the tables are a machine's first guess.
 
 ---
 

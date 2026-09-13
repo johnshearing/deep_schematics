@@ -1380,7 +1380,7 @@
       "power_domain": "control_signal",
       "normal_state": "carries the switch-relay coil return",
       "location": {
-        "x": 828.4,
+        "x": 828.1,
         "y": 657.1,
         "zone": "bottom-centre-right",
         "source": "human",
@@ -1396,7 +1396,7 @@
         {
           "id": "main",
           "point": [
-            828.4,
+            828.1,
             657.1
           ],
           "terminals": [],
@@ -2829,8 +2829,8 @@
       "function": "common",
       "net": "130",
       "location": {
-        "x": 818.6,
-        "y": 579.9,
+        "x": 818.7,
+        "y": 580.1,
         "source": "human"
       }
     },
@@ -2841,7 +2841,7 @@
       "net": "130",
       "location": {
         "x": 818.7,
-        "y": 650.9,
+        "y": 650.8,
         "source": "human"
       }
     },
