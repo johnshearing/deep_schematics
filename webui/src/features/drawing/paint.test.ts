@@ -11,6 +11,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  CANDIDATE,
   cssToPoint,
   HIGHLIGHT,
   overlaps,
@@ -19,6 +20,7 @@ import {
   pointToCss,
   polylineToDevice,
   tileDestRect,
+  UNCLAIMED,
   type PaintTile,
   type Polyline,
 } from './paint'
@@ -349,5 +351,25 @@ describe('paintRuns', () => {
     })
     expect(ctx.strokeStyle).toBe(HIGHLIGHT.stroke)
     expect(HIGHLIGHT.stroke).toMatch(/rgba\(.+0\.\d+\)$/)
+  })
+
+  it('paints an unclaimed run in a third colour, narrower and fainter than either', () => {
+    // **T-1408.** Three claims that must never be confused on this sheet: *this is the wire you
+    // selected*, *this is the run you are considering*, and *nobody has said anything about this
+    // run*. The third is painted dozens at a time, so it is also the thinnest and the faintest —
+    // a field of 5 pt stripes would be a second drawing over the first.
+    const ctx = recordingContext()
+    paintRuns({
+      ctx: ctx as unknown as CanvasRenderingContext2D,
+      dpr: 1,
+      viewport: { x: 0, y: 0, scale: 1 },
+      runs: RUNS,
+      style: UNCLAIMED,
+    })
+    expect(ctx.strokeStyle).toBe(UNCLAIMED.stroke)
+    expect(new Set([HIGHLIGHT.stroke, CANDIDATE.stroke, UNCLAIMED.stroke]).size).toBe(3)
+    expect(UNCLAIMED.widthPt).toBeLessThan(CANDIDATE.widthPt)
+    expect(UNCLAIMED.widthPt).toBeLessThan(HIGHLIGHT.widthPt)
+    expect(UNCLAIMED.stroke).toMatch(/rgba\(.+0\.\d+\)$/)
   })
 })

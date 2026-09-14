@@ -195,6 +195,31 @@ export const CANDIDATE: RunStyle = {
 }
 
 /**
+ * A run of ink **nothing claims** — no wire's route, no block's bus. The coverage overlay.
+ *
+ * The other two styles answer *which line is this one*, one run at a time. This one answers *how
+ * much of the sheet is still unaccounted for*, and it paints a field: 98 of 149 runs on the day it
+ * shipped. Every number below follows from that difference.
+ *
+ * **A third hue, not a third alpha.** Pink against the highlight's orange-red and the proposal's
+ * blue, because on this sheet the three claims must never be confused: *this is the wire you
+ * selected*, *this is the run you are considering*, and *nobody has said anything about this run*.
+ * **Narrower than either**, at 2.5 pt against 16 pt rows, because dozens are lit at once and a
+ * 5 pt stripe on each would be a second drawing over the first. **Fainter**, for the same reason
+ * and one more: the reader's next act is to look at the ink underneath and decide what it is, so
+ * the paper has to stay readable through it.
+ *
+ * Painted **under** both of the others, so selecting a wire whose route is hand-traced still shows
+ * its highlight on top of the unclaimed ink it runs along — which is exactly the honest picture,
+ * because a hand trace claims no conductor by design (`H27`).
+ */
+export const UNCLAIMED: RunStyle = {
+  widthPt: 2.5,
+  minDevicePx: 2,
+  stroke: 'rgba(219, 39, 119, 0.36)',
+}
+
+/**
  * A polyline in PDF points, projected onto the backing store in **device pixels**.
  *
  * Every vertex goes through `tileDestRect`, exactly as `pointToCss` does, and that is the whole

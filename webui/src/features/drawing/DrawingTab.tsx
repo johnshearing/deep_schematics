@@ -27,6 +27,7 @@ import {
   CircleDot,
   Crosshair,
   ExternalLink,
+  Highlighter,
   ImageOff,
   Map,
   Maximize2,
@@ -480,6 +481,43 @@ export function DrawingTab() {
   )
 
   /**
+   * **The coverage overlay — every run of ink that *nothing* claims.**
+   *
+   * The other half of *is this drawing completely represented*. Per-object highlighting answers
+   * **correct** — select a wire, see the ink it claims — and has since Phase D. **Complete** is
+   * *nothing on the sheet is unaccounted for*, and until this toggle the only way to ask was to
+   * click all 149 runs one at a time and read *no wire claims this run* off each card.
+   *
+   * Nothing is fetched for it. `claims` is already built from `/api/paths` and the shape rule,
+   * `conductors` is already on the page for the hit test, and unclaimed is the complement: a run
+   * in neither claim map. The shape rule's proposals count as a claim, deliberately — the overlay
+   * answers *has anything accounted for this ink*, and *`TB-120`'s bus, on the ink's own evidence*
+   * is an account. What it is **not** is a decision, and this view must never be read as one:
+   * **nothing here is ever auto-accepted**, and a run this overlay leaves dark is a question for a
+   * person, not a record to write.
+   *
+   * Off by default and not persisted, which is `DrawingTab.tsx`'s own hard-won rule about
+   * overlays: the user's words on the last one were *"this adds clutter and confusion to the
+   * drawing"*, and a sheet that came back tomorrow with 98 lines lit would earn that twice.
+   */
+  const [coverage, setCoverage] = useState(false)
+
+  const unclaimed = useMemo(
+    () =>
+      (conductors ?? []).filter(
+        (run) => !(run.id in claims.byConductor) && !(run.id in claims.commoning),
+      ),
+    [conductors, claims],
+  )
+
+  /** Memoised rather than mapped at the call site: `TileSheet` is `memo`, and a fresh array every
+   * render would repaint the whole canvas on every pointer move. */
+  const unclaimedRuns = useMemo(
+    () => (coverage ? unclaimed.map((run) => run.points) : undefined),
+    [coverage, unclaimed],
+  )
+
+  /**
    * Fly to whatever the answer just pointed at.
    *
    * Keyed on the selection's nonce, so clicking the same citation twice pans again — by then
@@ -676,6 +714,30 @@ export function DrawingTab() {
           </span>
         )}
 
+        {/**
+          * **The legend, and it is not optional — `H27`.**
+          *
+          * The count of unclaimed runs, alone, reads as *look how much of this drawing is
+          * unaccounted for*. The true reading on the day this shipped was *almost nothing has
+          * been authored yet*: 98 of 149 runs dark, against 58 of 71 wires with a route, 16 of
+          * those drawn by hand and claiming no run at all by design. Two numbers that tell
+          * opposite stories, so they are printed together or the view lies.
+          *
+          * In the left flow rather than beside the button: the toolbar's right-hand end is the
+          * switches and the zoom, and a sentence wedged between them wraps to nothing on a narrow
+          * window. `data-coverage-legend` is how a test reads it — see `DrawingTab.test.tsx`.
+          */}
+        {coverage && (
+          <span className="text-muted-foreground" data-coverage-legend>
+            <span className="font-medium text-foreground">
+              {unclaimed.length} of {conductors?.length ?? 0}
+            </span>{' '}
+            runs of ink are claimed by nothing · {claims.traced} of {claims.wires} wires have a
+            route
+            {claims.handTraced > 0 && <>, {claims.handTraced} of those hand-traced, claiming none</>}
+          </span>
+        )}
+
         <div className="ml-auto flex items-center gap-1">
           {/* A group with nothing to draw offers no switch — a pressed `Nets` that changed nothing
               on the sheet would read as broken rather than as empty. The Locate tab is where those
@@ -710,6 +772,35 @@ export function DrawingTab() {
               ),
             )}
           </div>
+
+          {/* **Outside the layers group, because it is not one of them.** Those five switch
+              *marks this tab draws over the index*; this one paints *the drawing's own ink that
+              the index has nothing to say about*, which is a question about the JSON rather than
+              a filter over it. It also keeps `Layers on the sheet` meaning what every test in
+              `DrawingTab.test.tsx` already asks it to mean.
+
+              Offered only once the ink is here: with no conductors the overlay would paint
+              nothing, and a switch that changes nothing reads as broken rather than as empty —
+              the same argument the layer switches make for themselves above. */}
+          {(conductors?.length ?? 0) > 0 && (
+            <Button
+              variant={coverage ? 'default' : 'ghost'}
+              size="sm"
+              aria-pressed={coverage}
+              onClick={() => setCoverage((on) => !on)}
+              title={
+                `Paint every run of ink that nothing claims — no wire's route, no block's bus. ` +
+                `The drawing's own answer to what is not in the JSON yet. A run left dark is a ` +
+                `question for your eyes, never a record to write.`
+              }
+              className="h-8"
+              data-coverage-toggle
+            >
+              <Highlighter />
+              Unclaimed ink
+            </Button>
+          )}
+
           <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={viewer.zoomOut}>
             <Minus />
           </Button>
@@ -820,6 +911,9 @@ export function DrawingTab() {
                  *this is the line you asked about* is not the same claim as *this is the route of
                  the wire you selected*, and one colour for both would say it was. */
               candidates={pick ? [pick.conductor.points] : undefined}
+              /* The coverage overlay, under both of those: it is the state of the sheet rather
+                 than an answer to anything just asked. `undefined` while the toggle is off. */
+              unclaimed={unclaimedRuns}
               onTileSettled={onTileSettled}
             />
           )}
@@ -919,6 +1013,10 @@ export function DrawingTab() {
             zoom. A wire or net that has been traced is also{' '}
             <span className="font-medium text-foreground">highlighted along the ink</span> — the
             drawing&apos;s own conductor strokes, never a line between its ends.{' '}
+            <span className="font-medium text-foreground">Unclaimed ink</span> asks the other
+            question — it paints every run of ink that no wire&apos;s route and no block&apos;s
+            bus accounts for, beside how many wires have a route at all, which is the number that
+            makes the first one mean anything. A run it leaves dark is a question for your eyes.{' '}
           </>
         )}
         Redrawn at your display's full resolution on every frame, from the

@@ -4,9 +4,10 @@ Written 2026-09-12. Supersedes nothing; `highlighting_wires_and_nets_01.md` is t
 hit-test work that shipped, and **you do not need to read it to execute this.**
 
 **Status, 2026-09-13.** §4 is **shipped and walked** — the user authored `TB-110` and `TB-130`
-through the screen the same evening, and both records read `geometry: "human"`. §6 is the next
-session, then §5, then §7. §14 is new: an audit of which features a human can author today,
-written against the user's own expanded list of them.
+through the screen the same evening, and both records read `geometry: "human"`. **§6 is shipped
+and not yet walked** (`19_tests_coverage_overlay.md`, T-1400–T-1440). §5 is the next session, then
+§7. §14 is new: an audit of which features a human can author today, written against the user's
+own expanded list of them.
 
 ---
 
@@ -380,7 +381,26 @@ not a wire **or net** in the netlist"* — `end_labels` is keyed by either.
 
 ---
 
-## §6 Phase 2c — the coverage overlay: *proving the JSON is complete*
+## §6 Phase 2c — the coverage overlay: *proving the JSON is complete* — **SHIPPED 2026-09-13**
+
+**What landed, in six lines.** `UNCLAIMED`, a third `RunStyle` in `paint.ts` — pink, 2.5 pt,
+thinner and fainter than either of the other two because dozens paint at once; an `unclaimed` prop
+on `TileSheet`, painted **under** the candidate and the highlight, with `data-unclaimed` on the
+canvas; `coverage` + the `unclaimed`/`unclaimedRuns` memos and an `Unclaimed ink` toggle in
+`DrawingTab`, outside the `Layers on the sheet` group because it is not one of them;
+`Claims.handTraced` in `hitTest.ts`, the third honesty number; the legend at
+`data-coverage-legend`; `H27` in `06_code_map.md` and T-1400–T-1440 in
+`19_tests_coverage_overlay.md`. **482 web tests (+9), 261 server, ruff and tsc clean.**
+Client-only, exactly as predicted — no server change, no schema change.
+
+**One decision worth recording: the shape rule's proposal counts as an account of the ink.** A run
+`commoningFor` proposes as some block's bus is **not** painted, because the question this view
+asks is *has anything accounted for this ink*, not *has a person decided*. The card is still where
+a proposal and a decision are told apart, and nothing here accepts anything.
+
+**Measured the same day, out of the three files with one `python3 -c`:** 149 runs · 44 claimed by
+a route · 7 by a bus · **98 claimed by nothing** · 58 of 71 wires with a route, 16 hand-traced.
+`C0060` and `C0077` are **not** in the unclaimed set, which is §6.4.3 and the cross-check on §4.2.
 
 **The deliverable.** One toggle on the Drawing tab paints every run of ink that **nothing** claims —
 no wire's route, no block's bus. Unaccounted-for features become visible at a glance instead of being
@@ -535,8 +555,8 @@ page border forever.** Ship them in the same plan and the border never appears.
 | # | Phase | Session | Est. | Actual |
 |---|---|---|---|---|
 | 1 | §4 — hand-trace a block's bus | one, whole | $25 – $55 | **$24, shipped 2026-09-12** |
-| 2 | §6 — the coverage overlay | one | $25 – $50 | **next** |
-| 3 | §5 — orphaned override rows | half | $12 – $28 | |
+| 2 | §6 — the coverage overlay | one | $25 – $50 | **shipped 2026-09-13** |
+| 3 | §5 — orphaned override rows | half | $12 – $28 | **next** |
 | 4 | §7 — the extractor fix, no re-extraction | one, short | $10 – $20 | |
 | | **Remaining** | **2–3 sessions** | **$47 – $98** | |
 
@@ -631,7 +651,8 @@ measurement is one script.
 10. **Hazards to read before touching:** `H18` (three drafts), **`H26`** (written 2026-09-12: one
     gesture, two authored files, and a tag is the only thing keeping them apart), `H24` (the landing
     rule, before `features/locate/wiring.ts`), `H25` (the `W` table is not the list of wires), `H20`
-    (geometry is free and connectivity is not). Still to write: **`H27`** (§6.3).
+    (geometry is free and connectivity is not), **`H27`** (written 2026-09-13: the coverage
+    overlay's count is only honest beside the number of wires that have a route at all).
 11. **Three things §4 needed that its reading list did not name** — assume the same shape of gap in
     §5 and §6. `TargetPanel.tsx` is the plumbing for every panel (props interface → sub-panel →
     call site, three edits); `stores/wiringStore.ts`'s `edit` takes **no note**, unlike the
@@ -645,9 +666,9 @@ measurement is one script.
 |---|---|---|
 | §4 | `18_tests_hand_traced_commoning.md` — **written, T-1300–T-1335** | done |
 | §5 | append to `10_tests_end_labels.md` | next free |
-| §6 | `_claude_notes/locate_tab_testing/19_tests_coverage_overlay.md` | T-1400 onward |
+| §6 | `19_tests_coverage_overlay.md` — **written, T-1400–T-1440** | done |
 | §7 | append to `EXTRACTION_NOTES.md` per §7.3.4 | — |
-| all | `06_code_map.md` — **`H26` written**, `H27` still owed by §6 | — |
+| all | `06_code_map.md` — **`H26` and `H27` written** | — |
 | all | `locate_tab_instruction_and_test_manual.md` — **§4's leaf indexed**, and its stale *no commoning section* troubleshooting row corrected | — |
 
 **Keep them short.** The test manual is an index over seventeen leaf documents already, and the notes

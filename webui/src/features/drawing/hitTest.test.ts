@@ -123,6 +123,24 @@ describe('pointing at a line', () => {
     expect(pickRun(null, [420, 563.4], claimsFrom(PATHS, 71, PROPOSED))).toBeNull()
   })
 
+  it('counts the routes a person drew, which claim no run at all', () => {
+    // **T-1406, and the third number of the honesty requirement.** A hand-traced route stores its
+    // own polyline and names no conductor, so the ink under it stays *unclaimed* forever and
+    // correctly — 16 of the real 58 routes are like this. The coverage overlay's count is read
+    // beside this number or it invites *nobody has traced that* where somebody has.
+    const drawn: PathIndex = {
+      ...PATHS,
+      wires: {
+        ...PATHS.wires,
+        W049: { runs: [[[0, 0], [10, 0]]], geometry: 'human', attribution: 'human' },
+      },
+    }
+    const claims = claimsFrom(drawn, 71, PROPOSED)
+    expect([claims.traced, claims.handTraced]).toEqual([2, 1])
+    // …and the hand-traced route claimed nothing, which is what makes the number worth printing.
+    expect(Object.keys(claims.byConductor)).toEqual(['C0091'])
+  })
+
   it('gives a short stub the click where it crosses a long run', () => {
     // Two runs meeting at a pin is the ordinary case at every terminal block. A click near the
     // end of the stub is a click on the stub; the bus passing through is not what anybody is

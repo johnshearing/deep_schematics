@@ -38,7 +38,7 @@ import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { tileUrl } from '@/api/client'
 import type { Tile } from '@/api/types'
-import { CANDIDATE, paintRuns, paintSheet, type Polyline } from './paint'
+import { CANDIDATE, paintRuns, paintSheet, UNCLAIMED, type Polyline } from './paint'
 import type { Viewport } from './useTileViewport'
 
 interface Props {
@@ -70,6 +70,15 @@ interface Props {
    * proposals or drawing one.
    */
   candidates?: readonly Polyline[]
+  /**
+   * Every run of ink **nothing claims** — the coverage overlay, and the one layer here that is
+   * about the drawing as a whole rather than about one selection.
+   *
+   * Painted first, so it lies under both of the others: a highlight or a proposal is an answer to
+   * a question just asked, and neither may be dimmed by the background state of the sheet. Absent
+   * is the normal state — the toggle starts off.
+   */
+  unclaimed?: readonly Polyline[]
   onTileSettled: (file: string, ok: boolean) => void
 }
 
@@ -87,6 +96,7 @@ export const TileSheet = memo(function TileSheet({
   dpr,
   runs,
   candidates,
+  unclaimed,
   onTileSettled,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -135,13 +145,31 @@ export const TileSheet = memo(function TileSheet({
       })
       // After the tiles, so the highlight lies over the ink it follows, and before the DOM
       // markers, which are a layer above this canvas entirely.
+      //
+      // Coverage first of the three: it is the state of the whole sheet, and an answer to a
+      // question the reader just asked has to sit on top of it rather than compete with it.
+      if (unclaimed?.length) {
+        paintRuns({ ctx, dpr, viewport, runs: unclaimed, style: UNCLAIMED })
+      }
       if (candidates?.length) {
         paintRuns({ ctx, dpr, viewport, runs: candidates, style: CANDIDATE })
       }
       if (runs?.length) paintRuns({ ctx, dpr, viewport, runs })
     })
     return () => cancelAnimationFrame(frame.current)
-  }, [tiles, width, height, viewport, size.width, size.height, dpr, runs, candidates, arrivals])
+  }, [
+    tiles,
+    width,
+    height,
+    viewport,
+    size.width,
+    size.height,
+    dpr,
+    runs,
+    candidates,
+    unclaimed,
+    arrivals,
+  ])
 
   return (
     <>
@@ -156,6 +184,11 @@ export const TileSheet = memo(function TileSheet({
         /* And how many were offered rather than accepted, read the same way and for the same
            reason: nothing painted on this canvas can be read back through the DOM. */
         data-candidates={candidates?.length ?? 0}
+        /* And how many runs of ink nothing claims, read the same way. Zero is both *the overlay
+           is off* and *every run is claimed*; the legend beside the toggle is what tells those
+           two apart, and it is why §6.3 makes the legend part of the feature rather than a
+           decoration on it. */
+        data-unclaimed={unclaimed?.length ?? 0}
         className="pointer-events-none absolute inset-0 block h-full w-full"
       />
 

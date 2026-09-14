@@ -264,6 +264,7 @@ of `circuit_logic.json`.
 | **Point-space arithmetic, and there is one of it** | `webui/src/lib/polyline.ts` | `project`, `atArc`, `between`, `polylineLength`, `gap`. Not a screen projection — that is `paint.ts` and invariant 2. This is *how far is this pin from that run, and how far along*, and it had one caller until Phase D gave it three: the endpoint proposal, the bus a commoning record is cut out of, and the sheet hit-test. A hit-test with its own distance function could name a run the landing rule says a pin is not on |
 | **What line am I pointing at** — the sheet hit-test and its three verdicts | `webui/src/features/drawing/hitTest.ts` | `pickRun`, `claimsFrom`, `Pick`, `Claims`, `PICK_PT` = 6 (a third of a conductor row, in **points**, so the target is the same width of paper at every zoom). Nearest **and** within tolerance: a click on blank paper answers *nothing here* rather than reaching for the closest run. A confirmed bus and one the shape rule merely found are kept **apart**, because they are different claims |
 | **The card that names a run of ink** | `webui/src/features/drawing/ConductorCard.tsx` | `ConductorCard`, `Verdict`. `data-conductor-card`, `data-conductor-verdict` and `data-conductor-coverage` find it. It prints *`n` of 71 wires have a route so far* beside **every** verdict — the honesty requirement, because until the authoring run *no wire claims this run* is right for about 90 of the 149 |
+| **Is the drawing *completely* represented** — the coverage overlay | `webui/src/features/drawing/DrawingTab.tsx` · `paint.ts` · `TileSheet.tsx` | `coverage` (off by default, not persisted), the `unclaimed` memo, `UNCLAIMED` (a third `RunStyle`, thinner and fainter because dozens paint at once), `data-coverage-toggle`, `data-coverage-legend`, `data-unclaimed` on the canvas. A run is unclaimed when its id is in **neither** `claims.byConductor` **nor** `claims.commoning` — no new fetch, no second paint path, no server change (`H20`: geometry is free). The shape rule's proposal **counts as an account**: the question is *has anything accounted for this ink*, not *has a person decided*. Read with the legend or not at all — `H27`. Walked in `19_tests_coverage_overlay.md`, T-1400– |
 | **Authoring a block's commoning** | `webui/src/features/locate/CommoningPanel.tsx` | `CommoningPanel`, `NoteBox`. On a **component** row, through `wiringStore` — `H18`, and the reason it is not a store of its own. `data-commoning-panel`, `-accept`, `-clear`, `-runs`, `-note`, and since 2026-09-12 `-trace`. **Whether the panel appears at all** is `commonable` — *two or more of this component's terminals on one net*, read off `terminalNets`, which is the netlist and not a second draft. It replaced *the ink proposed something*, which hid the panel on exactly the blocks that needed authoring |
 | **Drawing a block's bus by hand** | `features/locate/wiringModel.ts` · `features/locate/wiring.ts` · `features/locate/Tracing.tsx` | `traceCommoning` — the second writer, `geometry: 'human'` because the corners are the person's, beside `setCommoning`'s `'extracted'`. A stale `conductors` list is **deleted** on a re-trace and the `note` survives one. `conductorsAlong` + `ALONG_PT` (= `2 × ON_INK_PT`) compute the weaker claim — *and the line follows this ink* — by shared course, so a wire crossing the bus square-on is not claimed. `Tracing` is the in-progress panel, shared by both traced object types and knowing neither file: `H26` |
 | **Every rule the commoning editor applies** | `webui/src/features/locate/wiringModel.ts` | `commoningOf`, `setCommoning`, `clearCommoning`, `setCommoningNote`, `commonedBlocks`, `commoningCoverage`. `setCommoning` writes `extracted`/`human` and never `derived`; `clearCommoning` **deletes**, unlike `unconfirm` one section up, because nothing bootstrapped a bus and *no record* is the same state as *nobody authored this* |
@@ -1088,6 +1089,33 @@ thing on screen. The client-side guard is
 `keeps the two documents apart: a block's trace never reaches the path editor` in
 `WiringPanel.test.tsx`, which asserts that finishing a bus trace writes `wiring.json` and sends
 **nothing at all** to `/api/locations`.
+
+### H27 — the coverage overlay is only honest beside the count of wires that have a route *(added 2026-09-13)*
+
+The overlay paints every run of ink that nothing claims. On the day it shipped that was **98 of
+149**, and read alone it says *most of this drawing is unaccounted for*. The true reading is
+*almost nothing has been authored yet*, and the two are opposite conclusions from one number.
+
+Three separate things make the count large while nothing is wrong:
+
+1. **13 of the 71 wires have no route at all.** Nobody has been asked about their ink yet.
+2. **16 of the 58 routes that exist were traced by hand**, and a hand trace claims no conductor
+   *by design* — `conductors` on a path is a provenance note, not the geometry. The ink under a
+   hand-drawn route therefore reads unclaimed forever, and correctly.
+3. **Roughly 90 of the 149 runs are not wiring**: leader lines, earth symbols, the internal
+   strokes of a contact symbol. They will never be claimed by anything and that is the right
+   outcome, not a gap.
+
+So the legend is **part of the feature and not a decoration on it**: `data-coverage-legend` prints
+the unclaimed count beside `n of m wires have a route`, and beside how many of those were drawn by
+hand. `Claims.handTraced` (`features/drawing/hitTest.ts`) exists for that third number and for
+nothing else. **Shipping the count alone would be a screen that means the opposite of what it looks
+like** — the same failure `ConductorCard`'s *`n` of 71 wires have a route so far* already guards
+against one object at a time.
+
+**And nothing here is ever accepted.** A run the overlay leaves dark is a question for a person's
+eyes; `W042` is the standing reason — the user pressed *I looked and it was right* on a wire the
+ink says nothing about, and that was the correct answer.
 
 ---
 

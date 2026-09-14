@@ -110,6 +110,15 @@ export interface Claims {
    * verdict of *no wire claims this run* means very little at 3 of 71 and a great deal at 71. */
   wires: number
   traced: number
+  /**
+   * …and how many of those routes were **drawn by a person**, which claim no conductor at all.
+   *
+   * The third number of the honesty requirement, and the coverage overlay is what made it worth
+   * publishing (`H27`): a hand-traced route stores its own polyline and names no run, so the ink
+   * it follows keeps reading *unclaimed* forever and correctly. Without this the overlay's count
+   * invites *nobody has traced that*, where the truth may be *somebody traced it by hand*.
+   */
+  handTraced: number
 }
 
 /**
@@ -146,6 +155,8 @@ export function claimsFrom(
     commoning,
     wires,
     traced: Object.keys(index?.wires ?? {}).length,
+    handTraced: Object.values(index?.wires ?? {}).filter((path) => path.geometry === 'human')
+      .length,
   }
 }
 

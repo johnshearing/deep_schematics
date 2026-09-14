@@ -1435,3 +1435,148 @@ describe('pointing at a line on the sheet', () => {
     expect(document.querySelector('[data-conductor-card]')).toBeNull()
   })
 })
+
+// -- §6 Phase 2c: the coverage overlay --------------------------------------------------------
+//
+// **The other half of *is this drawing completely represented*.** Everything above answers
+// *correct* — select a thing, see the ink it claims. This answers *complete*: which runs of ink
+// nothing claims, painted at once, instead of clicking all 149 and reading each card.
+//
+// The tests are T-1400 onward and `19_tests_coverage_overlay.md` is the walk-through of them.
+
+/**
+ * The index shaped for this question: a drawing of **three** wires, of which the paths fixture
+ * has traced two. The gap between those two numbers is the whole of `H27` — the count of
+ * unclaimed runs means nothing without it.
+ */
+function coverageIndex(): DesignatorIndex {
+  const entries = [...COMPONENTS, ...TERMINALS, NET_110, W048]
+  return {
+    drawing_number: 'PS20115MLM4-2',
+    counts: { component: 3, terminal: 2, net: 1, wire: 3 },
+    located: entries.length,
+    entries,
+  }
+}
+
+/** How many runs the sheet was asked to paint as unclaimed this frame — the same idiom as
+ * `highlighted()`, and for the same reason: jsdom hands back no 2D context. */
+function unclaimed(): number {
+  return Number(screen.getByRole('application').querySelector('canvas')?.dataset.unclaimed ?? -1)
+}
+
+function toggle(): HTMLButtonElement {
+  return screen.getByRole('button', { name: 'Unclaimed ink' }) as HTMLButtonElement
+}
+
+function legend(): string {
+  return document.querySelector('[data-coverage-legend]')?.textContent ?? ''
+}
+
+function showing(paths: PathIndex | null, conductors: Conductor[] = [COIL_BUS, C0059]) {
+  const index = coverageIndex()
+  useAppStore.setState({ paths, designators: index, byToken: buildLookup(index), conductors })
+  render(<DrawingTab />)
+  activate()
+}
+
+describe('the coverage overlay', () => {
+  it('is off until it is asked for, and is not one of the layer switches', () => {
+    // **T-1400.** The user's verdict on the last overlay that lit the sheet by itself was *"this
+    // adds clutter and confusion to the drawing"*, and 98 of 149 runs lit on arrival would earn
+    // it twice. It is also not a *layer*: the five switches choose which of the index's marks to
+    // draw, and this one paints the drawing's own ink that the index says nothing about.
+    showing(COMMONED)
+
+    expect(unclaimed()).toBe(0)
+    expect(document.querySelector('[data-coverage-legend]')).toBeNull()
+    expect(toggle().getAttribute('aria-pressed')).toBe('false')
+    expect(
+      within(screen.getByRole('group', { name: 'Layers on the sheet' })).queryByRole('button', {
+        name: 'Unclaimed ink',
+      }),
+    ).toBeNull()
+  })
+
+  it('paints exactly the runs that neither a route nor a bus claims', () => {
+    // **T-1401.** `C0079` is `CR-BP`'s confirmed bus and `W048`'s route names `C0080`, which is
+    // not on this sheet — so `C0059` is the one run nothing accounts for.
+    showing(COMMONED)
+    fireEvent.click(toggle())
+
+    expect(unclaimed()).toBe(1)
+    expect(toggle().getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('paints nothing once every run is accounted for', () => {
+    // **T-1402.** The state the authoring run is working towards, and the one that proves the
+    // view is a measurement rather than a decoration: give `W048`'s route the other conductor
+    // and the sheet goes dark.
+    const routed: PathIndex = {
+      ...COMMONED,
+      wires: { ...COMMONED.wires, W048: { ...COMMONED.wires.W048, conductors: ['C0059'] } },
+    }
+    showing(routed)
+    fireEvent.click(toggle())
+
+    expect(unclaimed()).toBe(0)
+    expect(legend()).toMatch(/0 of 2\s*runs of ink are claimed by nothing/)
+  })
+
+  it('prints the count beside how many wires have a route at all — H27', () => {
+    // **T-1403, and the reason the legend is part of the feature.** *One run of ink is claimed by
+    // nothing* reads as a scandal on its own. Beside *two of three wires have a route, one of
+    // those hand-traced and claiming none*, it reads as work not yet done — which is the truth.
+    showing(COMMONED)
+    fireEvent.click(toggle())
+
+    expect(legend()).toMatch(/1 of 2\s*runs of ink are claimed by nothing/)
+    expect(legend()).toMatch(/2 of 3 wires have a route/)
+    expect(legend()).toMatch(/1 of those hand-traced/)
+  })
+
+  it('counts the shape rule’s proposal as an account of the ink', () => {
+    // **T-1404.** Two confirmed pins of one component on one run is a bus on the ink's own
+    // evidence, and the overlay asks *has anything accounted for this*, not *has a person
+    // decided*. `C0079` therefore does not light up even with no authored path at all — the card
+    // is still where the difference between a proposal and a decision is said, and nothing here
+    // accepts anything.
+    const index = wiredIndex()
+    useAppStore.setState({
+      paths: null,
+      designators: index,
+      byToken: buildLookup(index),
+      conductors: [COIL_BUS, C0059],
+    })
+    render(<DrawingTab />)
+    activate()
+    fireEvent.click(toggle())
+
+    expect(unclaimed()).toBe(1)
+  })
+
+  it('gives the sheet back exactly as it was when it is switched off', () => {
+    // **T-1405.** Including the highlight underneath it: the overlay is the state of the drawing
+    // and a selection is an answer to a question, and turning one off must not disturb the other.
+    showing(COMMONED)
+    act(() => useAppStore.getState().select('net', '110'))
+    const before = highlighted()
+
+    fireEvent.click(toggle())
+    expect(unclaimed()).toBe(1)
+    expect(highlighted()).toBe(before)
+
+    fireEvent.click(toggle())
+    expect(unclaimed()).toBe(0)
+    expect(highlighted()).toBe(before)
+    expect(document.querySelector('[data-coverage-legend]')).toBeNull()
+  })
+
+  it('offers no switch at all before the runs of ink have landed', () => {
+    // **T-1407.** A switch that paints nothing reads as broken rather than as empty — the same
+    // argument the layer switches make for themselves. `data-ink-error` is what a reader gets
+    // instead when the fetch actually failed.
+    showing(COMMONED, [])
+    expect(screen.queryByRole('button', { name: 'Unclaimed ink' })).toBeNull()
+  })
+})
