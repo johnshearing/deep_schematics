@@ -38,7 +38,7 @@ import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { tileUrl } from '@/api/client'
 import type { Tile } from '@/api/types'
-import { CANDIDATE, paintRuns, paintSheet, UNCLAIMED, type Polyline } from './paint'
+import { AUTHORED, CANDIDATE, paintRuns, paintSheet, UNCLAIMED, type Polyline } from './paint'
 import type { Viewport } from './useTileViewport'
 
 interface Props {
@@ -79,6 +79,19 @@ interface Props {
    * is the normal state — the toggle starts off.
    */
   unclaimed?: readonly Polyline[]
+  /**
+   * **Every run a person has authored** — each wire's route and each block's bus, the whole sheet
+   * at once. The Locate tab's field, so that the ink this does *not* cover is the queue.
+   *
+   * Its own prop beside `unclaimed` rather than a generic `{runs, style}[]`: one prop per claim
+   * keeps the paint order below readable as four named layers, and it leaves every existing
+   * `data-unclaimed` assertion alone.
+   *
+   * Painted **first of the four**, because it is the state of the whole sheet and every other
+   * layer is an answer to a question somebody just asked. Absent is the normal state — the toggle
+   * starts off, and it is off again after a reload.
+   */
+  authored?: readonly Polyline[]
   onTileSettled: (file: string, ok: boolean) => void
 }
 
@@ -97,6 +110,7 @@ export const TileSheet = memo(function TileSheet({
   runs,
   candidates,
   unclaimed,
+  authored,
   onTileSettled,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -146,8 +160,13 @@ export const TileSheet = memo(function TileSheet({
       // After the tiles, so the highlight lies over the ink it follows, and before the DOM
       // markers, which are a layer above this canvas entirely.
       //
-      // Coverage first of the three: it is the state of the whole sheet, and an answer to a
-      // question the reader just asked has to sit on top of it rather than compete with it.
+      // The whole-sheet layers first, both of them: they are the state of the drawing, and an
+      // answer to a question the reader just asked has to sit on top of that rather than compete
+      // with it. `authored` is under even the diagnostic — a route already authored is the oldest
+      // news on the sheet.
+      if (authored?.length) {
+        paintRuns({ ctx, dpr, viewport, runs: authored, style: AUTHORED })
+      }
       if (unclaimed?.length) {
         paintRuns({ ctx, dpr, viewport, runs: unclaimed, style: UNCLAIMED })
       }
@@ -168,6 +187,7 @@ export const TileSheet = memo(function TileSheet({
     runs,
     candidates,
     unclaimed,
+    authored,
     arrivals,
   ])
 
@@ -189,6 +209,10 @@ export const TileSheet = memo(function TileSheet({
            two apart, and it is why §6.3 makes the legend part of the feature rather than a
            decoration on it. */
         data-unclaimed={unclaimed?.length ?? 0}
+        /* And how many runs a person has authored, read the same way. Zero is both *the overlay
+           is off* and *nothing has been authored yet*; the legend beside the toggle is what tells
+           those two apart, which is why §4.4 makes the legend part of the feature. */
+        data-authored={authored?.length ?? 0}
         className="pointer-events-none absolute inset-0 block h-full w-full"
       />
 

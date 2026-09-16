@@ -220,6 +220,31 @@ export const UNCLAIMED: RunStyle = {
 }
 
 /**
+ * **Every run a person has authored, painted at once** — each wire's route and each block's bus,
+ * the whole sheet in one colour. The Locate tab's field, and the inversion of `UNCLAIMED`.
+ *
+ * `UNCLAIMED` painted the ink *nothing* claims and was rejected as a human-facing view, because
+ * the conductors are the extractor's reading of the paper and they disagree with the paper three
+ * ways. This paints the other side of the same question and needs no extractor to be right: with
+ * what has been authored lit, **the unpainted ink is the queue**, read off the drawing itself.
+ *
+ * **Neutral, and deliberately not green.** It is background state rather than a verdict, so it
+ * must not read as *this run has been approved*; it must never compete with `HIGHLIGHT`'s
+ * orange-red, which is the answer to a question just asked; and a red/green pair would be the one
+ * contrast a colourblind reader cannot make. Slate at low alpha, **3 pt** against `HIGHLIGHT`'s 5,
+ * for `UNCLAIMED`'s reason unchanged: sixty-odd runs light at once and a field of 5 pt stripes is
+ * a second drawing over the first.
+ *
+ * Painted **first of the four**, under the diagnostic, under a proposal and under the selection —
+ * the armed row's own route has to win, or a person authoring one cannot see what they are doing.
+ */
+export const AUTHORED: RunStyle = {
+  widthPt: 3,
+  minDevicePx: 2,
+  stroke: 'rgba(71, 85, 105, 0.35)',
+}
+
+/**
  * A polyline in PDF points, projected onto the backing store in **device pixels**.
  *
  * Every vertex goes through `tileDestRect`, exactly as `pointToCss` does, and that is the whole

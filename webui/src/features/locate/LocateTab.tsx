@@ -35,13 +35,24 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Crosshair, Lock, Map, Maximize2, Minus, Plus, Save } from 'lucide-react'
+import {
+  AlertTriangle,
+  Crosshair,
+  Highlighter,
+  Lock,
+  Map,
+  Maximize2,
+  Minus,
+  Plus,
+  Save,
+} from 'lucide-react'
 
 import type { Designator, LocationsDocument, Place, Polyline } from '@/api/types'
 import { DesignatorList } from '@/components/DesignatorList'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { planEndLabels } from '@/features/drawing/endLabels'
+import { claimsFrom } from '@/features/drawing/hitTest'
 import { MarkerLayer } from '@/features/drawing/MarkerLayer'
 import { cssToPoint } from '@/features/drawing/paint'
 import { TileSheet } from '@/features/drawing/TileSheet'
@@ -624,6 +635,64 @@ export function LocateTab() {
   )
 
   /**
+   * **Every authored route and bus, painted at once** — and the reason this screen needed it.
+   *
+   * `runs` above is the armed row's own route: one target at a time, which is right for the row a
+   * person is working on and says nothing about the other seventy. The question this answers is
+   * *which of the drawing is done*, and it is answered by **what is not painted**: with the field
+   * lit, the ink no polyline covers is the queue — read off the paper, which is ground truth.
+   *
+   * It replaces a view over unclaimed *conductors*, which measured the extractor rather than the
+   * JSON (`H28`): ink the extraction lost never became a conductor, most conductors are leader
+   * lines nothing will ever claim, and the model is told not to read `geometry.json` at all.
+   *
+   * **Read from the published index and never from a draft**, which is `H18`. A route's draft
+   * lives in `locations.json`'s whole-document draft and a bus's in `wiring.json`'s, so a field
+   * assembled from both would be one overlay holding two authored documents — the crossing that
+   * hazard exists to prevent. `/api/paths` is one source, needs no password (`H20`), and
+   * `refreshPaths` already runs after every save, so the field gains a route the moment it is
+   * committed. The unsaved edit is already on top, in `HIGHLIGHT`, through `runs`.
+   */
+  const [showAuthored, setShowAuthored] = useState(false)
+
+  const authored = useMemo(() => {
+    const runs: Polyline[] = []
+    for (const path of Object.values(paths?.wires ?? {})) for (const run of path.runs) runs.push(run)
+    for (const bus of Object.values(paths?.commoning ?? {})) for (const run of bus.runs) runs.push(run)
+    return runs
+  }, [paths])
+
+  /** How many of those runs are a block's bus rather than a wire's route. The legend prints it
+   * because the wire count beside it cannot account for them: a bus is nobody's wire. */
+  const buses = useMemo(
+    () =>
+      Object.values(paths?.commoning ?? {}).reduce((total, bus) => total + bus.runs.length, 0),
+    [paths],
+  )
+
+  /** Memoised rather than mapped at the call site: `TileSheet` is `memo`, and a fresh array every
+   * render would repaint the whole canvas on every pointer move. */
+  const authoredRuns = useMemo(
+    () => (showAuthored && authored.length ? authored : undefined),
+    [showAuthored, authored],
+  )
+
+  /**
+   * *How many wires have a route at all*, from the same index the field is painted from — `H27`,
+   * and the reason the legend is part of the feature rather than a decoration on it.
+   *
+   * `claimsFrom` already computes exactly these three numbers for the Drawing tab, so this reads
+   * them rather than counting again: two answers to *how much of this drawing has a route* would
+   * eventually disagree, and the one on screen beside the paint has to be the painted one.
+   * **Deliberately not `done.settled`**, which counts the draft and counts *no path on this
+   * sheet* as finished — true of the queue, and not true of what is painted.
+   */
+  const claims = useMemo(
+    () => claimsFrom(paths, designators?.counts?.wire ?? 0),
+    [paths, designators],
+  )
+
+  /**
    * Which net the armed wire is on, and what the sheet prints for that net — the two inputs
    * `candidates()` compares a run's printed name against.
    *
@@ -1087,6 +1156,26 @@ export function LocateTab() {
             {`${commoned.commoned} of ${commoned.blocks} blocks commoned`}
           </span>
         )}
+        {/**
+          * **The field's own count, and the two numbers that keep it honest** (`H27`).
+          *
+          * *Sixty-eight runs are painted* says nothing on its own. Beside *59 of 71 wires have a
+          * route, 17 of those drawn by hand*, it says how much of the drawing is done — and the
+          * bus count is there because the wire count cannot account for it: a block's bus is
+          * nobody's wire, and a reader adding the runs up otherwise finds them short.
+          *
+          * In the left flow rather than beside the button: the toolbar's right-hand end is the
+          * switches and the zoom, and a sentence wedged between them wraps to nothing on a narrow
+          * window — the same placement, and the same reason, as the Drawing tab's own legend.
+          */}
+        {showAuthored && authored.length > 0 && (
+          <span className="text-muted-foreground tabular-nums" data-authored-legend>
+            <span className="font-medium text-foreground">{authored.length} runs</span> painted
+            {buses > 0 && `, ${buses} of them a block's bus`} · {claims.traced} of {claims.wires}{' '}
+            wires have a route
+            {claims.handTraced > 0 && `, ${claims.handTraced} of those hand-traced`}
+          </span>
+        )}
         {armed && loaded < total && (
           <span className="text-muted-foreground">
             loading {loaded}/{total}…
@@ -1137,6 +1226,32 @@ export function LocateTab() {
             note={undoNote}
             onSave={() => void save()}
           />
+          {/* **Offered only once there is something to paint.** A switch that changes nothing on
+              the sheet reads as broken rather than as empty — the Drawing tab's layer buttons make
+              the same argument for themselves, and on a drawing whose first route has not been
+              authored yet the honest answer is that there is nothing to show.
+              **Off by default and not persisted**, which is this project's hard-won rule about
+              overlays: the user's verdict on the last one that lit the sheet by itself was *"this
+              adds clutter and confusion to the drawing"*. */}
+          {authored.length > 0 && (
+            <Button
+              variant={showAuthored ? 'default' : 'ghost'}
+              size="sm"
+              aria-pressed={showAuthored}
+              onClick={() => setShowAuthored((on) => !on)}
+              title={
+                `Paint every route and bus that has been authored — the whole sheet at once, ` +
+                `from the saved index. The ink left unpainted is what still needs a path, and ` +
+                `your eye is the instrument: it is the drawing being read, not the extraction. ` +
+                `The row you have armed stays highlighted on top in its own colour.`
+              }
+              className="h-8"
+              data-authored-toggle
+            >
+              <Highlighter />
+              Authored paths
+            </Button>
+          )}
           <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={viewer.zoomOut}>
             <Minus />
           </Button>
@@ -1400,6 +1515,9 @@ export function LocateTab() {
               size={viewer.size}
               dpr={viewer.dpr}
               runs={runs}
+              /* The whole of what has been authored, under everything else, so that the armed
+                 row's own route still wins the sheet. Undefined while the toggle is off. */
+              authored={authoredRuns}
               /* A hovered proposal, or the trace as it is being drawn — one layer, because the
                  two cannot happen at once. Painted under `runs` in its own colour, so a
                  proposal is never mistaken for a decision. */

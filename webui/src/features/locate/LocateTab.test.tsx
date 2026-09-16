@@ -15,11 +15,18 @@
  * are are different permissions.
  */
 
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LocateTab } from './LocateTab'
-import type { Designator, DesignatorIndex, DrawingSummary, Health } from '@/api/types'
+import type {
+  Designator,
+  DesignatorIndex,
+  DrawingSummary,
+  Health,
+  PathIndex,
+  Polyline,
+} from '@/api/types'
 import { buildLookup } from '@/lib/designators'
 import { useAppStore } from '@/stores/appStore'
 import { useLocateStore } from '@/stores/locateStore'
@@ -178,6 +185,11 @@ function stubServer(
     /** `null` makes `/api/conductors` fail, which is the *the ink did not load* state — the panel
      * must say so and everything else on the screen must go on working. */
     ink?: null
+    /** A different designator index, for a test whose numbers need a drawing with more wires in
+     * it than this fixture's one. **A save refreshes the index** (`locateStore` → 
+     * `refreshDesignators`), so a test that only set the store would have its counts replaced by
+     * this stub's the moment it wrote anything. */
+    index?: DesignatorIndex
   } = {},
 ) {
   vi.stubGlobal(
@@ -215,7 +227,7 @@ function stubServer(
       if (url.endsWith('/api/wiring')) {
         return json({ present: true, document: WIRING, report: WIRING_REPORT })
       }
-      if (url.endsWith('/api/designators')) return json(INDEX)
+      if (url.endsWith('/api/designators')) return json(options.index ?? INDEX)
       if (url.endsWith('/api/conductors')) {
         return options.ink === null ? json({ detail: 'no ink' }, 404) : json(CONDUCTORS)
       }
@@ -1406,3 +1418,228 @@ describe('LocateTab', () => {
   })
 })
 
+
+// -- §4 Phase 3a: every authored path painted at once -----------------------------------------
+//
+// **The inversion of the coverage overlay, and the reason it exists.** `Unclaimed ink` painted
+// every run of ink *nothing* claims, and the user walked it and rejected it: *"the conductors are
+// not a true representation of the paths… What the human needs to see highlighted when drawing
+// paths, is the paths that have already been created. Then the human will notice all the
+// unhighlighted ink and know that these paths have not been created."*
+//
+// So this field's denominator is **the paper**, which needs no extractor to be right, and the
+// queue is what it leaves dark. Everything below is one of `§4.7`'s acceptance criteria.
+// T-1450 is the style, in `paint.test.ts`; these are T-1451 onward.
+
+/**
+ * The published index with work in it: two wires with a route — one lifted from the ink and one
+ * drawn by hand — and one block's bus. **`W047` is deliberately not among them**, because it is
+ * the row these tests arm, and *the armed row's own route* against *the whole sheet's authored
+ * routes* is the distinction the whole feature is about.
+ */
+const AUTHORED_PATHS: PathIndex = {
+  wires: {
+    W048: {
+      // Two runs and a real gap between them: a crossover hop, which a route across it shows
+      // rather than closes. Two runs of one wire, so a count of runs is not a count of wires.
+      runs: [
+        [[100, 100], [100, 140], [220, 140]],
+        [[240, 140], [300, 140]],
+      ] as Polyline[],
+      geometry: 'extracted',
+      attribution: 'human',
+      conductors: ['C0004', 'C0005'],
+    },
+    W049: {
+      runs: [[[400, 300], [400, 360]]] as Polyline[],
+      geometry: 'human',
+      attribution: 'human',
+    },
+  },
+  nets: { '110': ['W047'] },
+  commoning: {
+    'CR-BP': {
+      runs: [[[861, 679], [861, 600]]] as Polyline[],
+      geometry: 'extracted',
+      attribution: 'human',
+      conductors: ['C0002'],
+    },
+  },
+}
+
+/** **Counted off the payload, never written down.** `§4.7`'s first criterion is that the painted
+ * set is exactly what `/api/paths` publishes, and a hard-coded 4 here would be a second answer to
+ * that — the trap `claude.md` says has bitten three times. */
+const AUTHORED_RUNS =
+  Object.values(AUTHORED_PATHS.wires).reduce((n, path) => n + path.runs.length, 0) +
+  Object.values(AUTHORED_PATHS.commoning ?? {}).reduce((n, bus) => n + bus.runs.length, 0)
+
+/** A drawing of three wires, two of which have a route — so the legend's *n of m* has something
+ * to say. The entries are this suite's; only the census differs. */
+const THREE_WIRES: DesignatorIndex = {
+  ...INDEX,
+  counts: { ...INDEX.counts, wire: 3 },
+}
+
+function authored(): number {
+  return Number(sheet().querySelector('canvas')?.dataset.authored ?? -1)
+}
+
+function painted(): number {
+  return Number(sheet().querySelector('canvas')?.dataset.runs ?? -1)
+}
+
+function field(): HTMLButtonElement {
+  return screen.getByRole('button', { name: 'Authored paths' }) as HTMLButtonElement
+}
+
+function fieldLegend(): string {
+  return document.querySelector('[data-authored-legend]')?.textContent ?? ''
+}
+
+/** The screen as somebody with authoring behind them sees it. */
+async function opened(paths: PathIndex = AUTHORED_PATHS) {
+  stubServer({ index: THREE_WIRES })
+  useAppStore.setState({ paths, designators: THREE_WIRES, byToken: buildLookup(THREE_WIRES) })
+  await open()
+}
+
+describe('the authored-paths field', () => {
+  it('is off on arrival, and off again after a reload', async () => {
+    // **T-1451.** The user's verdict on the last overlay that lit the sheet by itself was *"this
+    // adds clutter and confusion to the drawing"*. Not persisted either — the state is this
+    // screen's own, so a reload is a fresh mount and there is nothing anywhere to remember it.
+    await opened()
+
+    expect(authored()).toBe(0)
+    expect(field().getAttribute('aria-pressed')).toBe('false')
+    expect(document.querySelector('[data-authored-legend]')).toBeNull()
+
+    fireEvent.click(field())
+    expect(authored()).toBe(AUTHORED_RUNS)
+
+    cleanup()
+    render(<LocateTab />)
+    await screen.findByRole('option', { name: /^CR-BP / })
+    expect(authored()).toBe(0)
+    expect(field().getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('paints exactly the runs the published index holds — every route and every bus', async () => {
+    // **T-1452, and `§4.7`'s first criterion.** Both halves of the field, and the count is taken
+    // off the payload in `AUTHORED_RUNS` rather than written down: the authoring run moves these
+    // numbers between sessions, and a test asserting an absolute one goes red as the user works.
+    await opened()
+    fireEvent.click(field())
+
+    expect(authored()).toBe(AUTHORED_RUNS)
+    expect(field().getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('offers no switch at all before anything has been authored', async () => {
+    // **T-1457.** A switch that paints nothing reads as broken rather than as empty — the same
+    // argument the Drawing tab's layer buttons make for themselves. This is drawing number two on
+    // the morning somebody opens it: a netlist, no routes yet, and nothing to show.
+    await opened({ wires: {}, nets: { '110': ['W047'] }, commoning: {} })
+
+    expect(screen.queryByRole('button', { name: 'Authored paths' })).toBeNull()
+    expect(authored()).toBe(0)
+  })
+
+  it('prints the run count beside how many wires have a route — H27', async () => {
+    // **T-1453, and `§4.7`'s third criterion.** *Four runs are painted* says nothing on its own.
+    // Beside *two of three wires have a route, one of those hand-traced*, it says how much of the
+    // drawing is done — which is the only question this view exists to answer. The bus count is
+    // there because the wire count cannot account for it: a block's bus is nobody's wire, and a
+    // reader adding the runs up would otherwise find them short.
+    await opened()
+    fireEvent.click(field())
+
+    expect(fieldLegend()).toMatch(new RegExp(`${AUTHORED_RUNS} runs\\s*painted`))
+    expect(fieldLegend()).toMatch(/1 of them a block's bus/)
+    expect(fieldLegend()).toMatch(/2 of 3\s*wires have a route/)
+    expect(fieldLegend()).toMatch(/1 of those hand-traced/)
+  })
+
+  it('keeps the armed row’s own route on its own layer, above the field', async () => {
+    // **T-1454, and `§4.7`'s second criterion.** The field is background state and the armed
+    // row's route is the answer to a question just asked, so they are two layers rather than one
+    // set of polylines — `runs` on top in `HIGHLIGHT`, `authored` underneath in `AUTHORED`.
+    // jsdom hands back no 2D context, so what a screen test can see is that the two counts stay
+    // apart; the paint order is `TileSheet`'s, and `paint.test.ts` T-1450 is the colours.
+    await opened()
+    fireEvent.click(field())
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(document.querySelector('[data-candidate="C0001"] button') as HTMLElement)
+
+    await waitFor(() => expect(painted()).toBe(1))
+    expect(authored()).toBe(AUTHORED_RUNS)
+  })
+
+  it('reads the published index and never a draft — H18', async () => {
+    // **T-1455, and the design decision the phase turns on.** A route's draft lives in
+    // `locations.json`'s whole-document draft and a block's bus in `wiring.json`'s, and those two
+    // must not learn about each other. A field assembled from both would be one overlay holding
+    // two authored documents; assembled from one, it would be a field that disagreed with itself
+    // about which half is live. So it is read from `/api/paths`, which is one source, needs no
+    // password, and is refreshed after every save.
+    //
+    // The visible consequence, asserted here: accepting a candidate paints it **immediately** in
+    // the armed row's own layer, and the field does not move until the **index** moves. Nothing
+    // is lost — the person sees their own work at once, on top, in the selection's colour.
+    //
+    // In the application the index moves a moment later, because a locations save re-reads
+    // `/api/paths` as well (`appStore.refreshDesignators`). Here it cannot: this suite's server
+    // stub answers no such route, which is exactly the *before the index has caught up* state and
+    // the only one in which the two sources can be told apart. The second half of the test moves
+    // the published index by hand and shows the field following it.
+    await opened()
+    fireEvent.click(field())
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(document.querySelector('[data-candidate="C0001"] button') as HTMLElement)
+    await waitFor(() => expect(saved).toHaveLength(1))
+
+    expect(saved[0]).toHaveProperty('wires.W047.path')
+    expect(authored()).toBe(AUTHORED_RUNS)
+
+    act(() =>
+      useAppStore.setState({
+        paths: {
+          ...AUTHORED_PATHS,
+          wires: {
+            ...AUTHORED_PATHS.wires,
+            W047: {
+              runs: [[[700, 679], [861, 679]]] as Polyline[],
+              geometry: 'extracted',
+              attribution: 'human',
+              conductors: ['C0001'],
+            },
+          },
+        },
+      }),
+    )
+    expect(authored()).toBe(AUTHORED_RUNS + 1)
+  })
+
+  it('gives the sheet back exactly as it was when it is switched off', async () => {
+    // **T-1456, and `§4.7`'s fourth criterion.** Including the highlight underneath it: the field
+    // is the state of the drawing and a selection is an answer to a question, and turning one off
+    // must not disturb the other.
+    await opened()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(document.querySelector('[data-candidate="C0001"] button') as HTMLElement)
+    await waitFor(() => expect(painted()).toBe(1))
+
+    fireEvent.click(field())
+    expect(authored()).toBe(AUTHORED_RUNS)
+    expect(painted()).toBe(1)
+
+    fireEvent.click(field())
+    expect(authored()).toBe(0)
+    expect(painted()).toBe(1)
+    expect(document.querySelector('[data-authored-legend]')).toBeNull()
+  })
+})

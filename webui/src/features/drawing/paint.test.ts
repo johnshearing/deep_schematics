@@ -11,6 +11,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  AUTHORED,
   CANDIDATE,
   cssToPoint,
   HIGHLIGHT,
@@ -371,5 +372,30 @@ describe('paintRuns', () => {
     expect(UNCLAIMED.widthPt).toBeLessThan(CANDIDATE.widthPt)
     expect(UNCLAIMED.widthPt).toBeLessThan(HIGHLIGHT.widthPt)
     expect(UNCLAIMED.stroke).toMatch(/rgba\(.+0\.\d+\)$/)
+  })
+
+  it('paints an authored run in a fourth colour, neutral and under everything else', () => {
+    // **T-1450.** The field of every authored route and bus, which is the Locate tab's answer to
+    // *how much of this drawing is done* — and the one style here that is **background state
+    // rather than a verdict**. So: a fourth hue that is none of the other three, thinner than the
+    // selection because sixty-odd runs light at once, and translucent because the reader's next
+    // act is to look at the ink underneath and decide whether it is covered.
+    //
+    // Deliberately **not green**: it would read as *approved*, it would fight the selection's
+    // orange-red, and a red/green pair is the one contrast a colourblind reader cannot make.
+    const ctx = recordingContext()
+    paintRuns({
+      ctx: ctx as unknown as CanvasRenderingContext2D,
+      dpr: 1,
+      viewport: { x: 0, y: 0, scale: 1 },
+      runs: RUNS,
+      style: AUTHORED,
+    })
+    expect(ctx.strokeStyle).toBe(AUTHORED.stroke)
+    expect(
+      new Set([HIGHLIGHT.stroke, CANDIDATE.stroke, UNCLAIMED.stroke, AUTHORED.stroke]).size,
+    ).toBe(4)
+    expect(AUTHORED.widthPt).toBeLessThan(HIGHLIGHT.widthPt)
+    expect(AUTHORED.stroke).toMatch(/rgba\(.+0\.\d+\)$/)
   })
 })

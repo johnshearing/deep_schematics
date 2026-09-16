@@ -327,6 +327,33 @@ reporting loudly is **T-1200** if the id offered is one something already holds,
 
 ---
 
+## T-145x — the authored-paths field — `20_tests_all_paths_overlay.md`
+
+Added 2026-09-15 with §4 of the highlighting-03 plan. **Needs the editor password** for T-1450–
+T-1457; **T-1458 and T-1459 are the reader's tab and need none.** Nothing here writes a byte.
+
+**Rebuild the bundle *and* restart the server** — this change has a server edit in it, and a
+rebuilt bundle against an unrestarted server is the combination that wastes a session.
+
+The two worth reporting loudly: **T-1450**, because the colour is a judgement and yours is the one
+that counts, and **T-1452** if slate appears on ink you have not authored — the field is exactly
+what `/api/paths` publishes, so that would be a real fault.
+
+| Test | What it checks | Result | Notes |
+|---|---|---|---|
+| T-1450 | The colour: **neutral slate**, thin and translucent, reading as *state of the drawing* rather than *approved*. **Say if it is too faint or too loud** | | |
+| T-1451 | **Off on arrival**, no legend, and off again after a reload | | |
+| T-1452 | Every **route** and every **block's bus** painted at once, hand-traced ones included — and **the ink with no slate on it is the queue** | | |
+| T-1453 | The legend: runs painted, how many are a bus, **`n` of `m` wires have a route**, hand-traced named. Its wire count may be **lower** than the screen's own `wire paths` count, because *no path on this sheet* paints nothing | | |
+| T-1454 | The armed row's own route still **orange-red on top** of the field | | |
+| T-1455 | A route you accept shows **at once** in the selection's colour, and joins the field about a second later when the save's refresh lands (`H18`) | | |
+| T-1456 | Switching it off gives the sheet back exactly — the armed row's highlight undisturbed | | |
+| T-1457 | *Automated only.* No switch at all on a drawing with nothing authored | | |
+| T-1458 | **Selecting net `GND` paints the 0 V-to-earth bond** (`W019`), and `0V` still does. Restart the server first | | |
+| T-1459 | **`Unclaimed ink` is gone** from the Drawing tab's toolbar, and `?unclaimed=1` still paints it | | |
+
+---
+
 ## Failure detail
 
 One block per **F** or **?**. Copy the template from the index (§4) and fill it in. More is better

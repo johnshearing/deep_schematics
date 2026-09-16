@@ -27,7 +27,6 @@ import {
   CircleDot,
   Crosshair,
   ExternalLink,
-  Highlighter,
   ImageOff,
   Map,
   Maximize2,
@@ -496,11 +495,26 @@ export function DrawingTab() {
    * **nothing here is ever auto-accepted**, and a run this overlay leaves dark is a question for a
    * person, not a record to write.
    *
-   * Off by default and not persisted, which is `DrawingTab.tsx`'s own hard-won rule about
-   * overlays: the user's words on the last one were *"this adds clutter and confusion to the
-   * drawing"*, and a sheet that came back tomorrow with 98 lines lit would earn that twice.
+   * **Demoted to a diagnostic on 2026-09-15, and there is no button for it any more.** The user
+   * walked it and rejected it as a human-facing view, for a reason that is about the denominator
+   * rather than about the paint: *"the conductors are not a true representation of the paths… the
+   * ink is what the human can see, while the conductors are what the ai thinks the human can
+   * see."* Three measured disagreements back that up — 41 lines of layer-`"0"` ink never became
+   * conductors, ~90 of the 149 are leader lines and symbol strokes nothing will ever claim, and
+   * one place on this sheet is drawn wrong — so *unclaimed conductors* measures the extraction,
+   * not the JSON, and `prompts.py` tells the model not to read `geometry.json` at all. The view a
+   * person wanted is the inversion of this one, and it is the Locate tab's `Authored paths`
+   * field: paint what has been authored and let the eye find the rest (`H28`).
+   *
+   * **The code stays, on the user's instruction** — *"if you need it for diagnostics then it is
+   * ok to leave the code in so that you can use it behind the scenes"* — reachable by
+   * **`?unclaimed=1`** and nothing else, which is what keeps it tested rather than rotting. Read
+   * **once**, deliberately: a query string is how a session is started, not a control on the
+   * page, and making it reactive would be inventing a toggle in a different coat.
    */
-  const [coverage, setCoverage] = useState(false)
+  const [coverage] = useState(
+    () => new URLSearchParams(window.location.search).get('unclaimed') === '1',
+  )
 
   const unclaimed = useMemo(
     () =>
@@ -773,33 +787,13 @@ export function DrawingTab() {
             )}
           </div>
 
-          {/* **Outside the layers group, because it is not one of them.** Those five switch
-              *marks this tab draws over the index*; this one paints *the drawing's own ink that
-              the index has nothing to say about*, which is a question about the JSON rather than
-              a filter over it. It also keeps `Layers on the sheet` meaning what every test in
-              `DrawingTab.test.tsx` already asks it to mean.
-
-              Offered only once the ink is here: with no conductors the overlay would paint
-              nothing, and a switch that changes nothing reads as broken rather than as empty —
-              the same argument the layer switches make for themselves above. */}
-          {(conductors?.length ?? 0) > 0 && (
-            <Button
-              variant={coverage ? 'default' : 'ghost'}
-              size="sm"
-              aria-pressed={coverage}
-              onClick={() => setCoverage((on) => !on)}
-              title={
-                `Paint every run of ink that nothing claims — no wire's route, no block's bus. ` +
-                `The drawing's own answer to what is not in the JSON yet. A run left dark is a ` +
-                `question for your eyes, never a record to write.`
-              }
-              className="h-8"
-              data-coverage-toggle
-            >
-              <Highlighter />
-              Unclaimed ink
-            </Button>
-          )}
+          {/* **`Unclaimed ink`'s switch used to stand here, outside the layers group.** It is
+              gone, and the overlay it drove is a diagnostic behind `?unclaimed=1` — see the
+              `coverage` comment above for the user's reason, which is that its denominator was
+              the extractor's reading of the paper rather than the paper. The view that replaced
+              it is the Locate tab's `Authored paths` field. The legend below still renders when
+              the query turns the diagnostic on, because a count of unclaimed runs without the
+              traced/total beside it is exactly the dishonest number `H27` was written about. */}
 
           <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={viewer.zoomOut}>
             <Minus />
@@ -1013,10 +1007,6 @@ export function DrawingTab() {
             zoom. A wire or net that has been traced is also{' '}
             <span className="font-medium text-foreground">highlighted along the ink</span> — the
             drawing&apos;s own conductor strokes, never a line between its ends.{' '}
-            <span className="font-medium text-foreground">Unclaimed ink</span> asks the other
-            question — it paints every run of ink that no wire&apos;s route and no block&apos;s
-            bus accounts for, beside how many wires have a route at all, which is the number that
-            makes the first one mean anything. A run it leaves dark is a question for your eyes.{' '}
           </>
         )}
         Redrawn at your display's full resolution on every frame, from the

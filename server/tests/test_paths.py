@@ -282,3 +282,75 @@ def test_a_refused_path_is_absent_here_and_named_in_the_locations_report(
     problems = client.get("/api/designators").json()["locations"]["problems"]
     assert any("geometry 'derived'" in p for p in problems)
 
+
+
+# -- §4.6: the wire that bonds two nets -------------------------------------------------------
+#
+# A net's highlight is the union of its wires' runs, and `nets` is the only place membership is
+# published. It was built out of the generated `wires[].net`, which holds **one** net per wire —
+# so a wire joining two of them was in one net's highlight and missing from the other's, and the
+# reader saw a net whose own wire would not light up. The netlist was never wrong: each terminal
+# belongs to one net, and the bond is carried terminal to terminal. Only this projection lost it.
+#
+# The rule is *either end a member of this net*, and it is about membership rather than about a
+# net's name — the same shape as the commoning gate, and the same reason: the next drawing.
+
+
+@pytest.fixture
+def bonded_nets(drawing_dir: Path) -> Path:
+    """The fixture netlist with a **second net** and one wire bonding the two.
+
+    The real sheet's case is a 0 V-to-earth bond, which is a real wire and the two nets are the
+    point of it — `NetsAcross` flags it on screen and deliberately offers no fix. So does a wire
+    across a breaker. What matters here is only the shape: two nets, and a wire whose ends are
+    members of one each, with its own `net` field naming just one of them.
+    """
+    path = drawing_dir / "circuit_logic.json"
+    doc = json.loads(path.read_text("utf-8"))
+    doc["terminals"].append({"id": "CR1:A2", "parent_component": "CR1", "net": "0V"})
+    doc["nets"].append(
+        {"id": "0V", "signal_type": "power", "member_terminals": ["CR1:A2"]}
+    )
+    doc["wires"].append(
+        {
+            "id": "W049",
+            "net": "110",
+            "color": "WHITE/BLUE",
+            "gauge": "12AWG",
+            "from_terminal": "CB1:2",
+            "to_terminal": "CR1:A2",
+        }
+    )
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    load_circuit_logic.cache_clear()
+    return drawing_dir
+
+
+def test_a_wire_bonding_two_nets_belongs_to_both_highlights(bonded_nets: Path) -> None:
+    """Selecting **either** net paints the bond, which is what a reader pointing at it expects.
+
+    `W049`'s own `net` says `110`, so before this it was in `110`'s list and nowhere else even
+    though its other end is a `0V` terminal. Membership at either end is the whole rule.
+    """
+    body = paths_index(bonded_nets)
+
+    assert body["nets"]["0V"] == ["W049"]
+    assert body["nets"]["110"] == ["W047", "W049"]
+
+
+def test_a_wire_whose_ends_are_in_no_net_keeps_the_grouping_it_had(drawing_dir: Path) -> None:
+    """The fallback, so the fix cannot cost a wire a highlight it used to have.
+
+    An unindexed terminal — one the tables do not place on any net — leaves a wire with no
+    membership to be found at either end. Its `net` field is then the only thing that knows, and
+    it is still used.
+    """
+    path = drawing_dir / "circuit_logic.json"
+    doc = json.loads(path.read_text("utf-8"))
+    doc["wires"].append(
+        {"id": "W050", "net": "220", "from_terminal": "CR1:B9", "to_terminal": "CR1:B10"}
+    )
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    load_circuit_logic.cache_clear()
+
+    assert paths_index(drawing_dir)["nets"]["220"] == ["W050"]

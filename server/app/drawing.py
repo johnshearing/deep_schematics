@@ -329,13 +329,50 @@ def paths_index(drawing_dir: Path) -> dict[str, Any]:
             published["conductors"] = list(path.conductors)
         wires[wid] = published
 
+    # **Which wires' runs a net's highlight paints**, built from each net's own membership.
+    #
+    # It used to be built from the generated `wires[].net`, which holds **one** net per wire — and
+    # a wire may join two. A 0 V-to-earth bond's `net` field names one of the pair, so selecting
+    # the other painted nothing even though the bond lands on one of its terminals, and the reader
+    # was left with a net whose highlight was missing a wire they could see. The netlist itself was
+    # never wrong: each terminal is a member of one net and the bond is carried terminal to
+    # terminal, which is the right model. Only this projection of it lost a wire.
+    #
+    # So: **either end a member of the net means that wire's runs belong to that net's highlight.**
+    # A rule about membership and never about a net's name, which is what carries it to the next
+    # drawing — there is exactly one such wire on this sheet and there will be more on others.
+    # `wires[].net` stays as the fallback for a wire whose two ends are in no net at all, which is
+    # what an unindexed terminal looks like, so no wire loses a highlight it had before.
+    of_terminal: dict[str, list[str]] = {}
+    for net in doc.get("nets") or []:
+        if not isinstance(net, dict):
+            continue
+        nid = net.get("id")
+        if not isinstance(nid, str):
+            continue
+        for terminal in net.get("member_terminals") or []:
+            if isinstance(terminal, str):
+                of_terminal.setdefault(terminal, []).append(nid)
+
     nets: dict[str, list[str]] = {}
     for wire in doc.get("wires") or []:
         if not isinstance(wire, dict):
             continue
-        wid, net = wire.get("id"), wire.get("net")
-        if isinstance(wid, str) and isinstance(net, str):
-            nets.setdefault(net, []).append(wid)
+        wid = wire.get("id")
+        if not isinstance(wid, str):
+            continue
+        joined = {
+            nid
+            for end in (wire.get("from_terminal"), wire.get("to_terminal"))
+            if isinstance(end, str)
+            for nid in of_terminal.get(end, ())
+        }
+        if not joined:
+            net = wire.get("net")
+            joined = {net} if isinstance(net, str) else set()
+        # Sorted, so a net's list is the same on every request: a set's order is not.
+        for nid in sorted(joined):
+            nets.setdefault(nid, []).append(wid)
 
     commoning: dict[str, Any] = {}
     for block, bus in resolve_wiring(drawing_dir, doc).commoning.items():

@@ -1,7 +1,35 @@
 # T-14xx — the coverage overlay: *what is this drawing not telling anybody?*
 
+> ## ⚠ Demoted to a diagnostic on 2026-09-15 — **do not walk this document**
+>
+> **The user walked it and rejected the feature it teaches**, and the reason is about the
+> denominator rather than the paint: *"the conductors are not a true representation of the
+> paths… the ink is what the human can see, while the conductors are what the ai thinks the human
+> can see."* Three measured disagreements back that up — 41 lines of layer-`"0"` ink never became
+> conductors, about 90 of the 149 are leader lines and symbol strokes nothing will ever claim, and
+> one place on this sheet is drawn wrong — so *unclaimed conductors* measures the extraction, not
+> the JSON, and `prompts.py` tells the model not to read `geometry.json` at all.
+>
+> **`Unclaimed ink` is gone from the Drawing tab's toolbar.** The overlay itself still works and
+> is reachable at **`http://localhost:9700/webui/?unclaimed=1`**, on the user's own instruction:
+> *"There is no need for a human to see that but if you need it for diagnostics then it is ok to
+> leave the code in so that you can use it behind the scenes."* The query string is read **once**,
+> on arrival, and there is no switch to press.
+>
+> **What replaced it is the inversion of it**: the Locate tab's **`Authored paths`** field, which
+> paints every route and bus that *has* been authored and leaves the queue as the unpainted ink —
+> the paper being the one denominator that needs no extractor to be right. Walk
+> **`20_tests_all_paths_overlay.md`** instead, and read `H28` in `06_code_map.md` for the
+> reasoning.
+>
+> **T-1400 to T-1407 are spent — do not reuse them.** The automated tests survive with their
+> assertions, switching the overlay on by query string instead of by click; T-1400, T-1405 and
+> T-1407 changed shape, because each of them was a test of the switch itself. Everything below is
+> kept as written on 2026-09-13 and is the record of what was built, not an instruction.
+
 Index: `locate_tab_instruction_and_test_manual.md`.
 Added **2026-09-13** with §6 of `_claude_notes/highlighting_wires_and_nets_02.md`.
+**Demoted 2026-09-15** by §4 of `_claude_notes/highlighting_wires_and_nets_03.md`.
 
 **Written to be worked without reading a word of explanation.** Every test is **Do** and
 **Expected** first and short. Under some of them is a ***Why*** paragraph in italics — those are
