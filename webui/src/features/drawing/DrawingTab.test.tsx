@@ -11,7 +11,7 @@
  */
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { DrawingTab, DRAWING_TAB_ID } from './DrawingTab'
 import type {
@@ -1357,8 +1357,25 @@ describe('clicking a terminal on the reader’s tab', () => {
   })
 })
 
-describe('pointing at a line on the sheet', () => {
+// -- §4A Phase 3d: the conductor card, demoted the same way the overlay was -------------------
+//
+// **Demoted on 2026-09-17, and these five tests keep every assertion they had.** A click on the
+// ink used to answer *what conductor is this* — a blue run and a card about a run — and the user
+// struck that question for the third time: *"since we have already established that the human does
+// not need to see the conductor but rather the paths… we are not interested in conductors."* The
+// reader's click answers *whose path is this* now (`H29`, and the block below this one).
+//
+// So the three verdicts are behind **`?unclaimed=1`** with the overlay they belong to, on the same
+// standing instruction that the code may stay for diagnostics — *is the ink there, or did we miss
+// it* has to remain answerable from the screen, and plan 03 `§6` still needs to ask it. The swap
+// is the click for the query, exactly as the coverage tests did. `16_...`'s **T-1135, T-1140,
+// T-1145 and T-1150 are spent** and carry a demotion note; do not reuse them.
+describe('pointing at a line on the sheet — the conductor diagnostic', () => {
+  // Left set by a test, a query string would turn the diagnostic on for every test after it.
+  afterEach(() => query(false))
+
   function ready(paths: PathIndex = PATHS) {
+    query(true)
     const index = wiredIndex()
     useAppStore.setState({
       paths,
@@ -1429,9 +1446,253 @@ describe('pointing at a line on the sheet', () => {
   it('does nothing at all where there is no run within a few points', () => {
     // A click in the white space between two circuits must answer *nothing here*. Naming the
     // nearest conductor on the sheet would be believed, and on 16 pt rows a wrong line is worse
-    // than no line.
+    // than no line. Both cards are silent, and in the diagnostic that is two silences.
     ready()
     clickSheet(5, 5)
+    expect(document.querySelector('[data-conductor-card]')).toBeNull()
+    expect(document.querySelector('[data-path-card]')).toBeNull()
+  })
+
+  it('gives both answers at once when the diagnostic is on, and one Escape takes them both', () => {
+    // **T-1504.** The two questions are asked by one gesture in a diagnostic session — *whose
+    // path is this* in the right-hand corner, *what run of ink is this* in the left — so they are
+    // one answer and one press takes it away. `CR-BP:A1` sits on `C0079`, which `COMMONED`
+    // publishes as `CR-BP`'s bus, so the same click hits both.
+    ready(COMMONED)
+    clickAtMarker('CR-BP:A1')
+
+    expect(document.querySelector('[data-path-card="CR-BP"]')).toBeTruthy()
+    expect(document.querySelector('[data-conductor-card="C0079"]')).toBeTruthy()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(document.querySelector('[data-path-card]')).toBeNull()
+    expect(document.querySelector('[data-conductor-card]')).toBeNull()
+  })
+
+  it('fetches the runs of ink for the diagnostic and not for a reader', () => {
+    // **The demotion finishing its job, and it is a saving rather than a tidy-up.** Every
+    // remaining consumer of the ink is behind the query — the overlay, the card, and the shape
+    // rule that feeds its second verdict — so a reader must not pay 32 KB for the extractor's
+    // reading of the paper. The honesty numbers the selection card prints come out of
+    // `/api/paths`, not out of this.
+    const real = useAppStore.getState().loadConductors
+    const asked = vi.fn(async () => {})
+    try {
+      query(false)
+      const index = wiredIndex()
+      useAppStore.setState({
+        paths: PATHS,
+        designators: index,
+        byToken: buildLookup(index),
+        conductors: null,
+        loadConductors: asked,
+      })
+      render(<DrawingTab />)
+      activate()
+      expect(asked).not.toHaveBeenCalled()
+
+      // And the diagnostic still gets them, or `§6` loses the one screen that can answer *is the
+      // ink there, or did we miss it*.
+      cleanup()
+      query(true)
+      render(<DrawingTab />)
+      activate()
+      expect(asked).toHaveBeenCalled()
+    } finally {
+      useAppStore.setState({ loadConductors: real })
+    }
+  })
+})
+
+// -- §4A Phase 3d: the click answers *whose path is this* ------------------------------------
+//
+// **The third inversion, and the one the user wanted most.** `§4` fixed what the sheet *paints*;
+// this fixes what it *answers*. A click over a painted path highlights the path and names the wire
+// or the block that owns it, in the lower right — and a click over ink that no path claims does
+// **nothing at all**, which is the message: a path needs to be created there. Same instrument as
+// the unpainted ink in the field: the user's eye, on the paper (`H28`, `H29`).
+//
+// **T-1500 onward.** `locate_tab_testing/21_tests_clicking_a_path.md` is the walk.
+
+/**
+ * Two pins placed **on authored routes**, because a marker's CSS position is the only place a test
+ * can learn where a PDF point lands (`clickAtMarker`) — so clicking a *path* needs a dot on one.
+ * Both are `confirmed`: `H24`'s third clause is that a borrowed coordinate may never be handed to
+ * a rule that discriminates at a few points.
+ *
+ * `CB1:2` sits in the middle of `W048`'s lifted route, which is honest — `W048` runs
+ * `CR-BP:A2 → CB1:2` — and `UPSTREAM-MACHINE:1` in the middle of `W049`'s hand trace, 21 pt away
+ * and so well outside the other's 6 pt.
+ */
+const ON_ROUTE: Designator = {
+  id: 'CB1:2', kind: 'terminal', label: 'breaker terminal on CB1, net 110', on_sheet: true,
+  members: ['CB1'], point: [343.6, 660.7], rect: [343.6, 660.7, 343.6, 660.7],
+  placement: 'confirmed',
+}
+const ON_TRACE: Designator = {
+  id: 'UPSTREAM-MACHINE:1', kind: 'terminal', label: 'terminal on UPSTREAM-MACHINE, net 110',
+  on_sheet: true, members: ['UPSTREAM-MACHINE'], point: [364.1, 639.6],
+  rect: [364.1, 639.6, 364.1, 639.6], placement: 'confirmed',
+}
+/** `W049` as the index has it. In the index because every wire is: a selection pointing at a row
+ * that does not exist is a state the real screen never reaches. */
+const W049: Designator = {
+  id: 'W049', kind: 'wire', label: 'hand-traced wire, CR-BP:A1 → CB1:1', on_sheet: false,
+  members: ['CR-BP', 'CB1'], point: [364.1, 639.6], rect: [301.8, 639.6, 426.3, 639.6],
+}
+
+function pathIndex(): DesignatorIndex {
+  const entries = [...COMPONENTS, ...TERMINALS, ON_ROUTE, ON_TRACE, NET_110, W048_WIRED, W049]
+  return {
+    drawing_number: 'PS20115MLM4-2',
+    counts: { component: 3, terminal: 4, net: 1, wire: 2 },
+    located: entries.length,
+    entries,
+  }
+}
+
+/**
+ * **The reader's sheet**: no query, so no conductor card and no overlay — and the runs of ink in
+ * the store anyway, so that every *nothing happens* below is a silence over real ink rather than
+ * over an empty payload.
+ */
+function reading(paths: PathIndex | null = PATHS) {
+  const index = pathIndex()
+  useAppStore.setState({
+    paths,
+    designators: index,
+    byToken: buildLookup(index),
+    conductors: [COIL_BUS, C0059],
+  })
+  render(<DrawingTab />)
+  activate()
+  // The pins have to be on the sheet for a test to learn where a PDF point lands.
+  fireEvent.click(group('Terminals'))
+}
+
+describe('clicking a path on the sheet', () => {
+  it('names the wire that owns the run, lights its route, and prints no name off the ink', () => {
+    // **T-1500.** *"Click over a path and the path highlights and a box in the lower right tells
+    // me about the path and the wire that owns it."*
+    reading()
+    clickAtMarker('CB1:2')
+
+    const card = document.querySelector('[data-path-card="W048"]') as HTMLElement
+    expect(card).toBeTruthy()
+    expect(card.dataset.pathOwner).toBe('wire')
+    expect(card.dataset.pathGeometry).toBe('extracted')
+    expect(card.textContent).toMatch(/lifted from the drawing/)
+    // `(?!s)` because `textContent` runs the spans together — `1 run83.6 pt` — so a word
+    // boundary would be looking at the `8`, not at the end of the word.
+    expect(card.textContent).toMatch(/1 run(?!s)/)
+    // Off the payload, never out of a fixture's memory — trap 4, and `385.4 − 301.8`.
+    expect(card.textContent).toMatch(/83\.6 pt along the ink/)
+    // **No `C####` on the card.** `W048`'s route names `C0080`; the ink's own names are the
+    // extractor's, are printed nowhere on the paper, and not showing them is the whole of this.
+    expect(card.textContent).not.toMatch(/C\d{4}/)
+
+    // The highlight is not new work: the click selected the owner, and a wire's highlight is its
+    // own runs. `'drawing'` is what stops the sheet flying to what the reader is already touching.
+    expect(useAppStore.getState().selection).toMatchObject({
+      kind: 'wire',
+      id: 'W048',
+      origin: 'drawing',
+    })
+    expect(highlighted()).toBe(1)
+  })
+
+  it('names the block whose bus it is, and lights a bus a component selection cannot', () => {
+    // **T-1501.** `CR-BP:A1` is an end of `C0079`, which `COMMONED` publishes as `CR-BP`'s bus.
+    reading(COMMONED)
+    clickAtMarker('CR-BP:A1')
+
+    const card = document.querySelector('[data-path-card="CR-BP"]') as HTMLElement
+    expect(card).toBeTruthy()
+    expect(card.dataset.pathOwner).toBe('block')
+    expect(card.textContent).toMatch(/this block’s own bus/)
+    // The **component**, because that is where a block's commoning lives — one answer to *whose
+    // is this* that will serve the card here and the armed row on the Locate tab.
+    expect(useAppStore.getState().selection).toMatchObject({ kind: 'component', id: 'CR-BP' })
+    // `pathsFor` is null for a component by design, so without the pick's own runs this click
+    // would name a bus and light nothing.
+    expect(highlighted()).toBe(1)
+  })
+
+  it('does nothing at all over ink no path claims, and does not touch the selection', () => {
+    // **T-1502, and the silence is half the phase.** *"If there is no path then nothing will
+    // happen when clicking over the ink and that tells us that a path needs to be created
+    // there."* `CR-BP:A1` sits on 11 pt of real ink; with no commoning published, no path claims
+    // it. No card, no verdict, no highlight, and above all no *no wire claims this run* — that is
+    // the conductor's question and it has been struck three times.
+    reading(PATHS)
+    act(() => useAppStore.getState().select('net', '110'))
+    const before = useAppStore.getState().selection?.nonce
+
+    clickAtMarker('CR-BP:A1')
+
+    expect(document.querySelector('[data-path-card]')).toBeNull()
+    expect(document.querySelector('[data-conductor-card]')).toBeNull()
+    // The nonce, not just the id: it proves `select` was never called, rather than called with
+    // the same answer.
+    expect(useAppStore.getState().selection?.nonce).toBe(before)
+    expect(highlighted()).toBe(2)
+  })
+
+  it('says which routes were drawn by hand, and a trace is clickable exactly like a lift', () => {
+    // **T-1503.** `W049` is `geometry: 'human'` and names no conductor at all, which is the state
+    // a hand trace leaves behind — and the one the coverage overlay could never read (`H27`).
+    reading()
+    clickAtMarker('UPSTREAM-MACHINE:1')
+
+    const card = document.querySelector('[data-path-card="W049"]') as HTMLElement
+    expect(card).toBeTruthy()
+    expect(card.dataset.pathGeometry).toBe('human')
+    expect(card.textContent).toMatch(/you drew it/)
+    expect(card.textContent).toMatch(/124\.5 pt along the ink/)
+  })
+
+  it('sits in the other corner, so both cards are open at once, and Escape takes one each', () => {
+    // **T-1505.** `bottom-3 right-3` was empty, and that is why this ends the fight over
+    // `bottom-3 left-3` rather than joining it. Then `H22`'s escalation, unchanged: the path
+    // first, the selection second, one press each.
+    reading()
+    clickAtMarker('CB1:2')
+
+    const card = document.querySelector('[data-path-card="W048"]') as HTMLElement
+    expect(card.className).toMatch(/bottom-3 right-3/)
+    // `Clear selection` is the selection card's ✕ and the path card's is `Close the path`, so
+    // finding it inside the sheet is finding the other card.
+    expect(sheet().getByRole('button', { name: 'Clear selection' })).toBeTruthy()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(document.querySelector('[data-path-card]')).toBeNull()
+    expect(useAppStore.getState().selection?.id).toBe('W048')
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(useAppStore.getState().selection).toBeNull()
+  })
+
+  it('gives the corner back to a dot, because that is a different question', () => {
+    // **T-1506.** A click on a marker answers *where is this identifier*. Leaving the path card
+    // up beside a new selection would be two answers to one gesture — the same rule the conductor
+    // card has followed since Phase D.
+    reading()
+    clickAtMarker('CB1:2')
+    expect(document.querySelector('[data-path-card]')).toBeTruthy()
+
+    fireEvent.click(marker('CR-BP:A1'))
+    expect(document.querySelector('[data-path-card]')).toBeNull()
+    expect(useAppStore.getState().selection?.id).toBe('CR-BP:A1')
+  })
+
+  it('is quiet before the paths have landed, rather than reaching for the ink instead', () => {
+    // **T-1507.** With no `/api/paths` there is no path to be on, and the honest answer is the
+    // same silence — not a fall back to the conductor card, which is the question this phase
+    // removed.
+    reading(null)
+    clickAtMarker('CR-BP:A1')
+
+    expect(document.querySelector('[data-path-card]')).toBeNull()
     expect(document.querySelector('[data-conductor-card]')).toBeNull()
   })
 })

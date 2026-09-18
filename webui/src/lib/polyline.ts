@@ -47,6 +47,24 @@ export function project(point: readonly [number, number], polyline: Points): Pro
   return best
 }
 
+/**
+ * How near a click has to land, in **points**, to count as pointing at something on the sheet.
+ *
+ * 6 pt is a little over a third of a conductor row, and the number is a compromise the other
+ * constants in this project do not have to make: `ON_INK_PT` is 4 because a *placed pin* is
+ * deliberate to a tenth of a point, and a pointer is not. Below about 5 pt the sheet is hard to
+ * hit at fit zoom; above half a row (8) a click between two rows could take the wrong one, which
+ * on this drawing names a different circuit.
+ *
+ * **It moved here from `features/drawing/hitTest.ts` on 2026-09-17**, and the move is the
+ * measurement of what changed: while the only thing a click could point at was a conductor, the
+ * tolerance belonged to the tab that owned the conductors. `pickPath` in `lib/paths.ts` now shares
+ * it — the Drawing tab's click today and the Locate tab's next — and `lib/` may not import from
+ * `features/`. One tolerance with two definitions is the drift this file exists to prevent for
+ * coordinates, so it lives beside `project`, the measurement it is a tolerance on.
+ */
+export const PICK_PT = 6
+
 /** The coordinate at an arc position, clamped to the ends. */
 export function atArc(polyline: Points, along: number): [number, number] {
   let arc = 0

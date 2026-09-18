@@ -262,9 +262,11 @@ export const useAppStore = create<AppState>()(
         try {
           set({ conductors: (await getConductors()).conductors, conductorsError: null })
         } catch (error) {
-          // A reader whose ink did not load can still read the sheet, select anything and see
-          // every highlight. What they lose is *what is this line* — so the card says that,
-          // rather than answering *no wire claims this run*, which would be a false fact.
+          // A reader whose ink did not load can still read the sheet, select anything, see every
+          // highlight, and click a run to learn whose path it is — that last one reads
+          // `/api/paths` since 2026-09-17. What is lost is the **conductor diagnostic**, which is
+          // the only thing fetching this any more, so the toolbar says that rather than answering
+          // *no wire claims this run*, which would be a false fact.
           set({ conductors: null, conductorsError: message(error) })
         } finally {
           conductorsInFlight = false

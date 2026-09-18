@@ -38,6 +38,7 @@ import type {
   WirePath,
 } from '@/api/types'
 import { blockOf } from './designators'
+import { PICK_PT, polylineLength, project } from './polyline'
 
 /**
  * A selection's paths, gathered — and enough about them for a card to say what is on the sheet.
@@ -244,4 +245,115 @@ function one<T>(values: Set<T>): T | 'mixed' | null {
   if (values.size === 0) return null
   if (values.size === 1) return [...values][0]
   return 'mixed'
+}
+
+/**
+ * **Whose path is this?** — the other direction, and the question the sheet's click asks from
+ * 2026-09-17.
+ *
+ * `pathsFor` goes from an identifier to the ink. This goes from a point on the paper back to the
+ * record that owns it, which is the way back the user asked for after walking the authored-paths
+ * field: *"when clicking over a path, (not a conductor — we are not interested in conductors), the
+ * path would become highlighted and we would see an information box… that tells us about the path
+ * and the wire that owns the path."*
+ *
+ * **In `lib/` rather than in `features/drawing/hitTest.ts`, and that is the point.** `hitTest.ts`
+ * answers *what conductor is this* — the extractor's reading of the paper, struck three times now
+ * (`H28`, `H29`) — and it is a Drawing-tab thing. This answers *whose authored path is this*, and
+ * the Locate tab needs the identical answer to arm the row that owns it. `lib/paths.ts` is already
+ * where the two tabs share their one answer to *which runs is that*, so it is where they share the
+ * inverse too.
+ *
+ * **It searches exactly the set the `Authored paths` field paints** — `wires[*].runs` and
+ * `commoning[*].runs` off the published `/api/paths`. That equality is the feature rather than an
+ * implementation detail: *anything you can see in the field, you can click*, and it holds because
+ * both read one published index and neither assembles anything out of a draft (`H18`).
+ *
+ * Arithmetic over a payload already on the page: no fetch, no endpoint, no password (`H20`).
+ */
+export interface PathPick {
+  /**
+   * Who owns it. `block` rather than `component` deliberately: a bus belongs to a terminal block,
+   * and `component` is how the *application* addresses that block — the mapping from one to the
+   * other is the caller's, exactly once, at the point it selects or arms something.
+   */
+  owner: { kind: 'wire' | 'block'; id: string }
+  /** The single run the click landed on, of however many the path has. */
+  run: Polyline
+  /** How far the click landed from it, in points — the same number `Pick.off` reports, and shown
+   * for the same reason: a 5.8 pt hit is a different thing from a 0.3 pt one. */
+  off: number
+  /** **The whole path**, not just the run clicked, because a card that said *this is `W064`'s
+   * route* while describing one of its three runs would be measuring the wrong thing. */
+  runs: Polyline[]
+  geometry: WirePath['geometry']
+  attribution: WirePath['attribution']
+  /** The extracted runs the whole path was lifted from. Empty on a hand trace — and **never put
+   * on screen**: the ink's own names are the extractor's, and not showing them is the whole of
+   * this line of work. It is here so a caller can tell a lift from a trace without guessing. */
+  conductors: string[]
+  /** Length of the whole path **along the ink**, in points. Not the straight line between the
+   * wire's pins, which is a different number and lives on the Locate tab's own panel — this index
+   * publishes no terminal coordinates, so it could only be guessed at from here. */
+  length: number
+}
+
+/** What a wire's route and a block's bus have in common, which is everything this needs. */
+type Authored = WirePath | BlockCommoning
+
+export function pickPath(
+  index: PathIndex | null,
+  at: readonly [number, number],
+  within: number = PICK_PT,
+): PathPick | null {
+  if (!index) return null
+
+  const owners: { owner: PathPick['owner']; path: Authored }[] = [
+    ...Object.entries(index.wires).map(([id, path]) => ({
+      owner: { kind: 'wire' as const, id },
+      path: path as Authored,
+    })),
+    ...Object.entries(index.commoning ?? {}).map(([id, path]) => ({
+      owner: { kind: 'block' as const, id },
+      path: path as Authored,
+    })),
+  ]
+
+  /**
+   * **The same two rules as `pickRun`, for the same measured reasons.**
+   *
+   * Nearest **and** within `PICK_PT`, so a click in white space answers *nothing here* rather than
+   * reaching for the closest thing on the sheet — and here that silence is the feature the user
+   * asked for by name: *"if there is no path then nothing will happen when clicking over the ink
+   * and that tells us that a path needs to be created there."*
+   *
+   * Ties go to the **shorter** run, which is what makes a click near a pin take the stub rather
+   * than the bus passing through it. `project` is the only point-to-polyline measurement in the
+   * app (invariant 2) and there is deliberately no second one here.
+   */
+  let best: { owner: PathPick['owner']; path: Authored; run: Polyline; off: number } | null = null
+  for (const { owner, path } of owners) {
+    for (const run of path.runs) {
+      if (run.length < 2) continue
+      const { off } = project(at, run)
+      if (off > within) continue
+      if (best && off > best.off) continue
+      // Equal distance: the shorter run wins, which at a pin is the stub and not the bus.
+      if (best && off === best.off && polylineLength(run) >= polylineLength(best.run)) continue
+      best = { owner, path, run, off }
+    }
+  }
+  if (!best) return null
+
+  const runs = [...best.path.runs]
+  return {
+    owner: best.owner,
+    run: best.run,
+    off: Math.round(best.off * 10) / 10,
+    runs,
+    geometry: best.path.geometry,
+    attribution: best.path.attribution,
+    conductors: [...(best.path.conductors ?? [])],
+    length: Math.round(runs.reduce((total, run) => total + polylineLength(run), 0) * 10) / 10,
+  }
 }

@@ -261,11 +261,13 @@ of `circuit_logic.json`.
 | **Why a wire paints no bus when a net and a terminal do** | `webui/src/lib/paths.ts` header | The one departure from plan §9. `C0092` was recorded as *"the second piece of `W063`'s L"* for a week; painting a block's bus in the highlight colour under a selected wire would teach that error on every wire landing on a block. A net and a terminal are questions about a **place in the circuit**; a wire is a claim about **one piece of ink** |
 | **Terminal → the wires that reach it**, and the block a pin is on | `webui/src/lib/designators.ts` | `wiresByTerminal`, `blockOf`. One pass over the wire entries already on the page — plan §4 q7 is explicit that this must not become a second endpoint — and it lives beside `readerRowState` because the Drawing tab reads it with **no password** |
 | **A block's bus as geometry a screen can paint** | `webui/src/features/locate/wiring.ts` | `commoningFor`, `BusProposal`, and `IndexedRun.spans`. The exported half of the arithmetic `landingsFrom` has used privately since Phase B: exporting it rather than re-deriving it keeps **one** answer to *where is this block's bus*. It returns the **stretch** of each run, not the conductor |
-| **Point-space arithmetic, and there is one of it** | `webui/src/lib/polyline.ts` | `project`, `atArc`, `between`, `polylineLength`, `gap`. Not a screen projection — that is `paint.ts` and invariant 2. This is *how far is this pin from that run, and how far along*, and it had one caller until Phase D gave it three: the endpoint proposal, the bus a commoning record is cut out of, and the sheet hit-test. A hit-test with its own distance function could name a run the landing rule says a pin is not on |
-| **What line am I pointing at** — the sheet hit-test and its three verdicts | `webui/src/features/drawing/hitTest.ts` | `pickRun`, `claimsFrom`, `Pick`, `Claims`, `PICK_PT` = 6 (a third of a conductor row, in **points**, so the target is the same width of paper at every zoom). Nearest **and** within tolerance: a click on blank paper answers *nothing here* rather than reaching for the closest run. A confirmed bus and one the shape rule merely found are kept **apart**, because they are different claims |
-| **The card that names a run of ink** | `webui/src/features/drawing/ConductorCard.tsx` | `ConductorCard`, `Verdict`. `data-conductor-card`, `data-conductor-verdict` and `data-conductor-coverage` find it. It prints *`n` of 71 wires have a route so far* beside **every** verdict — the honesty requirement, because until the authoring run *no wire claims this run* is right for about 90 of the 149 |
+| **Point-space arithmetic, and there is one of it** | `webui/src/lib/polyline.ts` | `project`, `atArc`, `between`, `polylineLength`, `gap`. Not a screen projection — that is `paint.ts` and invariant 2. This is *how far is this pin from that run, and how far along*, and it had one caller until Phase D gave it three: the endpoint proposal, the bus a commoning record is cut out of, and the sheet hit-test. A hit-test with its own distance function could name a run the landing rule says a pin is not on. **`PICK_PT` = 6 moved here from `hitTest.ts` on 2026-09-17** (`H29`): `pickPath` shares the tolerance and `lib/` may not import from `features/` |
+| *(diagnostic)* **What run of ink am I pointing at** — the sheet hit-test and its three verdicts | `webui/src/features/drawing/hitTest.ts` | `pickRun`, `claimsFrom`, `Pick`, `Claims`. `PICK_PT` = 6 is in `lib/polyline.ts` since 2026-09-17 (a third of a conductor row, in **points**, so the target is the same width of paper at every zoom). Nearest **and** within tolerance: a click on blank paper answers *nothing here* rather than reaching for the closest run. A confirmed bus and one the shape rule merely found are kept **apart**, because they are different claims |
+| *(diagnostic)* **The card that names a run of ink** | `webui/src/features/drawing/ConductorCard.tsx` | `ConductorCard`, `Verdict`. `data-conductor-card`, `data-conductor-verdict` and `data-conductor-coverage` find it. It prints *`n` of 71 wires have a route so far* beside **every** verdict — the honesty requirement, because until the authoring run *no wire claims this run* is right for about 90 of the 149 |
 | **Is the drawing *completely* represented** — the authored-paths field | `webui/src/features/locate/LocateTab.tsx` · `paint.ts` · `TileSheet.tsx` | `showAuthored` (off by default, not persisted), the `authored` and `buses` memos, `AUTHORED` (a fourth `RunStyle`, neutral slate — background state rather than a verdict), the `Authored paths` switch, `data-authored-toggle`, `data-authored-legend`, `data-authored` on the canvas. The set is `/api/paths`'s `wires[].runs` ∪ `commoning[].runs` — **the published index, never a draft** (`H18`, `H28`) — painted **first of the four layers** so the armed row's own route still wins. The legend reuses `claimsFrom`'s `traced`/`wires`/`handTraced` rather than counting again (`H27`). No new fetch, no new endpoint (`H20`). Walked in `20_tests_all_paths_overlay.md`, T-1450– |
 | *(superseded)* **Unclaimed ink** — the coverage overlay, now a diagnostic | `webui/src/features/drawing/DrawingTab.tsx` · `paint.ts` · `TileSheet.tsx` | Unchanged except that **the switch is gone**: `coverage` is read once from `?unclaimed=1`, and `UNCLAIMED`, the `unclaimed`/`unclaimedRuns` memos, the `TileSheet` prop, `data-coverage-legend` and `Claims.handTraced` all stay so the path cannot rot. Rejected as a human-facing view on 2026-09-15 — **`H28`** is why, and the field above is what replaced it. `19_tests_coverage_overlay.md` carries the demotion note; T-1400–T-1407 are spent |
+| **Whose path is this** — a point on the paper back to the record that owns it | `webui/src/lib/paths.ts` | `pickPath`, `PathPick`. Nearest **and** within `PICK_PT`, ties to the **shorter** run so a click near a pin takes the stub and not the bus — the same two rules as `pickRun`, through the same `project`. Searches `wires[*].runs` ∪ `commoning[*].runs` off the published `/api/paths`, which is **exactly the set the `Authored paths` field paints**: *anything you can see in the field, you can click*. `owner.kind` is `wire | block`, and turning a block into the component the application addresses it by is the caller's job, done once. Pure; no fetch, no endpoint, no password (`H20`). 7 unit tests in `lib/paths.test.ts` |
+| **The click on the Drawing tab, and the silence where there is no path** | `webui/src/features/drawing/DrawingTab.tsx` · `PathCard.tsx` | `onPath`/`onPathRef` beside `pick`, the sheet's `onClick`, and `PathCard` at **`bottom-3 right-3`** — `data-path-card`, `data-path-owner`, `data-path-geometry`, `data-path-where`. A hit **selects its owner**, which is what paints the route for nothing; `runs={onPath?.runs ?? path?.runs}` is what lights a **bus**, since `pathsFor` is null for a component. A miss does **nothing at all** — no card, no highlight, no selection change, no verdict — and that silence is the message (`H29`). `pickRun` runs only under `?unclaimed=1`, and the runs of ink are no longer fetched without it. Walked in `21_tests_clicking_a_path.md`, T-1500– |
 | **Authoring a block's commoning** | `webui/src/features/locate/CommoningPanel.tsx` | `CommoningPanel`, `NoteBox`. On a **component** row, through `wiringStore` — `H18`, and the reason it is not a store of its own. `data-commoning-panel`, `-accept`, `-clear`, `-runs`, `-note`, and since 2026-09-12 `-trace`. **Whether the panel appears at all** is `commonable` — *two or more of this component's terminals on one net*, read off `terminalNets`, which is the netlist and not a second draft. It replaced *the ink proposed something*, which hid the panel on exactly the blocks that needed authoring |
 | **Drawing a block's bus by hand** | `features/locate/wiringModel.ts` · `features/locate/wiring.ts` · `features/locate/Tracing.tsx` | `traceCommoning` — the second writer, `geometry: 'human'` because the corners are the person's, beside `setCommoning`'s `'extracted'`. A stale `conductors` list is **deleted** on a re-trace and the `note` survives one. `conductorsAlong` + `ALONG_PT` (= `2 × ON_INK_PT`) compute the weaker claim — *and the line follows this ink* — by shared course, so a wire crossing the bus square-on is not claimed. `Tracing` is the in-progress panel, shared by both traced object types and knowing neither file: `H26` |
 | **Every rule the commoning editor applies** | `webui/src/features/locate/wiringModel.ts` | `commoningOf`, `setCommoning`, `clearCommoning`, `setCommoningNote`, `commonedBlocks`, `commoningCoverage`. `setCommoning` writes `extracted`/`human` and never `derived`; `clearCommoning` **deletes**, unlike `unconfirm` one section up, because nothing bootstrapped a bus and *no record* is the same state as *nobody authored this* |
@@ -363,6 +365,16 @@ feature's. **127 tests.**
 | `components/Markdown.test.tsx` | 13 | |
 | `components/UnlockButton.test.tsx` | 4 | |
 | `App.test.tsx` | 8 | the tabs, and the `F2` effect |
+
+**After §4A of the highlighting-03 plan, 2026-09-17: 506 web tests over 20 files.** No new test
+file — `PathCard.tsx` is covered through the screen, because what is worth guarding about a card is
+that a **click** raises it. `lib/paths.test.ts` (**+7** — `pickPath` as arithmetic: the tolerance in
+both directions, the whole path rather than the run clicked, a block's bus, ties to the shorter run
+**both ways round**, and the property that it searches exactly the set the field paints) and
+`features/drawing/DrawingTab.test.tsx` (**74**, +9 — the path click end to end, the silence with a
+**nonce** check proving `select` was never called, both cards in both corners, and that a reader
+never fetches the runs of ink). *(The three sessions between 2026-09-10 and this one did not add an
+entry here; the per-file table above is the current map.)*
 
 **After Session 4 of the authoring-the-wires plan, 2026-09-10: 458 web tests over 20 files.** No
 new file. `features/locate/wiringModel.test.ts` (**44**, +12 — `nextWireId` counting past a
@@ -1155,6 +1167,69 @@ gains a route about a second after it is committed. The unsaved edit is already 
 **The lesson for the next overlay:** *what does this count measure, and is that the thing the
 reader is trying to decide?* The coverage overlay answered a question about the extraction while
 looking like an answer about the drawing.
+
+### H29 — the click was the third view over conductors, and the reader's question is *whose path is this* *(added 2026-09-17)*
+
+`H28` fixed what the sheet **paints**. It left what the sheet **answers** untouched, and the user
+found that the same evening: *"I notice if I click while over a conductor then the conductor will
+turn blue and an information box will appear… Since we have already established that the human does
+not need to see the conductor but rather the paths, it would be better if when clicking over a
+path, (not a conductor — we are not interested in conductors), the path would become highlighted
+and that we would see an information box in the lower right that tells us about the path and the
+wire that owns the path."*
+
+**Three strikings of the same thing, and they are worth reading as one sequence** — a conductor as
+something to *author* (2026-09-13: drawing one would be inventing ink), as something to *view*
+(2026-09-15: `H28`), and as something to *click* (2026-09-17: this). Each time the code was kept
+and the control was taken off the reader's screen, because *is the ink there, or did we miss it* has
+to stay answerable from the screen and plan 03 `§6` still needs to ask it. **The demotion pattern is
+now settled and reusable:** leave the code, remove the control, gate it on `?unclaimed=1` read once,
+keep every test by setting the query instead of clicking, and write the reason into the lesson
+document's header.
+
+**Silence is the feature, and it is the same instrument as the unpainted ink.** A click over ink that
+no path claims does **nothing at all** — no card, no highlight, no selection change, and above all
+no *no wire claims this run*. *Nothing happened* is the message: a path needs to be created there.
+A verdict would have been the conductor's question answered a fourth time, and it would have been
+answered out of a file `prompts.py` tells the model not to read.
+
+**`pickPath` lives in `lib/paths.ts`, beside `pathsFor`, and the pairing is the design.** `pathsFor`
+goes from an identifier to the ink; `pickPath` goes from a point on the paper back to the record
+that owns it. Both tabs need the same answer — the Drawing tab's card today, the Locate tab's armed
+row in `§4B` — so it is one function in the one place the two tabs already share their answer to
+*which runs is that*. It searches `wires[*].runs` and `commoning[*].runs` off the published
+`/api/paths`, which is **exactly the set the `Authored paths` field paints**: *anything you can see
+in the field, you can click*, and that equality holds because both read one published index and
+neither assembles anything out of a draft (`H18`, `H20`).
+
+**Two consequences that were not obvious before building it:**
+
+1. **`PICK_PT` moved to `lib/polyline.ts`.** It was `features/drawing/hitTest.ts`'s while the only
+   thing a click could point at was a conductor. `lib/` may not import from `features/`, and one
+   tolerance with two definitions is the drift `polyline.ts` exists to prevent for coordinates — so
+   it lives beside `project`, the measurement it is a tolerance on. Its reasoning for 6 rather than
+   4 or 8 moved with it unchanged.
+2. **A picked path paints its own runs, because a component selection cannot.** Selecting a wire
+   paints its route through `pathsFor` and the highlight is free. Selecting a **component** returns
+   null by design — a component has no route in the way a stone has no opinion — so a click on a
+   block's bus would have named it in the card and lit nothing. `runs={onPath?.runs ?? path?.runs}`
+   on the Drawing tab's `TileSheet`: the pick is the more specific claim, so it wins while it is
+   there and the sheet falls back to the selection when the card closes.
+
+**And the corner was the cheap part of the answer.** `ConductorCard` and `SelectionCard` are both
+`bottom-3 left-3` and there is a precedence comment about which of them wins. `bottom-3 right-3` was
+empty, which is why the user's *lower right* both is what they asked for and **ends** that fight
+rather than joining it: *what is this line* and *where is this identifier* are different questions,
+and their answers no longer have to take turns. `Escape` takes the path first and the selection
+second — `H22`, unchanged — except that in a diagnostic session both picks are one answer to one
+gesture and one press takes them both.
+
+**What it also finished.** The runs of ink are no longer fetched for a reader at all: every
+remaining consumer is behind `?unclaimed=1`, and `claims.traced`/`.wires` — the honesty numbers the
+selection card prints — come out of `/api/paths`. A reader who never asks for the diagnostic never
+downloads the extractor's reading of the paper.
+
+---
 
 ---
 

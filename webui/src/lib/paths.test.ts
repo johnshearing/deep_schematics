@@ -9,8 +9,9 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { pathsFor } from './paths'
-import type { BlockCommoning, PathIndex } from '@/api/types'
+import { pathsFor, pickPath } from './paths'
+import { PICK_PT } from './polyline'
+import type { BlockCommoning, PathIndex, Polyline } from '@/api/types'
 
 /** Net 120 as the real sheet has it: four wires, and — for now — two of them traced. `C0080` is
  * the BLUE 18AWG run at y = 663.7, and `W063`'s is a hand trace across a crossover hop. */
@@ -254,5 +255,131 @@ describe('a terminal, which used to be null', () => {
     expect(path?.here).toEqual(['W052', 'W063'])
     expect(path?.runs).toEqual([])
     expect(path?.commoning).toEqual([])
+  })
+})
+
+// -- §4A Phase 3d: `pickPath`, the way back from the paper --------------------------------------
+//
+// `pathsFor` goes from an identifier to the ink. This goes from a point on the paper back to the
+// record that owns it, which is what turns a mark on the drawing into an index into the queue.
+// Pure arithmetic over the published `/api/paths`: no fetch, no endpoint, no password (`H20`).
+
+/**
+ * A stub and a bus crossing at one pin, which is the only place the tie rule is visible.
+ *
+ * The stub ends on the pin at `[400, 500]` and the bus passes straight through it, so a click on
+ * the pin is 0 pt from both. The person clicking is pointing at the **stub** — the same reason
+ * `pickRun` has broken its ties that way since Phase D.
+ */
+function crossing(stub: number, bus: number): PathIndex {
+  return {
+    wires: {
+      W090: {
+        runs: [
+          [
+            [400 - stub, 500],
+            [400, 500],
+          ],
+        ],
+        geometry: 'extracted',
+        attribution: 'printed',
+        conductors: ['C0300'],
+      },
+    },
+    nets: {},
+    commoning: {
+      'TB-140': {
+        runs: [
+          [
+            [400, 500 - bus / 2],
+            [400, 500 + bus / 2],
+          ],
+        ],
+        geometry: 'extracted',
+        attribution: 'human',
+        conductors: ['C0301'],
+      },
+    },
+  }
+}
+
+describe('pickPath', () => {
+  it('has nothing to say before the index has landed', () => {
+    expect(pickPath(null, [340, 663.7])).toBeNull()
+  })
+
+  it('takes the run under the point and names the wire that owns it', () => {
+    const found = pickPath(INDEX, [340, 663.7])
+    expect(found?.owner).toEqual({ kind: 'wire', id: 'W052' })
+    expect(found?.off).toBe(0)
+    expect(found?.geometry).toBe('extracted')
+    // 379.8 − 301.8, along the ink. Computed from the payload, never remembered — trap 4.
+    expect(found?.length).toBe(78)
+  })
+
+  it('answers *nothing here* outside the tolerance rather than reaching for the nearest thing', () => {
+    // The same two-sided assertion `pickRun` carries, and the same reason: a click in the white
+    // space between two circuits that named the closest path on the sheet would be believed, and
+    // on 16 pt rows a wrong line is worse than no line. Here the silence carries a second
+    // meaning as well — *a path needs to be created there*.
+    expect(pickPath(INDEX, [340, 663.7 + PICK_PT - 0.5])).not.toBeNull()
+    expect(pickPath(INDEX, [340, 663.7 + PICK_PT + 0.5])).toBeNull()
+  })
+
+  it('reports the whole path, not the one run the click landed on', () => {
+    // `W063` is a hand trace across a crossover hop: two runs, and a card that measured only the
+    // one under the pointer would call 326.6 pt of route 65.6.
+    const found = pickPath(INDEX, [265.4, 563.4])
+    expect(found?.owner).toEqual({ kind: 'wire', id: 'W063' })
+    expect(found?.run).toEqual([
+      [232.6, 563.4],
+      [298.2, 563.4],
+    ])
+    expect(found?.runs).toHaveLength(2)
+    expect(found?.length).toBe(326.6)
+    // A hand trace names no conductor at all, and that absence is the record.
+    expect([found?.geometry, found?.conductors]).toEqual(['human', []])
+  })
+
+  it('names the block whose bus it is, not a component and not a wire', () => {
+    // `block` rather than `component`: a bus belongs to a terminal block, and turning that into
+    // the application's own way of addressing the block is the caller's job, done exactly once.
+    const found = pickPath(COMMONED, [300.1, 600])
+    expect(found?.owner).toEqual({ kind: 'block', id: 'TB-120' })
+    expect(found?.length).toBe(72.7)
+    expect(found?.conductors).toEqual(['C0092'])
+  })
+
+  it('breaks a tie towards the shorter run, whichever map it came out of', () => {
+    // Both ways round, so the rule is provably about length and not about which map is searched
+    // first. This is what makes a click near a pin take the stub rather than the bus.
+    expect(pickPath(crossing(10, 200), [400, 500])?.owner).toEqual({ kind: 'wire', id: 'W090' })
+    expect(pickPath(crossing(200, 10), [400, 500])?.owner).toEqual({
+      kind: 'block',
+      id: 'TB-140',
+    })
+  })
+
+  it('searches exactly the set the `Authored paths` field paints', () => {
+    // **The property worth a test of its own: *anything you can see in the field, you can
+    // click.*** It holds because both read one published index — the field in `LocateTab.tsx` and
+    // this — and neither assembles anything out of a draft, which is `H18` staying answered.
+    const field = [
+      ...Object.entries(COMMONED.wires).flatMap(([id, path]) =>
+        path.runs.map((run) => [id, run] as [string, Polyline]),
+      ),
+      ...Object.entries(COMMONED.commoning ?? {}).flatMap(([id, bus]) =>
+        bus.runs.map((run) => [id, run] as [string, Polyline]),
+      ),
+    ]
+    expect(field).toHaveLength(4)
+
+    for (const [id, run] of field) {
+      const mid: [number, number] = [
+        (run[0][0] + run[1][0]) / 2,
+        (run[0][1] + run[1][1]) / 2,
+      ]
+      expect(pickPath(COMMONED, mid)?.owner.id).toBe(id)
+    }
   })
 })

@@ -32,18 +32,13 @@
  */
 
 import type { BlockCommoning, Conductor, PathIndex } from '@/api/types'
-import { project } from '@/lib/polyline'
+import { PICK_PT, project } from '@/lib/polyline'
 
-/**
- * How near a click has to land, in **points**, to count as pointing at a run.
- *
- * 6 pt is a little over a third of a conductor row, and the number is a compromise the other
- * constants in this project do not have to make: `ON_INK_PT` is 4 because a *placed pin* is
- * deliberate to a tenth of a point, and a pointer is not. Below about 5 pt the sheet is hard to
- * hit at fit zoom; above half a row (8) a click between two rows could take the wrong one, which
- * on this drawing names a different circuit.
+/*
+ * `PICK_PT` used to be declared here. It moved to `lib/polyline.ts` on 2026-09-17, beside the
+ * measurement it is a tolerance on, because `pickPath` now shares it and `lib/` may not import
+ * from `features/` — see `H29`. Its reasoning for 6 rather than 4 or 8 moved with it.
  */
-export const PICK_PT = 6
 
 /** What the sheet says about the line under the pointer. */
 export interface Pick {

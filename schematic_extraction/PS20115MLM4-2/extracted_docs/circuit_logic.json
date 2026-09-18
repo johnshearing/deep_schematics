@@ -3722,10 +3722,19 @@
       "color": "WHITE/BLUE",
       "gauge": "12AWG",
       "from_terminal": "PS1:-1",
-      "to_terminal": "TB-0V:1",
+      "to_terminal": "TB-0V:3",
       "cable": null,
       "net": "0V",
-      "description": ""
+      "description": "",
+      "endpoints": {
+        "source": "human",
+        "by": "js",
+        "at": "2026-09-18T20:55:05.007Z",
+        "was": [
+          "PS1:-1",
+          "TB-0V:1"
+        ]
+      }
     },
     {
       "id": "W019",
@@ -6483,8 +6492,8 @@
     {
       "type": "CONNECTS_TO",
       "src": "PS1:-1",
-      "tgt": "TB-0V:1",
-      "description": "PS1:-1 connects to TB-0V:1 via wire W018, a WHITE/BLUE 12AWG conductor on net 0V.",
+      "tgt": "TB-0V:3",
+      "description": "PS1:-1 connects to TB-0V:3 via wire W018, a WHITE/BLUE 12AWG conductor on net 0V.",
       "properties": {
         "wire": "W018",
         "wire_color": "WHITE/BLUE",

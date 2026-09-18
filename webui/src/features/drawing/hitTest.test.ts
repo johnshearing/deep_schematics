@@ -15,7 +15,8 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Conductor, PathIndex } from '@/api/types'
-import { claimsFrom, pickRun, PICK_PT } from './hitTest'
+import { PICK_PT } from '@/lib/polyline'
+import { claimsFrom, pickRun } from './hitTest'
 
 function run(id: string, points: [number, number][], over: Partial<Conductor> = {}): Conductor {
   return {

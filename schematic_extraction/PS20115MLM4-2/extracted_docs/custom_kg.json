@@ -1333,7 +1333,7 @@
       "chunk_order_index": 221
     },
     {
-      "content": "Wire W018 is a WHITE/BLUE 12AWG conductor. It runs from PS1:-1 to TB-0V:1. It carries net 0V.",
+      "content": "Wire W018 is a WHITE/BLUE 12AWG conductor. It runs from PS1:-1 to TB-0V:3. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W018",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 222
@@ -3397,7 +3397,7 @@
       "chunk_order_index": 565
     },
     {
-      "content": "PS1:-1 connects to TB-0V:1 via wire W018, a WHITE/BLUE 12AWG conductor on net 0V.",
+      "content": "PS1:-1 connects to TB-0V:3 via wire W018, a WHITE/BLUE 12AWG conductor on net 0V.",
       "source_id": "PS20115MLM4-2::rel::00276",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 566
@@ -5717,7 +5717,7 @@
     {
       "entity_name": "W018",
       "entity_type": "wire",
-      "description": "Wire W018 is a WHITE/BLUE 12AWG conductor. It runs from PS1:-1 to TB-0V:1. It carries net 0V.",
+      "description": "Wire W018 is a WHITE/BLUE 12AWG conductor. It runs from PS1:-1 to TB-0V:3. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W018",
       "file_path": "circuit_logic.json"
     },
@@ -8676,8 +8676,8 @@
     },
     {
       "src_id": "PS1:-1",
-      "tgt_id": "TB-0V:1",
-      "description": "PS1:-1 connects to TB-0V:1 via wire W018, a WHITE/BLUE 12AWG conductor on net 0V.",
+      "tgt_id": "TB-0V:3",
+      "description": "PS1:-1 connects to TB-0V:3 via wire W018, a WHITE/BLUE 12AWG conductor on net 0V.",
       "keywords": "connects to, wire: W018, wire_color: WHITE/BLUE, wire_gauge: 12AWG, net: 0V",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00276",

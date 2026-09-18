@@ -1,4 +1,4 @@
-# The goals, and what exists against them — 2026-09-15, revised 2026-09-17
+# The goals, and what exists against them — 2026-09-15, revised 2026-09-17 (twice: `§4A` shipped, and §6A found)
 
 Written after the user walked `locate_tab_testing/19_tests_coverage_overlay.md` and **rejected the
 unclaimed-conductor overlay as a human-facing feature.** This document is the report of that
@@ -103,7 +103,7 @@ to the record that owns it, and to nothing else.*
 | 1 | **Notes** | No | No | No | n/a | No | the text is in `author_circuit_logic.py` → `drawing.notes`; `geometry.json` has 9 labels of kind `note` with bboxes and **nothing binds the two**. No screen at all — the only item on this list with no half |
 | 2 | **Components** | No | No | No | No | **Yes** | position is `locations.json`: sites, drag, 0.1 pt nudge, label side, several sites per component. Class, description, ratings, part number are Python tables |
 | 3 | **Terminals** | No | No | No | No | **Yes** | 131 placed; a pin may hold its own point or borrow its site's. *Whether a pin exists*, its `function` and its `net` are Python tables |
-| 4 | **Wires** — the logical connection | **Yes** | **Yes** | **No, by design** | **Yes** | n/a | `Add a wire` stamps `added: true` (`H25`); either end is correctable and keeps `was`; `Retire this wire` writes a tombstone with a reason in words and is reversible. **Delete is deliberately absent** — a wire that existed and does not now is a tombstone, not an absence. A wire has no place of its own: its geometry is its two terminals |
+| 4 | **Wires** — the logical connection | **Yes** | **Yes** | **No, by design** | **Yes** | n/a | `Add a wire` stamps `added: true` (`H25`); either end is correctable and keeps `was`; `Retire this wire` writes a tombstone with a reason in words and is reversible. **Delete is deliberately absent** — a wire that existed and does not now is a tombstone, not an absence. A wire has no place of its own: its geometry is its two terminals. **The hole found 2026-09-17: a correction keeps `was` but takes no reason in words**, while a retirement demands one — so *the printed table said `:1` and the ink lands on `:3`, and I looked* cannot be written down (§6A, plan 03 `§4C`) |
 | 5 | **Paths** — a wire along the ink | **Yes** | **Yes** | **Yes** | n/a | **Yes** | lift a ranked run · add a run across a crossover hop · `Trace by hand` · `convertPath` then drag a corner · `Clear` · *no path on this sheet* as an explicit empty state |
 | 6 | **Nets** — terminals in common | No | No | No | No | **Label only** | `label_point` and per-member end-label side/hidden are authorable. **Membership is the `net` field per terminal in the Python tables — the sharpest gap**, because net membership is what the highlight paints: a net a reader can see is wrong can only be fixed in a Python file |
 | 7 | **Path_nets** — paths in common | — | — | — | — | — | **Derived, and should stay derived.** A net's highlight is already the union of its member wires' runs (`lib/paths.ts:116` `pathsFor`). Authoring a second grouping would be a second draft of connectivity, which is `H18`/`H25`. One defect to fix rather than a feature to build — §6 below |
@@ -127,7 +127,7 @@ renders them as `Citation`, `Citation.tsx` calls `select(kind, id)` and switches
 | 1 | **Notes** | **No** | an id and a bbox bound to it — both missing |
 | 2 | **Components** | **Yes** | dot, ring, fly-to, citation |
 | 3 | **Terminals** | **Yes** | its own dot, never its parent's |
-| 4 | **Paths** | **Yes — one at a time, and all at once since 2026-09-15** | the field is built. What is missing is the **way back**: clicking a painted run should name its owner (`§4A`) and arm its row (`§4B`) |
+| 4 | **Paths** | **Yes — one at a time, all at once since 2026-09-15, and clickable since 2026-09-17** | the field is built and so is half the **way back**: clicking a painted run names its owner in a card and highlights it (`§4A`). What is left is arming its **row** on the Locate tab (`§4B`) |
 | 5 | **Path_nets** | **Yes**, one net at a time | the union is published from `wire.net`; §6 below |
 | 6 | **Path_cables** | **No** | the grouping already exists — 8 cables with `member_wires` — so `CABLE-POWER-IN` is paintable as `W001`+`W002`+`W003`'s runs today. **The oval has no geometry in the extraction**, so a cable boundary is a shape a person draws: `geometry: "human"`, like `TB-130`'s bus |
 | 7 | **Labels** | **Partly** | the app paints the end labels it places itself; a printed label's own bbox is never lit |
@@ -172,14 +172,57 @@ bond is only findable by traversing terminals. A `BONDED_TO` edge from the gener
 
 ---
 
+## 6A. The second special case — the record and the paper disagree about **which screw**
+
+Found by the user on **2026-09-17**, minutes after walking `§4A`, and it is the first fault the new
+click caught: they clicked `RECEPT1:4` on the Drawing tab, followed the card's link to `W037`, read
+its record and said *"of course I can see with my own eyes that this is not true."* Same for `W018`,
+armed on the Locate tab.
+
+**Both observations reproduce a measurement made on 2026-09-08, to the screw.**
+
+    W018   netlist TB-0V:1   →  the ink lands on TB-0V:3
+    W037   netlist TB-0V:4   →  the ink lands on TB-0V:1
+    W036   netlist TB-0V:3   →  the ink lands on TB-0V:2
+
+For the **40** wires landing on a multi-point block the far end was **allocated rather than read** —
+one screw after another down the page — so **11 of 71 are on the wrong screw, 13 more cannot be
+settled from the ink, and 47 are right.** `authoring_the_wires.md` `§3.2` and `§3.5` are the
+per-wire tables. **Grep that file; never read it.**
+
+**Nothing needs authoring that is not already authorable, and the remedy is a one-end correction.**
+Not a retirement — `Retire this wire` is for a wire that does not *exist*, and a tombstone would
+delete a real connection. Not a new wire — `Add a wire` stamps `added: true` (`H25`), which would
+claim the user put it there. **A correction keeps `was`**, which is the whole record of what the
+machine guessed, and every record still reading `source: index` is a wire nobody has looked at yet.
+That screen shipped 2026-09-08.
+
+**The block is rotated, so it cannot be worked one wire at a time**: moving `W018` onto `:3` while
+`W036` still claims `:3` is a transient double-claim. `§3.5`'s twelve rows are the whole rotation.
+
+**Three real holes, and they are plan 03 `§4C`.** The ink's verdict is **already on the screen** —
+`proposalsFor` walks the ink from the trustworthy end and `EndSlot` renders it — but (1) there is no
+way to **find** the eleven except by arming all 71, (2) a correction **cannot say why**, because
+`wiringStore.edit` takes no note while `Retire` demands a reason, and (3) a record the ink
+*contradicts* looks like one the ink *confirms*. The first is a filter, the second is a field, and
+the third is a colour. **Nothing is ever auto-accepted** — `W042` and `TB-0V:6` are why: there the
+run stops short and the netlist's claim is the right one.
+
+**What this vindicates, and it is worth saying plainly.** `§4A` and `§4B` were justified as *the way
+back, from a mark on the paper to the record that owns it.* Within an hour of `§4A` shipping, that
+way back found two wrong records. **The click is an instrument, not a convenience.**
+
+---
+
 ## 7. Where the work stands, and what carries it
 
 | # | Item | State | Carried by |
 |---|---|---|---|
 | 1 | **All authored paths painted at once**, on the Locate tab, one colour, toggled, with *n of m wires have a route* beside it — and `Unclaimed ink` off the toolbar in the same change | **built 2026-09-15**, walked | plan 03 `§4` · `20_tests_all_paths_overlay.md`, T-1450–T-1459 · `H28` |
-| 1a | **Clicking the ink on the Drawing tab answers *whose path is this***, in a card at the lower right, with the path highlighted — and **says nothing at all** where there is no path, which is how the reader learns one is needed. The conductor card joins the conductor overlay as a diagnostic | **not built**, fully specified | plan 03 `§4A` — half a session, **next** |
-| 1b | **Clicking a painted path on the Locate tab arms that wire's row** and highlights it, so the drawing is the index into the queue rather than the list | **not built**, fully specified | plan 03 `§4B` — half a session, after `§4A` |
-| 2 | **The orphaned end-label rows** — the last hole in an otherwise complete surface; two banners nobody can clear | **not built**, fully specified | plan 03 `§5` — half a session |
+| 1a | **Clicking the ink on the Drawing tab answers *whose path is this***, in a card at the lower right, with the path highlighted — and **says nothing at all** where there is no path, which is how the reader learns one is needed. The conductor card joins the conductor overlay as a diagnostic | **built 2026-09-17**, awaiting the walk | plan 03 `§4A` · `21_tests_clicking_a_path.md`, T-1500–T-1507 · `H29` |
+| 1b | **Clicking a painted path on the Locate tab arms that wire's row** and highlights it, so the drawing is the index into the queue rather than the list | **not built**, fully specified | plan 03 `§4B` — half a session, **next** |
+| 1c | **Finding the eleven wires whose far end the ink disagrees with, and saying *why* you corrected one** — the verdict is already computed per end; what is missing is a filter, a reason field and a colour | **not built**, specified 2026-09-17 | plan 03 `§4C` — half a session, **third**; its two *defects* are small enough to ride with `§5` · §6A above |
+| 2 | **The orphaned end-label rows** — the last hole in an otherwise complete surface. **Three banners nobody can clear on 2026-09-18, a fourth coming**, and the authoring run is what creates them: correcting a wire's far end orphans any end-label override on the old terminal | **not built**, fully specified | plan 03 `§5` — half a session, **second**, moved up 2026-09-18 |
 | 3 | **The extractor's layer fix**, without re-extracting — re-justified: the candidate list is missing 16 runs that land on placed terminals, which is why six coil wires must be hand-traced | **not built** | plan 03 `§6` — one short session |
 | 4 | **A screen for `author_circuit_logic.py`** — notes, component existence, terminal existence, **net membership**. A fifth authored input the generator folds in, with the `H25` treatment | **not built** | plan 03 `§7` — **a plan document, not a session** |
 | 5 | **Cables, label and symbol binding, and widening the citation loop** so an answer can paint a note or a cable | **not built** | plan 03 `§8` — **a plan document**, after item 4 |
@@ -203,7 +246,7 @@ phase being executed. Nothing else from `_claude_notes`.
 | `geometry.json` | 620 KB | ~150 k tokens. **Never.** Use a `python3 -c` one-liner |
 | `circuit_logic.json` | — | generated; never whole. One-liner for any count |
 | `change_history.md` | 233 KB | ~58 k tokens |
-| `authoring_the_wires.md` | 91 KB | ~23 k tokens; finished |
+| `authoring_the_wires.md` | 91 KB | ~23 k tokens; finished. **A grep target, not a read** — its `§3.2` and `§3.5` name which screw the ink lands on for all eleven wrong wires, and one `grep -n` fetches the rows for ~200 tokens (§6A) |
 | `highlighting_wires_and_nets.md` | 99 KB | ~25 k tokens; shipped |
 | `highlighting_wires_and_nets_02.md` | ~32 KB | shipped and superseded — plan 03 quotes what still matters |
 | `locate_tab_testing/1x_tests_*.md` | 7–30 KB each | **lesson documents are the output of a phase, never its input** |
@@ -211,6 +254,9 @@ phase being executed. Nothing else from `_claude_notes`.
 **The strategy, in one line:** cost ≈ **$0.50 × context in millions × number of calls**, so the
 saving is in *not reading*, not in thinking less.
 
+0. **Grep the documents on the do-not-read list; do not read them.** They are large because they
+   are finished, and a finished document is a lookup table. The whole of §6A came out of one
+   `grep -n "W018\|W037"` over 91 KB, for ~200 tokens, against a PDF measurement otherwise.
 1. **Measure the data, then read only the code that renders it.** Four one-liners answered *how
    many runs, claimed by what, claimed by whom, which nets does a wire cross* for a few hundred
    tokens each on 2026-09-15. The same four questions asked by reading files would have been the

@@ -15,6 +15,17 @@ is `§1` below and it is the whole of why this plan exists. **`§4` here shipped
 user walked it: it works.** Walking it produced two more requirements, which are `§4A` and `§4B`,
 and they are the next two sessions. **`§4A` first.**
 
+**`§4A` shipped 2026-09-17, and the user walked it the same evening: it works.** Walking it produced
+one new phase — **`§4C`** — and the way it produced it is the point: the user clicked a terminal on
+the Drawing tab, followed the card's link to `W037`, and caught a wrong record. *The drawing became
+the index into the queue, and the index found a fault.* Working that fault produced a second phase,
+**`§6A`**, and three defects.
+
+**The order after `§4B`, set by the user on 2026-09-18: `§4B` → `§5` → `§4C` → `§6` → `§6A`.**
+`§5` moved up because the user's own authoring run creates red banners nobody can clear, and `§4C`
+moved down because its *find them* half is already done — the user has the list, and it is `§4C.0`.
+`§10` is the argument. **`§4B` is the next session** and it reuses `pickPath` unchanged.
+
 **What the walk of `§4` established, in one line:** the field answers *where is the work* and the
 two clicks do not — the Drawing tab's click still answers *what conductor is this*, and the Locate
 tab's cannot get from a painted run to the row that owns it. `§4A` and `§4B` are those two clicks.
@@ -33,7 +44,7 @@ Do **not** open these, and the reason is measured:
 | `geometry.json` | 620 KB | ~150 k tokens. **Never.** A `python3 -c` one-liner answers any question about it |
 | `circuit_logic.json` | — | Generated. Never whole; one-liner for a count |
 | `change_history.md` | 233 KB | ~58 k tokens. Everything this plan needs from it is quoted here |
-| `authoring_the_wires.md` | 91 KB | ~23 k tokens. Finished except the user's own run, which no phase here touches |
+| `authoring_the_wires.md` | 91 KB | ~23 k tokens. Finished except the user's own run, which no phase here touches. **Grep it, never read it** — its `§3.2` and `§3.5` hold the per-wire tables of *which screw the ink actually lands on*, and `grep -n "W018\|W037"` answers a question in 200 tokens that costs a PDF measurement otherwise (`§4C.0`) |
 | `highlighting_wires_and_nets.md` | 99 KB | ~25 k tokens. Shipped |
 | **`highlighting_wires_and_nets_02.md`** | 44 KB | **Shipped and superseded.** What still matters is quoted in `§3`, `§5` and `§6` below |
 | `locate_tab_testing/*_tests_*.md` | 7–40 KB each | **A lesson document is the output of a phase, never its input** — `19_tests_coverage_overlay.md` and `20_tests_all_paths_overlay.md` included. The **one** exception is a phase's own acceptance list, quoted where it is needed: `§4A` names four T-numbers in `16_...` it has to demote, and reading those four sections (`:256-346`) is 2 KB, not the file |
@@ -285,7 +296,26 @@ needs already exists.
 
 ---
 
-## §4A Phase 3d — the Drawing tab points at **paths**, not conductors — **the next session**
+## §4A Phase 3d — the Drawing tab points at **paths**, not conductors — **shipped 2026-09-17**
+
+> **Shipped 2026-09-17, not yet walked.** `pickPath` + `PathPick` in `lib/paths.ts`, `PathCard.tsx`
+> at `bottom-3 right-3` (`data-path-card`, `data-path-owner`, `data-path-geometry`), `onPath` and
+> the sheet's `onClick` in `DrawingTab.tsx`, `ConductorCard` and `pickRun` behind `?unclaimed=1`.
+> Walk **`locate_tab_testing/21_tests_clicking_a_path.md`**, T-1500–T-1507; `H29` in
+> `06_code_map.md` is the reasoning; `16_...` carries the demotion note on T-1135/T-1140/T-1145/
+> T-1150. **No server edit, as predicted.** 263 server · 506 web · ruff and tsc clean.
+>
+> **Three things it did that this section did not name**, each with its reason in `H29`:
+> `PICK_PT` **moved** to `lib/polyline.ts`, because `lib/` may not import from `features/` and
+> `pickPath` needs the tolerance; `runs={onPath?.runs ?? path?.runs}` on the `TileSheet`, because
+> `pathsFor` is null for a **component** so a bus click would otherwise have named a bus and lit
+> nothing; and the **runs of ink are no longer fetched for a reader at all**, since every remaining
+> consumer of them is behind the query.
+>
+> **What it left open, deliberately:** `SelectionCard.tsx:274` still prints a route's `C####` list,
+> and a path click is now something that puts that card on screen. It is a different control with
+> its own walked test asserting the id is visible, so it was not demoted without being asked —
+> nothing is auto-accepted. One prop and one line if the user wants it.
 
 *(Numbered `§4A` on purpose. `§5` to `§8` keep the numbers `claude.md` and `goals_01.md` already
 cite, and these two phases belong beside `§4` because they are the same inversion carried into the
@@ -507,7 +537,172 @@ other three branches did not move.
 
 ---
 
-## §5 Phase 3b — the override nobody can reach
+## §4C Phase 3f — the wire whose far end the ink disagrees with — **third, after `§5`**
+
+**The first half of this section is not a phase. It is an answer**, and it is here because the
+question cost a session's attention on 2026-09-17 and must never cost it again.
+
+After walking `§4A` the user armed `W018` on the Locate tab, read *`PS1:-1` → `TB-0V:1`*, looked at
+the paper and said:
+
+> *"I can see that there is ink going from `PS1:-1` to `TB-0V:3`… and I can also see that there is
+> ink going from `TB-0V:1` to `RECEPT1:4`… So the information attached to `W018` is wrong and needs
+> to be fixed. It seems we need to delete or retire `W018` and create a Wire from `TB-0V:1` to
+> `RECEPT1:4` and create another wire from `PS1:-1` to `TB-0V:3`."*
+
+Then the same thing for `W037` — the record says `TB-0V:4` → `RECEPT1:4`, the ink says otherwise —
+found by clicking `RECEPT1:4` on the Drawing tab and following the card's link, **which is `§4A` and
+`§4B`'s whole thesis working exactly as intended.**
+
+### 4C.0 The finding is right, it is already tabled, and the remedy is smaller than retirement
+
+**Both observations reproduce a measurement made on 2026-09-08, to the screw.** The `W` table in
+`author_circuit_logic.py` was typed by the vision pass, and for the **40** wires landing on a
+multi-point block the far end was **allocated rather than read** — one screw after another down the
+page. Measured against the placed points and the PDF's polylines: **11 of 71 are on the wrong screw,
+13 more cannot be settled from the ink, and 47 are right.**
+
+**All eleven, so nobody re-derives them** — `authoring_the_wires.md` `§3.2`, with the state read out
+of `wiring.json` on **2026-09-18**. Recompute the last column; never quote it.
+
+| Wire | the netlist said | the ink says | the ink itself | state |
+|---|---|---|---|---|
+| `W014` | `TB-GND-B:2` → `PS1:GND` | **`TB-GND-B:1`** | `C0046` GREEN 12AWG | to do |
+| `W018` | `PS1:-1` → `TB-0V:1` | **`TB-0V:3`** | `C0001+C0012+C0002` | **done 2026-09-18** |
+| `W019` | `PS1:-2` → `TB-0V:2` | **`TB-GND-B:2`** — a different block, `0V` → `GND` | `C0056` | **done 2026-09-08** |
+| `W036` | `SPD1:2` → `TB-0V:3` | **`TB-0V:2`** | `C0122` WHITE/BLUE 18AWG | to do |
+| `W037` | `TB-0V:4` → `RECEPT1:4` | **`TB-0V:1`** | `C0084` WHITE 18AWG | to do |
+| `W039` | `PB1:3` → `TB-0V:5` | **`TB-0V:4`** | `C0031` BLUE 22AWG | to do |
+| `W045` | `CR1:A2` → `TB-0V:8` | **`TB-0V:5`** | `C0023` WHITE/BLUE 18AWG | to do |
+| `W046` | `CR2:A2` → `TB-0V:9` | **`TB-0V:7`** | `C0011` WHITE/BLUE 18AWG | to do — **and it already has a hand-traced path**, drawn against the wrong screw, so correcting the end should raise `pathStale` |
+| `W062` | `INFEED1:2` → `TB-0V:12` | **`TB-0V:10`** | `C0114` GREEN 16AWG | to do |
+| `W063` | `INFEED1:3` → `TB-120:2` | **`TB-120:1`** | `C0091` RED 16AWG | **done 2026-09-08** |
+| `W069` | `DISCHARGE1:4` → `TB-130:2` | **`TB-130:1`** | `C0117+C0017` ORANGE 16AWG | to do |
+
+**Eight left on 2026-09-18**, and `wiring.json` reads 67 `index` · 4 `human`. **The run is the
+user's; no phase writes one of these.**
+
+**The whole `TB-0V` block is rotated, which is why it cannot be fixed one wire at a time**: moving
+`W018` onto `:3` while `W036` still claims `:3` is a transient double-claim. `authoring_the_wires.md`
+`§3.2` (the eleven with a provable correction) and `§3.5` (all twelve `TB-0V` rows, ink beside
+netlist) are the tables. **Grep that file; never read it** — `grep -n "W018\|W037"` over its 91 KB
+cost ~200 tokens and answered outright a question that would otherwise have been re-derived from the
+PDF. *That habit belongs in every phase from here on.*
+
+**Retire-and-create is the wrong instrument, and the reasons are structural:**
+
+1. **`Retire this wire` is for a wire that does not exist.** `W018` exists; its far end names the
+   wrong screw. A tombstone would delete a real connection from the netlist.
+2. **`Add a wire` stamps `added: true`** (`H25`) — *I put this wire here* — which would be false, and
+   would take the count to 73 for two wires that were always there.
+3. **A correction keeps `was`**, and `was` is the whole record of what the machine guessed. Retiring
+   throws away the finding and keeps only the answer, which is the same loss as a hand edit.
+
+**So the correction is: arm the wire, correct one end, save.** Both ends of the pair are already
+placed, confirmed, by hand. That screen shipped on **2026-09-08** — `15_tests_wiring_editor.md` —
+and every record still reading `source: index` is a wire nobody has looked at yet. **This is the
+user's authoring run, not a phase**, and `§9` has said from the start that no phase here touches it.
+
+**And the panel is already telling them.** `proposalsFor` (`features/locate/wiring.ts:336`) walks the
+ink **from the end that is trustworthy** — the component end, read off a printed callout — and names
+the end that was allocated. `EndSlot` renders it under *"What the ink says `W018` joins at its `to`
+end"*, with `data-wiring-proposal`, and `agrees` (`WiringPanel.tsx:545`) already knows whether the
+record matches. **It never accepts on its own, and it must not start** — `W042` and `TB-0V:6` are the
+standing reasons: the run stops short there and the netlist's claim is the right one.
+
+### 4C.1 The phase — and it splits cleanly into two defects and three gaps
+
+**The two defects are 3a and 3b below.** They are wrong behaviour, they cost the user an hour on
+2026-09-18, and either could be fixed in twenty minutes with a failing test first. **The three gaps
+are 1, 2 and 4** — missing surface rather than broken surface. If a session is short of budget,
+**take the defects and leave the gaps**; say which you did.
+
+**And gap 1 lost most of its value on 2026-09-18**, because the user now has the list of eleven in
+`§4C.0` and is working it by hand. It is still right for drawing number two, where nobody has a
+list at all — but it is no longer the reason to run this phase.
+
+**1. The disagreement is not a queue.** Eleven wires have a provable correction and the only list of
+them is a 91 KB plan document. The panel shows the verdict **one armed wire at a time**, so the only
+way to find the eleven is to arm all 71. `agrees` is already computed per end: an **`Ink disagrees`**
+filter beside the queue's existing filters — *n of 71 wires have an end the ink puts somewhere else*
+— is the same shape as `§4`'s field one layer down. **It is a filter, never a fix**, and pressing a
+row still opens the panel that offers the proposal and refuses to accept it.
+
+**2. A correction cannot say why.** `wiringStore.edit` takes **no note**, unlike the locations
+store's (trap 12) — `Retire this wire` demands a reason in words and a *correction* accepts none. For
+`W018` the reason is *the printed table says `:1`, the ink lands on `:3`, and I looked*; for
+`TB-0V:6` it is the opposite and equally worth keeping. Stored beside `was`, and the server already
+accepts unknown-to-it keys nowhere, so this is a schema field: `wiring.py`'s `parse`, the store, the
+panel's existing note box (the confirmation flow has one — reuse it rather than building a second).
+**This is the hole that makes the run lossy, and it is the half worth doing first.**
+
+**3. The draft and the generated netlist disagree on one panel, and neither is labelled.** Found on
+2026-09-18, by the user trying the correction: the `to` slot read **`TB-0V:3` · was `TB-0V:1`** while
+the heading two inches above it read **`PS1:-1` → `TB-0V:1`**, and the drawing agreed with the
+heading. **Both were correct.** The slot is the unsaved `wiring.json` draft; the heading, the end
+chips and the sheet's markers are `/api/designators`, built from the **generated**
+`circuit_logic.json` — and `wiringStore.save` deliberately does not re-read the index, because
+re-reading it would fetch the same bytes and imply the screen and the artifact agree. The stale
+banner is the honest answer and it is there. **It is not enough**: it explains the *file*, and what a
+person is looking at is **one wire's panel saying two different things about itself.** The endpoint
+`was` line and the heading need to say which of them is the netlist, on the panel, where the
+contradiction is. This is the sharpest of the three holes and the one that actually cost a session.
+
+**3a. `Take it back` leaves the slot showing the value it took back — and this is a bug, not a
+gap.** Measured by the user on 2026-09-18 and it is what cost them the first attempt: they picked
+`TB-0V:3`, pressed **`Take it back`**, and **the `to` box went on reading `TB-0V:3`** while the
+document reverted to `TB-0V:1`. They reasonably read the screen as *the correction is in* and went
+on to the generator; the file was pristine the whole time, which is exactly the byte-identical
+14:00 write this session could not otherwise explain. **A control that undoes a change and leaves
+the change on screen is worse than no control**, and it is the first thing `§4C` should fix — one
+failing test first, then the fix. *(The second attempt, with no `Take it back` in it, worked
+perfectly and `W018` is corrected.)*
+
+**3b. A wiring save cannot be forced.** `wiringStore.edit` debounces an autosave 900 ms out and the
+toolbar shows a badge — `unsaved` / `saving…` / `saved` / `not saved` — but the **only** button is
+`Retry`, and only in the error state. The locations `SaveStatus` beside it has an `onSave`; this does
+not. A draft stuck at `unsaved` has no recourse but another edit, and a person who does not know the
+badge exists has no way to tell a slow save from a dead one. One button, next to the badge it
+belongs to.
+
+**4. The verdict is quieter than the record.** The user had `W018` armed, read *`PS1:-1` →
+`TB-0V:1`* off the panel, and went to the paper — with the ink's own answer on the same screen.
+Whatever the cause (below the fold, too faint, or reading as reference rather than as a
+disagreement), **a record the ink contradicts should not look like a record the ink confirms.** One
+badge on the slot, in the warning colour, wording it as a question and not an instruction. Settle it
+by looking, with the user, before writing a line.
+
+### 4C.2 Acceptance criteria
+
+1. The queue offers **`Ink disagrees`**, `aria-pressed`, one at a time like the others, counting off
+   `proposalsFor` and **never** off a hard-coded eleven — it moves as the run proceeds (trap 4).
+2. A wire whose ends the ink cannot settle (`W031`, and the 13) is **not** in that filter and not
+   flagged: *the ink says nothing* and *the ink disagrees* are different answers.
+3. Correcting an end accepts a **reason in words**, optional, stored beside `was`, and it survives
+   the generator — `git diff` on `wiring.json` shows the note and `circuit_logic.json` does not move.
+4. A slot the ink contradicts is visibly different from one it confirms, and **nothing is accepted by
+   pressing the filter, the badge, or anything else** (`W042`).
+5. **On one wire's panel, the netlist's endpoints and the draft's are distinguishable without
+   reading the code** — a test that renders a wire whose draft end differs from the index's and
+   asserts the panel says which is which.
+6. **The `wiring` badge has a save button**, and pressing it with a pending draft writes and clears.
+6a. **`Take it back` reverts the slot as well as the document** — a test that picks a new end,
+   takes it back, and asserts the slot reads the *original* terminal. Write the failing test first;
+   it is the one defect in this section rather than a gap.
+7. Nothing drawing-specific: no `TB-0V`, no `W018`, no screw number in a gate, a test or a string.
+8. The four checks green.
+
+**Documents:** append to `15_tests_wiring_editor.md` (the correction screen's own document — do not
+start a new one), next free T-numbers · `H31` in `06_code_map.md`: *the ink's verdict on a wire's far
+end existed before anybody could find the wires it disagreed with, and a correction that cannot say
+why is a hand edit with a nicer button.*
+
+**Estimate: half a session, $14–24.** Hole 2 is a field and a schema line; hole 1 is a filter over
+arithmetic that already runs; hole 3 is wording on a panel; 3b is one button.
+
+---
+
+## §5 Phase 3b — the override nobody can reach — **second, moved up 2026-09-18**
 
 Carried from plan 02 `§5`, **unchanged and still valid**: it is the last hole in an otherwise
 complete authoring surface.
@@ -534,10 +729,43 @@ must work for **nets** as well as wires (`locations.py` refuses *"labels the end
 a wire or net in the netlist"*). **No server change**: the banner is `resolve_geometry` doing its
 job and it goes quiet when the key goes.
 
-**Acceptance criteria.** `W019`'s orphan `TB-0V:2` and `W063`'s orphan `TB-120:2` each show a row
-with a reset, and pressing both clears both banners · `PS1:-2`, `INFEED1:3` and `TB-120:1` are
+> **Re-measured 2026-09-18, and the phase got more urgent rather than staler.** There are **three**
+> orphans now, not two, and **the user's own authoring run is what creates them**: correcting a
+> wire's far end leaves any end-label override keyed on the old terminal behind, with no row and no
+> way back. Read off the files on the day:
+>
+> | Wire | orphaned override | the wire now joins |
+> |---|---|---|
+> | `W018` | `TB-0V:1` `{hidden: true}` | `PS1:-1` → `TB-0V:3` — **created 2026-09-18 by the user correcting it** |
+> | `W019` | `TB-0V:2` `{hidden: true}` | `PS1:-2` → `TB-GND-B:2` |
+> | `W063` | `TB-120:2` `{hidden: true}` | `INFEED1:3` → `TB-120:1` |
+>
+> **And exactly one more is coming**: of the eight screws left in `§4C.0`, only **`W014`** carries a
+> label override on the end that moves (`TB-GND-B:2`, and it keeps `PS1:GND`). The other seven have
+> no `labels` at all, so the run will stop at **four** banners rather than eleven. *Recompute both
+> numbers; never quote this table.*
+>
+> **The banner is loud and it is harmless.** `resolve_geometry` refuses the key **by name**, which is
+> `H14`'s treatment — the symptom would otherwise be nothing at all — and an override on a terminal
+> the wire does not touch draws nothing and mis-draws nothing. It never reaches the netlist, because
+> `locations.json` never does. So this is noise on a screen the user is working in, not damage.
+>
+> **There is a round trip through the WebUI and it is not recommended.** `Take it back` returns the
+> record to `source: index` with the endpoints `was` was holding, which makes the old terminal a
+> member again, which makes its `EndLabelRow` reappear, which makes `onSet(null)` reachable — then
+> correct the end forward again and `was` is re-stamped from the record's own previous endpoints
+> (`wiringModel.ts:159`, *stamped once and never overwritten*). It is provenance-safe. It also runs
+> through `Take it back`, whose slot-display defect is `§4C` hole 3a, so it asks the user to trust a
+> control that is known to lie. **Say it exists; recommend waiting for this phase.**
+
+**Acceptance criteria.** `W018`'s orphan `TB-0V:1`, `W019`'s `TB-0V:2` and `W063`'s `TB-120:2` each
+show a row with a reset, and pressing all three clears all three banners · `PS1:-2`, `INFEED1:3` and `TB-120:1` are
 untouched, being live overrides on ends the wires do touch · a net with an orphaned override behaves
 the same · tests **append to `10_tests_end_labels.md`** as new T-numbers; do not start a document.
+
+**The count is authored data and it moves** — the rows come from `Object.keys(overrides)` against
+today's members, never from a fixture's memory (trap 4). A test that asserts *three orphans* would
+go red the moment `W014` is corrected.
 
 **Estimate: half a session, $12–28.**
 
@@ -578,6 +806,57 @@ drawing's geometry predates the fix and which ink it is therefore missing · use
 `/home/js/schematics/.venv/bin/python`, the only venv with `pymupdf`.
 
 **Estimate: one short session, $10–20.**
+
+---
+
+## §6A Phase 3h — the chained run the path editor will not offer
+
+**Found 2026-09-18, by the user, immediately after correcting `W018`'s far end.** With the endpoint
+right, they went to draw `W018`'s route and reported: *"There were no conductors that would allow me
+to create the correct path so I drew the path by hand. Now I can see the path."*
+
+**The asymmetry is the finding, and both halves were on the same screen minutes apart.** The
+**endpoint** proposal had just told them, in the `to` slot, that the ink joins `PS1:-1` to `TB-0V:3`
+along **`C0001 + C0012 + C0002`**, badged **`chained`** — `landingsFrom` walks out along a run and
+**through unterminated ends that meet within `JOIN_PT`**, so three conductors end to end are one
+answer to it. The **path** editor's `candidates` (`features/locate/paths.ts:194`) is per-**run**: a
+run is offered when a pin lands on it, or its printed name is the wire's net, or it is unnamed and
+within `NEARBY_PT`. Nothing chains. So a route that needs two or three conductors joined through
+unterminated ends has **no candidate that is the route**, and the honest-looking way out is
+`Trace by hand`.
+
+**What that costs, and it is not convenience.** The hand trace stored `geometry: "human"`,
+`attribution: "human"` and **no conductors at all** — `W018`'s path now names none of the three runs
+the machine had already identified by id. The provenance is gone, the run is a person's polyline
+over ink the extractor read correctly, and the coverage arithmetic will read it as *hand-traced,
+claiming none* forever and correctly (`H27`). **The machine knew the answer and the person had to
+draw it anyway.**
+
+**Measure it before building anything.** It is one question and a one-liner over the payload, not a
+reading of the code: *for each of the 71 wires, how many have a candidate list that is empty, and how
+many have one whose runs do not reach both pins?* If the answer is *`W018` and two others*, this is a
+footnote in `§6`. If it is *twenty*, it is the reason seventeen routes are hand-traced and it
+outranks `§5`.
+
+**The likely shape, and it is deliberately small.** Not a new ranking and not a route-finder: offer
+the **chain `landingsFrom` already walked** as one candidate, marked as the chain it is, ranked
+beside the single runs and **never accepted automatically** (`W042`). The arithmetic exists and is
+tested; what it has never been is a *path* proposal. `Add a run` stays exactly as it is — a person
+assembling a crossover hop by hand is still the right gesture, and this only stops them starting
+from nothing.
+
+**Reading list:** `features/locate/paths.ts:169-240` (`candidates` and its four signals);
+`features/locate/wiring.ts:336-380` (`proposalsFor`, `landingsFrom`, and `walk`); `JOIN_PT` at `:95`.
+Nothing else — and **measure first**.
+
+**Acceptance criteria.** The measurement is written down before a line is changed · a chained
+candidate carries **every** conductor in the chain, so accepting it stores `geometry: "extracted"`
+with all of them · a chain whose walk is ambiguous (`walk` stops at a junction with two ways on) is
+**not** offered, because that is the guess this module refuses to make · `W018`'s existing hand trace
+is **not** touched — the user drew it and it is theirs · the four checks green.
+
+**Estimate: half a session, $12–20** — and **do `§6` first if both are in the same week**, because
+the missing layer-`"0"` ink changes which runs exist to chain.
 
 ---
 
@@ -655,22 +934,50 @@ Estimate **~$8**, plan only.
 | # | Phase | Session | Est. |
 |---|---|---|---|
 | — | `§4` — every authored path painted at once, `Unclaimed ink` demoted, the bridge-wire fix | **done 2026-09-15** | **$13.12** |
-| 1 | **`§4A` — the Drawing tab points at paths, not conductors** | half | **$12 – $25** |
-| 2 | **`§4B` — clicking a path on the Locate tab arms its row** | half | **$10 – $20** |
-| 3 | `§5` — the orphaned override rows | half | $12 – $28 |
+| — | `§4A` — the Drawing tab points at paths, not conductors | **done 2026-09-17** | see `§11` |
+| 1 | **`§4B` — clicking a path on the Locate tab arms its row** — **next** | half | **$10 – $20** |
+| 2 | **`§5` — the orphaned override rows** — *moved up 2026-09-18* | half | **$12 – $28** |
+| 3 | **`§4C` — the wire whose far end the ink disagrees with** — *moved down 2026-09-18; take the two **defects** first and the three gaps only if there is room* | half | **$12 – $22** |
 | 4 | `§6` — the extractor fix, no re-extraction | one, short | $10 – $20 |
-| 5 | `§7` — the netlist authoring surface | **plan only** | ~$8 |
-| 6 | `§8` — cables, bindings, the citation loop | **plan only** | ~$8 |
-| | **Total left** | **4–5 sittings** | **$52 – $109** |
+| 5 | **`§6A` — the chained run the path editor will not offer** (added 2026-09-18) — **measure first**, and it may retire itself | half | **$12 – $20** |
+| 6 | `§7` — the netlist authoring surface | **plan only** | ~$8 |
+| 7 | `§8` — cables, bindings, the citation loop | **plan only** | ~$8 |
+| | **Total left** | **5–6 sittings** | **$66 – $128** |
 
-**Why the two new phases go first, ahead of `§5` and `§6`:** they are what the user asked for after
+**Why `§5` is second and `§4C` third — decided by the user on 2026-09-18, after walking `§4A` and
+working the first wrong screw.** Two things changed on the day and they moved in opposite
+directions:
+
+- **`§5` got more urgent.** Correcting a wire's far end orphans any end-label override keyed on the
+  old terminal, and the banner it raises **cannot be cleared from any screen**. The user made one on
+  `W018` within minutes; there are **three** standing and a fourth coming from `W014`. They are loud,
+  harmless and on the screen the authoring run happens on. `§5`'s census is now live in its own
+  section.
+- **`§4C` got less urgent.** Its first gap was *find the eleven wires whose far end the ink puts
+  elsewhere*, and the user now **has** that list — it is `§4C.0`, and they are working it by hand.
+  What is left of the phase that still bites is its **two defects**, and those are small.
+
+**So take `§4C`'s defects early and its gaps late.** `Take it back` not reverting the slot (hole 3a)
+and the absence of any way to force a wiring save (hole 3b) are wrong behaviour in the same editor
+`§5` touches; either is a failing test and a small fix, and 3a already cost the user an hour. **If
+there is room in `§5`'s session, do 3a and 3b there and say so.** The filter, the reason field and
+the colour are surface that can wait — though the reason field is still losing information on every
+correction, which is why the phase does not disappear.
+
+**Why the two `§4` clicks went first, ahead of everything:** they are what the user asked for after
 walking `§4`, they reuse `§4`'s layer and `§4A`'s `pickPath` rather than needing anything new, and
-together they finish one thought — *the drawing is the index into the queue*. `§5` and `§6` are both
-still fully specified and neither has moved.
+together they finish one thought — *the drawing is the index into the queue*. **That thought paid for
+itself immediately**: within an hour of `§4A` shipping, the user followed its card's link to `W037`
+and caught a wrong record, which is how `§4C` and `§6A` came to exist at all.
 
 Priced at Opus 5 API rates: $5/M in, $25/M out, $6.25/M cache write, $0.50/M cache read. **About
-$80 of the user's funded $150 remained on 2026-09-17**, after `§4` came in at $13.12 — the low end
-of its estimate, and `§11` is why.
+$44 of the user's funded $150 remained at the end of 2026-09-17**, after `§4A`'s session came in at
+$36.29 all told. **That is less than the $52–106 left in this plan, so it does not all fit** —
+`§4B` and `§5` — the first two in the order the user set on 2026-09-18 — do; `§4C`, `§6` and `§6A`
+need either more funding or a cut. **Say so at the *start* of a session, not the end.** The order
+was chosen with that in mind: the two phases that fit are the two the user is looking at every day. **`§6A`'s measurement step is the cheapest thing in the plan and
+may retire the phase** — one one-liner over `/api/paths` and the candidate arithmetic, and if only
+two or three wires are affected it becomes a footnote in `§6` rather than a sitting.
 
 ---
 
@@ -686,8 +993,31 @@ of its estimate, and `§11` is why.
 | 2026-09-13 (`§6`, **implementation only**) | 128 | **100 K** | **$11** |
 | 2026-09-15 (the same session: design review, re-plan, three documents) | 190 | 129 K | $32 |
 | **2026-09-15 (`§4` here, implementation + four documents)** | **133** | **114 K** | **$13.12** |
+| **2026-09-17 (`§4A` here, implementation + five documents)** | **175** | **152 K** | **$23.42** |
+| 2026-09-17 (the same session: the user's walk, `§4C` designed, three files rewritten) | 226 | **176 K** | **$36.29** |
 
-**The `§4` session is the model to copy, and what made it cheap is listed rather than praised:** the
+**And `§4A` is the model of where it goes wrong, which is more useful.** It read *only* its reading
+list, used one-liners for every measurement, ran the checks twice, and still cost **$23.42** — the
+top of its estimate — because the **average context was 152 K against `§4`'s 114 K** and it made
+**175** calls. Nothing was wasted; the floor was just higher. Two causes, both avoidable:
+
+- **`goals_01.md` + this file are ~48 KB before a line of code is read**, and every call after that
+  pays for them. They are worth it — but it means a phase starts at ~60 K, so the **call count** is
+  the only lever left. Batch harder: six greps in one message, not three messages of two.
+- **Five prose documents at 150 K is half the bill.** `§11`'s own last row said so about `§4`'s
+  session and it was true again. Write the lesson document **once, in one call**, from notes taken
+  while the tests were being written — never by re-reading the code to describe it.
+- **And the conversation *after* the phase cost another $13**, taking the session to **$36.29 over
+  226 calls at 176 K**. It bought `§4C`, so it was worth its price — but a post-phase discussion runs
+  at the session's ceiling and is a small phase in its own right. **Price it before starting one**,
+  and prefer to end in the write-up.
+
+**The habit that paid best in `§4A`, and it is new:** **grep a big document, never read it.**
+`grep -n "W018\|W037" authoring_the_wires.md` cost ~200 tokens and returned the exact rows of a
+91 KB file that answered the session's hardest question. The do-not-read list in `§0` is a list of
+**grep targets**, not a list of forbidden files.
+
+**The `§4` session is still the model to copy, and what made it cheap is listed rather than praised:** the
 plan's reading list was followed and nothing else was opened; four `python3 -c` one-liners answered
 every question about the data (route counts, the real `nets` map, the payload's run count); the four
 checks ran **twice**, at the start and at the end, in the background and in parallel; and every edit
@@ -777,19 +1107,21 @@ the phase rather than push it through.**
 |---|---|---|
 | `§4` | `locate_tab_testing/20_tests_all_paths_overlay.md` — **written 2026-09-15** | T-1450–T-1459, **spent** |
 | `§4` | a header note on `19_tests_coverage_overlay.md` — demoted to a diagnostic, `?unclaimed=1` — **written** | — |
-| `§4A` | `locate_tab_testing/21_tests_clicking_a_path.md` | **T-1500 onward** |
-| `§4A` | a demotion note on `16_tests_terminal_wires_and_commoning.md`'s T-1135/T-1140/T-1145 — the conductor verdicts are a diagnostic now | — |
+| `§4A` | `locate_tab_testing/21_tests_clicking_a_path.md` — **written 2026-09-17** | T-1500–T-1507, **spent** |
+| `§4A` | a demotion note on `16_tests_terminal_wires_and_commoning.md`'s T-1135/T-1140/T-1145/**T-1150** — the conductor verdicts are a diagnostic now — **written** | — |
 | `§4B` | append to `21_tests_clicking_a_path.md` — one document, one feature, two tabs | **T-1520 onward** |
+| `§4C` | append to `15_tests_wiring_editor.md` — the correction screen's own document | next free |
+| `§6A` | append to `14_tests_path_editor.md` — the candidate list's own document | next free |
 | `§5` | append to `10_tests_end_labels.md` | next free |
 | `§6` | append to `EXTRACTION_NOTES.md` per `§6`'s acceptance criteria | — |
 | `§7` | **`_claude_notes/authoring_the_netlist_01.md`** — and stop | — |
 | `§8` | a plan document for cables, bindings and the citation loop — and stop | — |
-| all | `06_code_map.md` — `H28` **written**; `H29` owed by `§4A`, `H30` by `§4B`; one row per new behaviour | — |
+| all | `06_code_map.md` — `H28` and **`H29` written**; `H30` owed by `§4B`, `H31` by `§4C`; one row per new behaviour | — |
 | all | `locate_tab_instruction_and_test_manual.md` — index each new leaf, and correct the troubleshooting rows `§4` makes stale | — |
 
 **Keep them short.** The manual indexes **twenty-one** leaf documents already, and the notes tax
-measured in `§11` is why this plan is 33 KB rather than 99 KB. **T-numbers spent reach T-1459, and
-`§4A` starts at T-1500** — the gap is deliberate, so a late addition to `20_...` never collides.
+measured in `§11` is why this plan is 33 KB rather than 99 KB. **T-numbers spent reach T-1507, and
+`§4B` starts at T-1520** — the gap is deliberate, so a late addition to `20_...` never collides.
 
 ---
 

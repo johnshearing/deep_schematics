@@ -1,5 +1,30 @@
 # T-11xx — a terminal's wires, a block's commoning, and *is there a wire here*
 
+> ## ⚠ **T-1135, T-1140, T-1145 and T-1150 were demoted to a diagnostic on 2026-09-17 — do not
+> walk those four.** Everything else on this page still stands.
+>
+> Those four teach the **sheet hit-test's three verdicts** — *claimed by `W063`*, *`TB-120`'s
+> commoning*, *no wire claims this run* — and the corner the conductor card and the selection card
+> used to share. They answer *what conductor is this*, and that is the question the user struck for
+> the third time after walking `20_tests_all_paths_overlay.md`: *"since we have already established
+> that the human does not need to see the conductor but rather the paths… we are not interested in
+> conductors."*
+>
+> **What a click answers now is *whose path is this***, in a card in the **lower right** — and where
+> no path claims the ink, **nothing at all**, which is how you learn a path is needed there. Walk
+> **`21_tests_clicking_a_path.md`** instead (T-1500 onward), and read `H29` in `06_code_map.md` for
+> the reasoning.
+>
+> **The conductor card still works, at `http://localhost:9700/webui/?unclaimed=1`**, with the
+> coverage overlay it belongs to and on the same standing instruction that the code may stay for
+> diagnostics — *is the ink there, or did we miss it* has to remain answerable from the screen, and
+> plan 03 §6 is the phase that needs to ask it. The query string is read **once**, on arrival.
+> Walking those four there gives their original answers unchanged, except that a click on an
+> **authored** run now also puts the path card in the other corner, and one `Escape` takes both.
+>
+> **T-1135, T-1140, T-1145 and T-1150 are spent — do not reuse them.** The automated tests survive
+> with their assertions; they set the query before rendering instead of clicking a switch.
+
 Index: `locate_tab_instruction_and_test_manual.md`.
 Added **2026-09-09** with Phases C and D of `_claude_notes/authoring_the_wires.md` (Session 3).
 

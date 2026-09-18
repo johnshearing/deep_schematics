@@ -41,7 +41,7 @@ import type { Designator, DesignatorKind } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { normalise, suggestedQuestion, wiresByTerminal } from '@/lib/designators'
 import { inkIndex } from '@/features/locate/wiring'
-import { pathsFor } from '@/lib/paths'
+import { pathsFor, pickPath, type PathPick } from '@/lib/paths'
 import { isTextField } from '@/lib/keys'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
@@ -54,6 +54,7 @@ import { planEndLabels } from './endLabels'
 import { claimsFrom, pickRun, type Pick } from './hitTest'
 import { MarkerLayer } from './MarkerLayer'
 import { cssToPoint } from './paint'
+import { PathCard } from './PathCard'
 import { SelectionCard } from './SelectionCard'
 import { TileSheet } from './TileSheet'
 import { useTileViewport } from './useTileViewport'
@@ -441,15 +442,18 @@ export function DrawingTab() {
   pickRef.current = pick
 
   /**
-   * 32 KB of polylines, fetched on first sight of this tab and never again.
+   * **The path under the pointer — what a click on the ink answers from 2026-09-17.**
    *
-   * Not in `loadAll`: somebody who only ever asks questions should not pay for the ink. Not on
-   * mount either, because this tab is `keepMounted` and exists from the first paint — the same
-   * arming rule the 2.2 MB of tiles already follow.
+   * `pick` above is the same idea about a *conductor* and is now a diagnostic. This is the
+   * reader's answer: *whose authored path is this*, out of the published `/api/paths` the
+   * `Authored paths` field paints from, so anything visible in that field is clickable here
+   * (`pickPath`, `lib/paths.ts`). Beside the pan and the zoom rather than in `appStore.selection`
+   * for the same reason `pick` is — except that this one *also* selects its owner, because
+   * clicking a run of authored ink is the same act as clicking that wire's row.
    */
-  useEffect(() => {
-    if (activeTabId === DRAWING_TAB_ID) void loadConductors()
-  }, [activeTabId, loadConductors])
+  const [onPath, setOnPath] = useState<PathPick | null>(null)
+  const onPathRef = useRef<PathPick | null>(null)
+  onPathRef.current = onPath
 
   /**
    * The ink indexed by shape, for the one verdict the authored records cannot give yet.
@@ -532,6 +536,26 @@ export function DrawingTab() {
   )
 
   /**
+   * 32 KB of polylines, fetched on first sight of this tab **in a diagnostic session** and never
+   * again.
+   *
+   * Not in `loadAll`: somebody who only ever asks questions should not pay for the ink. Not on
+   * mount either, because this tab is `keepMounted` and exists from the first paint — the same
+   * arming rule the 2.2 MB of tiles already follow.
+   *
+   * **And not for a reader at all since 2026-09-17**, which is the demotion finishing its job
+   * rather than an optimisation. Every remaining consumer of the runs of ink is behind
+   * `?unclaimed=1`: the overlay, the conductor card, and the shape rule that feeds its second
+   * verdict. The reader's click reads `/api/paths` instead, and `claims.traced`/`.wires` — the
+   * honesty numbers the selection card prints — come out of that same payload and not out of this
+   * one. So a reader who never asks for the diagnostic never downloads the extractor's reading of
+   * the paper, which is `H28` and `H29` in one line of code.
+   */
+  useEffect(() => {
+    if (coverage && activeTabId === DRAWING_TAB_ID) void loadConductors()
+  }, [coverage, activeTabId, loadConductors])
+
+  /**
    * Fly to whatever the answer just pointed at.
    *
    * Keyed on the selection's nonce, so clicking the same citation twice pans again — by then
@@ -585,8 +609,13 @@ export function DrawingTab() {
        * tab — and losing your place in the index as the price of dismissing a conductor card would
        * be the same complaint the trace and the end slot already answer over there.
        */
-      if (pickRef.current) {
+      if (onPathRef.current || pickRef.current) {
         event.preventDefault()
+        // **One press takes one answer, and both picks are one answer.** In a diagnostic session
+        // a single click sets them both — the path card in one corner, the conductor card in the
+        // other — and they are two halves of the reply to one gesture, not two gestures. Taking
+        // them away one press at a time would be an escalation the reader never built.
+        setOnPath(null)
         setPick(null)
         return
       }
@@ -649,9 +678,10 @@ export function DrawingTab() {
    */
   const onMarker = useCallback(
     (marker: Designator) => {
-      // A dot answers *where is this identifier* and takes the corner from the run of ink that
-      // answered *what is this line*. Leaving the old card up beside a new selection would be two
-      // answers to one gesture.
+      // A dot answers *where is this identifier* and takes the corner from the ink that answered
+      // *whose path is this*. Leaving the old card up beside a new selection would be two answers
+      // to one gesture.
+      setOnPath(null)
       setPick(null)
       select(marker.kind, marker.id, 'drawing')
     },
@@ -669,6 +699,7 @@ export function DrawingTab() {
    */
   const onRow = useCallback(
     (row: Designator) => {
+      setOnPath(null)
       setPick(null)
       select(row.kind, row.id)
     },
@@ -715,16 +746,20 @@ export function DrawingTab() {
             {broken} tile{broken === 1 ? '' : 's'} failed to load
           </span>
         )}
-        {/* Said out loud rather than left to look like an answer. Without the runs of ink a click
-            on bare paper does nothing, and *nothing happened* is indistinguishable from *no wire
-            claims this run* — which is the one false fact this feature could teach. */}
-        {conductorsError && (
+        {/* Said out loud rather than left to look like an answer — and **it is now a sentence
+            about the diagnostic**, because the reader's click stopped needing the runs of ink on
+            2026-09-17. It used to read *clicking a line cannot name it*, which was true while a
+            click answered *what conductor is this*; a click answers *whose path is this* out of
+            `/api/paths` now, so the only thing a failed ink fetch breaks is the conductor card
+            and the overlay behind `?unclaimed=1`. Grepping the user-visible string is how the
+            last one of these was found (trap 16), so this one moved with the behaviour. */}
+        {coverage && conductorsError && (
           <span
             className="text-[var(--color-warning)]"
             title={conductorsError}
             data-ink-error
           >
-            the runs of ink did not load, so clicking a line cannot name it
+            the runs of ink did not load, so the conductor diagnostic has nothing to read
           </span>
         )}
 
@@ -870,13 +905,32 @@ export function DrawingTab() {
             viewer.handlers.onPointerDown(event)
           }}
           /**
-           * **A click on bare paper names the line under it** — Phase D's third piece.
+           * **A click on bare paper names the path under it, or says nothing at all.**
            *
            * Hit-tested in **point space**, through `cssToPoint`, which is the same projection
            * every marker and every highlight goes through: invariant 2, one projection, never a
            * second. A click on a *dot* never reaches here — `MarkerLayer`'s markers stop pointer
            * events, which is `K5`/`H6` being useful for once — so this is exactly the bare-paper
-           * case, and it clears the designator selection because the two cards share a corner.
+           * case.
+           *
+           * ### Three things happen, and the third is the one the user asked for
+           *
+           * The pick goes in the corner; the **owner is selected**, which is what paints the path
+           * without a line of new paint code — clicking a run of authored ink is the same act as
+           * clicking that wire's row, and saying so in one line is why this phase was small. A
+           * block's bus selects the **component**, because that is where a block's commoning
+           * lives. `'drawing'` as the origin is what stops the fly-to firing at something the
+           * reader already has under their finger.
+           *
+           * And where no path is within `PICK_PT`: **nothing**. No card, no highlight, no
+           * selection change, and above all no verdict — *"if there is no path then nothing will
+           * happen when clicking over the ink and that tells us that a path needs to be created
+           * there."* The silence is the instrument, the same one the unpainted ink is in the
+           * `Authored paths` field, and a *no wire claims this run* here would be the conductor's
+           * question answered a fourth time.
+           *
+           * `pickRun` runs only in a diagnostic session. It is the third view over conductors and
+           * it is behind `?unclaimed=1` with the overlay it belongs to (`H29`).
            */
           onClick={(event) => {
             const from = pressedAt.current
@@ -889,7 +943,12 @@ export function DrawingTab() {
               { left: event.clientX - box.left, top: event.clientY - box.top },
               viewer.viewport,
             )
-            setPick(pickRun(conductors, at, claims))
+            const found = pickPath(paths, at)
+            setOnPath(found)
+            if (found) {
+              select(found.owner.kind === 'wire' ? 'wire' : 'component', found.owner.id, 'drawing')
+            }
+            if (coverage) setPick(pickRun(conductors, at, claims))
           }}
         >
           {armed && viewer.viewport.scale > 0 && (
@@ -900,10 +959,21 @@ export function DrawingTab() {
               viewport={viewer.viewport}
               size={viewer.size}
               dpr={viewer.dpr}
-              runs={path?.runs}
+              /**
+               * The selection's runs — **except that a picked path paints its own.**
+               *
+               * For a wire the two agree, because the click selected that wire and `pathsFor`
+               * hands back its route. For a **block's bus** they do not: `pathsFor` is null for a
+               * component by design (a component has no route in the way a stone has no opinion),
+               * so without this a click on a bus would name it in the card and light nothing.
+               * The pick is the more specific claim, so it wins while it is there and the sheet
+               * falls back to the selection when the card closes.
+               */
+              runs={onPath?.runs ?? path?.runs}
               /* The run under the pointer, in the proposal colour rather than the highlight's:
                  *this is the line you asked about* is not the same claim as *this is the route of
-                 the wire you selected*, and one colour for both would say it was. */
+                 the wire you selected*, and one colour for both would say it was. Diagnostic
+                 only, now that the reader's click answers with a path instead. */
               candidates={pick ? [pick.conductor.points] : undefined}
               /* The coverage overlay, under both of those: it is the state of the sheet rather
                  than an answer to anything just asked. `undefined` while the toggle is off. */
@@ -934,6 +1004,27 @@ export function DrawingTab() {
           )}
 
           {/**
+            * **The lower right, which was empty** — and that is why the path card can coexist
+            * with the selection card instead of taking turns with it.
+            *
+            * `ConductorCard` and `SelectionCard` are both `bottom-3 left-3` and the comment below
+            * is the whole fight over that corner. *What is this line* and *where is this
+            * identifier* are different questions; putting the newer answer in the other corner
+            * means both can be on screen, which is the honest arrangement and the corner the user
+            * asked for in the same breath.
+            */}
+          {onPath && (
+            <PathCard
+              pick={onPath}
+              /* Both of these are already selected — the click did it — so these are the way to
+                 the *list*, for a reader who wants the row rather than the ink. */
+              onSelectWire={(id) => select('wire', id)}
+              onSelectBlock={(id) => select('component', id)}
+              onClose={() => setOnPath(null)}
+            />
+          )}
+
+          {/**
             * One corner, two cards, **never both** — they answer the same question from opposite
             * ends, *where is this identifier* and *what is this line*, and a fight over the
             * bottom-left of the sheet would be the worst way to find that out.
@@ -943,6 +1034,8 @@ export function DrawingTab() {
             * the net, and answering it by throwing away where you were would make the feature
             * cost something to use. `Escape` gives the card back — that is `H22`'s escalation,
             * and it is why this is a precedence rather than a replacement.
+            *
+            * **Diagnostic since 2026-09-17** (`H29`): a reader's click never sets `pick` at all.
             */}
           {pick && (
             <ConductorCard
