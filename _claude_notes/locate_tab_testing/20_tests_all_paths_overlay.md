@@ -190,3 +190,18 @@ were tests of the switch itself.*
 
 **Nothing in this field is ever accepted.** A run it leaves dark is a question for your eyes —
 `W042` is the standing reason.
+
+## A note about the buttons
+
+The three buttons  
+
+All three are on the armed wire's path panel (features/locate/PathPanel.tsx), and they do three genuinely different things:  
+
+Trace by hand — create a route where the ink cannot offer one. You click each corner on the sheet along the printed conductor; Enter finishes, Backspace takes a corner back, Esc abandons it and nothing is written. The record stores your polyline with geometry: "human" — these corners are mine, not the drawing's — and names no conductor, because there was none to lift. It's the last resort on purpose: a run out of the PDF is exact geometry and your hand is not. It exists because the extraction is missing ink — the six relay-coil wires and three TB-* stretches, which is what plan 03 §6 fixes upstream.  
+
+Add a run — extend a route you already have with more of the drawing's own ink. A route is a list of polylines, because where the drawing puts a crossover hop the ink really does stop and start again, and the path shows that gap rather than closing it. This opens the ranked list of the remaining candidate conductors and appends one. The distinction from accepting a candidate in the list above is the whole reason it's a separate control: accepting replaces the route, this continues it. W068 is the case it was built for — one physical wire, two conductor records, a 3.5 pt gap — and 33 of the 71 wires have a best candidate that reaches only one of their two pins, which is what half a route looks like.  
+
+Make it editable — change the claim a route makes about itself so you can move it. It only appears when the route was lifted from the PDF (geometry: "extracted"). Such a route has no drag handles, deliberately: those corners are the drawing's, and the file says so. Pressing it converts the route to hand-drawn and drops the conductor ids, because once you move a corner it is no longer the run it was lifted from. After that you can drag its corners on the sheet, and the button is replaced by the note Drag a corner on the sheet to move it. movePathVertex refuses the drag from the other side too, so the conversion is a real step rather than a formality.  
+
+In one line each: Add a run adds more of the drawing's ink to a route; Make it editable stops a route claiming to be the drawing's so your hand can move it; Trace by hand draws a route where the drawing offers nothing to lift. (Clear takes the route back entirely, and No path on this sheet records that there is nothing to draw — a decision, not a gap, and it's what lets the path count reach 71.)  
+

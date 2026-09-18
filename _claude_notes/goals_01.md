@@ -1,4 +1,4 @@
-# The goals, and what exists against them — 2026-09-15
+# The goals, and what exists against them — 2026-09-15, revised 2026-09-17
 
 Written after the user walked `locate_tab_testing/19_tests_coverage_overlay.md` and **rejected the
 unclaimed-conductor overlay as a human-facing feature.** This document is the report of that
@@ -80,9 +80,17 @@ direction. The error was in the plan: `highlighting_wires_and_nets_02.md` `§2` 
 
 **The instrument is the user's eye, and the honest thing to paint is what has been authored.** With
 every authored route and bus lit at once, the unpainted ink is the queue — read off the paper, which
-needs no extractor to be right. Nothing in the app does this today: `LocateTab.tsx:621` paints
-`draftRuns(document, paths, targetEntry)`, the armed row's route and nothing else. That is plan 03
-`§4`, the next session.
+needs no extractor to be right. **Built 2026-09-15 and walked**: `Authored paths` on the Locate tab
+paints all 68 authored runs over the sheet, from the published `/api/paths`, with the armed row's own
+route still on top.
+
+**And walking it found the other half of the same error.** The field answers *where is the work*;
+neither **click** does. On the Drawing tab a click on the ink still answers *what conductor is this*
+— the third view over conductors, and the user has now struck it three times. On the Locate tab a
+click on a painted run cannot reach the row that owns it at all, so the queue is still worked by
+reading a name off the paper and hunting the list. **Those two clicks are plan 03 `§4A` and `§4B`,
+the next two sessions**, and the rule behind both is one sentence: *a mark on the paper should lead
+to the record that owns it, and to nothing else.*
 
 ---
 
@@ -119,7 +127,7 @@ renders them as `Citation`, `Citation.tsx` calls `select(kind, id)` and switches
 | 1 | **Notes** | **No** | an id and a bbox bound to it — both missing |
 | 2 | **Components** | **Yes** | dot, ring, fly-to, citation |
 | 3 | **Terminals** | **Yes** | its own dot, never its parent's |
-| 4 | **Paths** | **One at a time, yes. All at once, no** | plan 03 `§4` — the next session |
+| 4 | **Paths** | **Yes — one at a time, and all at once since 2026-09-15** | the field is built. What is missing is the **way back**: clicking a painted run should name its owner (`§4A`) and arm its row (`§4B`) |
 | 5 | **Path_nets** | **Yes**, one net at a time | the union is published from `wire.net`; §6 below |
 | 6 | **Path_cables** | **No** | the grouping already exists — 8 cables with `member_wires` — so `CABLE-POWER-IN` is paintable as `W001`+`W002`+`W003`'s runs today. **The oval has no geometry in the extraction**, so a cable boundary is a shape a person draws: `geometry: "human"`, like `TB-130`'s bus |
 | 7 | **Labels** | **Partly** | the app paints the end labels it places itself; a printed label's own bbox is never lit |
@@ -168,7 +176,9 @@ bond is only findable by traversing terminals. A `BONDED_TO` edge from the gener
 
 | # | Item | State | Carried by |
 |---|---|---|---|
-| 1 | **All authored paths painted at once**, on the Locate tab, one colour, toggled, with *n of m wires have a route* beside it — and `Unclaimed ink` off the toolbar in the same change | **not built** | plan 03 `§4` — half a session, next |
+| 1 | **All authored paths painted at once**, on the Locate tab, one colour, toggled, with *n of m wires have a route* beside it — and `Unclaimed ink` off the toolbar in the same change | **built 2026-09-15**, walked | plan 03 `§4` · `20_tests_all_paths_overlay.md`, T-1450–T-1459 · `H28` |
+| 1a | **Clicking the ink on the Drawing tab answers *whose path is this***, in a card at the lower right, with the path highlighted — and **says nothing at all** where there is no path, which is how the reader learns one is needed. The conductor card joins the conductor overlay as a diagnostic | **not built**, fully specified | plan 03 `§4A` — half a session, **next** |
+| 1b | **Clicking a painted path on the Locate tab arms that wire's row** and highlights it, so the drawing is the index into the queue rather than the list | **not built**, fully specified | plan 03 `§4B` — half a session, after `§4A` |
 | 2 | **The orphaned end-label rows** — the last hole in an otherwise complete surface; two banners nobody can clear | **not built**, fully specified | plan 03 `§5` — half a session |
 | 3 | **The extractor's layer fix**, without re-extracting — re-justified: the candidate list is missing 16 runs that land on placed terminals, which is why six coil wires must be hand-traced | **not built** | plan 03 `§6` — one short session |
 | 4 | **A screen for `author_circuit_logic.py`** — notes, component existence, terminal existence, **net membership**. A fifth authored input the generator folds in, with the `H25` treatment | **not built** | plan 03 `§7` — **a plan document, not a session** |

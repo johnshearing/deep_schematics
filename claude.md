@@ -6,31 +6,42 @@ purpose — and then do §1 and nothing else.**
 ## 1. The request
 
 **Read `_claude_notes/goals_01.md`, then `_claude_notes/highlighting_wires_and_nets_03.md`, both
-whole. Then execute plan 03's §4 — Phase 3a — and stop there.**
+whole. Then execute plan 03's §4A — Phase 3d — and stop there.**
 
 In my own words, because this is the one I want most:
 
-> **The all-paths overlay on the Locate tab — every authored route and bus painted at once, one
-> colour, toggled, with `58 of 71 wires have a route` in the legend. The unpainted ink is then my
-> queue, read off the paper. It reuses the layer built on 2026-09-13. Half a session. Remove
-> `Unclaimed ink` in the same change.**
+> **On the Drawing tab, clicking the ink should tell me about the *path*, not the conductor.** I
+> click a line today and I get a blue conductor and a box about a conductor, with a link to the
+> wire if one claimed it — and we have already settled twice that **I do not need to see
+> conductors.** So: click over a path and **the path highlights** and a box in the **lower right**
+> tells me about the path and the wire that owns it. **Click over ink with no path and nothing
+> happens at all** — and that silence is the message: *a path needs to be created here.*
 
-*(That count was **58 of 71** when I wrote it and is **59** today. Get it from the payload, never
-from this page.)*
+**Then stop.** §4B is the next session after this one: on the **Locate** tab, clicking a painted
+path should **activate that wire's row in the list** and highlight the path, so the drawing becomes
+the index into my queue instead of me hunting the list for a name I read off the paper. It is
+specified in the plan and it reuses the function §4A writes — but it is a different sitting.
 
 Those two documents are self-contained. `goals_01.md` is the definition of done — the nine features
-I must be able to author and the eight things the model must be able to highlight, audited against
-the tree on 2026-09-15. Plan 03's §3 line numbers were read out of the files the same day.
-**Trust its reading lists over your instinct to look around**; that instinct is what makes these
-sessions cost $100.
+I must be able to author and the eight things the model must be able to highlight. Plan 03's §4A
+reading list was read out of the files on **2026-09-17**. **Trust its reading lists over your
+instinct to look around**; that instinct is what makes these sessions cost $100.
 
-**One phase per session.** When §4's acceptance criteria are met, write up what happened and stop,
-even if there is context left. §5 and then §6 are the two sessions after this one; §7 and §8 are
+**One phase per session.** When §4A's acceptance criteria are met, write up what happened and stop,
+even if there is context left. §4B, then §5, then §6 are the sessions after this one; §7 and §8 are
 plans to write rather than code.
+
+**§4 of plan 03 shipped on 2026-09-15 and I walked it — it works.** `Authored paths` on the Locate
+tab paints all 68 authored runs at once, `Unclaimed ink` is gone from the toolbar, and selecting
+`GND` now paints the 0 V bond. **Do not rebuild or extend it**; §4A is what walking it asked for.
+Two things it left me: the slate colour is still unjudged (T-1450 — I will say if it is wrong), and
+its lesson document is `locate_tab_testing/20_tests_all_paths_overlay.md`, which you **do not
+read** — a lesson document is the output of a phase, never its input.
 
 **§6 of plan 02 shipped on 2026-09-13 and I walked it — and then rejected it.** Do not rebuild it
 and do not defend it; §2 below says why in one sentence, and plan 03 §1 says it properly. Its code
-stays in the tree as a diagnostic.
+stays in the tree as a diagnostic, behind `?unclaimed=1`. **§4A demotes the conductor *card* the
+same way, for the same reason** — that is the phase, not a side effect of it.
 
 *If I have found something while working since, I will say so in this session and that overrides the
 above. Otherwise §4 is the job.*
@@ -61,10 +72,17 @@ itself.** The extractor missed 41 lines, about 90 of the 149 conductors are lead
 strokes nothing will ever claim, and one place on the sheet is drawn wrong — so *unclaimed
 conductors* measures the extraction, not the JSON. `prompts.py:52` even tells the model **"Do NOT
 read `geometry.json`."** What I need is the opposite view: **paint what has been authored and let my
-eye find the rest.** That is §4.
+eye find the rest.** That was §4, and it is built.
 
-**Where the authoring stands, measured 2026-09-15. Read the files, never the prose, if a count
-matters** — every document in this project quotes the census of the day it was written, and I author
+**The same argument, third time, and this is §4A.** The *click* on the Drawing tab still answers
+*what conductor is this* — a blue conductor and a card about a conductor. **I am not interested in
+conductors.** The reader's question is *whose path is this*, and the click should answer that or say
+nothing at all. **Silence is the feature**: ink that answers nothing is ink that needs a path, which
+is the same instrument as the unpainted ink in §4 — my eye, on the paper. Keep the conductor card
+alive as a diagnostic (`?unclaimed=1`) and take it off the reader's screen.
+
+**Where the authoring stands, measured 2026-09-15 and unchanged in the table on 2026-09-17. Read the
+files, never the prose, if a count matters** — every document in this project quotes the census of the day it was written, and I author
 between sessions.
 
 | | |
@@ -73,6 +91,7 @@ between sessions.
 | `label_corrections.json` | 654 decisions |
 | `wiring.json` | 71 records, **3 `source: human`** · **6 commoning blocks, 2 drawn by hand** |
 | the ink | 149 runs · 44 claimed by a route · 7 by a bus · 98 claimed by nothing |
+| `/api/paths`, which is what the sheet paints and what §4A clicks | **59 routes · 6 buses · 68 runs** |
 
 Get any of those with a one-liner:
 
@@ -81,8 +100,9 @@ cd schematic_extraction/PS20115MLM4-2/extracted_docs && python3 -c "…"
 ```
 
 **The authoring run is mine and it has barely begun.** All six commoning blocks are decided and I am
-working through the paths now. §4 does not touch my queue; it tells me where the queue *is*, which
-is the thing I have no way to see today.
+working through the paths now. §4 did not touch my queue; it told me where the queue *is*. §4A and
+§4B do not touch it either: they make the drawing itself the index into it — click a painted run and
+learn whose it is, then click it on the Locate tab and be editing it.
 
 ---
 
@@ -96,8 +116,9 @@ a hand edit produces correct data and destroys the finding. **An un-authorable t
 a panel, not a file edit.** Wires and paths now have both halves; commoning got them on 2026-09-12.
 **What still has no screen at all is `author_circuit_logic.py`** — whether a terminal exists, which
 net it is on, what a component is, and the drawing's notes — and that is plan 03 §7. The highlighting
-half is correct per object and has no *complete* view until §4 paints the whole of what I have
-authored at once.
+half is correct per object and got its *complete* view on 2026-09-15, when §4 painted the whole of
+what I have authored at once. **What is still missing is the way back**: from a mark on the paper to
+the record that owns it. Both clicks answer the machine's question instead of mine — §4A and §4B.
 
 ---
 
@@ -108,18 +129,21 @@ authored at once.
    nothing there to be wrong about — deliberate, not a bug.
 2. **`python -m app` has no reloader.** A change under `server/app/` needs a restart.
 3. **The client is a built bundle.** A change under `webui/src/` needs `cd webui && npm run build`.
-   **A rebuilt bundle against an unrestarted server is the dangerous combination.** §4 is one server
-   function plus client work, so it needs both.
+   **A rebuilt bundle against an unrestarted server is the dangerous combination.** §4 was one
+   server function plus client work and needed both. **§4A and §4B are client-only** — rebuild the
+   bundle, leave the server alone.
 4. **A test asserting an absolute count against an authored file goes red as I author.** This has
    bitten three times. The cure is always the same: **reconstruct the indexing pass's own answer from
    `was`, and assert against that.** `INDEXED` in `test_extraction_generator.py` and `loadReal` in
-   `wiring.test.ts` are the two implementations and both carry the reasoning. **§4's legend counts are
-   exactly this trap** — get them from the payload, never hard-code, and expect them to move under you.
+   `wiring.test.ts` are the two implementations and both carry the reasoning. **§4's legend counts
+   were exactly this trap and §4A's card is the next one** — a run count or a length on a card comes
+   off the payload, never out of a fixture's memory, and expect it to move under you.
 5. **`H18` — three whole-document drafts over three authored files.** They must not learn about each
    other. `wiringModel.pathStale` and the trace's target tag are the only two places two of them meet,
    and both meet them *as arguments*. **`H26` is the newest hazard in the book** — read it if you
-   touch the trace. **§4 is a third place they could meet and must not**: the overlay reads the
-   published `/api/paths`, never two drafts.
+   touch the trace. **§4 was a third place they could have met and did not**: the field reads the
+   published `/api/paths`, never two drafts — and `pickPath` in §4A and the arming in §4B read that
+   same published index, for the same reason.
 6. **`H24` — the landing rule has three parts and only the first is obvious.** Read it before touching
    `features/locate/wiring.ts`.
 7. **`H25` — the `W` table is no longer the list of wires that exist.** A record saying `"added": true`
@@ -127,7 +151,8 @@ authored at once.
 8. **`H23` — the generator refuses to run without `wiring.json`.** Anything you write that runs it must
    supply the file.
 9. **`H20` — geometry is free and connectivity is not.** `GET /api/paths` and `GET /api/conductors`
-   have no editor password, on purpose, which is why §4 needs no new endpoint.
+   have no editor password, on purpose, which is why §4 needed no new endpoint and **§4A needs none
+   either**: `pickPath` is arithmetic over a payload already on the page.
 10. **A panel's plumbing is three edits, and `TargetPanel.tsx` is all three** — the props interface,
     the sub-panel that renders it, and the call site. Assume the same gap in every reading list.
 11. **The test file for a panel is not named after the panel.** Commoning is tested in
@@ -139,14 +164,40 @@ authored at once.
     effect, the `data-` attribute a test reads it through, **and the effect's dependency array.** The
     fourth is silent: a missed dependency is a stale frame, not an error. This is what §6's reading
     list missed on 2026-09-13.
-14. **The Locate tab paints one target at a time.** `LocateTab.tsx:621` is
-    `draftRuns(document, paths, targetEntry)`, and `draftRuns` (`features/locate/paths.ts:410`)
-    prefers the unsaved draft over the saved index. That is the thing §4 changes, and the distinction
-    between *the armed row's route* and *the whole sheet's authored routes* is the whole design.
-15. **`/api/paths`'s `nets` map is built from the generated `wires[].net`**
-    (`server/app/drawing.py:332-338`), which holds one net per wire. `W019` bonds `0V` to `GND`, so
-    selecting `GND` does not paint it today. §4.6 fixes it from `member_terminals`. There is exactly
-    one such wire on this sheet and there will be more on other drawings.
+14. **The Locate tab paints two things now, and the difference is the design.** The armed row's
+    route is `runs` — `draftRuns(document, paths, targetEntry)`, which prefers the unsaved draft —
+    and the whole sheet's authored routes are `authored`, read from the published `/api/paths` and
+    never from a draft. Painted in that order, selection on top. **§4B adds a third meaning to a
+    click on this tab and must not disturb the first two** — see trap 17.
+15. **Do not write a second distance function.** `project` (`lib/polyline.ts:28`) is the only
+    point-to-polyline measurement in the app; `PICK_PT = 6` (`hitTest.ts:46`) is the pick tolerance
+    and the comment there explains why 6 and not 4 or 8. `pickRun` (`:71`) is the shape §4A's
+    `pickPath` copies, ties-to-the-shorter-run included. That rule is why a click near a pin takes
+    the stub rather than the bus.
+16. **A control is documented in *three* places, and the third is prose.** The button, its tests,
+    **and the tab's own help paragraph** — `DrawingTab.tsx`'s explanation names its switches by
+    name. Deleting `Unclaimed ink` on 2026-09-15 left a sentence about it behind, found only by
+    grepping the string. Grep the user-visible name before you call a removal done.
+17. **On the Locate tab a bare-paper click already means *place*.** `LocateTab.tsx:1486-1507`:
+    tracing takes a corner, an armed end slot ignores paper, otherwise `put(at)` writes the armed
+    row's point — or a wire's `label_point`. **A second meaning cannot be added by nearness alone**,
+    or placing a terminal onto ink that carries a path would arm a wire instead. §4B's answer is
+    *the `Authored paths` toggle is the mode*, and that decision is the phase.
+18. **Two cards share the sheet's bottom-left corner and there is a precedence comment about it**
+    (`DrawingTab.tsx:935-960`; `ConductorCard.tsx:46` and `SelectionCard.tsx:85` are both
+    `bottom-3 left-3`). **`bottom-3 right-3` is empty**, which is why §4A puts the path card there
+    and why it can then coexist with the selection card. `Escape` closes them one press each — that
+    is `H22` and it is a requirement, not an accident.
+19. **A Locate-tab screen test's harness re-stubs the designator index on every save.**
+    `LocateTab.test.tsx`'s `stubServer` now takes an `index` option for exactly that reason: a
+    locations save calls `refreshDesignators`, which re-reads `/api/designators` **and**
+    `/api/paths`, so a test that set the store's census by hand watched it be replaced mid-test.
+20. **T-numbers spent reach T-1459. §4A starts at T-1500**, §4B at T-1520. Do not reuse a number and
+    do not renumber one — `19_...`'s T-1400–T-1407 are spent even though the feature is demoted.
+21. **`/api/paths`'s `nets` map is built from each net's `member_terminals`** since 2026-09-15
+    (`server/app/drawing.py:332`), because the generated `wires[].net` holds one net per wire and
+    `W019` bonds `0V` to `GND`. **Either end a member means that wire's runs belong to that net's
+    highlight.** Keep it a rule about membership, never about a net's name.
 
 Running it:
 
@@ -164,8 +215,9 @@ cd ../webui && npx vitest run && npx tsc -b --noEmit
 ```
 
 **Start from green, and read the counts off your own run rather than off this page** — they moved
-twice in the last week. A red check in a session that has written no code means something else is
-wrong — say so loudly. The one exception is
+twice in the last week, and stood at **263 server · 490 web** on 2026-09-15. A red check in a
+session that has written no code means something else is wrong — say so loudly. The one exception
+is
 `test_the_committed_artifact_is_exactly_what_the_generator_writes`, which goes red whenever
 `locations.json` or `wiring.json` is ahead of `circuit_logic.json`, and names which. That is `K6`
 doing its job; clear it with the generator first so you can tell your breakage from mine. **It was
@@ -180,12 +232,15 @@ is how you answer it, and plan 03 §6 is the phase that needs it.
 
 ## 5. What not to do
 
-- **Do not build a conductor editor, and do not build another view over conductors.** Struck twice:
-  2026-09-13 as a thing to author — a conductor is a measurement of the paper, so drawing one would
-  be inventing ink — and 2026-09-15 as a thing to view, for the reason in §2. What a person authors
-  is the **interpretation**: *this run is that wire's route*, *this stretch is that block's bus*, and
-  where the ink is missing they draw it directly, which is what `geometry: "human"` records. Ink the
-  extractor lost is a **bug upstream** (plan 03 §6), not a gap in the screen.
+- **Do not build a conductor editor, and do not build another view over conductors.** Struck three
+  times: 2026-09-13 as a thing to author — a conductor is a measurement of the paper, so drawing one
+  would be inventing ink — 2026-09-15 as a thing to *view*, for the reason in §2, and **2026-09-17 as
+  a thing to *click***, which is §4A. What a person authors is the **interpretation**: *this run is
+  that wire's route*, *this stretch is that block's bus*, and where the ink is missing they draw it
+  directly, which is what `geometry: "human"` records. Ink the extractor lost is a **bug upstream**
+  (plan 03 §6), not a gap in the screen. **The demotion pattern is settled and reusable**: leave the
+  code, take the control off the screen, gate it on `?unclaimed=1`, keep every test by setting the
+  query instead of clicking, and write the reason into the lesson document's header.
 - **Do not author anything in the four authored files.** The run is mine. To verify a write loop end
   to end: back the file up, write one record through the running server, check the generator folds it
   in, restore, and prove it with `md5sum` — `git status --short schematic_extraction/` coming back
@@ -206,8 +261,11 @@ is how you answer it, and plan 03 §6 is the phase that needs it.
   need a number, get it with a `python3 -c` one-liner that prints a summary. On 2026-09-15 four
   one-liners answered every measurement question in this file for a few hundred tokens each; it is the
   single biggest saving available.
-- **Do not read the lesson documents in `_claude_notes/locate_tab_testing/1x_tests_*.md`.** They are
-  written for me to walk. A lesson document is the **output** of a phase, never its input.
+- **Do not read the lesson documents in `_claude_notes/locate_tab_testing/*_tests_*.md`** — the glob
+  now reaches `20_` and `21_`, not only `1x_`. They are written for me to walk, and a lesson document
+  is the **output** of a phase, never its input. The one exception is a handful of sections a phase
+  is explicitly told to demote or append to, and then you read those sections, not the file: §4A
+  names four of them in `16_...` and they come to 2 KB.
 
 ---
 
@@ -231,12 +289,18 @@ is how you answer it, and plan 03 §6 is the phase that needs it.
 
 I fund this from API credits, so tokens are money and plan 03's §11 is not advice.
 
-**Measured over 28 session transcripts on 2026-09-15: $1,052 spent to date.** The two $100 sessions
-ran at 407 K context over ~400 calls, where cache reads were 84% of the bill. Recent work, for
-comparison: plan 02's §4 cost **$23.84** at 136 K; its §6 **implementation** cost **$11 at 100 K over
-128 calls** — the cheapest phase-sized work this project has had — and **the same session reached $32
-by 190 calls** once we reviewed the design, re-planned and wrote the three documents that replaced
-the plan. Prose at full context is not free either.
+**Measured over 29 session transcripts on 2026-09-17: about $1,065 spent to date.** The two $100
+sessions ran at 407 K context over ~400 calls, where cache reads were 84% of the bill. Recent work,
+for comparison: plan 02's §4 cost **$23.84** at 136 K; its §6 **implementation** cost **$11 at 100 K
+over 128 calls**; **the same session reached $32 by 190 calls** once we reviewed the design,
+re-planned and wrote three documents — prose at full context is not free either — and **plan 03's §4
+cost $13.12 at 114 K average over 133 calls**, which is one code phase plus four documents and is
+the shape to copy.
+
+**What made that session cheap, in four habits worth repeating:** the phase's reading list was
+followed and nothing else was opened; four `python3 -c` one-liners answered every question about the
+data; the four checks ran **twice only**, at the start and the end, backgrounded and in parallel; and
+every edit was an exact-string replacement that fails loudly rather than a re-read of the file.
 
 Price a session, including the one you are in:
 
@@ -252,8 +316,9 @@ ls -t ~/.claude/projects/-home-js-schematics/*.jsonl | head -1
 written means the reading list grew — cut the phase rather than push it through. A phase should land
 near $20 at ≤120 K context and ≤200 calls.
 
-**Say what the session cost at the end.** About **$93** of the $150 I funded remains, against plan
-03's $50–89 for everything left in it.
+**Say what the session cost at the end.** About **$80** of the $150 I funded remains, against plan
+03's **$52–109** for everything left in it — so if the two new phases both land near their low end
+there is room for §5 and §6 as well. Tell me if a phase looks like it will not fit.
 
 ---
 
@@ -273,8 +338,10 @@ near $20 at ≤120 K context and ≤200 calls.
    **Say at the end of your session which files want committing**, and remember that anything I author
    while walking your lessons lands in the same commit as your code unless I am told to separate them.
 
-   *Currently uncommitted and known:* `locations.json` — my path authoring since `22d0b1b`. **I may be
-   editing it while you work**, so re-read rather than trusting a count you took at the start.
+   *Currently uncommitted and known:* nothing of mine as of 2026-09-17 — my path authoring went in
+   with `a78aee5`, and plan 03 §4's code and documents are waiting for me to commit. **I may be
+   editing `locations.json` while you work**, so re-read rather than trusting a count you took at
+   the start.
 
 3. **Tell me afterwards** which files I asked you to read that did not earn their tokens, and which
    files you needed that I did not name. I use it to rewrite this file — traps 10 to 15 above all came
@@ -290,8 +357,9 @@ near $20 at ≤120 K context and ≤200 calls.
 
 The things a session might otherwise be, in the order I would want them:
 
-1. **Plan 03's remaining phases** — §4 the all-paths overlay, §5 the orphaned end-label rows, §6 the
-   extractor's layer fix. All specified; none needs new design.
+1. **Plan 03's remaining phases, in this order** — **§4A** the Drawing tab's click, **§4B** the
+   Locate tab's click, §5 the orphaned end-label rows, §6 the extractor's layer fix. All specified;
+   none needs new design. §4 shipped 2026-09-15.
 2. **Plan 03 §7 — a screen for `author_circuit_logic.py`.** Notes, whether a terminal or component
    *exists*, and **which net a terminal is on**, which is the sharpest gap in the whole surface because
    net membership is what the highlight paints. It **wants a plan, not a session**, and it becomes

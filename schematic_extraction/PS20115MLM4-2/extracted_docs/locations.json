@@ -4051,14 +4051,6 @@
       }
     },
     "W064": {
-      "labels": {
-        "INFEED1:4": {
-          "hidden": true
-        },
-        "TB-130:2": {
-          "hidden": true
-        }
-      },
       "path": {
         "runs": [
           [
@@ -4091,6 +4083,14 @@
           "INFEED1:4",
           "TB-130:2"
         ]
+      },
+      "labels": {
+        "TB-130:2": {
+          "hidden": true
+        },
+        "INFEED1:4": {
+          "hidden": true
+        }
       }
     },
     "W065": {

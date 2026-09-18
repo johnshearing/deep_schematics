@@ -9,9 +9,15 @@ unclaimed-conductor overlay) both shipped; everything still owed by it is carrie
 eight highlighting targets, audited against the tree on 2026-09-15. Read that first; it is the
 definition of *done* and it is ~14 KB.
 
-**Status, 2026-09-15.** `§4` of plan 02 shipped 2026-09-12 and was walked the same evening. `§6` of
+**Status, 2026-09-17.** `§4` of plan 02 shipped 2026-09-12 and was walked the same evening. `§6` of
 plan 02 shipped 2026-09-13, was walked, and was **rejected as a human-facing feature** — the reason
-is `§1` below and it is the whole of why this plan exists. `§4` here is the next session.
+is `§1` below and it is the whole of why this plan exists. **`§4` here shipped 2026-09-15 and the
+user walked it: it works.** Walking it produced two more requirements, which are `§4A` and `§4B`,
+and they are the next two sessions. **`§4A` first.**
+
+**What the walk of `§4` established, in one line:** the field answers *where is the work* and the
+two clicks do not — the Drawing tab's click still answers *what conductor is this*, and the Locate
+tab's cannot get from a painted run to the row that owns it. `§4A` and `§4B` are those two clicks.
 
 ---
 
@@ -30,7 +36,7 @@ Do **not** open these, and the reason is measured:
 | `authoring_the_wires.md` | 91 KB | ~23 k tokens. Finished except the user's own run, which no phase here touches |
 | `highlighting_wires_and_nets.md` | 99 KB | ~25 k tokens. Shipped |
 | **`highlighting_wires_and_nets_02.md`** | 44 KB | **Shipped and superseded.** What still matters is quoted in `§3`, `§5` and `§6` below |
-| `locate_tab_testing/1x_tests_*.md` | 7–30 KB each | **A lesson document is the output of a phase, never its input.** `19_tests_coverage_overlay.md` included |
+| `locate_tab_testing/*_tests_*.md` | 7–40 KB each | **A lesson document is the output of a phase, never its input** — `19_tests_coverage_overlay.md` and `20_tests_all_paths_overlay.md` included. The **one** exception is a phase's own acceptance list, quoted where it is needed: `§4A` names four T-numbers in `16_...` it has to demote, and reading those four sections (`:256-346`) is 2 KB, not the file |
 
 That is ~110 k tokens of notes this plan exists to replace. **This file is ~33 KB on purpose, and every kilobyte of it replaces ten.**
 
@@ -92,6 +98,12 @@ Everything in this plan serves that sentence. Nothing else is in scope.
 Read out of the files on the day, at commit `22d0b1b` plus the working tree. **Re-check a line
 number with `grep -n` before trusting it if the tree has moved.**
 
+> **It has moved.** `§4` shipped on 2026-09-15 and added about 115 lines to `LocateTab.tsx`, so
+> every `LocateTab.tsx` number in the table below is that much low — the toolbar row is now
+> ~`:1225-1280`, the `TileSheet` call site ~`:1510`, the filter buttons ~`:1320-1360`. **`§4A`'s and
+> `§4B`'s own tables were read on 2026-09-17 and are current**; use those, and grep for anything
+> here you actually need.
+
 **The three run layers and the one projection:**
 
 | Thing | Where |
@@ -143,10 +155,30 @@ number with `grep -n` before trusting it if the tree has moved.**
 | `wiring.json` | 71 records, 3 `source: human` · 6 commoning blocks, 2 hand-drawn |
 | `label_corrections.json` | 654 decisions |
 | the ink | 149 runs · 44 claimed by a route · 7 by a bus · 98 by nothing |
+| **what `/api/paths` publishes** (2026-09-17) | **59 routes · 6 buses · 68 runs**, which is what the field paints and what `pickPath` searches |
+
+**The three things `§4A` and `§4B` reuse, added 2026-09-17 after `§4` shipped:**
+
+| Thing | Where |
+|---|---|
+| `AUTHORED`, and the four-layer paint order | `paint.ts` · `TileSheet.tsx` — `authored` is painted **first**, so an armed row's route always wins |
+| `project` — point to polyline, **the only distance function**, and `PICK_PT = 6` with its reasoning | `lib/polyline.ts:28` · `hitTest.ts:46` |
+| `pickRun` — the shape `pickPath` copies, nearest-within-6-pt with ties to the shorter run | `hitTest.ts:71-96` |
 
 ---
 
-## §4 Phase 3a — every authored path painted at once — **the next session**
+## §4 Phase 3a — every authored path painted at once — **shipped 2026-09-15**
+
+> **Shipped 2026-09-15 and walked.** `AUTHORED` in `paint.ts`, `authored` on `TileSheet` (painted
+> first of four), `showAuthored` + `data-authored-toggle` + `data-authored-legend` on the Locate
+> tab, `Unclaimed ink` off the Drawing tab's toolbar and behind `?unclaimed=1`, and the bridge-wire
+> fix in `drawing.py`. Walked in **`locate_tab_testing/20_tests_all_paths_overlay.md`**, T-1450–
+> T-1459. `H28` in `06_code_map.md` is the reasoning. **Do not rebuild any of it**; `§4A` and `§4B`
+> below are what the user asked for after walking it, and they are the next two sessions.
+>
+> The one thing left open by it: **the colour**. Slate at `rgba(71, 85, 105, 0.35)`, 3 pt, chosen
+> by argument rather than on screen because the executing session had no browser. T-1450 is where
+> the user judges it, and it is one line in `paint.ts`.
 
 **The deliverable, in the user's words.** *"The all-paths overlay on the Locate tab — every authored
 route and bus painted at once, one colour, toggled, with `58 of 71 wires have a route` in the
@@ -250,6 +282,228 @@ field assembled from two drafts would be `H18` in a new coat.*
 
 **Estimate: half a session, $12–25.** It is client-side plus one server function, and the layer it
 needs already exists.
+
+---
+
+## §4A Phase 3d — the Drawing tab points at **paths**, not conductors — **the next session**
+
+*(Numbered `§4A` on purpose. `§5` to `§8` keep the numbers `claude.md` and `goals_01.md` already
+cite, and these two phases belong beside `§4` because they are the same inversion carried into the
+other two places the sheet answers a question.)*
+
+**The deliverable, in the user's words** — after walking `§4`:
+
+> *"I am on the 'Drawing' tab of the WebUI. I notice if I click while over a conductor then the
+> conductor will turn blue and an information box will appear… Since we have already established
+> that the human does not need to see the conductor but rather the paths, it would be better if
+> when clicking over a path, (not a conductor — we are not interested in conductors), on the
+> 'Drawing' tab, the path would become highlighted and that we would see an information box in the
+> lower right that tells us about the path and the wire that owns the path. If there is no path
+> then nothing will happen when clicking over the ink and that tells us that a path needs to be
+> created there."*
+
+**This is `H28` applied to the click.** `§4` fixed what the sheet *paints*; the click still answers
+*what conductor is this*, which is the extractor's reading of the paper and the question the user
+has now struck three times. The same demotion, the same way: the conductor card goes behind
+`?unclaimed=1` beside the overlay it belongs with, and the click answers **which authored path is
+this, and whose**.
+
+**And the silence is a feature.** A click on ink with no path must do **nothing at all** — no card,
+no highlight, no *no wire claims this run* verdict. *Nothing happens* is the message: **a path
+needs to be created here.** That sentence is the acceptance criterion for half this phase.
+
+### Reading list (and nothing else)
+
+Read out of the files on **2026-09-17**, at the tree with `§4` in it. `grep -n` to confirm one if
+the tree has moved.
+
+| Thing | Where |
+|---|---|
+| The sheet's click handler — **the four lines that change** | `DrawingTab.tsx:872-892`, ending `setPick(pickRun(conductors, at, claims))` |
+| `pickRun`, and `PICK_PT = 6` with the reasoning for 6 | `features/drawing/hitTest.ts:46`, `:71-96` |
+| `project` — point to polyline, **the one distance function in the app** | `lib/polyline.ts:28` |
+| `Pick`, the shape the card renders | `hitTest.ts:49-68` |
+| The card to demote, and its three verdicts | `ConductorCard.tsx:36` (props), `:116` claimed, `:135` commoning, `:164` unclaimed |
+| **The corner both cards share, and the precedence note that explains why** | `DrawingTab.tsx:935-960`; both are `bottom-3 left-3` — `ConductorCard.tsx:46`, `SelectionCard.tsx:85`. **`bottom-3 right-3` is empty** |
+| `PathSummary` — what a card can already say about a route without computing anything | `lib/paths.ts:48-76`, `pathsFor` at `:116` |
+| What the published index holds | `PathIndex` / `WirePath` / `BlockCommoning` — `api/types.ts:286-350` |
+| The five screen tests that change, and the fixture they share | `DrawingTab.test.tsx:1360-1440`, `describe('pointing at a line on the sheet')` |
+| The walked versions of those five — **T-1135, T-1140, T-1145, T-1150** | `locate_tab_testing/16_tests_terminal_wires_and_commoning.md:256-346` |
+| What `§4` built, for reuse rather than reading | `AUTHORED` in `paint.ts`, `authored` on `TileSheet`, `20_tests_all_paths_overlay.md` |
+
+### 4A.1 `pickPath` — one function, and it belongs in `lib/paths.ts`
+
+    pickPath(index, at, within = PICK_PT) → { owner: {kind: 'wire' | 'block', id}, run, off, geometry, conductors } | null
+
+**In `lib/paths.ts` and not in `features/drawing/hitTest.ts`**, because `§4B` needs the same
+function on the Locate tab and `lib/paths.ts` is where the two tabs already share their one answer
+to *which runs is that* (`pathsFor`). It is arithmetic over a payload that is already on the page:
+no fetch, no endpoint, no server edit in this phase at all.
+
+**The same two rules as `pickRun`, for the same measured reasons:** nearest **and** within
+`PICK_PT` = 6 pt, so a click in white space answers *nothing here* rather than reaching for the
+closest thing on the sheet; and **ties go to the shorter run**, which is what makes a click near a
+pin take the stub rather than the bus passing through it. Use `project` (`lib/polyline.ts:28`) —
+**do not write a second distance function**, that is invariant 2 in a new coat.
+
+**It searches `wires[*].runs` and `commoning[*].runs`, which is exactly the set `§4` paints.** That
+is the property worth a test of its own: *anything you can see in the field, you can click.*
+
+### 4A.2 The click, and the highlight that comes free
+
+`DrawingTab.tsx:886-892` sets a conductor pick. It becomes a path pick, and **the highlight is not
+new work**: selecting the owning wire already paints its runs in `HIGHLIGHT` through `pathsFor`, so
+
+    select('wire', owner.id, 'drawing')      // a route
+    select('component', owner.id, 'drawing') // a block's bus — the commoning lives on the component
+
+**Clicking a run of authored ink is the same act as clicking that wire's row**, and saying so in
+one line of code is the whole reason this phase is small. `'drawing'` as the origin is what stops
+the fly-to from firing at something the reader is already looking at (`DrawingTab.tsx:538-543`).
+
+### 4A.3 The card — bottom **right**, as asked, and it ends a fight rather than joining one
+
+`PathCard`, `data-path-card`, at `bottom-3 right-3`. The user asked for the lower right and it is
+also the better corner: `ConductorCard` and `SelectionCard` both sit bottom-left and the code has a
+whole comment about which of them wins (`DrawingTab.tsx:935-945`). A path card in the other corner
+**can coexist with the selection card**, which is the honest arrangement — *what is this line* and
+*where is this identifier* are different questions and the answers no longer have to take turns.
+
+What it says, and every item of it is already published:
+
+- **whose it is** — *`W064`'s route*, or *`TB-120`'s bus* — as a link that selects it, the same
+  `onSelectWire` / `onSelectBlock` pair `ConductorCard` already has (`:36`).
+- **how it was authored** — *lifted from the drawing* or *you drew it*, off `geometry`. Never a
+  `C####` id in the user-visible string: the ink's own names are the extractor's, and this whole
+  line of work is about not showing them.
+- **how much of a route it is** — how many runs, and the length along the ink beside the straight
+  line between the pins if that is cheap (`PathSummary`, `lib/paths.ts:48`; `lengthOf` in
+  `features/locate/paths.ts` if not).
+- **and, for a wire, that the Locate tab is where it is edited.** A reader has no password; saying
+  where the control lives is not the same as offering it.
+
+### 4A.4 Bare ink is silent, and `ConductorCard` goes where the overlay went
+
+No path within 6 pt → **nothing**: no card, no selection change, no highlight. The three conductor
+verdicts move behind **`?unclaimed=1`** with the overlay they belong to — same query, read once,
+same reason (`H28`), and the five tests in `DrawingTab.test.tsx:1360-1440` keep their assertions by
+setting the query before `render`, exactly as `§4` did to the seven coverage tests.
+
+**Do not delete `ConductorCard`, `pickRun`, `Pick` or `claimsFrom`.** They are the diagnostic that
+answers *is the ink there, or did we miss it* from the screen, and `§6` still needs that question
+answerable.
+
+### 4A.5 Acceptance criteria
+
+1. Clicking within 6 pt of any run the `Authored paths` field paints → that path is highlighted and
+   the card names **the wire or block that owns it**, with no `C####` anywhere on screen.
+2. Clicking ink that **no** path claims → **nothing happens at all**, and the reader's selection is
+   left exactly as it was.
+3. The card is bottom-right, the selection card is bottom-left, and **both may be open at once**;
+   `Escape` closes the path card first and the selection second — `H22`'s escalation, unchanged.
+4. A hand-traced route is clickable exactly like a lifted one, and says which it is.
+5. `?unclaimed=1` still gives the three conductor verdicts and the pink overlay.
+6. Nothing drawing-specific anywhere: no `TB-`, no `W019`, no `C0060` in a gate, a test or a string.
+7. `git status --short schematic_extraction/` unchanged. No authoring, no server edit.
+8. The four checks green, and the counts read off the run.
+
+**Documents:** `locate_tab_testing/21_tests_clicking_a_path.md`, **T-1500 onward** · a demotion note
+on `16_...`'s T-1135/T-1140/T-1145 like the one `19_...` carries · `H29` in `06_code_map.md` —
+*the click was the third view over conductors, and the reader's question is whose path this is* ·
+one row in the manual's index and a correction to its *clicking a line does nothing at all*
+troubleshooting row, which is about to become the **expected** answer.
+
+**Estimate: half a session, $12–25.** One new pure function, one card, one line of click handler,
+and five tests that keep their assertions.
+
+---
+
+## §4B Phase 3e — clicking a path on the Locate tab arms its row
+
+**The deliverable, in the user's words:**
+
+> *"I am on the 'Locate' tab. I notice that when I click on W064 on the list then I will see an
+> information box overlaid on the list which will tell me much information about the wire and allow
+> me to edit the wire's properties and also I think it will allow me to draw the path for that wire
+> by means of three buttons… Please add functionality such that when I click over a path, while on
+> the 'Locate' tab, the corresponding item in the list will be activated and the path will be
+> highlighted too."*
+
+**This is the authoring half of `§4A`, and it closes the loop the field opened.** With the field
+on, the user can see sixty-eight painted runs and has no way to get from one of them to the row
+that owns it except by reading its name off the drawing and hunting the list. The field shows
+*where the work is*; this makes the drawing itself the index into the queue.
+
+### The one hard part, and it is not the hit test
+
+**On this tab a click already means something, and what it means is *place the armed thing*.**
+`LocateTab.tsx:1486-1507`: while tracing it adds a corner, while an end slot is armed it is
+ignored, and otherwise it calls `put(at)` — which writes the armed row's point, or a wire's
+`label_point`. So a second meaning cannot be layered on by nearness alone: a person placing a
+terminal onto ink that happens to carry a path would arm a wire instead, and that is the authoring
+loop broken for a feature nobody asked to be implicit.
+
+**The rule, and it is the phase's one design decision: the field is the mode.**
+
+    tracing            → the click is a corner          (unchanged)
+    an end slot armed  → only a terminal fills it       (unchanged, H26)
+    `Authored paths` on and a path within PICK_PT → arm that path's owner   ← new
+    otherwise          → put(at)                        (unchanged)
+
+Three reasons it is the toggle rather than a modifier key or a heuristic: **placement stays
+unambiguous** whenever the field is off, which is how the screen is used for everything except path
+work; **it is discoverable without documentation** — the ink you can click is the ink that is
+painted, and the user just learned that switch; and **it needs no new state**, so `H24`'s landing
+rule and `H26`'s one-gesture-two-files tag are both untouched. *(If the user would rather have it
+always on, it is one condition — but say so before building it, because the risk above is real.)*
+
+### Reading list (and nothing else)
+
+| Thing | Where |
+|---|---|
+| The click handler and its three existing meanings | `LocateTab.tsx:1486-1507` |
+| `put`, and what a click writes for each kind of armed row | `LocateTab.tsx:1050` · `model.ts` `place` |
+| How a row is armed from the sheet today — **the pattern to copy**, including `flyTo` which this must *not* do | `LocateTab.tsx:1547-1585`, `MarkerLayer`'s `onSelect`; `aim` at `:1689` |
+| The field's state, for the mode test | `LocateTab.tsx` `showAuthored`, `authored`, `authoredRuns` (all just above the `net` memo, ~`:645-700`) |
+| `pickPath` — **written by `§4A`, reused here unchanged** | `lib/paths.ts` |
+| The queue's filter buttons, which can hide the row being armed | `LocateTab.tsx:1320-1360` |
+| `H24` before touching anything near the landing rule | `06_code_map.md` |
+
+### 4B.1 What arming means, exactly
+
+- **A wire's route** → `setTarget(aim(entry, document))` on that wire, so the panel opens with
+  `Add a run`, `Make it editable`, `Trace by hand` and `Clear` on it — which is what the user is
+  reaching for. `runs` then paints it in `HIGHLIGHT` **on top of the field**, with no extra code:
+  `§4`'s layer order already guarantees the armed row wins.
+- **A block's bus** → arm the **component**, because that is where the commoning panel lives — the
+  same rule `§4A`'s card follows, so one answer to *whose is this* serves both tabs.
+- **No fly-to.** The reader is looking at the run they clicked; panning the sheet under them would
+  be the opposite of helpful. (This is the one place it differs from clicking a dot, which does fly
+  — and the reason is that a dot click comes from the list-hunting habit this feature replaces.)
+- **The row has to be visible in the list.** If the queue filter would hide it, switch the filter
+  to `All` rather than arming a row nobody can see, and scroll it into view — `scrollIntoView` is
+  already how the list does that.
+
+### 4B.2 Acceptance criteria
+
+1. With `Authored paths` on, clicking a painted route arms that wire's row, opens its panel, and
+   highlights the route on top of the field.
+2. Clicking a painted **bus** arms its component and opens the commoning panel.
+3. **With the field off, every click means exactly what it means today** — a placement still lands,
+   a trace still takes a corner, an armed end slot still ignores bare paper. One test per meaning.
+4. Clicking ink with no path, field on or off, **never arms anything** and never writes.
+5. A click while **tracing** is still a corner, even over a painted path — the trace wins.
+6. Nothing is written by any of this: `saved` stays empty in the test, and
+   `git status --short schematic_extraction/` comes back unchanged.
+7. The four checks green.
+
+**Documents:** append to `21_tests_clicking_a_path.md` (one document for both halves of *clicking a
+path* — they are one feature on two tabs), **T-1520 onward** · `H30` in `06_code_map.md`: *a click
+on the Locate tab already means place, so a second meaning needs a mode and not a heuristic* · the
+manual's index row extended.
+
+**Estimate: half a session, $10–20.** It is one branch in one handler, plus the tests that prove the
+other three branches did not move.
 
 ---
 
@@ -400,16 +654,23 @@ Estimate **~$8**, plan only.
 
 | # | Phase | Session | Est. |
 |---|---|---|---|
-| 1 | `§4` — every authored path painted at once, `Unclaimed ink` demoted, the bridge-wire fix | half | **$12 – $25** |
-| 2 | `§5` — the orphaned override rows | half | $12 – $28 |
-| 3 | `§6` — the extractor fix, no re-extraction | one, short | $10 – $20 |
-| 4 | `§7` — the netlist authoring surface | **plan only** | ~$8 |
-| 5 | `§8` — cables, bindings, the citation loop | **plan only** | ~$8 |
-| | **Total** | **3–4 sittings** | **$50 – $89** |
+| — | `§4` — every authored path painted at once, `Unclaimed ink` demoted, the bridge-wire fix | **done 2026-09-15** | **$13.12** |
+| 1 | **`§4A` — the Drawing tab points at paths, not conductors** | half | **$12 – $25** |
+| 2 | **`§4B` — clicking a path on the Locate tab arms its row** | half | **$10 – $20** |
+| 3 | `§5` — the orphaned override rows | half | $12 – $28 |
+| 4 | `§6` — the extractor fix, no re-extraction | one, short | $10 – $20 |
+| 5 | `§7` — the netlist authoring surface | **plan only** | ~$8 |
+| 6 | `§8` — cables, bindings, the citation loop | **plan only** | ~$8 |
+| | **Total left** | **4–5 sittings** | **$52 – $109** |
 
-Priced at Opus 5 API rates: $5/M in, $25/M out, $6.25/M cache write, $0.50/M cache read. About **$93**
-of the user's funded $150 remained on 2026-09-15. `§11` is how this stays inside it, and it is not
-advice — the same work has cost 3× this in this project.
+**Why the two new phases go first, ahead of `§5` and `§6`:** they are what the user asked for after
+walking `§4`, they reuse `§4`'s layer and `§4A`'s `pickPath` rather than needing anything new, and
+together they finish one thought — *the drawing is the index into the queue*. `§5` and `§6` are both
+still fully specified and neither has moved.
+
+Priced at Opus 5 API rates: $5/M in, $25/M out, $6.25/M cache write, $0.50/M cache read. **About
+$80 of the user's funded $150 remained on 2026-09-17**, after `§4` came in at $13.12 — the low end
+of its estimate, and `§11` is why.
 
 ---
 
@@ -424,6 +685,14 @@ advice — the same work has cost 3× this in this project.
 | 2026-09-12 (`§4`, executed) | 228 | 136 K | $23.84 |
 | 2026-09-13 (`§6`, **implementation only**) | 128 | **100 K** | **$11** |
 | 2026-09-15 (the same session: design review, re-plan, three documents) | 190 | 129 K | $32 |
+| **2026-09-15 (`§4` here, implementation + four documents)** | **133** | **114 K** | **$13.12** |
+
+**The `§4` session is the model to copy, and what made it cheap is listed rather than praised:** the
+plan's reading list was followed and nothing else was opened; four `python3 -c` one-liners answered
+every question about the data (route counts, the real `nets` map, the payload's run count); the four
+checks ran **twice**, at the start and at the end, in the background and in parallel; and every edit
+went in as an exact-string replacement that fails loudly rather than as a re-read of the file. Peak
+context was 176 K and the average 114 K, which is where the money is.
 
 **Cost ≈ $0.50 × (context in M tokens) × (number of calls).** Nothing else is close. The spread
 between a 400 K session and a 100 K one is **~6× for the same thinking** — and the last row is the
@@ -490,7 +759,10 @@ the phase rather than push it through.**
     each other), **`H26`** (one gesture, two authored files, and a tag is the only thing keeping
     them apart), **`H27`** (a coverage count is only honest beside the traced/total), `H24` (the
     landing rule, before `features/locate/wiring.ts`), `H25` (the `W` table is not the list of
-    wires), `H20` (geometry is free and connectivity is not). Still to write: **`H28`** (`§4`).
+    wires), `H20` (geometry is free and connectivity is not), and **`H28`** — *the denominator is
+    the paper, so paint what has been authored, and read it from the published index* (written
+    2026-09-15; **read it before `§4A` or `§4B`** — it is the argument both of them continue).
+    Still to write: **`H29`** (`§4A`) and **`H30`** (`§4B`).
 11. **Three things a reading list will always miss**, learned the hard way: `TargetPanel.tsx` is the
     plumbing for every panel (props interface → sub-panel → call site, three edits);
     `wiringStore.edit` takes **no note**, unlike the locations store's; **a new canvas overlay is
@@ -503,26 +775,34 @@ the phase rather than push it through.**
 
 | Phase | Document | T-numbers |
 |---|---|---|
-| `§4` | `locate_tab_testing/20_tests_all_paths_overlay.md` | **T-1450 onward** |
-| `§4` | a header note on `19_tests_coverage_overlay.md` — demoted to a diagnostic, `?unclaimed=1` | — |
+| `§4` | `locate_tab_testing/20_tests_all_paths_overlay.md` — **written 2026-09-15** | T-1450–T-1459, **spent** |
+| `§4` | a header note on `19_tests_coverage_overlay.md` — demoted to a diagnostic, `?unclaimed=1` — **written** | — |
+| `§4A` | `locate_tab_testing/21_tests_clicking_a_path.md` | **T-1500 onward** |
+| `§4A` | a demotion note on `16_tests_terminal_wires_and_commoning.md`'s T-1135/T-1140/T-1145 — the conductor verdicts are a diagnostic now | — |
+| `§4B` | append to `21_tests_clicking_a_path.md` — one document, one feature, two tabs | **T-1520 onward** |
 | `§5` | append to `10_tests_end_labels.md` | next free |
 | `§6` | append to `EXTRACTION_NOTES.md` per `§6`'s acceptance criteria | — |
 | `§7` | **`_claude_notes/authoring_the_netlist_01.md`** — and stop | — |
 | `§8` | a plan document for cables, bindings and the citation loop — and stop | — |
-| all | `06_code_map.md` — `H28` owed by `§4`; one row per new behaviour | — |
+| all | `06_code_map.md` — `H28` **written**; `H29` owed by `§4A`, `H30` by `§4B`; one row per new behaviour | — |
 | all | `locate_tab_instruction_and_test_manual.md` — index each new leaf, and correct the troubleshooting rows `§4` makes stale | — |
 
-**Keep them short.** The manual indexes twenty leaf documents already, and the notes tax measured in
-`§11` is why this plan is 25 KB rather than 99 KB.
+**Keep them short.** The manual indexes **twenty-one** leaf documents already, and the notes tax
+measured in `§11` is why this plan is 33 KB rather than 99 KB. **T-numbers spent reach T-1459, and
+`§4A` starts at T-1500** — the gap is deliberate, so a late addition to `20_...` never collides.
 
 ---
 
 ## §14 Open questions — none are blocking
 
-1. **Should the reader's Drawing tab get the authored-paths field too?** `§4` puts it on the Locate
+1. **Should the reader's Drawing tab get the authored-paths field too?** `§4` put it on the Locate
    tab because that is where paths are drawn and where the user asked for it. On the Drawing tab the
    same field would answer *how much of this drawing has been authored* for somebody with no
-   password. Cheap once `§4` exists — one prop and one toggle.
+   password — one prop and one toggle now that `§4` exists. **`§4A` makes it more attractive than it
+   was**: a field you can see is a field you can click, and `§4A`'s card is the answer to the click.
+   Worth one line in `§4A`'s session if the user asks for it; never assumed.
+   *(Also open, and cheaper to settle by looking than by arguing: is slate at 0.35 alpha right on
+   the user's screen? T-1450.)*
 2. **A net-to-net relationship for the 0 V-to-ground bond.** None of the 402 relationships joins two
    nets, so a model can only find the bond by traversing `CONNECTS_TO` and each terminal's `net`. A
    `BONDED_TO` edge from the generator, or a line in `prompts.py`, would say it outright.
