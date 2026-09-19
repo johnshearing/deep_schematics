@@ -268,6 +268,7 @@ of `circuit_logic.json`.
 | *(superseded)* **Unclaimed ink** — the coverage overlay, now a diagnostic | `webui/src/features/drawing/DrawingTab.tsx` · `paint.ts` · `TileSheet.tsx` | Unchanged except that **the switch is gone**: `coverage` is read once from `?unclaimed=1`, and `UNCLAIMED`, the `unclaimed`/`unclaimedRuns` memos, the `TileSheet` prop, `data-coverage-legend` and `Claims.handTraced` all stay so the path cannot rot. Rejected as a human-facing view on 2026-09-15 — **`H28`** is why, and the field above is what replaced it. `19_tests_coverage_overlay.md` carries the demotion note; T-1400–T-1407 are spent |
 | **Whose path is this** — a point on the paper back to the record that owns it | `webui/src/lib/paths.ts` | `pickPath`, `PathPick`. Nearest **and** within `PICK_PT`, ties to the **shorter** run so a click near a pin takes the stub and not the bus — the same two rules as `pickRun`, through the same `project`. Searches `wires[*].runs` ∪ `commoning[*].runs` off the published `/api/paths`, which is **exactly the set the `Authored paths` field paints**: *anything you can see in the field, you can click*. `owner.kind` is `wire | block`, and turning a block into the component the application addresses it by is the caller's job, done once. Pure; no fetch, no endpoint, no password (`H20`). 7 unit tests in `lib/paths.test.ts` |
 | **The click on the Drawing tab, and the silence where there is no path** | `webui/src/features/drawing/DrawingTab.tsx` · `PathCard.tsx` | `onPath`/`onPathRef` beside `pick`, the sheet's `onClick`, and `PathCard` at **`bottom-3 right-3`** — `data-path-card`, `data-path-owner`, `data-path-geometry`, `data-path-where`. A hit **selects its owner**, which is what paints the route for nothing; `runs={onPath?.runs ?? path?.runs}` is what lights a **bus**, since `pathsFor` is null for a component. A miss does **nothing at all** — no card, no highlight, no selection change, no verdict — and that silence is the message (`H29`). `pickRun` runs only under `?unclaimed=1`, and the runs of ink are no longer fetched without it. Walked in `21_tests_clicking_a_path.md`, T-1500– |
+| **The click on the Locate tab, and the mode that keeps it apart from *place*** | `webui/src/features/locate/LocateTab.tsx` | `armPath` beside `put`, and one branch in the sheet's `onClick`: with `Authored paths` on, `pickPath` over the published index arms the owner's row — `setTarget(aim(entry, document))` and **no `flyTo`** — and the filter goes to `All` if it would have hidden that row. A `block` arms its **component**, which is where the commoning panel lives, and the `runs` memo reads that block's bus out of `paths.commoning[id]` because `draftRuns` is about wires (trap 24). With the field **off** every click means what it always meant; the trace and an armed end slot still win (`H30`). Walked in `21_tests_clicking_a_path.md`, T-1520– |
 | **Authoring a block's commoning** | `webui/src/features/locate/CommoningPanel.tsx` | `CommoningPanel`, `NoteBox`. On a **component** row, through `wiringStore` — `H18`, and the reason it is not a store of its own. `data-commoning-panel`, `-accept`, `-clear`, `-runs`, `-note`, and since 2026-09-12 `-trace`. **Whether the panel appears at all** is `commonable` — *two or more of this component's terminals on one net*, read off `terminalNets`, which is the netlist and not a second draft. It replaced *the ink proposed something*, which hid the panel on exactly the blocks that needed authoring |
 | **Drawing a block's bus by hand** | `features/locate/wiringModel.ts` · `features/locate/wiring.ts` · `features/locate/Tracing.tsx` | `traceCommoning` — the second writer, `geometry: 'human'` because the corners are the person's, beside `setCommoning`'s `'extracted'`. A stale `conductors` list is **deleted** on a re-trace and the `note` survives one. `conductorsAlong` + `ALONG_PT` (= `2 × ON_INK_PT`) compute the weaker claim — *and the line follows this ink* — by shared course, so a wire crossing the bus square-on is not claimed. `Tracing` is the in-progress panel, shared by both traced object types and knowing neither file: `H26` |
 | **Every rule the commoning editor applies** | `webui/src/features/locate/wiringModel.ts` | `commoningOf`, `setCommoning`, `clearCommoning`, `setCommoningNote`, `commonedBlocks`, `commoningCoverage`. `setCommoning` writes `extracted`/`human` and never `derived`; `clearCommoning` **deletes**, unlike `unconfirm` one section up, because nothing bootstrapped a bus and *no record* is the same state as *nobody authored this* |
@@ -1228,6 +1229,58 @@ gesture and one press takes them both.
 remaining consumer is behind `?unclaimed=1`, and `claims.traced`/`.wires` — the honesty numbers the
 selection card prints — come out of `/api/paths`. A reader who never asks for the diagnostic never
 downloads the extractor's reading of the paper.
+
+---
+
+### H30 — a click on the Locate tab already means *place*, so a second meaning needs a mode and not a heuristic *(added 2026-09-19)*
+
+`H29` made the Drawing tab's click answer *whose path is this*. The Locate tab is where paths are
+**drawn**, and there the same gesture was already spoken for: `LocateTab.tsx`'s sheet `onClick`
+means **place the armed thing** — a corner while tracing, nothing at all while an end slot is
+armed, and otherwise `put(at)`, which writes the armed row's point or a wire's `label_point`.
+
+So the feature the user asked for — *"when I click over a path the corresponding item in the list
+will be activated"* — **cannot be added by nearness alone.** Somebody placing a terminal onto ink
+that happens to carry a path would arm a wire instead, and that is the authoring loop broken for a
+feature nobody asked to be implicit. The hit test was never the hard part; `pickPath` is `§4A`'s,
+reused unchanged.
+
+**The rule, and it is the whole of the phase's design:**
+
+    tracing                                        → the click is a corner      (unchanged)
+    an end slot armed                              → only a terminal fills it   (unchanged, H26)
+    `Authored paths` on and a path within PICK_PT  → arm that path's owner      ← new
+    otherwise                                      → put(at)                    (unchanged)
+
+**The field is the mode**, for three reasons that a modifier key has none of: **placement stays
+unambiguous** whenever the field is off, which is how this screen is used for everything except
+path work; it is **discoverable without documentation**, because the ink you can click is the ink
+you can see, and the switch was learned five minutes ago; and it needs **no new state**, so `H24`'s
+landing rule and `H26`'s one-gesture-two-files tag are untouched.
+
+**Three consequences worth writing down, because none is obvious from the diff.**
+
+1. **The handler's `if (!target || !from) return` lost its `!target` half.** A click used to be
+   inert until a row was armed, which is right while every meaning it has writes into the armed row
+   — and wrong for the one meaning whose purpose is to arm a row when none is. Nothing else is
+   loosened: `put` refuses on its own with no target, and a trace and an armed slot can only exist
+   while something is armed.
+2. **Arming is not selecting, and it does not fly.** `setTarget(aim(entry, document))` — the same
+   call a dot click makes — but **without `flyTo`**, which is the one place arming a row does not
+   take the sheet with it. The reader is looking at the run they clicked; a dot click flies because
+   it comes from the list-hunting habit this gesture replaces.
+3. **A block's bus is the armed row `draftRuns` cannot answer for** — trap 24, exactly where it was
+   predicted. `draftRuns` and `pathsFor` are both about wires, so arming a *component* lit nothing.
+   The bus is read from the **published index** at the `runs` memo (`paths.commoning[id].runs`) and
+   never from the wiring draft, which is `H18`: the route half of that memo is `locations.json`'s
+   draft, and one overlay holding two authored documents is the crossing the hazard exists to
+   prevent.
+
+**And the row has to be visible.** If the queue filter would hide the row being armed the filter
+goes to `All`, rather than leaving a panel on screen with nothing shaded in the list.
+`DesignatorList` scrolls the armed row into view by itself.
+
+Walked in `21_tests_clicking_a_path.md`, T-1520–T-1526.
 
 ---
 

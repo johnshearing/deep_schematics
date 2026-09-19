@@ -63,6 +63,7 @@ import {
   type Viewport,
 } from '@/features/drawing/useTileViewport'
 import { isTextField } from '@/lib/keys'
+import { pickPath } from '@/lib/paths'
 import { PathHandles } from './PathHandles'
 import { draftRuns, endPinsOf, netOf } from './paths'
 import { cn } from '@/lib/utils'
@@ -629,10 +630,22 @@ export function LocateTab() {
    * path editor that is the whole of it: nothing on this screen writes a path yet, so there is no
    * unsaved one to prefer.
    */
-  const runs = useMemo(
-    () => (document ? draftRuns(document, paths, targetEntry) : undefined),
-    [document, paths, targetEntry],
-  )
+  const runs = useMemo(() => {
+    if (!document) return undefined
+    /**
+     * **A block's bus is the one armed row whose route `draftRuns` cannot answer for**, and
+     * `§4B` is where that gap shows: arming a *component* is how a bus is reached, so a bus
+     * clicked on the sheet would otherwise be armed and lit by nothing. The same gap `§4A` found
+     * at its card (`runs={onPath?.runs ?? path?.runs}`), in the same place and for the same
+     * reason — `pathsFor` and `draftRuns` are both about wires.
+     *
+     * Read from the **published index and never from the wiring draft**, which is `H18`: a
+     * route's draft is `locations.json`'s and a bus's is `wiring.json`'s, and this memo already
+     * holds the first of those. One overlay, one authored document, exactly as the field below.
+     */
+    if (targetEntry?.kind === 'component') return paths?.commoning?.[targetEntry.id]?.runs ?? []
+    return draftRuns(document, paths, targetEntry)
+  }, [document, paths, targetEntry])
 
   /**
    * **Every authored route and bus, painted at once** — and the reason this screen needed it.
@@ -1068,6 +1081,55 @@ export function LocateTab() {
   )
 
   /**
+   * **A click on a painted path arms the row that owns it** — `§4B`, and `H30`.
+   *
+   * With the field lit there are sixty-eight painted runs on the sheet and no way to get from one
+   * of them to the row that owns it except by reading a name off the drawing and hunting the
+   * list. This makes the drawing itself the index into the queue.
+   *
+   * **The one design decision in the phase is that the field is the mode**, and it is not the hit
+   * test. On this tab a bare click already means *place the armed thing*, so a second meaning
+   * cannot be added by nearness alone: somebody placing a terminal onto ink that happens to carry
+   * a path would arm a wire instead, and that is the authoring loop broken for a feature nobody
+   * asked to be implicit. `Authored paths` is the switch, for three reasons — placement stays
+   * unambiguous whenever the field is off, which is how this screen is used for everything except
+   * path work; it is discoverable without documentation, because the ink you can click is the ink
+   * you can see; and it needs **no new state**, so `H24`'s landing rule and `H26`'s tag are both
+   * untouched.
+   *
+   * Returns whether it took the click, which is how the caller knows to fall through to `put`.
+   */
+  const armPath = useCallback(
+    (point: [number, number]) => {
+      if (!showAuthored || !document) return false
+      /* `pickPath` unchanged from `§4A` — nearest within `PICK_PT`, ties to the shorter run, over
+         the published index. It searches exactly the set the field paints, which is the property
+         this feature rests on: *anything you can see, you can click*. */
+      const picked = pickPath(paths, point)
+      if (!picked) return false
+      /* A bus belongs to a terminal block and the panel that authors one hangs off the
+         **component** — the same mapping `§4A`'s card makes, so one answer to *whose is this*
+         serves both tabs. `pickPath` leaves it to its caller on purpose. */
+      const kind = picked.owner.kind === 'wire' ? 'wire' : 'component'
+      const entry = listed.find((e) => e.id === picked.owner.id && e.kind === kind)
+      /* A path whose owner has no row cannot be armed. Falling through is better than swallowing
+         the click: the gesture then means what it meant before the field was invented. */
+      if (!entry) return false
+      /* **The row has to be somewhere a person can see it.** Switching the filter is the smaller
+         surprise: arming a row the filter hides would put a panel on screen with nothing shaded
+         anywhere in the list. `DesignatorList` scrolls the armed row into view by itself. */
+      if (!visible.some((e) => e.id === entry.id)) setFilter('all')
+      setTarget(aim(entry, document))
+      /* **No fly-to**, and this is the one place arming a row does not take the sheet with it.
+         The reader is looking at the run they just clicked; panning out from under them would be
+         the opposite of helpful. A dot click flies because it comes from the list-hunting habit
+         this gesture exists to replace. */
+      return true
+    },
+    [showAuthored, document, paths, listed, visible, setTarget],
+  )
+
+  /**
    * The viewport as it was when the press began, so a pan is never mistaken for a placement.
    *
    * **A placement is a click that did not move the sheet.** That is the definition, and it is
@@ -1488,7 +1550,12 @@ export function LocateTab() {
           onClick={(event) => {
             const from = pressedAt.current
             pressedAt.current = null
-            if (!target || !from) return
+            /* **Not `!target` any more.** A click used to be inert until a row was armed, which
+               is right while every meaning it has writes into the armed row — and wrong for the
+               one `§4B` adds, whose whole purpose is to arm a row from the drawing when none is.
+               Nothing else is loosened: `put` refuses on its own with no target, and both the
+               trace and the armed slot below can only exist while something is armed. */
+            if (!from) return
             const now = current.current
             if (from.x !== now.x || from.y !== now.y || from.scale !== now.scale) return
             const box = event.currentTarget.getBoundingClientRect()
@@ -1503,7 +1570,10 @@ export function LocateTab() {
                fills a slot (`onSelect` below), and the armed row is a wire — so placing here
                would write the wire's `label_point` in the middle of an endpoint decision, into
                the other authored file, from a click meant for a dot. */
-            else if (!armedSlot) put(at)
+            /* Otherwise the field decides, and it decides nothing at all while it is off:
+               `armPath` takes the click only when a painted path is under it, so a placement
+               lands exactly as it did before whenever the reader is not doing path work. */
+            else if (!armedSlot && !armPath(at)) put(at)
           }}
         >
           {armed && viewer.viewport.scale > 0 && (

@@ -236,3 +236,143 @@ this page, it is the page that is wrong.
 
 `16_tests_terminal_wires_and_commoning.md`'s **T-1135, T-1140, T-1145 and T-1150 are spent** and
 carry a demotion note. **T-1500 to T-1507 are spent; §4B starts at T-1520.**
+
+
+---
+
+# T-152x — the same click on the **Locate** tab: arm the row that owns it
+
+Added **2026-09-19** with §4B of `_claude_notes/highlighting_wires_and_nets_03.md`. **One feature on
+two tabs, so one document**: everything above is the Drawing tab answering *whose path is this*, and
+everything below is the Locate tab doing the authoring half of it.
+
+## Before you start (this half)
+
+**Client only again.** Rebuild the bundle and **do not restart the server** — there is no server
+edit in this change either:
+
+    cd /home/js/schematics/webui && npm run build
+
+Then <http://localhost:9700/webui/> and the **Locate** tab, which **does** need the editor password
+(`edit-1234`) — unlike the Drawing tab above.
+
+Four checks at the end of this phase: **263 server · 513 web · ruff clean · tsc clean** (they were
+263 · 506 when it started; **read them off your own run**).
+
+### What is new, in four lines
+
+- **Switch `Authored paths` on, click a painted route, and that wire's row is armed** — its panel
+  opens with `Add a run`, `Make it editable`, `Trace by hand` and `Clear` on it, and the route is
+  highlighted on top of the field. The drawing is now the index into the queue.
+- **Click a painted bus and the block it belongs to is armed**, with the commoning panel open.
+- **The switch is the mode.** With `Authored paths` **off**, every click means exactly what it
+  meant yesterday. Nothing about the gesture is new while you are placing dots.
+- **No fly-to.** The sheet does not move. You are already looking at the run you clicked.
+
+*Why the switch and not a modifier key or *just click near a path*: on this tab a bare click
+already means **place the armed thing**. Layered on by nearness alone, placing a terminal onto ink
+that happens to carry a path would arm a wire instead — the authoring loop broken for a feature
+nobody asked to be implicit. The field is the mode because it is discoverable without
+documentation (the ink you can click is the ink you can see), because placement stays unambiguous
+whenever it is off, and because it needs no new state. `H30`.*
+
+---
+
+## T-1520 — a painted route arms its wire
+
+**Do.** Locate tab, unlock, press **`Authored paths`**. Pick any painted run you know is a wire's
+route and click on it.
+
+**Expected.** That wire's row is armed and shaded in the list on the left, its panel is open, and
+the route is painted **on top of** the field in the selection's colour. **The sheet has not
+moved.** Nothing is written — the `locations` badge stays `saved`.
+
+*Why the sheet does not move: every other way of arming a row flies to it, because every other way
+starts from the list and you cannot see the thing yet. Here you are pointing at it.*
+
+## T-1521 — a painted bus arms its block
+
+**Do.** With the field still on, click one of the vertical runs that is a terminal block's own
+commoning.
+
+**Expected.** The **component's** row is armed — the block, not a wire — and **This block's
+commoning** is on the panel. The bus is highlighted.
+
+*Why the component: a bus belongs to the block and the panel that authors one hangs off the
+component row. It is the same answer `§4A`'s card gives on the Drawing tab, so *whose is this* has
+one answer on both screens. This is also the gap trap 24 predicted — `draftRuns` is about wires, so
+an armed block's bus is read from the published index instead, which is why it lights at all.*
+
+## T-1522 — a row the filter was hiding comes into view
+
+**Do.** Put the list on **`To do`** (which holds no wires at all), field on, and click a painted
+route.
+
+**Expected.** The filter switches to **`All`**, the row is armed, and the list has scrolled it into
+view.
+
+*Why: arming a row nobody can see would be a panel on screen with nothing shaded anywhere in the
+list. Switching the filter is the smaller surprise, and it is the only thing the click changes
+about the list.*
+
+## T-1523 — ink with no path still answers nothing
+
+**Do.** Field on, nothing armed. Click a run of ink you know has no path yet.
+
+**Expected.** **Nothing at all.** No row armed, no panel, no highlight, nothing written.
+
+*Why this is the feature and not a hole: silence is how you learn a path needs to be created there,
+which is the same instrument as the unpainted ink itself — your eye, on the paper.*
+
+## T-1524 — with the field **off**, a placement still lands
+
+**Do.** Switch `Authored paths` **off**. Arm a terminal in the list and click the sheet **on a
+coordinate a painted route runs through**.
+
+**Expected.** The terminal is placed exactly there, as always. **No wire is armed.**
+
+*This is the test the design decision exists for. If this one fails the phase is wrong, however
+well the rest of it works.*
+
+## T-1525 — a trace in progress still takes the corner
+
+**Do.** Field on. Arm a wire, press **`Trace by hand`**, then click a corner that lands **on
+somebody else's painted route**.
+
+**Expected.** A corner is added — *1 corner so far* — and the armed wire does not change.
+
+*Why: a route often has to be drawn across ink that is already claimed, so the trace is the more
+specific claim and wins. The order is trace, then an armed end slot, then a painted path, then
+place.*
+
+## T-1526 — an armed end slot still ignores the paper
+
+**Do.** Field on. `Wiring` filter, arm a wire, press **`Pick from the sheet`** on one end, then
+click a painted route.
+
+**Expected.** Nothing happens. The slot stays armed, waiting for a **terminal**, and the wire you
+were working on is still on the panel.
+
+*Why: only a terminal fills an end slot (`H26`). A click that armed some other wire in the middle
+of an endpoint decision would throw the record you are correcting off the screen.*
+
+---
+
+## The tests behind this half
+
+`webui/src/features/locate/LocateTab.test.tsx` — **7 new**, T-1520 to T-1526 above. Four of the
+seven assert that the **other three meanings of a click did not move**, which is the shape of the
+phase: one branch added, three proved untouched.
+
+They click the sheet at a **computed** CSS coordinate — `clickPoint` projects a PDF point through
+the documented fit (776/1224 px/pt at origin `12, 48.94`), the same projection the placement test
+pins by clicking `(400, 300)` and reading `(612, 396)` out of the file. **Nothing is calibrated by
+guessing pixels**, which costs a test run per try.
+
+No new hit test: `pickPath` is `§4A`'s, reused unchanged, and `webui/src/lib/paths.test.ts` is
+where it is proved.
+
+**The bundle is already built** — this session ran `npm run build` — so if the screen does not
+match this page, it is the page that is wrong.
+
+**T-1520 to T-1526 are spent.** `§4C` takes the next free number in `15_tests_wiring_editor.md`.

@@ -1643,3 +1643,228 @@ describe('the authored-paths field', () => {
     expect(document.querySelector('[data-authored-legend]')).toBeNull()
   })
 })
+
+
+// -- §4B Phase 3e: clicking a painted path arms the row that owns it ---------------------------
+//
+// **The authoring half of `§4A`, and it closes the loop the field opened.** With the field lit
+// the user can see every authored run at once and has no way to get from one of them to the row
+// that owns it except by reading a name off the drawing and hunting the list: *"when I click over
+// a path, while on the 'Locate' tab, the corresponding item in the list will be activated and the
+// path will be highlighted too."*
+//
+// **The phase's one design decision is that the field is the mode** — not the hit test, which is
+// `pickPath` unchanged from `§4A`. On this tab a bare click already means *place the armed thing*,
+// so the four tests below that assert the other three meanings did not move are the point of the
+// section rather than its small print. `H30`. T-1520 onward.
+
+/** The CSS point a PDF point lands on — **computed from the documented fit, never guessed at**:
+ * 776/1224 px/pt at origin (12, 48.94), which is the projection the placement test above pins by
+ * clicking (400, 300) and reading (612, 396) out of the file. Guessing pixels and adjusting costs
+ * a test run per try. */
+const FIT = 776 / 1224
+function clickPoint([x, y]: [number, number]) {
+  clickSheet(12 + x * FIT, 48.94 + y * FIT)
+}
+
+/** On `W048`'s painted route, on `CR-BP`'s painted bus, and on neither — the three answers the
+ * hit test has. `BARE_INK` is more than `PICK_PT` from both. */
+const ON_ROUTE: [number, number] = [612, 396]
+const ON_BUS: [number, number] = [861, 640]
+const BARE_INK: [number, number] = [300, 200]
+
+/**
+ * One wire's route and one block's bus, published.
+ *
+ * **`W047` deliberately has no route here.** It is the row these suites arm by clicking the list,
+ * and leaving it unpainted is what lets one test start a hand trace and another assert that the
+ * click which lands on ink belonging to somebody *else* is still a corner.
+ */
+const PICKABLE: PathIndex = {
+  wires: {
+    W048: {
+      runs: [[[560, 396], [660, 396]]] as Polyline[],
+      geometry: 'extracted',
+      attribution: 'human',
+      conductors: ['C0004'],
+    },
+  },
+  nets: { '110': ['W047'] },
+  commoning: {
+    'CR-BP': {
+      runs: [[[861, 679], [861, 600]]] as Polyline[],
+      geometry: 'extracted',
+      attribution: 'human',
+      conductors: ['C0002'],
+    },
+  },
+}
+
+/** Off the payload, never written down — trap 4. */
+const PICKABLE_RUNS =
+  Object.values(PICKABLE.wires).reduce((n, path) => n + path.runs.length, 0) +
+  Object.values(PICKABLE.commoning ?? {}).reduce((n, bus) => n + bus.runs.length, 0)
+
+/**
+ * The drawing with the two rows this section needs: a **second wire**, which is the one whose
+ * route is painted, and a **net** with two of `CR-BP`'s terminals on it.
+ *
+ * The net is not decoration: `CommoningPanel`'s own gate is *two or more of this component's
+ * terminals on one net*, a statement about shapes and not about what a designator looks like, and
+ * without it a block has no bus panel to open.
+ */
+const PAINTED_INDEX: DesignatorIndex = {
+  ...INDEX,
+  counts: { component: 1, terminal: 2, wire: 2 },
+  entries: [
+    ...ENTRIES,
+    {
+      id: 'W048', kind: 'wire', label: 'RED 18AWG wire', on_sheet: false, spec: 'RED 18AWG',
+      members: ['CR-BP'], point: [610, 396], rect: [560, 396, 660, 396],
+      terminals: [
+        { id: 'CR-BP:A1', point: [861, 679], placement: 'parent' },
+        { id: 'CR-BP:11', point: [700, 679], placement: 'parent' },
+      ],
+    },
+    {
+      id: '110', kind: 'net', label: 'net 110', on_sheet: false,
+      members: ['CR-BP'], point: [780, 679], rect: [700, 600, 861, 679],
+      terminals: [
+        { id: 'CR-BP:A1', point: [861, 679], placement: 'parent' },
+        { id: 'CR-BP:11', point: [700, 679], placement: 'parent' },
+      ],
+    },
+  ],
+}
+
+/** The screen as somebody doing path work sees it: work published, and the field switched on —
+ * which is the mode this whole section is about. */
+async function picking() {
+  stubServer({ index: PAINTED_INDEX })
+  useAppStore.setState({
+    paths: PICKABLE,
+    designators: PAINTED_INDEX,
+    byToken: buildLookup(PAINTED_INDEX),
+  })
+  await open()
+  fireEvent.click(field())
+}
+
+describe('clicking a painted path on the Locate tab', () => {
+  it('arms the wire whose route was clicked, and lights it on top of the field', async () => {
+    // **T-1520, and `§4B.2`'s first criterion.** The drawing becomes the index into the queue:
+    // one click on the ink and the wire's own panel is open, with `Add a run`, `Make it editable`
+    // and `Clear` on it. The highlight is not new code — the armed row's route has always been
+    // painted in `HIGHLIGHT` over the field, which is `§4`'s layer order doing its job.
+    landsAtOnce()
+    await picking()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    const zoom = percent()
+
+    clickPoint(ON_ROUTE)
+
+    expect(useLocateStore.getState().target?.id).toBe('W048')
+    expect(endRows()).toEqual(['CR-BP:A1', 'CR-BP:11'])
+    expect(painted()).toBe(1)
+    expect(authored()).toBe(PICKABLE_RUNS)
+    // **No fly-to**, and it is the one way of arming a row that does not take the sheet with it:
+    // the reader is looking at the run they clicked.
+    expect(percent()).toBe(zoom)
+    expect(saved).toHaveLength(0)
+  })
+
+  it('arms the block a painted bus belongs to, and opens the panel that authors it', async () => {
+    // **T-1521, and the second criterion.** A bus belongs to a terminal block, and the panel that
+    // authors one hangs off the **component** — the same mapping `§4A`'s card makes, so one
+    // answer to *whose is this* serves both tabs. It also closes the gap trap 24 names: an armed
+    // component's route is the one `draftRuns` cannot answer for, so without the bus being read
+    // from the published index a block clicked on the sheet would be armed and lit by nothing.
+    await picking()
+
+    clickPoint(ON_BUS)
+
+    expect(useLocateStore.getState().target?.id).toBe('CR-BP')
+    expect(window.document.querySelector('[data-commoning-panel="CR-BP"]')).toBeTruthy()
+    expect(painted()).toBe(1)
+  })
+
+  it('brings the row into view when the filter would have hidden it', async () => {
+    // **T-1522.** `To do` is components and terminals nobody has placed, so the wire the user
+    // just clicked is not in it. Arming a row nobody can see would be a panel with nothing shaded
+    // anywhere in the list, so the filter goes to `All` — and `DesignatorList` scrolls the armed
+    // row into view by itself, which is why nothing here has to.
+    await picking()
+    expect(ids()).not.toContain('W048')
+
+    clickPoint(ON_ROUTE)
+
+    expect(useLocateStore.getState().target?.id).toBe('W048')
+    expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('true')
+    expect(ids()).toContain('W048')
+  })
+
+  it('arms nothing and writes nothing where no path is painted', async () => {
+    // **T-1523, and the fourth criterion.** Ink no path claims answers nothing at all — the same
+    // silence `§4A` gives the Drawing tab, and it is the feature rather than the absence of one:
+    // *nothing happened here* is how the reader learns a path needs to be created.
+    await picking()
+
+    clickPoint(BARE_INK)
+
+    expect(useLocateStore.getState().target).toBeNull()
+    expect(saved).toHaveLength(0)
+  })
+
+  it('still places where the sheet was clicked while the field is off', async () => {
+    // **T-1524, and the third criterion — the one the phase's design decision exists for.** With
+    // the field off a click means exactly what it meant before, *on the very coordinate a painted
+    // route runs through*. This is the hazard the mode rules out: placing a terminal onto ink that
+    // happens to carry a path must not arm a wire instead.
+    stubServer({ index: PAINTED_INDEX })
+    useAppStore.setState({
+      paths: PICKABLE,
+      designators: PAINTED_INDEX,
+      byToken: buildLookup(PAINTED_INDEX),
+    })
+    await open()
+    fireEvent.click(row('CR-BP:A1'))
+
+    clickPoint(ON_ROUTE)
+
+    expect(useLocateStore.getState().document!.terminals['CR-BP:A1'].point).toEqual([612, 396])
+    expect(useLocateStore.getState().target?.id).toBe('CR-BP:A1')
+  })
+
+  it('gives the click to a trace in progress, even over a painted path', async () => {
+    // **T-1525, and the fifth criterion.** The trace is the more recent, more fragile thing and it
+    // wins — a corner landing on somebody else's painted route is a corner, not an arming, or a
+    // route could never be drawn across ink that is already claimed.
+    landsAtOnce()
+    await picking()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(screen.getByRole('button', { name: /Trace by hand/ }))
+
+    clickPoint(ON_ROUTE)
+
+    expect(screen.getByText(/1 corner so far/)).toBeTruthy()
+    expect(useLocateStore.getState().target?.id).toBe('W047')
+    expect(saved).toHaveLength(0)
+  })
+
+  it('leaves an armed end slot ignoring the paper, painted or not — H26', async () => {
+    // **T-1526, and the third criterion's last meaning.** Only a terminal fills an end slot. A
+    // click on the sheet while one is armed has always been nothing at all, and the field must not
+    // turn it into an arming that throws the wire being worked on off the panel.
+    await picking()
+    fireEvent.click(screen.getByRole('button', { name: 'Wiring' }))
+    fireEvent.click(row('W047'))
+    fireEvent.click(screen.getAllByRole('button', { name: /Pick from the sheet/ })[0])
+
+    clickPoint(ON_ROUTE)
+
+    expect(useWiringStore.getState().armed).toBeTruthy()
+    expect(useLocateStore.getState().target?.id).toBe('W047')
+    expect(saved).toHaveLength(0)
+  })
+})
