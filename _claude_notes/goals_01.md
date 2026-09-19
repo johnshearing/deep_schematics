@@ -1,4 +1,4 @@
-# The goals, and what exists against them — 2026-09-15, revised 2026-09-17 (twice: `§4A` shipped, and §6A found)
+# The goals, and what exists against them — 2026-09-15, revised 2026-09-17 (twice: `§4A` shipped, and §6A found) and 2026-09-19 (`§4B` shipped)
 
 Written after the user walked `locate_tab_testing/19_tests_coverage_overlay.md` and **rejected the
 unclaimed-conductor overlay as a human-facing feature.** This document is the report of that
@@ -87,10 +87,10 @@ route still on top.
 **And walking it found the other half of the same error.** The field answers *where is the work*;
 neither **click** does. On the Drawing tab a click on the ink still answers *what conductor is this*
 — the third view over conductors, and the user has now struck it three times. On the Locate tab a
-click on a painted run cannot reach the row that owns it at all, so the queue is still worked by
-reading a name off the paper and hunting the list. **Those two clicks are plan 03 `§4A` and `§4B`,
-the next two sessions**, and the rule behind both is one sentence: *a mark on the paper should lead
-to the record that owns it, and to nothing else.*
+click on a painted run could not reach the row that owns it at all, so the queue was worked by
+reading a name off the paper and hunting the list. **Those two clicks were plan 03 `§4A` (built
+2026-09-17) and `§4B` (built 2026-09-19)**, and the rule behind both is one sentence: *a mark on the
+paper should lead to the record that owns it, and to nothing else.*
 
 ---
 
@@ -127,7 +127,7 @@ renders them as `Citation`, `Citation.tsx` calls `select(kind, id)` and switches
 | 1 | **Notes** | **No** | an id and a bbox bound to it — both missing |
 | 2 | **Components** | **Yes** | dot, ring, fly-to, citation |
 | 3 | **Terminals** | **Yes** | its own dot, never its parent's |
-| 4 | **Paths** | **Yes — one at a time, all at once since 2026-09-15, and clickable since 2026-09-17** | the field is built and so is half the **way back**: clicking a painted run names its owner in a card and highlights it (`§4A`). What is left is arming its **row** on the Locate tab (`§4B`) |
+| 4 | **Paths** | **Yes — one at a time, all at once since 2026-09-15, and clickable on both tabs since 2026-09-19** | the field is built and so is the whole **way back**: on the Drawing tab a click on a painted run names its owner in a card and highlights it (`§4A`), and on the Locate tab it **arms that row for editing** (`§4B`). Nothing is left on this line |
 | 5 | **Path_nets** | **Yes**, one net at a time | the union is published from `wire.net`; §6 below |
 | 6 | **Path_cables** | **No** | the grouping already exists — 8 cables with `member_wires` — so `CABLE-POWER-IN` is paintable as `W001`+`W002`+`W003`'s runs today. **The oval has no geometry in the extraction**, so a cable boundary is a shape a person draws: `geometry: "human"`, like `TB-130`'s bus |
 | 7 | **Labels** | **Partly** | the app paints the end labels it places itself; a printed label's own bbox is never lit |
@@ -220,9 +220,9 @@ way back found two wrong records. **The click is an instrument, not a convenienc
 |---|---|---|---|
 | 1 | **All authored paths painted at once**, on the Locate tab, one colour, toggled, with *n of m wires have a route* beside it — and `Unclaimed ink` off the toolbar in the same change | **built 2026-09-15**, walked | plan 03 `§4` · `20_tests_all_paths_overlay.md`, T-1450–T-1459 · `H28` |
 | 1a | **Clicking the ink on the Drawing tab answers *whose path is this***, in a card at the lower right, with the path highlighted — and **says nothing at all** where there is no path, which is how the reader learns one is needed. The conductor card joins the conductor overlay as a diagnostic | **built 2026-09-17**, awaiting the walk | plan 03 `§4A` · `21_tests_clicking_a_path.md`, T-1500–T-1507 · `H29` |
-| 1b | **Clicking a painted path on the Locate tab arms that wire's row** and highlights it, so the drawing is the index into the queue rather than the list | **not built**, fully specified | plan 03 `§4B` — half a session, **next** |
-| 1c | **Finding the eleven wires whose far end the ink disagrees with, and saying *why* you corrected one** — the verdict is already computed per end; what is missing is a filter, a reason field and a colour | **not built**, specified 2026-09-17 | plan 03 `§4C` — half a session, **third**; its two *defects* are small enough to ride with `§5` · §6A above |
-| 2 | **The orphaned end-label rows** — the last hole in an otherwise complete surface. **Three banners nobody can clear on 2026-09-18, a fourth coming**, and the authoring run is what creates them: correcting a wire's far end orphans any end-label override on the old terminal | **not built**, fully specified | plan 03 `§5` — half a session, **second**, moved up 2026-09-18 |
+| 1b | **Clicking a painted path on the Locate tab arms that wire's row** and highlights it, so the drawing is the index into the queue rather than the list. `Authored paths` is the mode, so with the field off every click still means *place* | **built 2026-09-19**, walked | plan 03 `§4B` · `21_tests_clicking_a_path.md`, T-1520–T-1526 · `H30` |
+| 1c | **Finding the eleven wires whose far end the ink disagrees with, and saying *why* you corrected one** — the verdict is already computed per end; what is missing is a filter, a reason field and a colour | **not built**, specified 2026-09-17 | plan 03 `§4C` — half a session, **second**; its two *defects* are small enough to ride with `§5` · §6A above |
+| 2 | **The orphaned end-label rows** — the last hole in an otherwise complete surface. **Three banners nobody can clear on 2026-09-18, a fourth coming**, and the authoring run is what creates them: correcting a wire's far end orphans any end-label override on the old terminal | **not built**, fully specified | plan 03 `§5` — half a session, **next**, moved up 2026-09-18 |
 | 3 | **The extractor's layer fix**, without re-extracting — re-justified: the candidate list is missing 16 runs that land on placed terminals, which is why six coil wires must be hand-traced | **not built** | plan 03 `§6` — one short session |
 | 4 | **A screen for `author_circuit_logic.py`** — notes, component existence, terminal existence, **net membership**. A fifth authored input the generator folds in, with the `H25` treatment | **not built** | plan 03 `§7` — **a plan document, not a session** |
 | 5 | **Cables, label and symbol binding, and widening the citation loop** so an answer can paint a note or a cable | **not built** | plan 03 `§8` — **a plan document**, after item 4 |

@@ -21,10 +21,16 @@ the Drawing tab, followed the card's link to `W037`, and caught a wrong record. 
 the index into the queue, and the index found a fault.* Working that fault produced a second phase,
 **`§6A`**, and three defects.
 
-**The order after `§4B`, set by the user on 2026-09-18: `§4B` → `§5` → `§4C` → `§6` → `§6A`.**
+**`§4B` shipped 2026-09-19 and the user walked it the same day: it works.** It produced no new
+phase and no new defect — the first phase in this plan that did not — and its one surprise is
+written into `H30` and trap 31 of `claude.md`: a reading list that names a handler's *branches* will
+not name the *guard* above them.
+
+**The order now, set by the user on 2026-09-18 and unchanged: `§5` → `§4C` → `§6` → `§6A`.**
 `§5` moved up because the user's own authoring run creates red banners nobody can clear, and `§4C`
 moved down because its *find them* half is already done — the user has the list, and it is `§4C.0`.
-`§10` is the argument. **`§4B` is the next session** and it reuses `pickPath` unchanged.
+`§10` is the argument. **`§5` is the next session**, and **`§4C`'s two defects should ride inside
+it** if there is room.
 
 **What the walk of `§4` established, in one line:** the field answers *where is the work* and the
 two clicks do not — the Drawing tab's click still answers *what conductor is this*, and the Locate
@@ -109,11 +115,13 @@ Everything in this plan serves that sentence. Nothing else is in scope.
 Read out of the files on the day, at commit `22d0b1b` plus the working tree. **Re-check a line
 number with `grep -n` before trusting it if the tree has moved.**
 
-> **It has moved.** `§4` shipped on 2026-09-15 and added about 115 lines to `LocateTab.tsx`, so
-> every `LocateTab.tsx` number in the table below is that much low — the toolbar row is now
-> ~`:1225-1280`, the `TileSheet` call site ~`:1510`, the filter buttons ~`:1320-1360`. **`§4A`'s and
-> `§4B`'s own tables were read on 2026-09-17 and are current**; use those, and grep for anything
-> here you actually need.
+> **It has moved twice.** `§4` shipped on 2026-09-15 and added about 115 lines to
+> `LocateTab.tsx`; `§4B` added about 50 more on 2026-09-19. **Read out of the file on 2026-09-19**:
+> the field's state `:656-678`, `put` `:1050`, **`armPath` `:1070`**, the sheet's `onClick`
+> `:1488-1512`, the `TileSheet` call site `:1515`, `MarkerLayer`'s `onSelect` `:1552`, `aim`
+> `:1694`, the filter buttons `:1320-1335`. Every other `LocateTab.tsx` number in the table below is
+> at least 115 low. **`grep -n` anything here you actually need** — it is two batched greps for a
+> whole reading list, which is what made `§4B` an 88-call session.
 
 **The three run layers and the one projection:**
 
@@ -448,7 +456,29 @@ and five tests that keep their assertions.
 
 ---
 
-## §4B Phase 3e — clicking a path on the Locate tab arms its row
+## §4B Phase 3e — clicking a path on the Locate tab arms its row — **shipped 2026-09-19**
+
+> **Shipped 2026-09-19 and walked the same day.** `armPath` beside `put` in `LocateTab.tsx`, one
+> branch in the sheet's `onClick`, and `pickPath` reused **unchanged** from `§4A` — no new endpoint,
+> no new state for the mode, no server edit, as predicted. Walked in
+> **`locate_tab_testing/21_tests_clicking_a_path.md`**, **T-1520–T-1526**, appended to `§4A`'s
+> document as planned; `H30` in `06_code_map.md` is the reasoning. **263 server · 513 web · ruff and
+> tsc clean**, and `git status --short schematic_extraction/` empty.
+>
+> **Three things it did that this section did not name.**
+> The handler's **`if (!target || !from) return` lost its `!target` half** — a click was inert until
+> a row was armed, which is right while every meaning writes into the armed row and wrong for the
+> one meaning whose purpose is to arm a row when none is. Nothing else was loosened: `put` refuses
+> on its own with no target. *(That is trap 31 in `claude.md`, and the only real gap in the plan.)*
+> **An armed block's bus is read from the published index at the `runs` memo** —
+> `paths.commoning[id].runs` — because `draftRuns` is about wires, so arming a *component* lit
+> nothing: **trap 24 exactly where `§4A` predicted it, and never from the wiring draft (`H18`)**.
+> And **the filter goes to `All`** when it would have hidden the row being armed, which `§4B.1`
+> asked for; `DesignatorList` scrolls it into view by itself, so nothing new was needed for that.
+>
+> **What it left open, deliberately:** the cursor is still `cursor-grab` on bare paper with the
+> field on and nothing armed, so the mode is discoverable by the painted ink rather than by the
+> pointer. One line if the user wants it, and not taken without asking.
 
 **The deliverable, in the user's words:**
 
@@ -702,7 +732,7 @@ arithmetic that already runs; hole 3 is wording on a panel; 3b is one button.
 
 ---
 
-## §5 Phase 3b — the override nobody can reach — **second, moved up 2026-09-18**
+## §5 Phase 3b — the override nobody can reach — **next**, moved up 2026-09-18
 
 Carried from plan 02 `§5`, **unchanged and still valid**: it is the last hole in an otherwise
 complete authoring surface.
@@ -710,7 +740,16 @@ complete authoring surface.
 **The deliverable.** Both banners clear from the screen.
 
 **Reading list:** `TargetPanel.tsx:265-300` and `430-470`; `features/locate/model.ts` `endLabelsOf`.
-Nothing else.
+Nothing else. **These three were read on 2026-09-15 and have not been re-checked since — `grep -n`
+each one first**, and read the *top* of any handler or component you are adding a branch to, not
+only the branch (trap 31, learned in `§4B`). **`TargetPanel.tsx` is trap 10's worked example**: the
+props interface, the sub-panel that renders it, and the call site are three edits, and a reading
+list will give you one of them.
+
+**If there is room, take `§4C`'s two defects in this session and say so** — `Take it back` not
+reverting the slot (`§4C` hole 3a) and no way to force a wiring save (hole 3b). They are wrong
+behaviour in the same editor, each is a failing test and a small fix, and 3a has already cost the
+user an hour. `§10` is the argument.
 
 The overrides live under `locations.json` → `wires[id].labels`, keyed by **terminal id** →
 `{ hidden: true }` or `{ dir: … }`. **113 across 56 wires; `nets` has none.** Compute it, never
@@ -934,15 +973,15 @@ Estimate **~$8**, plan only.
 | # | Phase | Session | Est. |
 |---|---|---|---|
 | — | `§4` — every authored path painted at once, `Unclaimed ink` demoted, the bridge-wire fix | **done 2026-09-15** | **$13.12** |
-| — | `§4A` — the Drawing tab points at paths, not conductors | **done 2026-09-17** | see `§11` |
-| 1 | **`§4B` — clicking a path on the Locate tab arms its row** — **next** | half | **$10 – $20** |
-| 2 | **`§5` — the orphaned override rows** — *moved up 2026-09-18* | half | **$12 – $28** |
-| 3 | **`§4C` — the wire whose far end the ink disagrees with** — *moved down 2026-09-18; take the two **defects** first and the three gaps only if there is room* | half | **$12 – $22** |
-| 4 | `§6` — the extractor fix, no re-extraction | one, short | $10 – $20 |
-| 5 | **`§6A` — the chained run the path editor will not offer** (added 2026-09-18) — **measure first**, and it may retire itself | half | **$12 – $20** |
-| 6 | `§7` — the netlist authoring surface | **plan only** | ~$8 |
-| 7 | `§8` — cables, bindings, the citation loop | **plan only** | ~$8 |
-| | **Total left** | **5–6 sittings** | **$66 – $128** |
+| — | `§4A` — the Drawing tab points at paths, not conductors | **done 2026-09-17** | **$23.42** |
+| — | `§4B` — clicking a path on the Locate tab arms its row | **done 2026-09-19** | **$10.53** |
+| 1 | **`§5` — the orphaned override rows** — **next**, *moved up 2026-09-18*; **take `§4C`'s two defects with it if there is room** | half | **$12 – $28** |
+| 2 | **`§4C` — the wire whose far end the ink disagrees with** — *moved down 2026-09-18; the three gaps only, if its two **defects** went with `§5`* | half | **$12 – $22** |
+| 3 | `§6` — the extractor fix, no re-extraction | one, short | $10 – $20 |
+| 4 | **`§6A` — the chained run the path editor will not offer** (added 2026-09-18) — **measure first**, and it may retire itself | half | **$12 – $20** |
+| 5 | `§7` — the netlist authoring surface | **plan only** | ~$8 |
+| 6 | `§8` — cables, bindings, the citation loop | **plan only** | ~$8 |
+| | **Total left** | **4–5 sittings** | **$62 – $106** |
 
 **Why `§5` is second and `§4C` third — decided by the user on 2026-09-18, after walking `§4A` and
 working the first wrong screw.** Two things changed on the day and they moved in opposite
@@ -971,11 +1010,11 @@ itself immediately**: within an hour of `§4A` shipping, the user followed its c
 and caught a wrong record, which is how `§4C` and `§6A` came to exist at all.
 
 Priced at Opus 5 API rates: $5/M in, $25/M out, $6.25/M cache write, $0.50/M cache read. **About
-$44 of the user's funded $150 remained at the end of 2026-09-17**, after `§4A`'s session came in at
-$36.29 all told. **That is less than the $52–106 left in this plan, so it does not all fit** —
-`§4B` and `§5` — the first two in the order the user set on 2026-09-18 — do; `§4C`, `§6` and `§6A`
-need either more funding or a cut. **Say so at the *start* of a session, not the end.** The order
-was chosen with that in mind: the two phases that fit are the two the user is looking at every day. **`§6A`'s measurement step is the cheapest thing in the plan and
+$33 of the user's funded $150 remained at the end of 2026-09-19**, after `§4B` came in at $10.53.
+**That is less than the $62–106 left in this plan, so it does not all fit** — **`§5` does and
+nothing after it does**, on current prices. **Say so at the *start* of a session, not the end.** The
+order was chosen with that in mind: the phase that fits is the one the user is looking at every day,
+and `§4C`'s two defects riding inside its session is the cheapest work left in the plan. **`§6A`'s measurement step is the cheapest thing in the plan and
 may retire the phase** — one one-liner over `/api/paths` and the candidate arithmetic, and if only
 two or three wires are affected it becomes a footnote in `§6` rather than a sitting.
 
@@ -995,6 +1034,7 @@ two or three wires are affected it becomes a footnote in `§6` rather than a sit
 | **2026-09-15 (`§4` here, implementation + four documents)** | **133** | **114 K** | **$13.12** |
 | **2026-09-17 (`§4A` here, implementation + five documents)** | **175** | **152 K** | **$23.42** |
 | 2026-09-17 (the same session: the user's walk, `§4C` designed, three files rewritten) | 226 | **176 K** | **$36.29** |
+| **2026-09-19 (`§4B` here, implementation + three documents)** | **88** | **115 K** | **$10.53** |
 
 **And `§4A` is the model of where it goes wrong, which is more useful.** It read *only* its reading
 list, used one-liners for every measurement, ran the checks twice, and still cost **$23.42** — the
@@ -1012,7 +1052,18 @@ top of its estimate — because the **average context was 152 K against `§4`'s 
   at the session's ceiling and is a small phase in its own right. **Price it before starting one**,
   and prefer to end in the write-up.
 
-**The habit that paid best in `§4A`, and it is new:** **grep a big document, never read it.**
+**And `§4B` is the cheapest coding session this project has had — 88 calls, half of `§4A`'s, at
+the same context.** Three habits did it, all of them about *calls* rather than about thinking:
+
+- **The whole reading list was re-located in two batched `grep -n` calls**, not one call per line
+  number. `§4A` spent its calls there.
+- **The tests reused the suite's own harness** — `stubServer`, `clickSheet`, `endRows`, `saved` —
+  and the click coordinates were **computed from the documented fit rather than guessed**, so all
+  seven passed on the first run. A test run at 115 K is a dollar, and guessing costs one per try
+  (rule 9).
+- **The three documents went in as a single call**, from notes taken while the tests were written.
+
+**The habit that paid best in `§4A`, and it is still true:** **grep a big document, never read it.**
 `grep -n "W018\|W037" authoring_the_wires.md` cost ~200 tokens and returned the exact rows of a
 91 KB file that answered the session's hardest question. The do-not-read list in `§0` is a list of
 **grep targets**, not a list of forbidden files.
@@ -1091,9 +1142,14 @@ the phase rather than push it through.**
     landing rule, before `features/locate/wiring.ts`), `H25` (the `W` table is not the list of
     wires), `H20` (geometry is free and connectivity is not), and **`H28`** — *the denominator is
     the paper, so paint what has been authored, and read it from the published index* (written
-    2026-09-15; **read it before `§4A` or `§4B`** — it is the argument both of them continue).
-    Still to write: **`H29`** (`§4A`) and **`H30`** (`§4B`).
-11. **Three things a reading list will always miss**, learned the hard way: `TargetPanel.tsx` is the
+    2026-09-15), **`H29`** — *the click was the third view over conductors* (2026-09-17) — and
+    **`H30`** — *a click on the Locate tab already means place, so a second meaning needs a mode and
+    not a heuristic* (2026-09-19; **read it before touching any handler on that tab**). Still to
+    write: **`H31`** (`§4C`).
+11. **Four things a reading list will always miss**, learned the hard way — and the fourth is
+    `§4B`'s: **a handler's own guard runs before its branches**, so read the top of the handler and
+    not only the branch you are adding to (`LocateTab.tsx`'s `if (!target || !from) return` would
+    have made the whole of `§4B` work only when a row was already armed). The other three: `TargetPanel.tsx` is the
     plumbing for every panel (props interface → sub-panel → call site, three edits);
     `wiringStore.edit` takes **no note**, unlike the locations store's; **a new canvas overlay is
     four edits in `TileSheet.tsx`** — prop, paint call, `data-` attribute, dependency array; and the
@@ -1109,19 +1165,21 @@ the phase rather than push it through.**
 | `§4` | a header note on `19_tests_coverage_overlay.md` — demoted to a diagnostic, `?unclaimed=1` — **written** | — |
 | `§4A` | `locate_tab_testing/21_tests_clicking_a_path.md` — **written 2026-09-17** | T-1500–T-1507, **spent** |
 | `§4A` | a demotion note on `16_tests_terminal_wires_and_commoning.md`'s T-1135/T-1140/T-1145/**T-1150** — the conductor verdicts are a diagnostic now — **written** | — |
-| `§4B` | append to `21_tests_clicking_a_path.md` — one document, one feature, two tabs | **T-1520 onward** |
+| `§4B` | append to `21_tests_clicking_a_path.md` — one document, one feature, two tabs — **written 2026-09-19** | T-1520–T-1526, **spent** |
 | `§4C` | append to `15_tests_wiring_editor.md` — the correction screen's own document | next free |
 | `§6A` | append to `14_tests_path_editor.md` — the candidate list's own document | next free |
 | `§5` | append to `10_tests_end_labels.md` | next free |
 | `§6` | append to `EXTRACTION_NOTES.md` per `§6`'s acceptance criteria | — |
 | `§7` | **`_claude_notes/authoring_the_netlist_01.md`** — and stop | — |
 | `§8` | a plan document for cables, bindings and the citation loop — and stop | — |
-| all | `06_code_map.md` — `H28` and **`H29` written**; `H30` owed by `§4B`, `H31` by `§4C`; one row per new behaviour | — |
+| all | `06_code_map.md` — `H28`, **`H29` and `H30` written**; `H31` owed by `§4C`; one row per new behaviour | — |
 | all | `locate_tab_instruction_and_test_manual.md` — index each new leaf, and correct the troubleshooting rows `§4` makes stale | — |
 
 **Keep them short.** The manual indexes **twenty-one** leaf documents already, and the notes tax
-measured in `§11` is why this plan is 33 KB rather than 99 KB. **T-numbers spent reach T-1507, and
-`§4B` starts at T-1520** — the gap is deliberate, so a late addition to `20_...` never collides.
+measured in `§11` is why this plan is 33 KB rather than 99 KB. **T-numbers spent reach T-1526.**
+`§5` takes the next free number in `10_tests_end_labels.md`, `§4C` the next in
+`15_tests_wiring_editor.md`, `§6A` the next in `14_tests_path_editor.md` — **do not reuse one and do
+not renumber one.**
 
 ---
 
