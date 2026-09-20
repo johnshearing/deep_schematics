@@ -170,8 +170,8 @@ so the wiring draft has its own named badge rather than a second identical one.
    changes *what connects to what*. So this one names two commands:
 
        cd schematic_extraction/PS20115MLM4-2/extracted_docs
-       python author_circuit_logic.py
-       python ../../../schematic_skills/scripts/build_kg.py circuit_logic.json -o custom_kg.json --pretty --validate
+       python3 author_circuit_logic.py
+       python3 ../../../schematic_skills/scripts/build_kg.py circuit_logic.json -o custom_kg.json --pretty --validate
 
    **Unlike a placement run, this work really needs the second one.** `build_kg.py` emits no
    coordinates at all — that was measured on 2026-09-03 and its output came back byte-identical
@@ -665,6 +665,54 @@ So you do not go looking for it, and so nobody builds it by accident:
 
 **And one thing that is not built and never will be:** nothing on this screen accepts a proposal on
 its own. Not for the 48 the ink agrees with, and least of all for `W042`.
+
+---
+
+## T-1550 · `Take it back` puts the slot back too — **and it already did**
+
+**Do.** Arm a wire, `Pick from the sheet`, put its `to` end on a different terminal, wait for the
+slot to read the new one with `· was` beside it, then press **`Take it back`**.
+
+**Expected.** The slot reads the **original** terminal again, `was` disappears with it, and the
+record goes back to `source: index` holding the pair `was` was keeping.
+
+**Why this test exists, and read this before reporting it again.** On 2026-09-18 you measured the
+opposite — the box went on reading the terminal you took back while the document reverted
+underneath it — and it cost an hour and a byte-identical save. It was written up as `§4C` hole 3a
+and as trap 28. **On 2026-09-19 it did not reproduce.** The test above was written first, as a
+failing test, through *both* gestures that can move an end — the ink's proposal row and
+`Pick from the sheet` — and **both passed unchanged**: the slot is `endpointsOf(wiring, entry)`,
+which reads the draft record, and `unconfirm` restores `was` into it. No fix was written, because
+there was nothing to fix, and **nothing was invented to explain it.**
+
+So the test stands as the guard rather than as the cure, and **the question goes back to you**: if
+you see it again, what else was true? The two candidates worth checking at the moment it happens
+are **a stale bundle** (`npm run build` — trap 3) and **the heading rather than the slot** — the
+panel's heading and the sheet's markers are `/api/designators`, built from the *generated*
+`circuit_logic.json`, so they go on showing the netlist's pair until the generator runs while the
+slot shows your draft. **Both were correct** is the answer to that one, and it is `§4C` hole 3,
+which is still open.
+
+---
+
+## T-1555 · The wiring draft can be saved on purpose
+
+**Do.** Make any wiring edit — a confirmation will do — and look at the toolbar's right-hand end.
+Press the **`Save`** button beside the `wiring` badge before the 900 ms autosave fires.
+
+**Expected.** The badge goes `unsaved` → `saving…` → `saved`, and the button disables itself once
+there is nothing left to write. It appears and disappears with the badge: no draft, no badge, no
+button.
+
+**Why.** Until now this editor had **no Save button at all** — only `Retry`, and only after a
+failure — so a draft stuck at `unsaved` had no recourse but another edit, and somebody who does not
+know the badge exists cannot tell a slow save from a dead one. Trap 27 is the hour that cost:
+*never restart the server while the `wiring` badge is not `saved`*, with no way to make it `saved`
+on purpose. The locations badge beside it has had `Save` all along; this is the same button, named
+for its own file.
+
+**Still the proven diagnostic, and the button does not replace it:** `md5sum` and
+`git status --short schematic_extraction/`, never the screen.
 
 ---
 

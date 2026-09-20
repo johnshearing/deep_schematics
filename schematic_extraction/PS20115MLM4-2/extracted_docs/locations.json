@@ -2691,12 +2691,37 @@
     },
     "W014": {
       "labels": {
-        "TB-GND-B:2": {
-          "hidden": true
-        },
         "PS1:GND": {
           "hidden": true
+        },
+        "TB-GND-B:1": {
+          "hidden": true
         }
+      },
+      "path": {
+        "runs": [
+          [
+            [
+              555.81,
+              116.75
+            ],
+            [
+              491.41,
+              116.75
+            ]
+          ]
+        ],
+        "geometry": "extracted",
+        "attribution": "human",
+        "conductors": [
+          "C0046"
+        ],
+        "by": "js",
+        "at": "2026-09-20T01:30:59.168Z",
+        "for": [
+          "TB-GND-B:2",
+          "PS1:GND"
+        ]
       }
     },
     "W015": {
@@ -2807,9 +2832,6 @@
     "W018": {
       "labels": {
         "PS1:-1": {
-          "hidden": true
-        },
-        "TB-0V:1": {
           "hidden": true
         },
         "TB-0V:3": {
@@ -4302,10 +4324,40 @@
       "labels": {
         "PS1:-2": {
           "hidden": true
-        },
-        "TB-0V:2": {
-          "hidden": true
         }
+      },
+      "path": {
+        "runs": [
+          [
+            [
+              583.01,
+              116.75
+            ],
+            [
+              651.14,
+              116.75
+            ],
+            [
+              651.14,
+              131
+            ],
+            [
+              491.41,
+              131
+            ]
+          ]
+        ],
+        "geometry": "extracted",
+        "attribution": "human",
+        "conductors": [
+          "C0056"
+        ],
+        "by": "js",
+        "at": "2026-09-20T01:26:13.470Z",
+        "for": [
+          "PS1:-2",
+          "TB-GND-B:2"
+        ]
       }
     },
     "W025": {
@@ -4377,12 +4429,34 @@
         "INFEED1:3": {
           "hidden": true
         },
-        "TB-120:2": {
-          "hidden": true
-        },
         "TB-120:1": {
           "hidden": true
         }
+      },
+      "path": {
+        "runs": [
+          [
+            [
+              562.88,
+              563.4
+            ],
+            [
+              301.89,
+              563.4
+            ]
+          ]
+        ],
+        "geometry": "extracted",
+        "attribution": "human",
+        "conductors": [
+          "C0091"
+        ],
+        "by": "js",
+        "at": "2026-09-20T15:54:03.227Z",
+        "for": [
+          "INFEED1:3",
+          "TB-120:1"
+        ]
       }
     },
     "W046": {
@@ -4422,6 +4496,361 @@
         "for": [
           "CR2:A2",
           "TB-0V:9"
+        ]
+      },
+      "labels": {
+        "CR2:A2": {
+          "hidden": true
+        },
+        "TB-0V:9": {
+          "hidden": true
+        }
+      }
+    },
+    "W036": {
+      "path": {
+        "runs": [
+          [
+            [
+              865.6,
+              67.14
+            ],
+            [
+              779.74,
+              67.14
+            ],
+            [
+              779.74,
+              282.12
+            ],
+            [
+              954.38,
+              282.12
+            ]
+          ]
+        ],
+        "geometry": "extracted",
+        "attribution": "human",
+        "conductors": [
+          "C0122"
+        ],
+        "by": "js",
+        "at": "2026-09-20T15:35:51.913Z",
+        "for": [
+          "SPD1:2",
+          "TB-0V:3"
+        ]
+      },
+      "labels": {
+        "SPD1:2": {
+          "hidden": true
+        },
+        "TB-0V:3": {
+          "hidden": true
+        }
+      }
+    },
+    "W037": {
+      "labels": {
+        "TB-0V:4": {
+          "hidden": true
+        },
+        "RECEPT1:4": {
+          "hidden": true
+        }
+      },
+      "path": {
+        "runs": [
+          [
+            [
+              952.67,
+              265.59
+            ],
+            [
+              829.35,
+              265.59
+            ],
+            [
+              829.35,
+              166.36
+            ],
+            [
+              967.37,
+              166.36
+            ]
+          ]
+        ],
+        "geometry": "extracted",
+        "attribution": "human",
+        "conductors": [
+          "C0084"
+        ],
+        "by": "js",
+        "at": "2026-09-20T15:38:18.175Z",
+        "for": [
+          "TB-0V:4",
+          "RECEPT1:4"
+        ]
+      }
+    },
+    "W039": {
+      "labels": {
+        "PB1:3": {
+          "hidden": true
+        },
+        "TB-0V:5": {
+          "hidden": true
+        }
+      },
+      "path": {
+        "runs": [
+          [
+            [
+              156.2,
+              265.59
+            ],
+            [
+              168.24,
+              265.59
+            ],
+            [
+              180.29,
+              265.59
+            ],
+            [
+              300.16,
+              265.59
+            ],
+            [
+              300.16,
+              315.2
+            ],
+            [
+              954.38,
+              315.2
+            ]
+          ]
+        ],
+        "geometry": "extracted",
+        "attribution": "human",
+        "conductors": [
+          "C0031"
+        ],
+        "by": "js",
+        "at": "2026-09-20T15:40:43.543Z",
+        "for": [
+          "PB1:3",
+          "TB-0V:5"
+        ]
+      }
+    },
+    "W044": {
+      "labels": {
+        "LT1:BLUE": {
+          "hidden": true
+        },
+        "TB-0V:7": {
+          "hidden": true
+        }
+      },
+      "path": {
+        "runs": [
+          [
+            [
+              954.5,
+              399.5
+            ],
+            [
+              292.9,
+              399.7
+            ],
+            [
+              292.8,
+              480.5
+            ],
+            [
+              181,
+              480.7
+            ],
+            [
+              181.1,
+              464
+            ],
+            [
+              276.1,
+              464
+            ],
+            [
+              276.1,
+              414.4
+            ]
+          ]
+        ],
+        "geometry": "human",
+        "attribution": "human",
+        "by": "js",
+        "at": "2026-09-20T15:46:25.649Z",
+        "for": [
+          "LT1:BLUE",
+          "TB-0V:7"
+        ]
+      }
+    },
+    "W045": {
+      "labels": {
+        "CR1:A2": {
+          "hidden": true
+        },
+        "TB-0V:8": {
+          "hidden": true
+        }
+      },
+      "path": {
+        "runs": [
+          [
+            [
+              867.08,
+              331.74
+            ],
+            [
+              954.38,
+              331.74
+            ]
+          ]
+        ],
+        "geometry": "extracted",
+        "attribution": "human",
+        "conductors": [
+          "C0023"
+        ],
+        "by": "js",
+        "at": "2026-09-20T15:48:21.806Z",
+        "for": [
+          "CR1:A2",
+          "TB-0V:8"
+        ]
+      }
+    },
+    "W062": {
+      "labels": {
+        "INFEED1:2": {
+          "hidden": true
+        },
+        "TB-0V:12": {
+          "hidden": true
+        }
+      },
+      "path": {
+        "runs": [
+          [
+            [
+              954.38,
+              432.63
+            ],
+            [
+              429.11,
+              432.63
+            ],
+            [
+              429.11,
+              546.77
+            ],
+            [
+              562.96,
+              546.77
+            ]
+          ]
+        ],
+        "geometry": "extracted",
+        "attribution": "human",
+        "conductors": [
+          "C0114"
+        ],
+        "by": "js",
+        "at": "2026-09-20T15:53:04.486Z",
+        "for": [
+          "INFEED1:2",
+          "TB-0V:12"
+        ]
+      }
+    },
+    "W069": {
+      "labels": {
+        "DISCHARGE1:4": {
+          "hidden": true
+        },
+        "TB-130:2": {
+          "hidden": true
+        }
+      },
+      "path": {
+        "runs": [
+          [
+            [
+              818.6,
+              580.1
+            ],
+            [
+              601.5,
+              580.1
+            ]
+          ]
+        ],
+        "geometry": "human",
+        "attribution": "human",
+        "by": "js",
+        "at": "2026-09-20T16:45:38.697Z",
+        "for": [
+          "DISCHARGE1:4",
+          "TB-130:2"
+        ]
+      }
+    },
+    "W050": {
+      "labels": {
+        "TB-0V:10": {
+          "hidden": true
+        },
+        "CR1:11": {
+          "hidden": true
+        }
+      },
+      "path": {
+        "runs": [
+          [
+            [
+              954.3,
+              416.1
+            ],
+            [
+              396,
+              416.1
+            ],
+            [
+              396.1,
+              530.2
+            ],
+            [
+              90.1,
+              530.2
+            ],
+            [
+              90.1,
+              563.3
+            ],
+            [
+              148.9,
+              563.3
+            ]
+          ]
+        ],
+        "geometry": "human",
+        "attribution": "human",
+        "by": "js",
+        "at": "2026-09-20T21:16:59.273Z",
+        "for": [
+          "TB-0V:10",
+          "CR1:11"
         ]
       }
     }

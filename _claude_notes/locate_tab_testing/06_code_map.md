@@ -1284,7 +1284,44 @@ Walked in `21_tests_clicking_a_path.md`, T-1520–T-1526.
 
 ---
 
----
+### H31 — an authored decision can outlive the thing it was about, and a panel built from the machine's list cannot show it *(added 2026-09-19)*
+
+**The shape of the bug, and it is `§3` of `claude.md` in one panel.** `LabelPanel` builds one
+`EndLabelRow` per **member**, and membership comes from the netlist. The overrides it edits are
+keyed on a terminal id in `locations.json`. Those two lists are the same list right up until the
+moment somebody corrects a wire's far end — and then the decision taken on the old terminal is a
+key with no row, no eye and no way back. `resolve_geometry` refuses it **by name** on every save
+(`H14`), so the reader gets a red strip naming a key that appears nowhere on any screen. Three were
+standing on 2026-09-18 and **the authoring run is what makes them**.
+
+    orphans = Object.keys(overrides).filter(id => !members.some(m => m.id === id))
+
+**One line, and the generalisation is the point.** Every panel in this application is a
+confirmation surface: it takes its rows from something the machine found. Wherever an authored
+decision is keyed on one of those rows, **the authored side can hold a key the machine's side has
+stopped listing**, and the panel owes it a row. End labels are the instance; a path's `for`, a
+commoning block's terminals and anything `§7` adds to the netlist are the same shape.
+
+**Three things the row deliberately does not have.** No compass and no eye — there is nothing to
+aim, because the sheet draws nothing at an end that is not an end. And no *move it to the new
+terminal*: a decision about `TB-0V:1` is not a decision about `TB-0V:3`, and carrying it across
+would invent one nobody made (`W042`'s rule, one file over).
+
+**Where it is rendered is a decision too.** *Outside* the *is anything printed on this wire* branch
+that holds the live rows: a wire with no spec has no rows at all, and a leftover on it is the more
+unreachable of the two rather than the less.
+
+**The count moves and the rows are computed** — `Object.keys(overrides)` against today's members,
+never a fixture's memory. A test asserting *three orphans* goes red the moment `W014` is corrected.
+That is trap 4 for the fifth time.
+
+**Timing, and it is the honest coupling.** Membership is the *generated* netlist's, so a row
+appears at the same moment the banner does: when the generator folds the correction in — not when
+the correction is made. The screen and the red strip are reading the same file.
+
+*(`§4C`'s own hazard — the ink's verdict existed before anybody could find the wires it disagreed
+with — takes **`H32`**. `H31` went to the phase that shipped first, which is how `H28`, `H29` and
+`H30` were numbered too.)*
 
 ## 5. Invariants — if one of these is violated, that is the bug
 

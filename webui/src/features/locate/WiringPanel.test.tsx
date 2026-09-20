@@ -419,6 +419,12 @@ function slot(wire: string, end: 'from' | 'to') {
   return document.querySelector(`[data-wiring-end="${wire}@${end}"]`) as HTMLElement
 }
 
+/** What the slot says this end holds — its value line alone. The proposal rows below it name
+ * terminals too, so a `textContent` assertion would read the ink's answer as the record's. */
+function slotTerminal(wire: string, end: 'from' | 'to'): string {
+  return slot(wire, end).querySelector('.font-mono')?.textContent ?? ''
+}
+
 function proposal(wire: string, end: 'from' | 'to', terminal: string) {
   return slot(wire, end).querySelector(
     `[data-wiring-proposal="${terminal}"] button`,
@@ -592,6 +598,35 @@ describe('what the ink says', () => {
     await waitFor(() => expect(slot('W045', 'to').textContent).toContain('was TB-0V:2'))
   })
 
+  /**
+   * **T-1550 — `§4C` hole 3a, written as a failing test first.**
+   *
+   * Measured by the user on 2026-09-18 and it cost them an hour: correct an end, press
+   * `Take it back`, and the slot goes on reading the terminal that was taken back while the
+   * document reverts underneath it. They read the screen as *the correction is in*, went on to
+   * the generator, and `wiring.json` was pristine the whole time — the byte-identical save that
+   * nothing else could explain. **A control that undoes a change and leaves the change on screen
+   * is worse than no control.**
+   */
+  it('puts the slot back as well as the record when a correction is taken back', async () => {
+    // The user's own gesture: **`Pick from the sheet`**, not the proposal list. Both end in
+    // `setEndpoint`, and the assertion is on the slot's value line rather than on its text —
+    // the proposal rows underneath name terminals too, and a `textContent` match would read the
+    // ink's answer as the record's.
+    await open('W045')
+    fireEvent.click(slot('W045', 'to').querySelector('[data-wiring-pick]') as HTMLElement)
+    fireEvent.click(marker('TB-0V:6'))
+    await waitFor(() => expect(slotTerminal('W045', 'to')).toBe('TB-0V:6'))
+
+    fireEvent.click(screen.getByRole('button', { name: /Take it back/ }))
+
+    // The slot is the whole assertion. `was` goes too — there is nothing left that was replaced.
+    await waitFor(() => expect(slotTerminal('W045', 'to')).toBe('TB-0V:2'))
+    expect(slot('W045', 'to').textContent).not.toContain('was ')
+    const document_ = await written()
+    expect(document_.wires.W045).toEqual({ from: 'CR1:A2', to: 'TB-0V:2', source: 'index' })
+  })
+
   it('offers nothing at all where the ink stops short — W042', async () => {
     // **The assertion this phase is judged by.** `C0006` leaves `PB2:3` and stops 80 pt from
     // `TB-0V:6`: the drawing's own error, and the netlist is right. A screen that offered
@@ -742,6 +777,36 @@ describe('saving', () => {
     fireEvent.click(screen.getByTitle(/Record that you looked at these two terminals/))
     expect(document.querySelector('[data-wiring-save]')).toBeTruthy()
     expect(screen.getByText('wiring')).toBeTruthy()
+  })
+
+  /**
+   * **T-1555 — `§4C` hole 3b.**
+   *
+   * The wiring editor autosaves 900 ms after the last edit and had **no Save button at all** —
+   * only `Retry`, and only after a failure. A draft stuck at `unsaved` had no recourse but
+   * another edit, and trap 27 is the hour that cost: never restart the server while the badge is
+   * not `saved`, with no way to make it `saved` on purpose.
+   *
+   * The 400 ms window is the assertion. It is under the debounce, so a pass means the **press**
+   * wrote the file rather than the timer the press was meant to pre-empt.
+   */
+  it('writes the wiring draft on demand, without waiting out the autosave', async () => {
+    await open('W019')
+    // Nothing to save and nothing offered: the badge and its button appear together.
+    expect(screen.queryByRole('button', { name: /save the wiring file/i })).toBeNull()
+
+    fireEvent.click(screen.getByTitle(/Record that you looked at these two terminals/))
+    expect(document.querySelector('[data-wiring-save="pending"]')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /save the wiring file/i }))
+
+    await waitFor(() => expect(savedWiring.length).toBe(1), { timeout: 400 })
+    expect((await written()).wires.W019).toMatchObject({ source: 'human' })
+    // And the badge says so, with nothing left to press.
+    await waitFor(() => expect(document.querySelector('[data-wiring-save="saved"]')).toBeTruthy())
+    expect(
+      screen.getByRole('button', { name: /save the wiring file/i }).hasAttribute('disabled'),
+    ).toBe(true)
   })
 
   it('writes a note beside a confirmation, and will not write one without', async () => {

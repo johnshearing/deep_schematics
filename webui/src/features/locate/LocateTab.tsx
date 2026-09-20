@@ -1269,17 +1269,28 @@ export function LocateTab() {
                       ? 'not saved'
                       : 'saved'}
               </Badge>
-              {wiringSaveState === 'error' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8"
-                  onClick={() => void saveWiring()}
-                >
-                  <Save />
-                  Retry
-                </Button>
-              )}
+              {/* **Not only on an error.** This editor has no Save button of its own and writes
+                  900 ms after the last edit, so a draft sitting at `unsaved` had no recourse but
+                  another edit — and a person who does not know the badge exists cannot tell a
+                  slow save from a dead one. The locations badge beside it has had `Save` all
+                  along; this is the same button, named for its own file because two of them on
+                  one toolbar is exactly the confusion the badge's own label exists to prevent. */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8"
+                disabled={wiringSaveState === 'saving' || wiringSaveState === 'saved'}
+                aria-label={
+                  wiringSaveState === 'error'
+                    ? 'Retry the wiring save'
+                    : 'Save the wiring file now'
+                }
+                title="Write wiring.json now rather than waiting out the autosave."
+                onClick={() => void saveWiring()}
+              >
+                <Save />
+                {wiringSaveState === 'error' ? 'Retry' : 'Save'}
+              </Button>
             </span>
           )}
           <SaveStatus

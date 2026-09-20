@@ -190,6 +190,10 @@ function stubServer(
      * `refreshDesignators`), so a test that only set the store would have its counts replaced by
      * this stub's the moment it wrote anything. */
     index?: DesignatorIndex
+    /** A `locations.json` already on the server, merged over the empty one. For a decision the
+     * screen cannot make any more: an end-label override on a terminal the wire has stopped
+     * touching is only reachable through the row that has gone, which is the whole of `§5`. */
+    locations?: Record<string, unknown>
   } = {},
 ) {
   vi.stubGlobal(
@@ -210,13 +214,14 @@ function stubServer(
       }
       if (url.endsWith('/api/locations')) {
         return json({
-          present: false,
+          present: Boolean(options.locations),
           document: {
             drawing_number: 'PS20115MLM4-2',
             schema: 1,
             page_size_pt: [1224, 792],
             components: {},
             terminals: {},
+            ...options.locations,
           },
           report: options.report ?? EMPTY_REPORT,
         })
@@ -344,6 +349,25 @@ function endRows(): string[] {
   return [...document.querySelectorAll('[data-end]')].map(
     (row) => row.getAttribute('data-end') ?? '',
   )
+}
+
+/**
+ * The rows for overrides left on terminals this wire or net has stopped touching (`§5`).
+ *
+ * A separate attribute from `data-end`, and deliberately not a subset of it: these are not ends,
+ * they carry no compass, and a helper that returned both would let a test assert *two ends* on a
+ * panel showing one end and one leftover.
+ */
+function orphanRows(): string[] {
+  return [...document.querySelectorAll('[data-orphan-end]')].map(
+    (row) => row.getAttribute('data-orphan-end') ?? '',
+  )
+}
+
+function orphanRow(terminal: string): HTMLElement {
+  const row = document.querySelector(`[data-orphan-end="${terminal}"]`)
+  if (!row) throw new Error(`no leftover-label row for ${terminal}`)
+  return row as HTMLElement
 }
 
 function advance() {
@@ -534,6 +558,109 @@ describe('LocateTab', () => {
     expect(useLocateStore.getState().document!.wires).toEqual({
       W047: { labels: { 'CR-BP:A1': { dir: 'n' } } },
     })
+  })
+
+  /**
+   * **T-1530**, and the whole of `§5`'s first acceptance criterion.
+   *
+   * The panel builds its list from the netlist's members, so an override keyed on a terminal the
+   * wire has stopped touching had no row, no eye and no way back — while `resolve_geometry` went
+   * on refusing that key **by name** on every save. Three of those banners were standing on
+   * 2026-09-18 and the user's own authoring run is what makes them: correcting a wire's far end
+   * leaves the decision taken on the old end behind.
+   */
+  it('gives an override the wire has left behind a row of its own', async () => {
+    stubServer({
+      // `CR-BP:12` is an end `W047` used to join and does not any more, which is exactly what a
+      // corrected far end leaves in the file. The override beside it is the control: a decision
+      // on an end the wire *does* touch has to stay exactly where it was.
+      locations: {
+        wires: { W047: { labels: { 'CR-BP:A1': { dir: 'n' }, 'CR-BP:12': { hidden: true } } } },
+      },
+    })
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+
+    // Both real ends still have their own row, and neither of them is the leftover.
+    expect(endRows()).toEqual(['CR-BP:A1', 'CR-BP:11'])
+    expect(orphanRows()).toEqual(['CR-BP:12'])
+    // It says plainly what it is, rather than looking like an end with an odd control set.
+    expect(within(orphanRow('CR-BP:12')).getByText(/left behind/i)).toBeTruthy()
+    expect(screen.getByText(/no longer joins/i)).toBeTruthy()
+    // **One control on it.** No compass and no eye: there is nothing to aim and nothing drawn.
+    expect(within(orphanRow('CR-BP:12')).getAllByRole('button')).toHaveLength(1)
+    // And the live override is untouched — still a compass, still showing the side in force.
+    expect(within(endRow('CR-BP:A1')).getByText('by hand')).toBeTruthy()
+  })
+
+  /** **T-1535.** Nothing else on this row: the reset is the feature. */
+  it('clears the leftover with one press, and takes the record with it', async () => {
+    stubServer({ locations: { wires: { W047: { labels: { 'CR-BP:12': { hidden: true } } } } } })
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+
+    fireEvent.click(
+      within(orphanRow('CR-BP:12')).getByRole('button', { name: /reset the leftover label/i }),
+    )
+
+    // Deleted rather than overwritten, and the empty shell went with it — which is what makes
+    // the banner go quiet. `resolve_geometry` is refusing a key, and there is no key.
+    expect(useLocateStore.getState().document!.wires).toEqual({})
+    expect(orphanRows()).toEqual([])
+    // Undoable in a person's words, like every other mutation in this editor.
+    act(() => useLocateStore.getState().undo())
+    expect(useLocateStore.getState().undoNote).toContain('leftover')
+    expect(orphanRows()).toEqual(['CR-BP:12'])
+  })
+
+  /** **T-1540.** A net is the other half of the file and `locations.py` refuses its keys by the
+   * same name, so the row and the reset have to reach `nets` as well as `wires`. */
+  it('does the same for a net, and writes into the net section', async () => {
+    stubServer({
+      index: PAINTED_INDEX,
+      locations: { nets: { '110': { labels: { 'CR-BP:12': { hidden: true } } } } },
+    })
+    useAppStore.setState({ designators: PAINTED_INDEX, byToken: buildLookup(PAINTED_INDEX) })
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Nets' }))
+    fireEvent.click(row('110'))
+
+    expect(orphanRows()).toEqual(['CR-BP:12'])
+    expect(screen.getByText(/no longer has as a member/i)).toBeTruthy()
+
+    fireEvent.click(
+      within(orphanRow('CR-BP:12')).getByRole('button', { name: /reset the leftover label/i }),
+    )
+    // `setEndLabel` picks the section by kind: a reset that wrote into `wires` would clear
+    // nothing, leave the banner up and put a second record in the file.
+    expect(useLocateStore.getState().document!.nets).toEqual({})
+  })
+
+  /** **T-1545.** The end-label list lives inside *is there anything printed on this wire*, and a
+   * leftover deliberately does not: it is a key in the file, and on a wire with no rows at all it
+   * is the more unreachable of the two rather than the less. */
+  it('shows a leftover on a wire with nothing printed on it, where there are no ends at all', async () => {
+    const bare: DesignatorIndex = {
+      ...INDEX,
+      entries: ENTRIES.map((entry) => {
+        if (entry.id !== 'W047') return entry
+        const { spec: _spec, ...rest } = entry
+        return rest
+      }),
+    }
+    stubServer({
+      index: bare,
+      locations: { wires: { W047: { labels: { 'CR-BP:12': { hidden: true } } } } },
+    })
+    useAppStore.setState({ designators: bare, byToken: buildLookup(bare) })
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Wires' }))
+    fireEvent.click(row('W047'))
+
+    expect(endRows()).toEqual([])
+    expect(orphanRows()).toEqual(['CR-BP:12'])
   })
 
   it('hides one end’s label, and takes it off the sheet', async () => {

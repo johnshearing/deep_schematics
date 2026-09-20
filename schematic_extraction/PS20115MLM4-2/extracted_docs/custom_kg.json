@@ -1309,7 +1309,7 @@
       "chunk_order_index": 217
     },
     {
-      "content": "Wire W014 is a GREEN 12AWG conductor. It runs from TB-GND-B:2 to PS1:GND. It carries net GND.",
+      "content": "Wire W014 is a GREEN 12AWG conductor. It runs from TB-GND-B:1 to PS1:GND. It carries net GND.",
       "source_id": "PS20115MLM4-2::entity::W014",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 218
@@ -3373,7 +3373,7 @@
       "chunk_order_index": 561
     },
     {
-      "content": "TB-GND-B:2 connects to PS1:GND via wire W014, a GREEN 12AWG conductor on net GND.",
+      "content": "TB-GND-B:1 connects to PS1:GND via wire W014, a GREEN 12AWG conductor on net GND.",
       "source_id": "PS20115MLM4-2::rel::00272",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 562
@@ -5689,7 +5689,7 @@
     {
       "entity_name": "W014",
       "entity_type": "wire",
-      "description": "Wire W014 is a GREEN 12AWG conductor. It runs from TB-GND-B:2 to PS1:GND. It carries net GND.",
+      "description": "Wire W014 is a GREEN 12AWG conductor. It runs from TB-GND-B:1 to PS1:GND. It carries net GND.",
       "source_id": "PS20115MLM4-2::entity::W014",
       "file_path": "circuit_logic.json"
     },
@@ -8639,9 +8639,9 @@
       "file_path": "circuit_logic.json"
     },
     {
-      "src_id": "TB-GND-B:2",
+      "src_id": "TB-GND-B:1",
       "tgt_id": "PS1:GND",
-      "description": "TB-GND-B:2 connects to PS1:GND via wire W014, a GREEN 12AWG conductor on net GND.",
+      "description": "TB-GND-B:1 connects to PS1:GND via wire W014, a GREEN 12AWG conductor on net GND.",
       "keywords": "connects to, wire: W014, wire_color: GREEN, wire_gauge: 12AWG, net: GND",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00272",

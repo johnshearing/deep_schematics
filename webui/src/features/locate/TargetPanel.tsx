@@ -273,6 +273,20 @@ function LabelPanel({
   const point = stored?.label_point ?? entry.label_point ?? null
   const members = entry.terminals ?? []
   const overrides = endLabelsOf(document, entry.id)
+  /**
+   * The overrides keyed on a terminal this wire or net does not touch any more.
+   *
+   * There is one way to make one and the authoring run makes them routinely: correct a wire's far
+   * end and the decision taken on the old terminal stays in `locations.json` with no member to
+   * hang a row off. `resolve_geometry` then refuses the key **by name** on every save, and until
+   * this list existed that banner could not be cleared from any screen — the compass that wrote
+   * the override was the only way back to it, and it had gone.
+   *
+   * Membership is the netlist's, so a row appears here at the same moment the banner does: when
+   * the generator folds the correction in. **Computed against today's members, never counted** —
+   * the number moves as the user authors.
+   */
+  const orphans = Object.keys(overrides).filter((id) => !members.some((m) => m.id === id))
   const text = entry.kind === 'wire' ? entry.spec : entry.id
 
   return (
@@ -322,6 +336,38 @@ function LabelPanel({
           ends with — and its <span className="font-mono">{entry.id}</span> is an id we invented,
           which is not on the sheet for anybody to check.
         </p>
+      )}
+
+      {/* Outside the `text` branch on purpose: a wire with nothing printed on it has no end-label
+          rows at all, and an override left behind on it is exactly as unreachable — more so, since
+          there is not even a list for the reader to notice it is missing from. */}
+      {orphans.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[11px] text-muted-foreground">
+            {orphans.length === 1
+              ? 'One end-label decision is'
+              : `${orphans.length} end-label decisions are`}{' '}
+            left on {orphans.length === 1 ? 'a terminal' : 'terminals'} this{' '}
+            {entry.kind === 'wire' ? 'wire no longer joins' : 'net no longer has as a member'}.
+            Nothing is drawn for {orphans.length === 1 ? 'it' : 'them'} and the sheet is
+            unaffected, but the file reports {orphans.length === 1 ? 'it' : 'them'} by name on
+            every save. Reset to take {orphans.length === 1 ? 'it' : 'them'} out.
+          </p>
+          <ul className="space-y-1.5">
+            {orphans.map((terminal) => (
+              <OrphanLabelRow
+                key={terminal}
+                terminal={terminal}
+                onReset={() =>
+                  onEdit(
+                    (d) => setEndLabel(d, entry.id, entry.kind, terminal, null),
+                    `reset ${entry.id}'s leftover label at ${terminal}`,
+                  )
+                }
+              />
+            ))}
+          </ul>
+        </div>
       )}
 
       {/* **What the wire joins**, and it comes first among the wire-only sections because it is
@@ -466,6 +512,40 @@ function EndLabelRow({
           note={drawn.authored ? 'by hand' : 'computed'}
         />
       )}
+    </li>
+  )
+}
+
+/**
+ * An end-label decision on a terminal this wire or net has stopped touching.
+ *
+ * **One control, and it is a reset.** No compass and no eye: there is nothing to aim, because the
+ * sheet draws nothing at an end that is not an end — which is why the row has to *say* what it is
+ * rather than look like the live ones. Naming the terminal is the other half of the job: this row
+ * is the only place a reader learns which key the save report is complaining about.
+ *
+ * The reset goes through `onSet(null)`'s own path, so the override is **deleted** rather than
+ * overwritten, and `setEndLabel` drops a record left holding nothing.
+ */
+function OrphanLabelRow({ terminal, onReset }: { terminal: string; onReset: () => void }) {
+  return (
+    <li className="rounded-md border border-dashed px-2 py-1.5" data-orphan-end={terminal}>
+      <div className="flex items-center gap-1.5">
+        <span className="min-w-0 flex-1 truncate font-mono text-[11px]">{terminal}</span>
+        <Badge tone="warning" title="This end moved, and the decision taken on it stayed behind.">
+          left behind
+        </Badge>
+        <button
+          type="button"
+          aria-label={`Reset the leftover label at ${terminal}`}
+          title="Take this decision out of the file"
+          onClick={onReset}
+          className="flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-accent"
+        >
+          <RotateCcw className="size-3" />
+          Reset
+        </button>
+      </div>
     </li>
   )
 }

@@ -1,5 +1,13 @@
 # T-55x–T-59x — a label at every end, and the file that stays almost empty
 
+> **Appended 2026-09-19, T-1530–T-1545: the override nobody could reach** (plan 03 `§5`).
+> Correcting a wire's far end leaves the end-label decision taken on the *old* terminal in
+> `locations.json`, where the panel — which builds its rows from the netlist's members —
+> gave it no row, no eye and no way back. Three of those were standing on 2026-09-18 and
+> the authoring run makes more. **Client only: rebuild the bundle, do not restart the
+> server** — the banner is `resolve_geometry` doing its job and it goes quiet when the key
+> goes.
+
 Index: `locate_tab_instruction_and_test_manual.md`.
 Added **2026-08-24** with Session 2 / Phase B of `_claude_notes/highlighting_wires_and_nets.md`.
 
@@ -274,6 +282,90 @@ check. On the Drawing tab, its two ends carry no end label.
 **Why nothing rather than the id.** A label the reader cannot verify against the paper is worse than
 no label: it looks like a fact about the drawing. The wire is still fully citable, still frames its
 run, and its roster still names both ends.
+
+---
+
+## T-1530 · The override the wire has left behind gets a row
+
+**Do.** On the Locate tab, press `Wires` and arm a wire whose far end you have corrected and whose
+old terminal carried an end-label decision. **Read the three off the files rather than off this
+page** — they move as you author:
+
+```
+cd schematic_extraction/PS20115MLM4-2/extracted_docs && python3 -c "
+import json
+loc=json.load(open('locations.json')); cl=json.load(open('circuit_logic.json'))
+w={x['id']:{x['from_terminal'],x['to_terminal']} for x in cl['wires']}
+n={x['id']:set(x.get('member_terminals',[])) for x in cl['nets']}
+for sec,mem in (('wires',w),('nets',n)):
+    for i,r in (loc.get(sec) or {}).items():
+        for t in (r.get('labels') or {}):
+            if t not in mem.get(i,set()): print(sec,i,t)
+"
+```
+
+On 2026-09-19 that printed three: `W018`'s `TB-0V:1`, `W019`'s `TB-0V:2`, `W063`'s `TB-120:2`.
+
+**Expected.** Below the two compasses there is a short paragraph — *One end-label decision is left on
+a terminal this wire no longer joins* — and **one row per leftover**, naming the terminal, badged
+**`left behind`**, with **one control on it: `Reset`.** No compass and no eye: there is nothing to
+aim, because the sheet draws nothing at an end that is not an end.
+
+**And the live ends are untouched.** A decision on an end the wire *does* touch keeps its compass,
+its eye and its own `Reset`, and is not in this list.
+
+**Why the row rather than a hand edit.** The banner these raise is loud and harmless —
+`resolve_geometry` refuses the key **by name** (`H14`), it never reaches the netlist — but until
+this row existed it could not be cleared from any screen. *An un-authorable thing is a named gap in
+a panel, not a file edit.*
+
+---
+
+## T-1535 · `Reset` clears it, and the banner goes with it
+
+**Do.** Press `Reset` on one. Then watch the `locations` badge reach `saved` and look at
+`git diff` on `locations.json`.
+
+**Expected.** The row goes. **The key is deleted rather than overwritten** — the same rule the live
+rows follow — and a record left holding nothing is dropped entirely rather than left as an empty
+shell. `Ctrl+Z` puts it back, and the badge says *reset …'s leftover label at …* in words.
+
+**And the red strip that named that key is gone as soon as the badge says `saved` — no generator
+run.** `PUT /api/locations` answers with a freshly computed report, read off the file it has just
+written (`main.py:474`), and the refusal is `resolve_geometry` finding a key that is no longer
+there. That is the acceptance criterion for the whole phase: three rows, three presses, three
+banners cleared.
+
+*(The **other** banner — `circuit_logic.json is behind locations.json` — appears after any save and
+is unrelated. An end-label decision never reaches the netlist, so nothing about these three presses
+makes the artifact wrong.)*
+
+**What must not have moved.** Nothing else in `git diff`. No default written in beside the deletion,
+and no change to the other end.
+
+---
+
+## T-1540 · A net's leftover behaves the same
+
+**Do.** If the one-liner above printed a `nets` row, arm that net and do the same. (On 2026-09-19 it
+printed none — `nets` has no overrides at all — so this is the *drawing number two* case, and the
+test that keeps it honest is the automated one.)
+
+**Expected.** Identical, with the wording changed to *a terminal this net no longer has as a member*,
+and the reset writes into the file's `nets` section rather than its `wires` section. A reset that
+wrote into the wrong one would clear nothing, leave the banner up, and add a second record.
+
+---
+
+## T-1545 · A wire with nothing printed on it still shows one
+
+**Do.** Two of the 71 wires have no colour or gauge (T-590). If one of them ever carries a leftover,
+arm it.
+
+**Expected.** The panel still says there is nothing printed to label its ends with and still offers
+**no compasses** — and the leftover row is there anyway. The row is a key in the file, not a label
+on the paper, and on a wire with no rows at all it is the **more** unreachable of the two, not the
+less.
 
 ---
 

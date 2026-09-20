@@ -3681,11 +3681,20 @@
       "id": "W014",
       "color": "GREEN",
       "gauge": "12AWG",
-      "from_terminal": "TB-GND-B:2",
+      "from_terminal": "TB-GND-B:1",
       "to_terminal": "PS1:GND",
       "cable": null,
       "net": "GND",
-      "description": ""
+      "description": "",
+      "endpoints": {
+        "source": "human",
+        "by": "js",
+        "at": "2026-09-20T01:32:13.616Z",
+        "was": [
+          "TB-GND-B:2",
+          "PS1:GND"
+        ]
+      }
     },
     {
       "id": "W015",
@@ -6439,9 +6448,9 @@
     },
     {
       "type": "CONNECTS_TO",
-      "src": "TB-GND-B:2",
+      "src": "TB-GND-B:1",
       "tgt": "PS1:GND",
-      "description": "TB-GND-B:2 connects to PS1:GND via wire W014, a GREEN 12AWG conductor on net GND.",
+      "description": "TB-GND-B:1 connects to PS1:GND via wire W014, a GREEN 12AWG conductor on net GND.",
       "properties": {
         "wire": "W014",
         "wire_color": "GREEN",
