@@ -1,0 +1,10 @@
+
+
+
+cd ~/schematics/server
+.venv/bin/python -m app
+
+
+cd ~/schematics/schematic_extraction/PS20115MLM4-2/extracted_docs
+python3 author_circuit_logic.py
+python3 ../../../schematic_skills/scripts/build_kg.py circuit_logic.json -o custom_kg.json --pretty --validate

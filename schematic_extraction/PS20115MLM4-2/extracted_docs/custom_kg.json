@@ -1441,13 +1441,13 @@
       "chunk_order_index": 239
     },
     {
-      "content": "Wire W036 is a WHITE/BLUE 18AWG conductor. It runs from SPD1:2 to TB-0V:3. It carries net 0V.",
+      "content": "Wire W036 is a WHITE/BLUE 18AWG conductor. It runs from SPD1:2 to TB-0V:2. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W036",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 240
     },
     {
-      "content": "Wire W037 is a WHITE 18AWG conductor. It runs from TB-0V:4 to RECEPT1:4. It is part of cable CABLE-RECEPT1. It carries net 0V.",
+      "content": "Wire W037 is a WHITE 18AWG conductor. It runs from TB-0V:1 to RECEPT1:4. It is part of cable CABLE-RECEPT1. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W037",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 241
@@ -1459,7 +1459,7 @@
       "chunk_order_index": 242
     },
     {
-      "content": "Wire W039 is a BLUE 22AWG conductor. It runs from PB1:3 to TB-0V:5. It is part of cable CABLE-PB1-START-STOP. It carries net 0V.",
+      "content": "Wire W039 is a BLUE 22AWG conductor. It runs from PB1:3 to TB-0V:4. It is part of cable CABLE-PB1-START-STOP. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W039",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 243
@@ -1489,19 +1489,19 @@
       "chunk_order_index": 247
     },
     {
-      "content": "Wire W044 is a BLUE 22AWG conductor. It runs from LT1:BLUE to TB-0V:7. It is part of cable CABLE-LT1. It carries net 0V.",
+      "content": "Wire W044 is a BLUE 22AWG conductor. It runs from LT1:BLUE to TB-0V:8. It is part of cable CABLE-LT1. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W044",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 248
     },
     {
-      "content": "Wire W045 is a WHITE/BLUE 18AWG conductor. It runs from CR1:A2 to TB-0V:8. It carries net 0V.",
+      "content": "Wire W045 is a WHITE/BLUE 18AWG conductor. It runs from CR1:A2 to TB-0V:5. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W045",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 249
     },
     {
-      "content": "Wire W046 is a WHITE/BLUE 18AWG conductor. It runs from CR2:A2 to TB-0V:9. It carries net 0V.",
+      "content": "Wire W046 is a WHITE/BLUE 18AWG conductor. It runs from CR2:A2 to TB-0V:7. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W046",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 250
@@ -1525,7 +1525,7 @@
       "chunk_order_index": 253
     },
     {
-      "content": "Wire W050 is a WHITE/BLUE 18AWG conductor. It runs from TB-0V:10 to CR1:11. It carries net 0V.",
+      "content": "Wire W050 is a WHITE/BLUE 18AWG conductor. It runs from TB-0V:9 to CR1:11. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W050",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 254
@@ -1597,7 +1597,7 @@
       "chunk_order_index": 265
     },
     {
-      "content": "Wire W062 is a GREEN 16AWG conductor. It runs from INFEED1:2 to TB-0V:12. It is part of cable CABLE-INFEED1. It carries net 0V.",
+      "content": "Wire W062 is a GREEN 16AWG conductor. It runs from INFEED1:2 to TB-0V:10. It is part of cable CABLE-INFEED1. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W062",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 266
@@ -1639,7 +1639,7 @@
       "chunk_order_index": 272
     },
     {
-      "content": "Wire W069 is a ORANGE 16AWG conductor. It runs from DISCHARGE1:4 to TB-130:2. It is part of cable CABLE-DISCHARGE1. It carries net 130.",
+      "content": "Wire W069 is a ORANGE 16AWG conductor. It runs from DISCHARGE1:4 to TB-130:1. It is part of cable CABLE-DISCHARGE1. It carries net 130.",
       "source_id": "PS20115MLM4-2::entity::W069",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 273
@@ -3505,13 +3505,13 @@
       "chunk_order_index": 583
     },
     {
-      "content": "SPD1:2 connects to TB-0V:3 via wire W036, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "content": "SPD1:2 connects to TB-0V:2 via wire W036, a WHITE/BLUE 18AWG conductor on net 0V.",
       "source_id": "PS20115MLM4-2::rel::00294",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 584
     },
     {
-      "content": "TB-0V:4 connects to RECEPT1:4 via wire W037, a WHITE 18AWG conductor on net 0V. It is part of cable CABLE-RECEPT1.",
+      "content": "TB-0V:1 connects to RECEPT1:4 via wire W037, a WHITE 18AWG conductor on net 0V. It is part of cable CABLE-RECEPT1.",
       "source_id": "PS20115MLM4-2::rel::00295",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 585
@@ -3523,7 +3523,7 @@
       "chunk_order_index": 586
     },
     {
-      "content": "PB1:3 connects to TB-0V:5 via wire W039, a BLUE 22AWG conductor on net 0V. It is part of cable CABLE-PB1-START-STOP.",
+      "content": "PB1:3 connects to TB-0V:4 via wire W039, a BLUE 22AWG conductor on net 0V. It is part of cable CABLE-PB1-START-STOP.",
       "source_id": "PS20115MLM4-2::rel::00297",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 587
@@ -3553,19 +3553,19 @@
       "chunk_order_index": 591
     },
     {
-      "content": "LT1:BLUE connects to TB-0V:7 via wire W044, a BLUE 22AWG conductor on net 0V. It is part of cable CABLE-LT1.",
+      "content": "LT1:BLUE connects to TB-0V:8 via wire W044, a BLUE 22AWG conductor on net 0V. It is part of cable CABLE-LT1.",
       "source_id": "PS20115MLM4-2::rel::00302",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 592
     },
     {
-      "content": "CR1:A2 connects to TB-0V:8 via wire W045, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "content": "CR1:A2 connects to TB-0V:5 via wire W045, a WHITE/BLUE 18AWG conductor on net 0V.",
       "source_id": "PS20115MLM4-2::rel::00303",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 593
     },
     {
-      "content": "CR2:A2 connects to TB-0V:9 via wire W046, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "content": "CR2:A2 connects to TB-0V:7 via wire W046, a WHITE/BLUE 18AWG conductor on net 0V.",
       "source_id": "PS20115MLM4-2::rel::00304",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 594
@@ -3589,7 +3589,7 @@
       "chunk_order_index": 597
     },
     {
-      "content": "TB-0V:10 connects to CR1:11 via wire W050, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "content": "TB-0V:9 connects to CR1:11 via wire W050, a WHITE/BLUE 18AWG conductor on net 0V.",
       "source_id": "PS20115MLM4-2::rel::00308",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 598
@@ -3661,7 +3661,7 @@
       "chunk_order_index": 609
     },
     {
-      "content": "INFEED1:2 connects to TB-0V:12 via wire W062, a GREEN 16AWG conductor on net 0V. It is part of cable CABLE-INFEED1.",
+      "content": "INFEED1:2 connects to TB-0V:10 via wire W062, a GREEN 16AWG conductor on net 0V. It is part of cable CABLE-INFEED1.",
       "source_id": "PS20115MLM4-2::rel::00320",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 610
@@ -3703,7 +3703,7 @@
       "chunk_order_index": 616
     },
     {
-      "content": "DISCHARGE1:4 connects to TB-130:2 via wire W069, a ORANGE 16AWG conductor on net 130. It is part of cable CABLE-DISCHARGE1.",
+      "content": "DISCHARGE1:4 connects to TB-130:1 via wire W069, a ORANGE 16AWG conductor on net 130. It is part of cable CABLE-DISCHARGE1.",
       "source_id": "PS20115MLM4-2::rel::00327",
       "file_path": "circuit_logic.json",
       "chunk_order_index": 617
@@ -5843,14 +5843,14 @@
     {
       "entity_name": "W036",
       "entity_type": "wire",
-      "description": "Wire W036 is a WHITE/BLUE 18AWG conductor. It runs from SPD1:2 to TB-0V:3. It carries net 0V.",
+      "description": "Wire W036 is a WHITE/BLUE 18AWG conductor. It runs from SPD1:2 to TB-0V:2. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W036",
       "file_path": "circuit_logic.json"
     },
     {
       "entity_name": "W037",
       "entity_type": "wire",
-      "description": "Wire W037 is a WHITE 18AWG conductor. It runs from TB-0V:4 to RECEPT1:4. It is part of cable CABLE-RECEPT1. It carries net 0V.",
+      "description": "Wire W037 is a WHITE 18AWG conductor. It runs from TB-0V:1 to RECEPT1:4. It is part of cable CABLE-RECEPT1. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W037",
       "file_path": "circuit_logic.json"
     },
@@ -5864,7 +5864,7 @@
     {
       "entity_name": "W039",
       "entity_type": "wire",
-      "description": "Wire W039 is a BLUE 22AWG conductor. It runs from PB1:3 to TB-0V:5. It is part of cable CABLE-PB1-START-STOP. It carries net 0V.",
+      "description": "Wire W039 is a BLUE 22AWG conductor. It runs from PB1:3 to TB-0V:4. It is part of cable CABLE-PB1-START-STOP. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W039",
       "file_path": "circuit_logic.json"
     },
@@ -5899,21 +5899,21 @@
     {
       "entity_name": "W044",
       "entity_type": "wire",
-      "description": "Wire W044 is a BLUE 22AWG conductor. It runs from LT1:BLUE to TB-0V:7. It is part of cable CABLE-LT1. It carries net 0V.",
+      "description": "Wire W044 is a BLUE 22AWG conductor. It runs from LT1:BLUE to TB-0V:8. It is part of cable CABLE-LT1. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W044",
       "file_path": "circuit_logic.json"
     },
     {
       "entity_name": "W045",
       "entity_type": "wire",
-      "description": "Wire W045 is a WHITE/BLUE 18AWG conductor. It runs from CR1:A2 to TB-0V:8. It carries net 0V.",
+      "description": "Wire W045 is a WHITE/BLUE 18AWG conductor. It runs from CR1:A2 to TB-0V:5. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W045",
       "file_path": "circuit_logic.json"
     },
     {
       "entity_name": "W046",
       "entity_type": "wire",
-      "description": "Wire W046 is a WHITE/BLUE 18AWG conductor. It runs from CR2:A2 to TB-0V:9. It carries net 0V.",
+      "description": "Wire W046 is a WHITE/BLUE 18AWG conductor. It runs from CR2:A2 to TB-0V:7. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W046",
       "file_path": "circuit_logic.json"
     },
@@ -5941,7 +5941,7 @@
     {
       "entity_name": "W050",
       "entity_type": "wire",
-      "description": "Wire W050 is a WHITE/BLUE 18AWG conductor. It runs from TB-0V:10 to CR1:11. It carries net 0V.",
+      "description": "Wire W050 is a WHITE/BLUE 18AWG conductor. It runs from TB-0V:9 to CR1:11. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W050",
       "file_path": "circuit_logic.json"
     },
@@ -6025,7 +6025,7 @@
     {
       "entity_name": "W062",
       "entity_type": "wire",
-      "description": "Wire W062 is a GREEN 16AWG conductor. It runs from INFEED1:2 to TB-0V:12. It is part of cable CABLE-INFEED1. It carries net 0V.",
+      "description": "Wire W062 is a GREEN 16AWG conductor. It runs from INFEED1:2 to TB-0V:10. It is part of cable CABLE-INFEED1. It carries net 0V.",
       "source_id": "PS20115MLM4-2::entity::W062",
       "file_path": "circuit_logic.json"
     },
@@ -6074,7 +6074,7 @@
     {
       "entity_name": "W069",
       "entity_type": "wire",
-      "description": "Wire W069 is a ORANGE 16AWG conductor. It runs from DISCHARGE1:4 to TB-130:2. It is part of cable CABLE-DISCHARGE1. It carries net 130.",
+      "description": "Wire W069 is a ORANGE 16AWG conductor. It runs from DISCHARGE1:4 to TB-130:1. It is part of cable CABLE-DISCHARGE1. It carries net 130.",
       "source_id": "PS20115MLM4-2::entity::W069",
       "file_path": "circuit_logic.json"
     },
@@ -8838,17 +8838,17 @@
     },
     {
       "src_id": "SPD1:2",
-      "tgt_id": "TB-0V:3",
-      "description": "SPD1:2 connects to TB-0V:3 via wire W036, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "tgt_id": "TB-0V:2",
+      "description": "SPD1:2 connects to TB-0V:2 via wire W036, a WHITE/BLUE 18AWG conductor on net 0V.",
       "keywords": "connects to, wire: W036, wire_color: WHITE/BLUE, wire_gauge: 18AWG, net: 0V",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00294",
       "file_path": "circuit_logic.json"
     },
     {
-      "src_id": "TB-0V:4",
+      "src_id": "TB-0V:1",
       "tgt_id": "RECEPT1:4",
-      "description": "TB-0V:4 connects to RECEPT1:4 via wire W037, a WHITE 18AWG conductor on net 0V. It is part of cable CABLE-RECEPT1.",
+      "description": "TB-0V:1 connects to RECEPT1:4 via wire W037, a WHITE 18AWG conductor on net 0V. It is part of cable CABLE-RECEPT1.",
       "keywords": "connects to, wire: W037, wire_color: WHITE, wire_gauge: 18AWG, net: 0V, cable: CABLE-RECEPT1",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00295",
@@ -8865,8 +8865,8 @@
     },
     {
       "src_id": "PB1:3",
-      "tgt_id": "TB-0V:5",
-      "description": "PB1:3 connects to TB-0V:5 via wire W039, a BLUE 22AWG conductor on net 0V. It is part of cable CABLE-PB1-START-STOP.",
+      "tgt_id": "TB-0V:4",
+      "description": "PB1:3 connects to TB-0V:4 via wire W039, a BLUE 22AWG conductor on net 0V. It is part of cable CABLE-PB1-START-STOP.",
       "keywords": "connects to, wire: W039, wire_color: BLUE, wire_gauge: 22AWG, net: 0V, cable: CABLE-PB1-START-STOP",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00297",
@@ -8910,8 +8910,8 @@
     },
     {
       "src_id": "LT1:BLUE",
-      "tgt_id": "TB-0V:7",
-      "description": "LT1:BLUE connects to TB-0V:7 via wire W044, a BLUE 22AWG conductor on net 0V. It is part of cable CABLE-LT1.",
+      "tgt_id": "TB-0V:8",
+      "description": "LT1:BLUE connects to TB-0V:8 via wire W044, a BLUE 22AWG conductor on net 0V. It is part of cable CABLE-LT1.",
       "keywords": "connects to, wire: W044, wire_color: BLUE, wire_gauge: 22AWG, net: 0V, cable: CABLE-LT1",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00302",
@@ -8919,8 +8919,8 @@
     },
     {
       "src_id": "CR1:A2",
-      "tgt_id": "TB-0V:8",
-      "description": "CR1:A2 connects to TB-0V:8 via wire W045, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "tgt_id": "TB-0V:5",
+      "description": "CR1:A2 connects to TB-0V:5 via wire W045, a WHITE/BLUE 18AWG conductor on net 0V.",
       "keywords": "connects to, wire: W045, wire_color: WHITE/BLUE, wire_gauge: 18AWG, net: 0V",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00303",
@@ -8928,8 +8928,8 @@
     },
     {
       "src_id": "CR2:A2",
-      "tgt_id": "TB-0V:9",
-      "description": "CR2:A2 connects to TB-0V:9 via wire W046, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "tgt_id": "TB-0V:7",
+      "description": "CR2:A2 connects to TB-0V:7 via wire W046, a WHITE/BLUE 18AWG conductor on net 0V.",
       "keywords": "connects to, wire: W046, wire_color: WHITE/BLUE, wire_gauge: 18AWG, net: 0V",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00304",
@@ -8963,9 +8963,9 @@
       "file_path": "circuit_logic.json"
     },
     {
-      "src_id": "TB-0V:10",
+      "src_id": "TB-0V:9",
       "tgt_id": "CR1:11",
-      "description": "TB-0V:10 connects to CR1:11 via wire W050, a WHITE/BLUE 18AWG conductor on net 0V.",
+      "description": "TB-0V:9 connects to CR1:11 via wire W050, a WHITE/BLUE 18AWG conductor on net 0V.",
       "keywords": "connects to, wire: W050, wire_color: WHITE/BLUE, wire_gauge: 18AWG, net: 0V",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00308",
@@ -9072,8 +9072,8 @@
     },
     {
       "src_id": "INFEED1:2",
-      "tgt_id": "TB-0V:12",
-      "description": "INFEED1:2 connects to TB-0V:12 via wire W062, a GREEN 16AWG conductor on net 0V. It is part of cable CABLE-INFEED1.",
+      "tgt_id": "TB-0V:10",
+      "description": "INFEED1:2 connects to TB-0V:10 via wire W062, a GREEN 16AWG conductor on net 0V. It is part of cable CABLE-INFEED1.",
       "keywords": "connects to, wire: W062, wire_color: GREEN, wire_gauge: 16AWG, net: 0V, cable: CABLE-INFEED1",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00320",
@@ -9135,8 +9135,8 @@
     },
     {
       "src_id": "DISCHARGE1:4",
-      "tgt_id": "TB-130:2",
-      "description": "DISCHARGE1:4 connects to TB-130:2 via wire W069, a ORANGE 16AWG conductor on net 130. It is part of cable CABLE-DISCHARGE1.",
+      "tgt_id": "TB-130:1",
+      "description": "DISCHARGE1:4 connects to TB-130:1 via wire W069, a ORANGE 16AWG conductor on net 130. It is part of cable CABLE-DISCHARGE1.",
       "keywords": "connects to, wire: W069, wire_color: ORANGE, wire_gauge: 16AWG, net: 130, cable: CABLE-DISCHARGE1",
       "weight": 1.0,
       "source_id": "PS20115MLM4-2::rel::00327",

@@ -1,0 +1,224 @@
+❯ Thanks.  I have some questions as follows:
+  Question 1.
+  When you first indexed the drawing you were very good at seeing the components and knowing what they are. And you could see all the terminals. Also you seemed to have some limited ability  to tell which terminals are connected to which other terminals (the wires). And you were also very good at understanding what all the components do, what the relationships are between them, and you were also good at understanding what subsystems were present.
+  What you are not able to do is place the components, terminals, wires, and wire paths on the drawing. Also it seems that you do not know about all the connections between the terminals(the wires) and some of the knowledge you do have is wrong. In other words, you seem to have limited knowledge about the wires and wire paths.
+  What confuses me is how you are able to answer the troubleshooting questions so well when you don't know about all the wires and when so much of the information you have about the wires is wrong.Please explain.
+  Question 2.When on the "Locate" tab and looking at the list, I see the following message on list items: W014, W036, W039, W044, W045, W046, W050, W062, and W069"path may be stale"
+  So I closed the WebUI and shutdown the server and then ran the following commands:cd schematic_extraction/PS20115MLM4-2/extracted_docs
+  python3 author_circuit_logic.py
+  python3 ../../../schematic_skills/scripts/build_kg.py circuit_logic.json -o custom_kg.json --pretty --validate
+
+  But when I started the server and the WebUI again, I see that the message "path may be stale" is still on those wires listed above.Please tell me what the messages mean and if it is possible to clear those messages using the WebUI.If it is not possible to clear the messages with the WebUI then is building that functionality part of the plan?If not, then we need to add that to the plan.
+  Question 3. After making an edit while on the "Locate" tab, I see the following message on a banner near the top of the screen:"circuit_logic.json is behind wiring.json — re-run `python author_circuit_logic.py` in the extraction directory, and then `build_kg.py`, because an endpoint is connectivity rather than geometry. "In order to clear the banner I need to run the following commands:cd schematic_extraction/PS20115MLM4-2/extracted_docs
+  python3 author_circuit_logic.py
+  python3 ../../../schematic_skills/scripts/build_kg.py circuit_logic.json -o custom_kg.json --pretty --validate
+  Can you make it possible for me to clear this message from the WebUI? Maybe put a button on the "Locate" tab that runs the commands above. Or perhaps you have a different idea on how to clear the banners using the WebUI?Or perhaps it may not be possible to run these commands from the WebUI because both the WebUI and the server must be restarted anyway before the updates can be seen.In that case, do you have another idea for an easy way to run all the commands at once? Perhaps a python script?
+  Question 4.While on the "Locate" tab with the "Wiring" filter active, there are several wires listed starting with W023I noticed that I can clear these items from the list by arming the item and then clicking on an item on either the "From" or the "To" panel which highlights the wire in blue.I checked that this updates only the timestamp for that wire in one of the data files. I am wondering why this step is necessary when all it seems to do is update a timestamp.I am not asking you to modify the data files. I want to do all of that myself using the WebUI.I am just asking for the reason why this step exists.
+  Question 5.While on the "Locate" tab with the "Commoning" filter active, I noticsee no way to clear these items from the list.Is this "Commoning" filter not aqueue of items waiting for some action by a human or is this just a filtered list?                                                                                                             Question 6.While on the "Locate" tab with the "Path" filter active, I notice thas this because all the wires have an assigned path now?
+  Question 7. While on the "Locate" tab with the "Net" filter active, I noticed that when I arm one of the items in the list to show the information box about that net and to highlight all the wires in the net, the commoning for the terminal block for that net is not highlhighlight the commoning for terminal blocks of the nets?
+  Question 8. I can see with my eyes that there is ink that goes from terminal TB-0V:7 to terminal CR2:A2.So I know that a wire is supposed to go there but there is no way that I knome to find out which wire is supposed to represent that ink using the WebUI.Aftesee that W046 was representing terminal CR2:A2 but that I changed that using theWebUI to represent a different terminal when trying to sort out the things that the model guessed wrong when indexing the drawing.Also, I noticed in                                "/home/js/schematics/schematic_extraction/PS20115MLM4-2/extracted_docs/author_ci snippet:("CR2:A2", "TB-0V:9", "WHITE/BLUE", "18AWG", "0V", None, ""),This is not what I see on the drawing.As I mentioned above, TB-0V:7 is wired to terminal CR2:A2 - not TB-0V:7.But I am think this snippet                                                       in "/home/js/schematics/schematic_extraction/PS20115MLM4-2/extracted_docs/author updated by the WebUI or by running "python3 author_circuit_logic.py".If I amcorrect about this then there is now way to correct this wrong information using the WebUI.Am I thinking correctly about this?If so, is there anything in the plans to correct this problem?Also how can I now create or assign a wire to the ink that runs between  CR2:A2?
+  When responding to all these questions, please refer to them by number.
+
+Eight substantial questions. Let me measure before answering any of them.
+
+  Searched for 2 patterns, ran 9 shell commands
+
+All eight measured. Answering by number.
+
+---
+
+Q1 — why the troubleshooting answers were good anyway
+
+Because ten of the eleven wrong screws were wrong within one net. I measured each one just now, netlist screw against ink screw:
+
+┌─────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────┐
+│                                                                                                      │
+├─────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────┤
+│ W014 TB-GND-B:2→:1                                                            GND                    │
+├─────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────┤
+│ W018 TB-0V:1→:3 · W036 :3→:2 · W037 :4→:1 · W039 :5→:4 · W045 :8→:5 · W046 :9→net 0V                 │
+├─────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────┤
+│ W063 TB-120:2→:1                                                              120                    │
+├─────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────┤
+│ W069 TB-130:2→:1                                                              130                    │
+├─────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────┤
+│ W019 TB-0V:2 → TB-GND-B:2                                                     — the one that crossed │
+└─────────────────────────────────────────────────────────────────────────────────────────────────┴─────────────────────────────────┘
+
+The screws of a terminal block are commoned: they are one electrical node. So CR2:A2 goes to TB-0V:9 and CR2:A2 goes to TB-0V:7 are the same claim as far as the graph goes — CR2:A2 is on net
+0V either way. The 402 relationships, the 26 nets, the 8 cables and the 7 subsyshe screw numbers were wrong, because none of them is a statement about whichscrew.
+
+The one exception proves it: W019 bonded 0V to GND across two different blocks, and that one would have changed an answer. It was corrected on 2026-09-08, before it could.
+
+Two honest riders:
+
+- The confidence was not evidence. Ask "which screw on TB-0V is CR2's coil return on?" and I would have said :9 with the same fluency, and been wrong for a year. Nothing in the answer would
+  have told you. The screw numbers only became checkable when you put the points
+- I never read the paths at all. prompts.py:52 says "Do NOT read geometry.json." Positions, routes and conductors exist so an answer can be pointed at, not so it can be reasoned from. That is
+  why the reasoning survived geometry I could not produce — and why the highlighyou.
+
+---
+
+Q2 — path may be stale has nothing to do with the generator
+
+What it means: a route is stored with a for field recording the pair of terminale flag fires when that pair no longer matches the wire's current endpoints:
+
+locations.json  wires[W036].path.for = ["SPD1:2", "TB-0V:3"]      ← what the rou
+wiring.json     W036                 = SPD1:2 → TB-0V:2           ← what the wire now joins
+
+Both files are authored; the generator reads them and writes circuit_logic.json, which this comparison never touches. That is why running it changed nothing, and why restarting changed
+nothing. The flag is doing its job: you moved nine endpoints, and nine routes we
+
+Here is the state of all nine:
+
+┌──────┬─────────────────┬────────────────┬────────────────┐
+│ wire │ route drawn for │ wire now joins │ route geometry │
+├──────┼─────────────────┼────────────────┼────────────────┤
+│ W014 │ TB-GND-B:2      │ TB-GND-B:1     │ extracted      │
+├──────┼─────────────────┼────────────────┼────────────────┤
+│ W036 │ TB-0V:3         │ TB-0V:2        │ extracted      │
+├──────┼─────────────────┼────────────────┼────────────────┤
+│ W039 │ TB-0V:5         │ TB-0V:4        │ extracted      │
+├──────┼─────────────────┼────────────────┼────────────────┤
+│ W044 │ TB-0V:7         │ TB-0V:8        │ human          │
+├──────┼─────────────────┼────────────────┼────────────────┤
+│ W045 │ TB-0V:8         │ TB-0V:5        │ extracted      │
+├──────┼─────────────────┼────────────────┼────────────────┤
+│ W046 │ CR2:A2→TB-0V:9  │ CR1:11→TB-0V:9 │ human          │
+├──────┼─────────────────┼────────────────┼────────────────┤
+│ W050 │ TB-0V:10        │ TB-0V:9        │ human          │
+├──────┼─────────────────┼────────────────┼────────────────┤
+│ W062 │ TB-0V:12        │ TB-0V:10       │ extracted      │
+├──────┼─────────────────┼────────────────┼────────────────┤
+│ W069 │ TB-130:2        │ TB-130:1       │ human          │
+└──────┴─────────────────┴────────────────┴────────────────┘
+
+Can you clear it from the WebUI? Yes — by authoring the route again. Paths filteun, or re-trace it. for is rewritten with today's endpoints at that moment, andthe flag goes.
+
+But there is no one-press the route still holds, and for most of these that is what you actually want: W036's route is C0122, which lands on :2 — the ink was always right and only the label
+of what it was drawn for is stale. Re-lifting it is a workaround for a missing b
+
+That button is not in the plan and I think it should be. It is the exact analogut one file over: one press on a stale route that rewrites for and touches nothingelse, refused where the route no longer reaches both pins. Say the word and I will write it into plan 03 — it is small.
+
+The four hand-traced ones are different: W046, W050, W044 and W069 were drawn to the old screw, so those routes are probably wrong on the paper and want re-tracing rather than re-stamping.
+Your eyes, not a button.
+
+---
+
+Q3 — the restart is required, and the reason is a bug I can fix
+
+I found the cause rather than guessing at it:
+
+@lru_cache(maxsize=8)                      # server/app/drawing.py:40
+def load_circuit_logic(drawing_dir): ...
+
+The three authored files each clear their own cache when the server writes them — load_locations.cache_clear(), load_wiring.cache_clear(), load_corrections.cache_clear(). The generated
+netlist has no writer inside the server, so nothing ever clears its cache. You rning process keeps handing out the copy it read at startup. The restart is not aUI limitation; it is an un-invalidated cache.
+
+Three ways forward, and I would do the first two:
+
+1. Key the netlist cache on the file's mtime so it re-reads a regenerated artifact by itself. Ten lines and one server test. After that, the loop is run the commands, reload the browser — no
+   restart.
+2. One script you run instead of three lines — regenerate.sh in the extraction directory that runs author_circuit_logic.py, then build_kg.py, and prints what moved. Useful whether or not (1)
+   lands.
+3. A button in the WebUI that runs them. Possible, and deliberately refused today — main.py's own comment reads "This server does not run Python on request, and should not start now." The
+   objections are real: it turns a read-mostly viewer into a command runner, it enerator that raises REFUSED: mid-request is an awkward failure to report. Butwith (1) in place the objection mostly dissolves, because the result would be visible without a restart: a POST /api/regenerate behind the editor password, running a fixed script with no
+   user input, streaming the generator's own output into the banner. That is a d be happy to plan it.
+
+My recommendation: (1) + (2) now, (3) only if you still want it afterwards. Tell into the plan.
+
+---
+
+Q4 — why confirming an unchanged endpoint exists
+
+You are right about the file: it writes source: human, by and at, and nothing el
+
+source: index means nobody has looked at this. It is the indexing pass's guess, on a multi-point block that guess was allocated down the page rather than read.source: human means a person looked at these two terminals and took responsibility for them. Before this screen existed the file could not tell the two apart, so 47 wires are right and 47
+wires are unexamined looked identical — and there was no way to know which of th
+
+That is why the queue reads 0 of 71 the first time and not 47 of 71. You are cur— the 38 starting at W023 are the ones nobody has checked.
+
+One note on the gesture: clicking the proposal row and pressing I looked and it  record when the terminal does not change. The button is the intended control forthat case; the proposal row is for when you are moving an end. Use whichever, but the button says what you mean.
+
+---
+
+Q5 — Commoning is a list, not a queue that empties
+
+By design, and the code says so: "A block already commoned is in the list too: it is what you press to look at it again, and it keeps the filter from emptying under the click that finishes
+it."
+
+Membership is the ink, not the netlist — the only filter on the screen that is a if the shape rule finds two or more of its pins on one run, or if you havealready authored its bus. The count beside the filter is the progress number, not the length of the list.
+
+You have six authored: TB-0V, TB-110, TB-130, TB-24E1-A, TB-24E1-B, TB-GND-B. With seven rows showing, the undecided one is almost certainly TB-120 — C0092 is its bus and there is no record
+for it. Read the count beside the filter to confirm.
+
+---
+
+Q6 — yes, and the number is 71 of 71
+
+Measured: every one of the 71 wires has a route, and none is marked no path on t the one list on that screen that can reach zero, and you have emptied it. (Itstood at 59 on 2026-09-17.)
+
+---
+
+Q7 — a real gap, and the Drawing tab already does it
+
+On the Drawing tab, selecting a net paints its wires and the buses of the blocks its members sit on — pathsFor adds them.
+
+On the Locate tab, an armed net is painted by draftRuns, which gathers member wires' runs only. No bus. So you are seeing a genuine asymmetry between the two tabs, not a data problem.
+
+It is not in the plan and it is small: the same fix §4B already made for an armed component, which reads paths.commoning[block].runs out of the published index. For a net it is the block of
+each member terminal. This is the third time that same gap has appeared (pathsFonent; arming a block lit nothing; now this) — worth one line in the traps list aswell as a fix. Meanwhile: select the net on the Drawing tab and you will see the bus.
+
+---
+
+Q8 — you are right about the file, and there is a wire, and something needs undoing
+
+On author_circuit_logic.py: your reasoning is correct, and the consequence is the opposite of what you feared. That ("CR2:A2", "TB-0V:9", ...) row is never updated — not by the WebUI, not by
+running the generator. It does not need to be. The file's own header says so:
+
+▎ "a wire's two endpoints are now authored in wiring.json and this table's from/ack for a wire nobody has a record for."
+
+The table is what the indexing pass read off the printed callouts, kept as the h. wiring.json overrides it, every wire has a record, so the wrong row is inert.Nothing to correct there, and correcting it would destroy the evidence of what the machine got wrong. Your was field does the same job one level down.
+
+Now the part that needs your attention. The ink from TB-0V:7 to CR2:A2 is C0011, and the wire that belongs to it is W046 — measured 2026-09-08 and tabled: :7 … CR2:A2 C0011 → W046.
+
+But W046 now reads:
+
+W046   CR1:11 → TB-0V:9    was: ["CR2:A2", "TB-0V:9"]
+W050   TB-0V:9 → CR1:11
+
+You moved the CR2:A2 end instead of the TB-0V:9 end, and W046 and W050 now claimals. Two wires, one connection. Here is the whole block as the draft stands:
+
+┌───────────────────────────────────────────────────────────┬────────────┐
+│                           screw                           │ claimed by │
+├───────────────────────────────────────────────────────────┼────────────┤
+│ :1 W037 · :2 W036 · :3 W018 · :4 W039 · :5 W045 · :6 W042 │ ✓          │
+├───────────────────────────────────────────────────────────┼────────────┤
+│ :7                                                        │ nothing    │
+├───────────────────────────────────────────────────────────┼────────────┤
+│ :8 W044 · :9 W046 + W050 · :10 W062 · :11 W057 · :12 W067 │            │
+└───────────────────────────────────────────────────────────┴────────────┘
+
+One screw empty, one double-claimed, and one correction closes both.
+
+What to do — and it is yours to do, not mine:
+
+1. Locate tab → Wiring filter → W046.
+2. Put the end currently reading CR1:11 back on CR2:A2.
+3. Put the other end on TB-0V:7.
+
+was still holds ["CR2:A2", "TB-0V:9"] — it is stamped once and never overwritten not lose the machine's original guess. After that, W046's hand-traced route wasdrawn to :9 and will still read path may be stale; that one genuinely wants re-tracing along C0011.
+
+And W044 and W050 were right. Those two are not errors — they are the third piece of work the 2026-09-08 measurement left open: W044, W050 and W057 must be assigned to TB-0V:8, :9 and :11,
+and only your eyes can say which is which. You have put W044 on :8, W050 on :9 acomplete, consistent assignment — it just needs W046 off :9 to stop colliding with it.
+
+With that one correction, all eleven wrong screws are done.
+
+---
+
+What I would add to the plan, if you agree
+
+1. One-press the route still holds on a stale path (Q2) — the endpoint screen's I looked and it was right, for routes.
+2. mtime-keyed netlist cache so regenerating does not need a restart, plus a regptionally, the button.
+3. A net's block buses painted on the Locate tab (Q7), and a trap-list line about that recurring gap.                                                                                         
+None is big. Tell me which you want written into plan 03 and I will put them in as a document — about $16 of your funded budget remains, so I would write the amendment and stop there rather than start building.
