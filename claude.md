@@ -5,78 +5,89 @@ purpose — and then do §1 and nothing else.**
 
 ## 1. The request
 
-**Read `_claude_notes/goals_01.md`, then `_claude_notes/highlighting_wires_and_nets_03.md`, both
-whole. Then execute plan 03's §5 — Phase 3b — and stop there.**
+**Write a plan for a narrated, self-driving walkthrough of the `Ask` and `Drawing` tabs. Write it
+into `_claude_notes/narrated_walkthrough_01.md` and stop. Do not build it.**
+
+**Plans are documents first.** I read plans and execute them in separate sittings, and the plan is
+the cheap half. §7's budget is why: about **$16 of my funded $150 remains**, so a planning session
+is what fits and a building session is not.
 
 In my own words:
 
-> **I have three red banners I cannot clear from any screen, and my own authoring run is making
-> more of them.** When I correct a wire's far end, the end-label override I had set on the old
-> terminal is left behind — the wire does not touch that terminal any more, so the panel gives it
-> no row, no eye and no way back. **Give each orphan a row that says plainly the wire has left that
-> terminal, with one control on it: a reset.**
+> **I want to show this to people who have never seen it.** A panel on the screen with a button on
+> it, and pressing that button starts a walkthrough that **speaks to the visitor while it moves the
+> application** — switches tabs, presses the switches, selects a component, asks a question on the
+> `Ask` tab, and points at what the answer lights up. The two tabs I want shown are **`Ask` and
+> `Drawing`**, and that is deliberate: **they are the two that need no password**, so a visitor can
+> be handed the URL and nothing else.
 
-**Then stop.** **§4C, then §6, then §6A** are the sessions after this one; §7 and §8 are plans to
-write rather than code. **If §5 leaves room, take §4C's two *defects* as well and say that you
-did** — `Take it back` not reverting the slot (trap 28) and no way to force a wiring save. They are
-wrong behaviour in the same editor §5 touches, each is a failing test and a small fix, and plan 03
-§10 asks for them here rather than in a sitting of their own.
+### The thing to copy, and it already works
 
-Those two documents are self-contained. `goals_01.md` is the definition of done — the nine features
-I must be able to author and the eight things the model must be able to highlight. **§5's reading
-list is two line ranges and one function, read out of the files on 2026-09-15 and not re-checked
-since, so `grep -n` each before trusting it** — and remember **trap 10**: a panel's plumbing is
-three edits and `TargetPanel.tsx` is all three. Otherwise **trust the reading lists over your
-instinct to look around**; that instinct is what makes these sessions cost $100.
+`/home/js/aiken/ranger/Multi_CIP_Simulator.html` is mine and it does exactly this. **It is 114 KB —
+grep it, never read it.** Near the upper left there is a panel headed **`Guided tutorials`** with a
+button reading **`▶ The mission — close the multipool zones`**, and pressing it narrates a script
+while driving the simulator's own controls. The parts worth lifting, by line, measured 2026-09-26:
 
-**§5's count is authored data and it moves under you.** Three orphans on 2026-09-18 and a fourth
-coming from `W014`. **Compute the rows from `Object.keys(overrides)` against today's members; a
-test that asserts *three orphans* goes red the moment I correct that wire.** That is trap 4 and it
-has now bitten four times.
+| what | where | why it matters |
+|---|---|---|
+| the step schema | `~1146-1200` — `TOUR_SCRIPTS`, each step `{title, body (HTML), targets[], highlight[], actions[{kind,…}], cardPosition, holdMs}` | **the whole design is this object.** A step is prose plus a list of things to do to the page |
+| the engine's own header comment | `1127-1145` | says what it was adapted from and what it had to change, which is the honest shape of this port too |
+| narration | `~1686-1740` — `stepNarrationText`, `pickVoice`, and the `speechSupported` guard | **`window.speechSynthesis`: no server, no API key, nothing leaves the browser.** A 🔊/🔇 toggle, and the card flattens its own HTML body into the prose it speaks |
+| card, dim, spotlight, arrows | CSS `~164-232`, launcher markup `~249-252` | a draggable card, a step counter, `Esc` to exit, `▶ Play` to let it drive itself |
 
-**One phase per session.** When §5's acceptance criteria are met, write up what happened and stop,
-even if there is context left.
+### Three questions the plan has to answer, and they are the reason this is a plan and not a session
 
-**§4B shipped on 2026-09-19 and I walked it — it works.** With `Authored paths` on, clicking a
-painted route arms that wire's row and lights it on top of the field, clicking a painted bus arms
-its block and opens the commoning panel, and **with the field off every click still means *place***.
-**§4A shipped 2026-09-17** and is the same gesture on the Drawing tab. **Do not rebuild or extend
-either.** Their lesson document is `locate_tab_testing/21_tests_clicking_a_path.md` — one document,
-one feature, two tabs — which you **do not read**: a lesson document is the output of a phase, never
-its input. `H29` and `H30` in `06_code_map.md` are the reasoning, and **`H30` is worth reading
-before touching any handler on the Locate tab.**
+1. **What does the `Ask` tab do in a demo?** A real question costs real money — the per-turn cap is
+   **$1.50** and the daily ledger is shared with every other visitor. So: does the walkthrough
+   **ask live** (honest, expensive, and it can fail or time out in front of an audience), or
+   **replay a recorded turn** (free, repeatable, and it is no longer proof), or **ask one live
+   question and replay the rest**? **I have no fixed view. Recommend one and say what it costs.**
+   The archived turns on disk may already be the recording.
+2. **How does a vanilla-JS tour engine become a React one?** The simulator drives DOM ids directly.
+   This app is a **built bundle** over Zustand stores, and every gesture the walkthrough needs to
+   perform — select a designator, press a layer switch, fly the sheet, send a question — already
+   exists as a **store action**. **Driving the stores rather than synthesising clicks is almost
+   certainly right; say so or argue against it, and name the actions.**
+3. **Where does the script live?** A `steps[]` array in the bundle is simplest and needs a rebuild
+   to change a sentence. A JSON file the server serves is authorable. **The whole project's argument
+   is that a thing worth changing should not need a rebuild** — but a walkthrough is not the user's
+   data, so this one may genuinely be different. Decide, and say why.
 
-**Two things those two phases left me.** The slate colour is still unjudged (T-1450 — I will say if
-it is wrong). And `SelectionCard.tsx:274` still prints a route's `C####` list, which a path click
-puts on screen; that was left alone deliberately rather than demoted without my asking, and it is
-one prop and one line **if I ask**. Do not do it as a side effect of §5.
+### What to read, and what not to
 
-**What walking §4A found, which is now plan 03 §4C and `goals_01.md` §6A — read both, and solve
-only the two defects named above.** I followed the new card's link from `RECEPT1:4` to `W037`, read
-its record, and could see with my own eyes it was wrong; same for `W018` on the Locate tab. **Both
-reproduce a measurement made on 2026-09-08 to the screw** — 11 of 71 wires have their far end on the
-wrong screw because the vision pass *allocated* screw numbers down the page. **The corrections are
-mine to make and the screen already exists** (`15_tests_wiring_editor.md`, 2026-09-08); what §4C
-adds is a way to *find* the eleven and a way to say *why* I corrected one. **Do not make the
-corrections for me and do not retire anything** — I asked for that explicitly on 2026-09-18: *"These
-problems are exactly what I need to test the WebUI, learn what needs to be done and learn how to use
-it."* **List them, explain them, fix the screen — never do the run.**
+**Read:** this file · `_claude_notes/goals_01.md` **§5 only** — the eight things the model must be
+able to highlight, which is what the walkthrough's climax has to show · the `Multi_CIP_Simulator.html`
+line ranges above, by `sed -n`, **never the file** · `webui/src/features/drawing/DrawingTab.tsx`
+lines `70-150` (the five switches and what each draws) and `1082-1109` (**the tab's own help
+paragraph — it is already a written tour of that tab**) · `webui/src/features/ask/AskTab.tsx` whole,
+it is short · `webui/src/stores/` — `appStore` and `chatStore` only, for the actions a driver would
+call.
 
-**And working the first one found three more defects, all in plan 03 §4C and §6A.** `Take it back`
-leaves the slot showing the value it took back, which cost me an hour and a byte-identical save;
-there is no way to force a wiring save; and once `W018`'s endpoint was right **the path editor
-offered no candidate for it at all**, so I hand-traced ink whose three conductors the endpoint
-proposal had just named to me by id. The first two are this session's optional extra; **the third is
-§6A and it is not** — it wants a measurement before a line is written.
+**Do not read:** `geometry.json` (606 KB) · `circuit_logic.json` · `custom_kg.json` ·
+`_claude_notes/highlighting_wires_and_nets*.md` (the four of them come to ~280 KB; `_04` is the next
+*building* plan and is **not** this session's business) · `archive/change_history.md` ·
+`archive/authoring_the_wires.md`. **Everything large lives in `_claude_notes/archive/` since
+2026-09-26** — `ls` it before reaching for a path out of an older document.
 
-**§6 of plan 02 shipped on 2026-09-13 and I walked it — and then rejected it.** Do not rebuild it
-and do not defend it; §2 below says why in one sentence, and plan 03 §1 says it properly. Its code
-stays in the tree as a diagnostic, behind `?unclaimed=1`, and **§4A demoted the conductor *card* the
-same way, for the same reason.** The demotion pattern is settled and reusable and is written down in
-`H29`.
+**And one list that is worth more than it looks:** `_claude_notes/locate_tab_testing/locate_tab_instruction_and_test_manual.md`
+is the **index** of every testable behaviour in the application, one row per document, written for me
+to walk. **Grep it for the `Drawing` and `Ask` rows and you have the raw material for the script** —
+those rows are already *do this, expect that*. **Read the index; do not read the documents it
+indexes** — a lesson document is the output of a phase, never its input.
 
-*If I have found something while working since, I will say so in this session and that overrides the
-above. Otherwise §5 is the job.*
+### What the plan must contain
+
+The same shape as `_claude_notes/highlighting_wires_and_nets_04.md`, which is the house style: why
+it exists · the goal test · what exists that it reuses, **measured** · numbered phases, each with
+its own reading list, acceptance criteria and a dollar estimate · what is deliberately out ·
+order and budget · the token strategy · the traps · the documents to write · open questions to ask
+me **at the start** of the building session rather than the end.
+
+**And it must include the script itself, in prose** — the actual sentences the walkthrough speaks,
+step by step, for both tabs. That is the half I cannot write for you and the half that decides
+whether any of it is worth watching. **Write it as if it will be read aloud**, because it will be.
+
+**Then stop.** Do not write code, do not touch `webui/src/`, and do not start the server.
 
 ---
 
@@ -120,7 +131,9 @@ now exists on both screens.
 Within an hour I had followed the card's link from a terminal to `W037` and could see its record was
 wrong; the same for `W018`. **11 of my 71 wires have their far end on the wrong screw** — the vision
 pass *allocated* screw numbers down the page instead of reading them — and it was measured on
-2026-09-08 and tabled in `authoring_the_wires.md` §3.2 and §3.5. **Grep that file, never read it.**
+2026-09-08 and tabled in `archive/authoring_the_wires.md` §3.2 and §3.5. **Grep that file, never
+read it** — and **all eleven were corrected between 2026-09-18 and 2026-09-21**, so it is now history
+rather than a queue.
 The fix is a **one-end correction** on each, which keeps `was`; it is **not** a retirement and
 **not** a new wire, and it is mine to do. `goals_01.md` §6A and plan 03 §4C are the write-up.
 
@@ -130,12 +143,16 @@ between sessions.
 
 | | |
 |---|---|
-| `locations.json` | 131 placed terminals · 41 components at 47 sites · **59 wire routes, 17 hand-traced** · 113 end-label overrides on 56 wires |
+| `locations.json` | 131 placed terminals · 41 components at 47 sites · **71 of 71 wire routes, 19 hand-traced, 0 stale** · 114 end-label overrides on 56 wires, **0 orphaned** |
 | `label_corrections.json` | 654 decisions |
-| `wiring.json` | 71 records, **3 `source: human`** · **6 commoning blocks, 2 drawn by hand** |
-| the ink | 149 runs · 44 claimed by a route · 7 by a bus · 98 claimed by nothing |
-| `/api/paths`, which is what the sheet paints and what §4A clicks | **59 routes · 6 buses · 68 runs** (re-measured 2026-09-17, unmoved) |
-| wires whose far end the ink puts elsewhere | **11 of 71 provable, 13 unsettleable, 47 right** — measured 2026-09-08. **3 corrected, 8 left** on 2026-09-18; the table is plan 03 `§4C.0` and I am working it |
+| `wiring.json` | 71 records, **all 71 `source: human`** · **7 commoning blocks, 2 drawn by hand** |
+| the ink | 149 conductors · 515 labels · 98 symbols · **29 closed boxes nothing reads yet** |
+| `/api/paths`, which is what the sheet paints | **71 routes · 7 buses** (re-measured 2026-09-26) |
+| wires whose far end the ink puts elsewhere | **none left.** All eleven were corrected between 2026-09-18 and 2026-09-21; the last was `W046`, off `TB-0V:9` and onto `:7` |
+
+**The authoring run on this drawing is finished**, and it retired several planned phases as it went:
+plan 03's `§4C` reason field, its `§6A` chained candidate and the *route still holds* button all had
+a queue to serve on 2026-09-21 and have none now. **Their value is drawing number two.**
 
 Get any of those with a one-liner:
 
@@ -385,8 +402,10 @@ is how you answer it, and plan 03 §6 is the phase that needs it.
   need a number, get it with a `python3 -c` one-liner that prints a summary. On 2026-09-15 four
   one-liners answered every measurement question in this file for a few hundred tokens each; it is the
   single biggest saving available.
-- **Grep the big documents; do not read them.** `authoring_the_wires.md` (91 KB),
-  `change_history.md` (233 KB) and the two superseded plans are **lookup tables**, not reading. One
+- **Grep the big documents; do not read them.** `_claude_notes/archive/authoring_the_wires.md`
+  (91 KB), `archive/change_history.md` (233 KB) and the superseded plans in `archive/` are **lookup
+  tables**, not reading. **Everything large was moved into `_claude_notes/archive/` on 2026-09-26**,
+  so a path from an older document will miss — `ls _claude_notes/archive/` before grepping. One
   `grep -n "W018\|W037"` over the 91 KB returned the two rows that answered the hardest question of
   2026-09-17, for about 200 tokens. This is the cheapest habit in the file and it was not in it
   before.
@@ -468,14 +487,14 @@ ls -t ~/.claude/projects/-home-js-schematics/*.jsonl | head -1
 written means the reading list grew — cut the phase rather than push it through. A phase should land
 near $20 at ≤120 K context and ≤200 calls.
 
-**Say what the session cost at the end.** About **$33** of the $150 I funded remains, against plan
-03's **$62–106** for everything left in it. **So it does not fit, and saying so is the instruction
-being followed rather than bad news.** **§5 ($12–28) fits and nothing after it does**, on current
-prices, unless I fund more or a phase is cut — and §4C's two defects riding along inside §5's
-session is the cheapest thing left in the plan. **Tell me at the start of a session if you think the
-phase in §1 will not fit**, and tell me if you think it should be cut rather than squeezed. **And
-end each session in the write-up, not in a conversation** — the discussion after §4A cost $13, which
-is most of a phase.
+**Say what the session cost at the end.** About **$16** of the $150 I funded remained on
+2026-09-24, against **$123–203** for the whole of `highlighting_wires_and_nets_04.md`. **So the
+building work does not fit, and saying so is the instruction being followed rather than bad news.**
+**A planning session fits and a building session does not**, on current prices, unless I fund more
+or a phase is cut — which is why §1 asks for a document. **Tell me at the start of a session if you
+think the work in §1 will not fit**, and tell me if you think it should be cut rather than squeezed.
+**And end each session in the write-up, not in a conversation** — the discussion after §4A cost $13,
+which is most of a phase.
 
 ---
 
@@ -495,14 +514,20 @@ is most of a phase.
    **Say at the end of your session which files want committing**, and remember that anything I author
    while walking your lessons lands in the same commit as your code unless I am told to separate them.
 
-   *Currently uncommitted and known, 2026-09-19:* **nothing.** `13d63cc — After executing plan 03's
-   §4B` carries that phase's code and documents, `git status --short schematic_extraction/` is empty,
-   and `W018`'s correction and everything before it is committed. **You are starting from a clean
-   tree, so anything `git status` shows you is either yours or something I did after this line was
-   written.** **I am working the other eight wrong screws now, so
-   `locations.json` and `wiring.json` will move under you** — re-read rather than trusting a count
-   you took at the start, and expect `circuit_logic.json` to be ahead of or behind them depending on
-   when I last ran the generator.
+   **A fifth is planned and does not exist yet:** `objects.json` — *what each thing is, and whether
+   it exists at all* — is `highlighting_wires_and_nets_04.md` `§4`. When it arrives it joins this
+   list, and `author_circuit_logic.py` becomes the **historical** record rather than my data: the
+   `Ask` tab's prompt has been warned by name since v1.3 that its wire table is the machine's
+   superseded guess.
+
+   *Currently uncommitted and known, 2026-09-26:* the three extraction files
+   (`locations.json`, `wiring.json`, `circuit_logic.json`) carry my finished authoring run — all 71
+   wires confirmed, all 71 routed, the last wrong screw (`W046`) corrected — and want committing
+   together. `a71e830 — Schematic and data files agree.` is the last commit. **My authoring run on
+   this drawing is done, so unlike every previous session these files should now hold still under
+   you** — but re-read rather than trusting a count you took at the start, and expect
+   `circuit_logic.json` to be ahead of or behind the other two depending on when I last ran the
+   generator.
 
 3. **Tell me afterwards** which files I asked you to read that did not earn their tokens, and which
    files you needed that I did not name. I use it to rewrite this file — traps 10 to 15 came from
@@ -531,18 +556,23 @@ is most of a phase.
 
 The things a session might otherwise be, in the order I would want them:
 
-1. **Plan 03's remaining phases, in this order** — **§5** the orphaned end-label rows, **§4C**
-   the wrong far ends (**its two defects should ride inside §5's session**), §6 the extractor's
-   layer fix, §6A the chained candidate. **I reordered §5 ahead of §4C on 2026-09-18** because my
-   own run is creating banners I cannot clear, while §4C's *find them* half is already done — I have
-   the list. All specified; none needs new design. §4 shipped 2026-09-15, §4A on 2026-09-17 and §4B
-   on 2026-09-19.
-2. **Plan 03 §7 — a screen for `author_circuit_logic.py`.** Notes, whether a terminal or component
-   *exists*, and **which net a terminal is on**, which is the sharpest gap in the whole surface because
-   net membership is what the highlight paints. It **wants a plan, not a session**, and it becomes
-   urgent on drawing two.
-3. **Plan 03 §8 — cables, label and symbol binding, and widening the citation loop** so an answer can
-   paint a note or a cable. After §7, because §7 is what creates the ids. **A plan, not a session.**
+1. **`_claude_notes/highlighting_wires_and_nets_04.md`, in its own order** — the fifth authored
+   file and the generator's fold (`§4`), then the five marks painted (`§6`), then the netlist screen
+   (`§5`), the mark editor (`§7`), label binding (`§8`), the citation loop (`§10`) and symbols last
+   (`§9`). **That document is self-contained and carries everything in this file that a building
+   session needs**, so it can be executed with nothing else open. Its `§12` offers a **$45–70
+   end-to-end slice** if the whole thing is not funded. **Plan 03 is finished** — every phase in it
+   shipped or was retired by my own authoring run — and is a **grep target, never a read**.
+2. **Two small things still live and still mine to have asked for.** The netlist cache is never
+   invalidated (`server/app/drawing.py`'s `@lru_cache load_circuit_logic`, ~ten lines and one test),
+   so regenerating `circuit_logic.json` needs a server restart; and a `regenerate.sh` in the
+   extraction directory would replace the three commands I type by hand. **I said on 2026-09-25 that
+   these are only worth the tokens if together they remove the restart**, so do them as a pair or
+   not at all.
+3. **The extractor's layer-`"0"` fix** — plan 03 `§6`, still unbuilt, one short session. 41 lines of
+   ≥6 pt on PDF layer `"0"` never became conductors and 16 of them land on placed terminals. Fix
+   `extract.py`, **do not re-extract** — a re-extraction renumbers every `C####`. Needs
+   `/home/js/schematics/.venv/bin/python`, the only venv with `pymupdf`.
 4. **Drawing number two.** `schematic_skills/scripts/bootstrap_wiring.py` exists and has never been
    pointed at a drawing. It is the test of everything above and **wants a plan, not a session.**
 5. **Something I have found while working.** Most likely I do not understand how to use what you have

@@ -47,6 +47,7 @@
  */
 
 import type { Conductor, Designator, LocationsDocument, PathIndex, Polyline } from '@/api/types'
+import { blocksOf } from '@/lib/paths'
 import { storedLabel } from './model'
 
 /**
@@ -406,6 +407,21 @@ function suspect(conductor: Conductor): boolean {
  * `lib/paths.ts` `pathsFor` is the union rule and stays the union rule: this reads the same map for
  * a net's membership and only overrides what the draft has an opinion about. Two copies of *what is
  * net 120 made of* is exactly the drift that file exists to prevent.
+ *
+ * **A net's block buses come with it, since 2026-09-25**, and that is the whole of the asymmetry
+ * the user found: selecting a net on the Drawing tab painted its members' routes **and** the buses
+ * of the blocks those members sit on, because `pathsFor` adds them; arming the same net over here
+ * painted the routes alone, so the commoning a reader could see on one tab vanished on the other.
+ * It is the **fourth** appearance of one gap — `pathsFor` returning null for a component, arming a
+ * block lighting nothing (`§4B`), the `§4A` card's `runs={onPath?.runs ?? path?.runs}`, and now
+ * this — and the shape is always the same: *what runs belong to this row* has an answer that is not
+ * a wire's.
+ *
+ * **A wire still paints no bus**, which is the rule `pathsFor`'s header argues and not an omission:
+ * `C0092` is `TB-120`'s commoning and was mistaken for the second half of `W063`'s route for a
+ * week. Blocks are read from the **published index** (`H18`) — a route's draft is
+ * `locations.json`'s and a bus's is `wiring.json`'s, and one overlay holding both drafts is the
+ * crossing that hazard exists to prevent.
  */
 export function draftRuns(
   document: LocationsDocument,
@@ -420,6 +436,12 @@ export function draftRuns(
     const drafted = storedLabel(document, wire)?.path?.runs
     const saved = paths?.wires[wire]?.runs
     for (const run of drafted ?? saved ?? []) runs.push(run)
+  }
+  // Membership is the entry's own — `/api/designators` publishes what a net is made of — so this
+  // needs no new prop and no second endpoint, and `blocksOf` is `lib/paths.ts`'s own.
+  const blocks = entry.kind === 'net' ? blocksOf((entry.terminals ?? []).map((m) => m.id)) : []
+  for (const block of blocks) {
+    for (const run of paths?.commoning?.[block]?.runs ?? []) runs.push(run)
   }
   return runs
 }

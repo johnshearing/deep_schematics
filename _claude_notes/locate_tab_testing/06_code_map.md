@@ -1439,3 +1439,43 @@ with — takes **`H32`**. `H31` went to the phase that shipped first, which is h
    information and the queue's job is to get smaller. Owners: `features/review/model.ts`
    `setCorrection`, `label_corrections.py` `_correction` (which refuses `""`, the shape that would
    blur the two).
+
+
+---
+
+### H32 — one union rule, two overlays, and the gap that has now appeared four times *(added 2026-09-25)*
+
+**It takes `H32`, which plan 03 `§13` had reserved for `§4C`'s hazard.** `§4C` was retired by the
+user's own authoring run — all eleven wrong screws were corrected between 2026-09-18 and 2026-09-21
+— so the number was free and this is what earned it.
+
+**The question with two answers.** *What runs belong to this row?* is asked by four different pieces
+of code, and **for a wire the answer is its route, while for anything else it is not**:
+
+| where | it asked about | and it got |
+|---|---|---|
+| `pathsFor` (`lib/paths.ts`) | a **component** | `null` — so selecting a block painted nothing |
+| the `§4A` card | a bus clicked on the sheet | nothing, until `runs={onPath?.runs ?? path?.runs}` |
+| the `§4B` arming | a **component**, which is how a bus is reached | nothing, until the `runs` memo read `paths.commoning[id]` |
+| `draftRuns` (`features/locate/paths.ts`) | a **net** | its wires' routes and **not its blocks' buses** — 2026-09-24 |
+
+**Four appearances, one shape.** A route is `locations.json`'s and a bus is `wiring.json`'s, and any
+overlay that answers for both has to reach into two authored documents — which `H18` forbids doing
+through two *drafts*. The way through is the one `/api/paths` was built for: **the published index
+is a single source that already holds both**, needs no password (`H20`), and is refreshed after
+every save.
+
+**The fix that generalises**, and the reason `blocksOf` moved rather than being copied:
+
+    // lib/paths.ts — exported 2026-09-25
+    export function blocksOf(terminals: readonly string[]): string[]
+
+`pathsFor` and `draftRuns` are the two overlays that answer *what does this net paint*, on the two
+tabs. **They now share the sentence *a net's blocks are the blocks its member terminals sit on*
+rather than each holding a copy of it.** `lib/` may not import from `features/`, so the export had
+to go this direction — the same constraint that forced `PICK_PT` to move in 2026-09-17.
+
+**Expect it a fifth time.** Anything added to this application that answers *what runs belong to
+this row* — a cable, a note, a symbol, anything `highlighting_wires_and_nets_04.md` adds — starts
+with a wire's answer and needs the other one written in. **Check the non-wire kinds before calling
+such a feature done.**

@@ -1,4 +1,4 @@
-# The goals, and what exists against them — 2026-09-15, revised 2026-09-17 (twice: `§4A` shipped, and §6A found) and 2026-09-19 (`§4B` shipped)
+# The goals, and what exists against them — 2026-09-15, revised 2026-09-17 (twice: `§4A` shipped, and §6A found), 2026-09-19 (`§4B` shipped) and **2026-09-24** (`§5` shipped 2026-09-19 with `§4C`'s two defects; the whole wiring queue is now `source: human`, all 71 wires have a route, and there are 0 stale routes and 0 orphaned overrides)
 
 Written after the user walked `locate_tab_testing/19_tests_coverage_overlay.md` and **rejected the
 unclaimed-conductor overlay as a human-facing feature.** This document is the report of that
@@ -138,6 +138,86 @@ nothing to cite.**
 
 ---
 
+## 5A. The rest of the authoring surface, and five ways to mark a thing — asked for **2026-09-25**
+
+**The user's own words, because this is the request and not a summary of it.**
+
+> *"I think at some point I will need the ability to add, edit, delete, retire, and position the
+> following: Notes, Components, Terminals, Wires, Paths, Labels, Symbols."*
+>
+> *"this work is already complete for wires and paths. And this work does not apply to Nets, and
+> Path_nets because these are derived from the Wires and the Paths. So that means we only need to
+> enable authoring for Notes, Components, Terminals, Labels, and Symbols. This will allow a human
+> to insert these features on the drawing in case the ai misses them during the indexing process,
+> and it also allows the human to make changes to the drawing in the case that the actual circuit
+> in the real world has been modified."*
+>
+> *"Also, I will need the ability to draw bounding boxes, polylines, circles, and eclipses around
+> Notes, Components, Labels, and Symbols. Then you (the ai model) can use these shapes to highlight
+> these features on the drawings when you provide your answers in the same way that you already
+> highlight polylines for Paths and Path_nets."*
+>
+> *"Currently we are marking components with a blue dot surrounded by a circle which we place on or
+> near the component. This works well for identifying small components such as relay coils and
+> relay contacts but for larger components it would be better to mark these with bounding boxes,
+> enclosing polylines, circles, or ellipses. So we need the ability to mark and highlight
+> components in 5 possible ways: Bounding boxes, Enclosing Polylines for oddly shaped Components,
+> Circles, Ellipses, or Blue Dots surrounded by a Circle. It seems reasonable to make it possible
+> to highlight Notes, Labels, and Symbols by using the same 5 methods."*
+>
+> *"With regard to Symbols, we will need a way to draw these onto the schematic, and we will need a
+> way to highlight these Symbols in much the same way that we are already highlighting paths. To
+> this end, it might be good to give the user access to a pallet of shapes that you might find in
+> any drawing application such as Paint."*
+
+**This is `highlighting_wires_and_nets_04.md`**, written 2026-09-26 and self-contained. It absorbs
+plan 03's `§7` and `§8`, which were always *plan documents, not sessions*, and adds the five marks,
+which are new. **Plan 03 is finished and is a grep target, never a read.**
+
+### One correction to the framing, and it is the sharpest gap in the whole surface
+
+The user wrote that this does not apply to nets *"because these are derived from the Wires and the
+Paths."* **Half right.**
+
+- **`path_nets` are derived and must stay derived** — the union rule is `pathsFor` (`lib/paths.ts`),
+  and `draftRuns` reads the same map since 2026-09-25. Row 7 of §4 has said so since 2026-09-15.
+  **Nothing to build.**
+- **A net's *membership* is not derived from wires.** It is the `net` field on each **terminal**, in
+  `author_circuit_logic.py`. Two terminals are on one net because a person typed the same net name
+  against both, and today a net a reader can see is wrong can only be fixed in a **Python file** —
+  which is row 6 of §4 and has been the sharpest gap since this document was written.
+
+**So the user's instinct is right and nets need no screen of their own: the way you author a net is
+by setting the `net` field on a terminal.** Net membership arrives as part of *what a terminal is*,
+which is plan 04 `§5`.
+
+### Three measurements that make this smaller than it looks — taken 2026-09-26
+
+| | |
+|---|---|
+| **every printed label already has a `bbox`** | all **515** of them. So lighting a printed label needs **no new geometry** — only a **binding** from `T0031` to *whose name this is*. Plan 04 `§8` |
+| **the extractor already found 29 closed boxes with ids** | `boxes[]` in `geometry.json`, `{id: "B####", bbox, closed: true}`, and **nothing in the application reads them.** So a component's bounding box is **proposable from the ink** rather than drawn from scratch — rank it, show it, let a person accept it, never auto-accept. Plan 04 `§7` |
+| **a symbol is already a circle** | 98 of them, `{id: "S####", kind, center, diameter}` — 88 `terminal_point`, 10 `device_circle`, **no oval and no rotation.** So the extracted symbols are paintable today with a `circle` mark; only **person-drawn** symbols need the palette. Plan 04 `§9` |
+
+The 128 `rects[]` are **not** useful — mostly 1.6 × 3.5 pt glyph and furniture artifacts, and they
+carry no ids. Do not chase them.
+
+### What the marks cost, in one line
+
+**One `Mark` schema with five kinds — `dot`, `box`, `circle`, `ellipse`, `polygon` — one renderer,
+one editor, and one new section in `locations.json` keyed `"<kind>:<id>"`.** `dot` is today's blue
+dot in a circle, unchanged and still right for a relay coil. **And it hands `path_cables` over for
+free**: row 6 of §5 has been waiting for *the oval has no geometry, so a cable boundary is a shape a
+person draws*, and that shape is `marks["cable:CABLE-POWER-IN"]`.
+
+**A person-drawn symbol is an annotation over the paper and never a claim about what is printed** —
+`geometry: "human"`, the same honesty a hand-traced path and `TB-130`'s hand-drawn bus already
+carry. What stays forbidden is inventing ink and calling it **extracted**, which has been struck
+three times and has not moved.
+
+
+---
+
 ## 6. The special case — one wire bridging two nets
 
 The user's question: *do the authoring goals need to know about this, or does what we are already
@@ -219,13 +299,13 @@ way back found two wrong records. **The click is an instrument, not a convenienc
 | # | Item | State | Carried by |
 |---|---|---|---|
 | 1 | **All authored paths painted at once**, on the Locate tab, one colour, toggled, with *n of m wires have a route* beside it — and `Unclaimed ink` off the toolbar in the same change | **built 2026-09-15**, walked | plan 03 `§4` · `20_tests_all_paths_overlay.md`, T-1450–T-1459 · `H28` |
-| 1a | **Clicking the ink on the Drawing tab answers *whose path is this***, in a card at the lower right, with the path highlighted — and **says nothing at all** where there is no path, which is how the reader learns one is needed. The conductor card joins the conductor overlay as a diagnostic | **built 2026-09-17**, awaiting the walk | plan 03 `§4A` · `21_tests_clicking_a_path.md`, T-1500–T-1507 · `H29` |
+| 1a | **Clicking the ink on the Drawing tab answers *whose path is this***, in a card at the lower right, with the path highlighted — and **says nothing at all** where there is no path, which is how the reader learns one is needed. The conductor card joins the conductor overlay as a diagnostic | **built 2026-09-17**, walked | plan 03 `§4A` · `21_tests_clicking_a_path.md`, T-1500–T-1507 · `H29` |
 | 1b | **Clicking a painted path on the Locate tab arms that wire's row** and highlights it, so the drawing is the index into the queue rather than the list. `Authored paths` is the mode, so with the field off every click still means *place* | **built 2026-09-19**, walked | plan 03 `§4B` · `21_tests_clicking_a_path.md`, T-1520–T-1526 · `H30` |
-| 1c | **Finding the eleven wires whose far end the ink disagrees with, and saying *why* you corrected one** — the verdict is already computed per end; what is missing is a filter, a reason field and a colour | **not built**, specified 2026-09-17 | plan 03 `§4C` — half a session, **second**; its two *defects* are small enough to ride with `§5` · §6A above |
-| 2 | **The orphaned end-label rows** — the last hole in an otherwise complete surface. **Three banners nobody can clear on 2026-09-18, a fourth coming**, and the authoring run is what creates them: correcting a wire's far end orphans any end-label override on the old terminal | **not built**, fully specified | plan 03 `§5` — half a session, **next**, moved up 2026-09-18 |
+| 1c | **Finding the eleven wires whose far end the ink disagrees with, and saying *why* you corrected one** — the verdict is already computed per end; what is missing is a filter, a reason field and a colour | **its two defects done 2026-09-19**, its three gaps **not built** | plan 03 `§4C` · the defects rode inside `§5`'s session as planned: the `wiring` badge now carries a **`Save`** button (T-1555), and **`Take it back` did not reproduce** — written as a failing test through both gestures and it passed unchanged, so T-1550 stands as a guard and trap 28 is unproven on this tree. **Still to build: the `Ink disagrees` filter, the reason-in-words field on a correction, and the colour** · §6A above |
+| 2 | **The orphaned end-label rows** — the last hole in an otherwise complete surface. **Three banners nobody can clear on 2026-09-18, a fourth coming**, and the authoring run is what creates them: correcting a wire's far end orphans any end-label override on the old terminal | **built 2026-09-19**, walked | plan 03 `§5` · `10_tests_end_labels.md`, T-1530–T-1545 · `H31`. The three banners were cleared by the user and **`Object.keys(overrides)` against today's members returns 0 orphans on 2026-09-24** — the rows are computed, so `W014` created a fourth and it cleared the same way |
 | 3 | **The extractor's layer fix**, without re-extracting — re-justified: the candidate list is missing 16 runs that land on placed terminals, which is why six coil wires must be hand-traced | **not built** | plan 03 `§6` — one short session |
-| 4 | **A screen for `author_circuit_logic.py`** — notes, component existence, terminal existence, **net membership**. A fifth authored input the generator folds in, with the `H25` treatment | **not built** | plan 03 `§7` — **a plan document, not a session** |
-| 5 | **Cables, label and symbol binding, and widening the citation loop** so an answer can paint a note or a cable | **not built** | plan 03 `§8` — **a plan document**, after item 4 |
+| 4 | **A screen for `author_circuit_logic.py`** — notes, component existence, terminal existence, **net membership**. A fifth authored input the generator folds in, with the `H25` treatment | **not built**, **planned 2026-09-26** | **plan 04 `§4` and `§5`** — the plan document exists now: `highlighting_wires_and_nets_04.md`. `§4` is the fifth file and the generator's fold, `§5` is the screen. **$38–62, two sessions** |
+| 5 | **Cables, label and symbol binding, and widening the citation loop** so an answer can paint a note or a cable | **not built**, **planned 2026-09-26** | **plan 04 `§6`–`§10`** — the five marks (`§6`, `§7`), label binding (`§8`), symbols and the palette (`§9`), and the citation loop (`§10`), which is what all of it was for. **$85–141**. `§12` of that plan carries the cheapest end-to-end slice, at $45–70 |
 
 **Already done, and not to be redone:** per-object highlighting of components, terminals, wires and
 nets; the wiring queue (add, correct, retire); the path editor (lift, add a run, trace, drag,

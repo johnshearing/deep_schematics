@@ -34,9 +34,11 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Conductor, Designator } from '@/api/types'
+import { emptyDocument } from './model'
 import {
   candidates,
   chordOf,
+  draftRuns,
   endsOf,
   lengthOf,
   netNames,
@@ -379,6 +381,50 @@ describe('the arithmetic the panel shows', () => {
     expect(netOf(paths, 'W049')).toBe('130')
     expect(netOf(paths, 'W001')).toBeNull()
     expect(netOf(null, 'W053')).toBeNull()
+  })
+
+  /**
+   * **T-1560 — a net arms with its blocks' buses, the same as it selects with them.**
+   *
+   * Found by the user on 2026-09-24: selecting net `120` on the **Drawing** tab paints its wires
+   * *and* `TB-120`'s bus, because `pathsFor` adds the blocks its member terminals sit on; arming
+   * the same net on the **Locate** tab painted the wires alone. One net, two tabs, two different
+   * answers to *what is this net made of* — and the reader who had just seen the bus on one screen
+   * watched it vanish on the other.
+   *
+   * `blocksOf` is `lib/paths.ts`'s own, exported rather than copied: a second implementation of
+   * *which blocks does this net touch* is `H18`'s drift, and the import direction is the one
+   * `lib/` allows (trap 22).
+   */
+  it('paints a net’s block buses as well as its wires’ routes', () => {
+    const doc = emptyDocument('PS20115MLM4-2', [1224, 792])
+    const BUS: [number, number][] = [[300.1, 563.3], [300.1, 663.7]]
+    const paths = {
+      wires: { W052: { runs: [C0109.points] }, W053: { runs: [C0080.points] } },
+      nets: { '120': ['W052', 'W053'] },
+      commoning: { 'TB-120': { runs: [BUS] } },
+    } as unknown as Parameters<typeof draftRuns>[1]
+
+    const net = {
+      id: '120',
+      kind: 'net',
+      label: '120',
+      on_sheet: true,
+      members: [],
+      point: null,
+      rect: null,
+      terminals: [
+        { id: 'TB-120:1', point: [300.1, 563.3], placement: 'confirmed' },
+        { id: 'TB-120:3', point: [300.1, 663.7], placement: 'confirmed' },
+        { id: 'CR2:14', point: [236.1, 563.4], placement: 'confirmed' },
+      ],
+    } as unknown as Designator
+
+    expect(draftRuns(doc, paths, net)).toEqual([C0109.points, C0080.points, BUS])
+
+    // **A wire still paints no bus**, which is the rule and not an omission: `C0092` is
+    // `TB-120`'s commoning and was mistaken for the second half of `W063`'s route for a week.
+    expect(draftRuns(doc, paths, W052)).toEqual([C0109.points])
   })
 
   it('holds the tolerance at half a conductor row', () => {

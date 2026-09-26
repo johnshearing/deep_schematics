@@ -374,3 +374,45 @@ designator list had in Session 3, and worth a minute if you have one.
   `Q17`), because `ink.py` does not load the polylines until `/api/conductors` needs them.
 
 What *is* here is the thing all of it was for: the sheet can show you a wire.
+
+
+---
+
+## T-1560 · An armed net paints its blocks' buses too — **both tabs now agree**
+
+**Do.** Locate tab, unlock, press the **`Nets`** filter and arm a net whose members sit on a
+terminal block — `0V`, `110`, `120` and `130` all do. Then press `F2`, select the **same** net on
+the Drawing tab, and compare.
+
+**Expected.** The two tabs paint **the same thing**: every member wire's route *and* the bus of
+every block those members sit on. Read the blocks off the file rather than off this page:
+
+```
+cd schematic_extraction/PS20115MLM4-2/extracted_docs && python3 -c "
+import json
+cl=json.load(open('circuit_logic.json')); wj=json.load(open('wiring.json'))
+for n in cl['nets']:
+    blocks={t.split(':')[0] for t in n.get('member_terminals',[])} & set(wj.get('commoning') or {})
+    if blocks: print(n['id'], sorted(blocks))
+"
+```
+
+**Why this test exists.** The user found the asymmetry on **2026-09-24**: selecting a net on the
+Drawing tab painted its blocks' buses, because `pathsFor` adds them; arming the same net on the
+Locate tab painted the member wires' routes alone, because `draftRuns` gathered only wires. **One
+net, two tabs, two different answers to *what is this net made of*** — and the reader who had just
+seen the bus on one screen watched it vanish on the other.
+
+Fixed 2026-09-25 in `features/locate/paths.ts` `draftRuns`, by reading the blocks out of
+`/api/paths`'s published `commoning` map — **never from the wiring draft** (`H18`) — with
+`blocksOf` **exported** from `lib/paths.ts` rather than copied, because a second implementation of
+*which blocks does this net touch* is exactly that hazard's drift. Membership comes off the armed
+entry itself, which `/api/designators` already publishes, so there was no new prop and no new
+endpoint.
+
+**And a wire still paints no bus**, which is the rule and not an omission: `C0092` is `TB-120`'s
+commoning and was mistaken for the second half of `W063`'s route for a week. **If arming a wire
+lights a block's bus, that is a real fault.**
+
+`H32` in `06_code_map.md` is the reasoning, and the unit test is `paths.test.ts`,
+*"paints a net's block buses as well as its wires' routes"*.

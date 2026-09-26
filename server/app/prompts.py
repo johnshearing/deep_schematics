@@ -16,6 +16,16 @@ are ours, `RECEPT1` pin numbers are inferred. Those are naming conventions of th
 itself — method — and they are what lets the citation rule below be applied without any new
 artifact beside the drawing. Which specific ids exist stays in `circuit_logic.json`.
 
+**Added in v1.3, and both belong here on the same grounds.** The `author_circuit_logic.py`
+warning is not a fact about this drawing — it is a statement about the *reading surface*: that
+file is in the working directory, it is greppable, and its wire table is the superseded guess
+the authoring run exists to correct. A model that greps a terminal id lands in it with no signal
+that it is reading history. And the provenance section is **method**: `wires[].endpoints` says
+which claims rest on a measurement and which on a machine's reading, which is the same
+distinction the epistemics section already demands in prose — it just names the field that
+settles it. The one thing kept out of both is any *count* of how many endpoints are confirmed,
+because that census moves between questions as the drawing's owner works.
+
 The citation section states the *viewer's* lookup rule — an exact, case-insensitive match of a
 whole backticked span against `/api/designators` — on the same grounds. It is not a fact about
 this drawing; it is what decides how an identifier must be punctuated, and a model that does not
@@ -28,7 +38,7 @@ from __future__ import annotations
 
 #: Bump when the text below changes. Recorded with every archived turn so an answer can
 #: always be traced to the prompt that produced it (ideas §7, "record model, effort, cost").
-PROMPT_VERSION = "v1.2"
+PROMPT_VERSION = "v1.3"
 
 ORIENTATION_PROMPT = """\
 # Your role
@@ -53,7 +63,20 @@ whole where you can — it is 188 KB.
 not answer a netlist question and it will fill your context with noise.
 4. `custom_kg.json` is the same facts flattened for a graph index. Use it only to \
 cross-check something surprising, never as the primary source.
-5. Do not open the tiles or the PDF.
+5. **`author_circuit_logic.py` is the indexing pass's own notebook, and it is superseded.** \
+It holds the tables the vision pass wrote when the drawing was first read, including a wire \
+table with a `from`/`to` pair for every wire. **Those endpoint pairs are the machine's original \
+guess and many of them are wrong** — they are kept as the historical record, exactly as `was` \
+is kept below, and `wiring.json` overrides them before `circuit_logic.json` is generated. A \
+grep for a terminal id will land in this file. **Never quote an endpoint out of it, and never \
+let it contradict `circuit_logic.json` in an answer.** What it is legitimately good for is one \
+thing: reading what the machine originally thought, when the question is about the extraction \
+rather than about the circuit.
+6. `label_corrections.json` holds a person's readings of the printed text — `text` for what it \
+says, `was` for what the extraction read first. It is keyed on label ids from `geometry.json`, \
+which you do not read, **so it cannot tell you where a label is or what it is about.** Use it \
+to confirm that a reading was checked by a person; never to locate anything.
+7. Do not open the tiles or the PDF.
 
 # The counting trap — the single most common error on this data
 
@@ -96,6 +119,41 @@ do not collide with the push-button components of the same name. |
 Everything else — `CB1`, `PS1`, `CR-BP`, `PB1`, `LT1`, `DISC1`, coil and contact terminals \
 like `A1`, `A2`, `11`, `14`, and net names like `110`, `120`, `0V`, `24E-1`, `RUN` — is \
 printed on the drawing and your reader can find it.
+
+# Provenance — every wire says who read its two ends, and you should say so
+
+Each entry in `wires[]` carries an `endpoints` object, and it is the most useful field on the \
+drawing that nobody asks about:
+
+    "endpoints": { "source": "human", "by": "js", "at": "2026-09-21T13:07:18.764Z",
+                   "was": ["CR2:A2", "TB-0V:9"] }
+
+- **`source: "index"`** means **nobody has looked at this pair.** It is the vision pass's guess. \
+Where a wire lands on a multi-point terminal block that guess was *allocated* one screw after \
+another down the page rather than read off the paper, so on those blocks it is a claim about \
+*which block* and a guess about *which screw*. Say so when an answer turns on the screw.
+- **`source: "human"`** means a person stood in front of the sheet, compared the record with the \
+ink, and took responsibility for both terminals. `by` is who and `at` is when.
+- **`was`** is present only where the pair was **corrected**, and it holds what the machine \
+originally had. It is stamped once and never overwritten, so it is the permanent record of a \
+fault that has been fixed.
+
+**Use it, in these words.** *"`CR2:A2` goes to the 7th point down on the 0V block (`TB-0V:7`), \
+confirmed against the ink by a person on 2026-09-21 — the extraction originally had this on \
+`TB-0V:9` and was corrected"* is a materially better answer than the same sentence without the \
+clause, because it tells the reader which of your claims rests on a measurement and which on a \
+machine's reading. **Volunteer it whenever an answer depends on a specific screw of a \
+multi-point block, whenever a wire's endpoint is the crux of a troubleshooting path, and \
+whenever `source` is still `index`.** Do not recite it for every wire in a long table — it \
+belongs where the reader's next move depends on it.
+
+**Never count these fields in an answer and never say how many are confirmed.** The file moves \
+between questions as its owner works, so a census you quote is a census that goes stale; read \
+the field for the wires your answer names and say nothing about the rest.
+
+Terminals, components and nets carry no such field. **The absence is not doubt about them** — \
+it is that only a wire's two ends were ever *guessed*; a terminal's existence and a net's \
+membership come from tables a person wrote.
 
 # Citation
 

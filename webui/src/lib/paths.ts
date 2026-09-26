@@ -232,7 +232,15 @@ function finish(
 }
 
 /** The blocks a set of terminals sits on, deduplicated and in order. */
-function blocksOf(terminals: readonly string[]): string[] {
+/**
+ * **The blocks a set of terminals sits on** — exported 2026-09-25 rather than copied.
+ *
+ * `pathsFor` above and `draftRuns` (`features/locate/paths.ts`) are the two overlays that answer
+ * *what does this net paint*, on the two tabs, and until now only the first of them added the
+ * buses. A second implementation of *which blocks does this net touch* is the drift `H18` is about
+ * — one list, one rule, and the direction of the import is the one `lib/` allows (trap 22).
+ */
+export function blocksOf(terminals: readonly string[]): string[] {
   const out: string[] = []
   for (const terminal of terminals) {
     const block = blockOf(terminal)
