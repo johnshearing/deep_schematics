@@ -1,0 +1,45 @@
+# 28 · Tests: *Talk me through it*, an answer read aloud on the Drawing tab
+
+**T-1600–T-1665, created 2026-09-26** from `talkthrough_01.md`. **Needs no password. Client
+only: rebuild the bundle (`cd webui && npm run build`), do not restart the server.**
+
+Under every finished answer on the `Ask` tab there is now a **`Talk me through it`** button. It
+switches to the `Drawing` tab, opens a small palette at the top right, and reads the answer aloud
+sentence by sentence. **Just before each linked identifier is spoken, the sheet flies to it and
+highlights it, exactly as clicking that link would.** Nothing new is generated. It reads the answer
+already on screen, with the browser's own voice, and nothing is sent anywhere.
+
+**How these rows were checked.** Every row below has an automated test behind it
+(`webui/src/features/talkthrough/*.test.*`, plus two footer tests in `AskTab.test.tsx`). **None
+has yet been walked by ear in a real browser**: the building session had no browser and cannot
+hear. The first walk is yours. Do it in Chrome or Edge, where the voices are best, with the sound
+on.
+
+**The answer to walk it on.** Your own example question from `talkthrough_01.md` §1.1 (energising
+the `Run` wire at `RECEPT1:3` on an isolated machine) was asked live on 2026-09-26. Its turn is
+kept at `schematic_extraction/PS20115MLM4-2/walkthrough/turns/ebf0f79c-….jsonl`, and its answer is
+the test fixture `webui/src/features/talkthrough/fixtures/recept1_3.md`. It speaks as **34
+sentences and 119 items**, and every item is a link on screen. Ask it again on the `Ask` tab (about
+$0.12), or use any answer at all.
+
+| T | Do this | Expect that |
+|---|---|---|
+| **T-1600** | Ask anything. Watch the footer while the answer streams, then when it finishes. | No button while it streams. When it finishes, **`Talk me through it`** (a speaker icon) appears **immediately before `Copy markdown`**. Hovering it reads *"Switch to the drawing and read this answer aloud, highlighting each identifier as it is named."* An answer that is only a code block has no button. |
+| **T-1605** | Press `Talk me through it`. | The `Drawing` tab opens, a palette titled **Talk me through it** appears at the **top right**, and the voice starts. The button on the Ask tab now reads **`Talking…`**, and pressing it again does nothing. |
+| **T-1610** | Listen to a sentence that names an identifier. | **The sheet flies before the name is said, never after.** A component is ringed, a wire or net is painted along the ink, and the selection card (lower left) names it. Then the voice says the name. The caption shows the whole sentence, with the current item in **bold**. |
+| **T-1615** | Set **Pause at each item: off**. | Each item is highlighted and spoken with no wait. |
+| **T-1620** | Set **2 s** (the default). | At each item the sheet flies, **a thin bar under the caption fills for two seconds**, and then the name is spoken. |
+| **T-1625** | Set **4 s**. | The same, over four seconds. |
+| **T-1630** | Set **until I press ▶**. | At each item the sheet flies, the voice stops, and a **`▶ Continue`** button appears. Nothing is spoken until you press it (or ▶, or `Space` with focus in the palette), and then it **speaks at once** without waiting again. |
+| **T-1635** | Pause mid-sentence, then press ▶. | It **re-speaks the current fragment from its start** rather than resuming mid-word (by design: browser pause/resume is unreliable on Linux Chrome and Android). |
+| **T-1640** | Use the four step buttons: **⏮ item**, **◀ sentence**, **sentence ▶**, **item ⏭**. With focus in the palette, also try `←`/`→` and `Shift+←`/`Shift+→`. | Sentence steps move the caption. **◀ sentence behaves like a media player**: to the start of this sentence first, then to the previous one. **Item steps always fly the sheet**, even while paused, so you can step through the items silently. While paused, nothing is spoken. **The arrow keys never also nudge the sheet.** The counter reads *Sentence n of N · item k of M*. |
+| **T-1645** | Press the speaker icon in the palette's title bar (mute), and set **Speed** to 0.8× and 1.3×. | Muted, **the voice stops and the captions keep advancing at reading pace**. Unmuting brings the voice back on the same fragment. Speed applies from the next fragment. In a browser with no voice at all, the palette says **"Voice not available in this browser — captions only"** and behaves as muted. |
+| **T-1650** | Drag the palette by its title bar (⠿) to the far left. Reload the page and start another talkthrough. Then make the window much smaller. Then double-click the title bar. | It moves, **never leaves the window** (at least 48 px of the title bar stays on screen), and after the reload it opens where you left it. On a smaller window it is pulled back into view. **A double-click puts it back at the top right.** Dragging never pans the sheet beneath it. |
+| **T-1655** | While it talks, press `Esc` (or ✕). Then press `Esc` again. | The first `Esc` **ends the talkthrough and leaves the last item selected**: the ring and card stay. Only the second `Esc` clears the selection, as it always has. An `Esc` pressed in the Ask composer is the composer's own and does not end the talk. |
+| **T-1660** | Mid-sentence, press `F2`. Then press ▶ in the palette. Then, mid-talk, press `New conversation`, or send a new question. | `F2` goes to the Ask tab and **pauses** the talk (the palette stays, paused). ▶ **switches back to the Drawing tab** and carries on. `New conversation` or a new question **ends** the talk and closes the palette. |
+| **T-1665** | Ask something whose answer has no identifiers. Then set `SWUI_ALLOW_EDITS=false` in `server/.env`, restart the server once for that setting, and repeat T-1605. | The no-link answer is simply spoken sentence by sentence, and nothing is highlighted. With editing off (no Locate or Review tab, no password anywhere), **the talkthrough works exactly the same**: it uses only the Ask and Drawing tabs. |
+
+**What to listen for, and write down.** Any identifier whose spoken form is poor. The rules
+are generic, by shape, and never name a drawing (`webui/src/lib/speakId.ts`): `TB-0V:9` is *T B zero
+V terminal 9*, `W048` is *W zero four eight*, `CR-ON` is *C R on*, net `RUN` is *net run*, and
+`RECEPT1:3` is *recept 1 terminal 3*. A fix goes into those generic rules, never a per-id spelling.

@@ -124,3 +124,28 @@ describe('AskTab', () => {
     spy.mockRestore()
   })
 })
+
+/** `talkthrough_01.md` §6.6: the answer footer's half of the talkthrough. */
+describe('Talk me through it, in the answer footer', () => {
+  const talkButton = () => screen.queryByRole('button', { name: /talk me through it/i })
+
+  it('appears once an answer has finished, never while it streams', () => {
+    useChatStore.setState({ messages: [MESSAGES[0], { ...MESSAGES[1], status: 'streaming' }] })
+    const { rerender } = render(<AskTab />)
+    expect(talkButton()).toBeNull()
+    act(() => useChatStore.setState({ messages: MESSAGES }))
+    rerender(<AskTab />)
+    expect(talkButton()).not.toBeNull()
+    // It sits before Copy markdown.
+    const footer = talkButton()!.parentElement!
+    const labels = [...footer.querySelectorAll('button')].map((b) => b.textContent)
+    expect(labels.indexOf('Talk me through it')).toBeLessThan(labels.indexOf('Copy markdown'))
+  })
+
+  it('stays away from an answer with nothing to say aloud', () => {
+    useChatStore.setState({ messages: [MESSAGES[0], { ...MESSAGES[1], text: '```\nonly code\n```' }] })
+    render(<AskTab />)
+    expect(talkButton()).toBeNull()
+    expect(screen.getByRole('button', { name: /copy markdown/i })).toBeTruthy()
+  })
+})

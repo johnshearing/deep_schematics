@@ -1,0 +1,2955 @@
+{
+ "drawing_number": "PS20115MLM4-2",
+ "counts": {
+  "component": 47,
+  "terminal": 131,
+  "net": 26,
+  "wire": 71
+ },
+ "located": 269,
+ "locations": {
+  "file": true,
+  "components": 41,
+  "sites": 47,
+  "confirmed_sites": 47,
+  "terminals": 131,
+  "confirmed_terminals": 131,
+  "labels": 0,
+  "confirmed_labels": 0,
+  "end_labels": 137,
+  "paths": 71,
+  "no_path": 0,
+  "problems": []
+ },
+ "entries": [
+  {
+   "id": "PS1",
+   "kind": "component",
+   "label": "power supply \u2014 20 amp power supply converting 115VAC single-phase input to 24VDC output. Input terminals L1, N and GND; output terminals + (plus) and two - (minus) terminals.",
+   "on_sheet": true,
+   "members": [
+    "PS1"
+   ],
+   "point": [
+    552.1,
+    42.9
+   ],
+   "rect": [
+    552.1,
+    42.9,
+    552.1,
+    42.9
+   ],
+   "placement": "confirmed",
+   "aliases": [
+    "20AMP POWER SUPPLY",
+    "24V power supply",
+    "PSU",
+    "power supply"
+   ]
+  },
+  {
+   "id": "CB2",
+   "kind": "component",
+   "label": "circuit breaker \u2014 20 amp circuit breaker on the 24VDC output of PS1. Terminals 1 (from PS1:+) and 2 (to the 24E-1 distribution terminal).",
+   "on_sheet": true,
+   "members": [
+    "CB2"
+   ],
+   "point": [
+    653.0,
+    50.9
+   ],
+   "rect": [
+    653.0,
+    50.9,
+    653.0,
+    50.9
+   ],
+   "places": [
+    {
+     "point": [
+      653.0,
+      50.9
+     ],
+     "placement": "confirmed",
+     "site": "main",
+     "label_dir": "s"
+    }
+   ],
+   "placement": "confirmed",
+   "aliases": [
+    "20 amp breaker",
+    "20AMP CIRCUIT BREAKER",
+    "DC breaker"
+   ]
+  },
+  {
+   "id": "TB-0V",
+   "kind": "component",
+   "label": "terminal block \u2014 Tall multi-point 0V terminal strip labelled TERMINAL'S, on the right of the sheet. Every 0V (DC common) return on the drawing lands here.",
+   "on_sheet": true,
+   "members": [
+    "TB-0V"
+   ],
+   "point": [
+    964.4,
+    554.8
+   ],
+   "rect": [
+    964.4,
+    554.8,
+    964.4,
+    554.8
+   ],
+   "placement": "confirmed",
+   "aliases": [
+    "0V terminal",
+    "TERMINAL'S",
+    "common terminal strip",
+    "DC common"
+   ]
+  },
+  {
+   "id": "PB1",
+   "kind": "component",
+   "label": "push button \u2014 Start/stop switch #1: a lighted push button with a red (R) lamp for the open/stopped state and a green (G) lamp for the closed/running state. Four terminals: 1 = +24VDC in, 2 = spare (to the PB1-SP terminal), 3 = 0V common, 4 = switched 24V signal out.",
+   "on_sheet": true,
+   "members": [
+    "PB1"
+   ],
+   "point": [
+    80.9,
+    220.1
+   ],
+   "rect": [
+    80.9,
+    220.1,
+    80.9,
+    220.1
+   ],
+   "placement": "confirmed",
+   "aliases": [
+    "PB1 START/STOP SWITCH",
+    "start/stop switch 1",
+    "start stop button 1",
+    "lighted push button 1"
+   ]
+  },
+  {
+   "id": "PB2",
+   "kind": "component",
+   "label": "push button \u2014 Start/stop switch #2: a lighted push button with a red (R) lamp for the open/stopped state and a green (G) lamp for the closed/running state. Four terminals: 1 = +24VDC in, 2 = spare (to the PB2-SP terminal), 3 = 0V common, 4 = switched 24V signal out.",
+   "on_sheet": true,
+   "members": [
+    "PB2"
+   ],
+   "point": [
+    81.0,
+    318.8
+   ],
+   "rect": [
+    81.0,
+    318.8,
+    81.0,
+    318.8
+   ],
+   "placement": "confirmed",
+   "aliases": [
+    "PB2 START/STOP SWITCH",
+    "start/stop switch 2",
+    "start stop button 2",
+    "lighted push button 2"
+   ]
+  },
+  {
+   "id": "CR1",
+   "kind": "component",
+   "label": "relay \u2014 Control relay CR1. Legend on the drawing: 'CR1: MODLINX PB1 START / STOP, 1N.O.' Coil terminals A1/A2; one normally-open contact 11-14.",
+   "on_sheet": true,
+   "members": [
+    "CR1"
+   ],
+   "point": [
+    508.4,
+    442.40000000000003
+   ],
+   "rect": [
+    155.8,
+    331.6,
+    861.0,
+    553.2
+   ],
+   "places": [
+    {
+     "point": [
+      861.0,
+      331.6
+     ],
+     "placement": "confirmed",
+     "site": "Coil"
+    },
+    {
+     "point": [
+      155.8,
+      553.2
+     ],
+     "placement": "confirmed",
+     "site": "NO"
+    }
+   ],
+   "placement": "confirmed",
+   "aliases": [
+    "CR1",
+    "MODLINX PB1 START/STOP relay",
+    "start stop relay 1",
+    "relay CR-1"
+   ]
+  },
+  {
+   "id": "CR2",
+   "kind": "component",
+   "label": "relay \u2014 Control relay CR2. Legend on the drawing: 'CR2: MODLINX PB2 START / STOP, 1N.O.' Coil terminals A1/A2; one normally-open contact 11-14.",
+   "on_sheet": true,
+   "members": [
+    "CR2"
+   ],
+   "point": [
+    545.4,
+    467.20000000000005
+   ],
+   "rect": [
+    229.8,
+    381.3,
+    861.0,
+    553.1
+   ],
+   "places": [
+    {
+     "point": [
+      861.0,
+      381.3
+     ],
+     "placement": "confirmed",
+     "site": "Coil",
+     "label_dir": "e"
+    },
+    {
+     "point": [
+      229.8,
+      553.1
+     ],
+     "placement": "confirmed",
+     "site": "NO"
+    }
+   ],
+   "placement": "confirmed",
+   "aliases": [
+    "CR2",
+    "MODLINX PB2 START/STOP relay",
+    "start stop relay 2",
+    "relay CR-2"
+   ]
+  },
+  {
+   "id": "CR-ON",
+   "kind": "component",
+   "label": "relay \u2014 Control relay CR-ON. Legend on the drawing: 'CR-ON: MODLINX RUN, RUN SIGNAL TO CARDS, 1N.O.' Coil terminals A1/A2; one normally-open contact 11-14.",
+   "on_sheet": true,
+   "members": [
+    "CR-ON"
+   ],
+   "point": [
+    727.3,
+    335.9
+   ],
+   "rect": [
+    594.0,
+    208.0,
+    860.6,
+    463.8
+   ],
+   "places": [
+    {
+     "point": [
+      860.6,
+      463.8
+     ],
+     "placement": "confirmed",
+     "site": "Coil",
+     "label_dir": "s"
+    },
+    {
+     "point": [
+      594.0,
+      208.0
+     ],
+     "placement": "confirmed",
+     "site": "NO"
+    }
+   ],
+   "placement": "confirmed",
+   "aliases": [
+    "CR-ON",
+    "MODLINX RUN relay",
+    "run relay",
+    "CR ON"
+   ]
+  },
+  {
+   "id": "CR-BP",
+   "kind": "component",
+   "label": "relay \u2014 Control relay CR-BP. Legend on the drawing: 'CR-BP: RUN BYPASS RELAY, 1N.C., 1N.O.' Coil terminals A1/A2; one normally-closed contact 11-12 and one normally-open contact 21-24.",
+   "on_sheet": true,
+   "members": [
+    "CR-BP"
+   ],
+   "point": [
+    727.3,
+    460.15
+   ],
+   "rect": [
+    594.1,
+    241.5,
+    860.5,
+    678.8
+   ],
+   "places": [
+    {
+     "point": [
+      860.5,
+      678.8
+     ],
+     "placement": "confirmed",
+     "site": "Coil",
+     "label_dir": "n"
+    },
+    {
+     "point": [
+      715.2,
+      539.8
+     ],
+     "placement": "confirmed",
+     "site": "NC"
+    },
+    {
+     "point": [
+      594.1,
+      241.5
+     ],
+     "placement": "confirmed",
+     "site": "NO",
+     "label_dir": "s"
+    }
+   ],
+   "placement": "confirmed",
+   "aliases": [
+    "CR-BP",
+    "RUN BYPASS RELAY",
+    "bypass relay",
+    "run bypass relay"
+   ]
+  },
+  {
+   "id": "CR-SW",
+   "kind": "component",
+   "label": "relay \u2014 Control relay CR-SW. Legend on the drawing: 'CR-SW: SWITCH RELAY, SWITCH CIRCUIT ON, 1N.O.' Coil terminals A1/A2; one normally-open contact 11-14.",
+   "on_sheet": true,
+   "members": [
+    "CR-SW"
+   ],
+   "point": [
+    715.25,
+    588.75
+   ],
+   "rect": [
+    569.5,
+    473.5,
+    861.0,
+    704.0
+   ],
+   "places": [
+    {
+     "point": [
+      861.0,
+      704.0
+     ],
+     "placement": "confirmed",
+     "site": "Coil",
+     "label_dir": "n"
+    },
+    {
+     "point": [
+      569.5,
+      473.5
+     ],
+     "placement": "confirmed",
+     "site": "NO"
+    }
+   ],
+   "placement": "confirmed",
+   "aliases": [
+    "CR-SW",
+    "SWITCH RELAY",
+    "switch relay",
+    "CR SW"
+   ]
+  },
+  {
+   "id": "BYPASS-CB",
+   "kind": "component",
+   "label": "circuit breaker \u2014 5 amp circuit breaker labelled BYPASS. Terminals 1 (from net 120) and 2 (to net 125). NOTE: on this machine family this breaker is used as a MANUAL SWITCH, not as over-current protection - it enables the bypass control path to the CR-BP coil. It is a breaker only because it DIN-rail mounts conveniently.",
+   "on_sheet": true,
+   "members": [
+    "BYPASS-CB"
+   ],
+   "point": [
+    385.4,
+    660.7
+   ],
+   "rect": [
+    385.4,
+    660.7,
+    385.4,
+    660.7
+   ],
+   "places": [
+    {
+     "point": [
+      385.4,
+      660.7
+     ],
+     "placement": "confirmed",
+     "site": "main",
+     "label_dir": "s"
+    }
+   ],
+   "placement": "confirmed",
+   "aliases": [
+    "BYPASS 5AMP CIRCUIT BREAKER",
+    "bypass breaker",
+    "bypass switch"
+   ]
+  },
+  {
+   "id": "PB1:4",
+   "kind": "terminal",
+   "label": "output terminal on PB1, net NET-PB1",
+   "on_sheet": true,
+   "members": [
+    "PB1"
+   ],
+   "point": [
+    169.8,
+    282.4
+   ],
+   "rect": [
+    169.8,
+    282.4,
+    169.8,
+    282.4
+   ],
+   "places": [
+    {
+     "point": [
+      169.8,
+      282.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "PB2:4",
+   "kind": "terminal",
+   "label": "output terminal on PB2, net NET-PB2",
+   "on_sheet": true,
+   "members": [
+    "PB2"
+   ],
+   "point": [
+    170.1,
+    381.4
+   ],
+   "rect": [
+    170.1,
+    381.4,
+    170.1,
+    381.4
+   ],
+   "places": [
+    {
+     "point": [
+      170.1,
+      381.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR1:A1",
+   "kind": "terminal",
+   "label": "coil terminal on CR1, net NET-PB1",
+   "on_sheet": true,
+   "members": [
+    "CR1"
+   ],
+   "point": [
+    850.3,
+    331.7
+   ],
+   "rect": [
+    850.3,
+    331.7,
+    850.3,
+    331.7
+   ],
+   "places": [
+    {
+     "point": [
+      850.3,
+      331.7
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR1:A2",
+   "kind": "terminal",
+   "label": "coil terminal on CR1, net 0V",
+   "on_sheet": true,
+   "members": [
+    "CR1"
+   ],
+   "point": [
+    870.2,
+    331.7
+   ],
+   "rect": [
+    870.2,
+    331.7,
+    870.2,
+    331.7
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR1:11",
+   "kind": "terminal",
+   "label": "common terminal on CR1, net 0V",
+   "on_sheet": true,
+   "members": [
+    "CR1"
+   ],
+   "point": [
+    148.9,
+    563.2
+   ],
+   "rect": [
+    148.9,
+    563.2,
+    148.9,
+    563.2
+   ],
+   "places": [
+    {
+     "point": [
+      148.9,
+      563.2
+     ],
+     "placement": "confirmed",
+     "label_dir": "nw"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR1:14",
+   "kind": "terminal",
+   "label": "NO_contact terminal on CR1, net 121",
+   "on_sheet": true,
+   "members": [
+    "CR1"
+   ],
+   "point": [
+    163.5,
+    563.6
+   ],
+   "rect": [
+    163.5,
+    563.6,
+    163.5,
+    563.6
+   ],
+   "places": [
+    {
+     "point": [
+      163.5,
+      563.6
+     ],
+     "placement": "confirmed",
+     "label_dir": "ne"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR2:A1",
+   "kind": "terminal",
+   "label": "coil terminal on CR2, net NET-PB2",
+   "on_sheet": true,
+   "members": [
+    "CR2"
+   ],
+   "point": [
+    850.3,
+    381.4
+   ],
+   "rect": [
+    850.3,
+    381.4,
+    850.3,
+    381.4
+   ],
+   "places": [
+    {
+     "point": [
+      850.3,
+      381.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR2:A2",
+   "kind": "terminal",
+   "label": "coil terminal on CR2, net 0V",
+   "on_sheet": true,
+   "members": [
+    "CR2"
+   ],
+   "point": [
+    870.0,
+    381.4
+   ],
+   "rect": [
+    870.0,
+    381.4,
+    870.0,
+    381.4
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR2:11",
+   "kind": "terminal",
+   "label": "common terminal on CR2, net 121",
+   "on_sheet": true,
+   "members": [
+    "CR2"
+   ],
+   "point": [
+    222.4,
+    563.4
+   ],
+   "rect": [
+    222.4,
+    563.4,
+    222.4,
+    563.4
+   ],
+   "places": [
+    {
+     "point": [
+      222.4,
+      563.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR2:14",
+   "kind": "terminal",
+   "label": "NO_contact terminal on CR2, net 120",
+   "on_sheet": true,
+   "members": [
+    "CR2"
+   ],
+   "point": [
+    236.4,
+    563.4
+   ],
+   "rect": [
+    236.4,
+    563.4,
+    236.4,
+    563.4
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR-ON:A2",
+   "kind": "terminal",
+   "label": "coil terminal on CR-ON, net 110",
+   "on_sheet": true,
+   "members": [
+    "CR-ON"
+   ],
+   "point": [
+    870.3,
+    463.9
+   ],
+   "rect": [
+    870.3,
+    463.9,
+    870.3,
+    463.9
+   ],
+   "places": [
+    {
+     "point": [
+      870.3,
+      463.9
+     ],
+     "placement": "confirmed",
+     "label_dir": "ne"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR-ON:11",
+   "kind": "terminal",
+   "label": "common terminal on CR-ON, net 24E-1",
+   "on_sheet": true,
+   "members": [
+    "CR-ON"
+   ],
+   "point": [
+    586.0,
+    215.8
+   ],
+   "rect": [
+    586.0,
+    215.8,
+    586.0,
+    215.8
+   ],
+   "places": [
+    {
+     "point": [
+      586.0,
+      215.8
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR-ON:14",
+   "kind": "terminal",
+   "label": "NO_contact terminal on CR-ON, net RUN",
+   "on_sheet": true,
+   "members": [
+    "CR-ON"
+   ],
+   "point": [
+    601.5,
+    216.0
+   ],
+   "rect": [
+    601.5,
+    216.0,
+    601.5,
+    216.0
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR-BP:A1",
+   "kind": "terminal",
+   "label": "coil terminal on CR-BP, net 24E-1",
+   "on_sheet": true,
+   "members": [
+    "CR-BP"
+   ],
+   "point": [
+    850.3,
+    679.2
+   ],
+   "rect": [
+    850.3,
+    679.2,
+    850.3,
+    679.2
+   ],
+   "places": [
+    {
+     "point": [
+      850.3,
+      679.2
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR-BP:A2",
+   "kind": "terminal",
+   "label": "coil terminal on CR-BP, net 125",
+   "on_sheet": true,
+   "members": [
+    "CR-BP"
+   ],
+   "point": [
+    871.4,
+    679.1
+   ],
+   "rect": [
+    871.4,
+    679.1,
+    871.4,
+    679.1
+   ],
+   "places": [
+    {
+     "point": [
+      871.4,
+      679.1
+     ],
+     "placement": "confirmed",
+     "label_dir": "se"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR-BP:11",
+   "kind": "terminal",
+   "label": "common terminal on CR-BP, net 111",
+   "on_sheet": true,
+   "members": [
+    "CR-BP"
+   ],
+   "point": [
+    707.0,
+    530.3
+   ],
+   "rect": [
+    707.0,
+    530.3,
+    707.0,
+    530.3
+   ],
+   "places": [
+    {
+     "point": [
+      707.0,
+      530.3
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR-BP:12",
+   "kind": "terminal",
+   "label": "NC_contact terminal on CR-BP, net 110",
+   "on_sheet": true,
+   "members": [
+    "CR-BP"
+   ],
+   "point": [
+    721.8,
+    530.4
+   ],
+   "rect": [
+    721.8,
+    530.4,
+    721.8,
+    530.4
+   ],
+   "places": [
+    {
+     "point": [
+      721.8,
+      530.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "se"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR-BP:21",
+   "kind": "terminal",
+   "label": "common terminal on CR-BP, net 24E-1",
+   "on_sheet": true,
+   "members": [
+    "CR-BP"
+   ],
+   "point": [
+    586.7,
+    232.6
+   ],
+   "rect": [
+    586.7,
+    232.6,
+    586.7,
+    232.6
+   ],
+   "places": [
+    {
+     "point": [
+      586.7,
+      232.6
+     ],
+     "placement": "confirmed",
+     "label_dir": "se"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR-BP:24",
+   "kind": "terminal",
+   "label": "NO_contact terminal on CR-BP, net RUN",
+   "on_sheet": true,
+   "members": [
+    "CR-BP"
+   ],
+   "point": [
+    601.8,
+    232.5
+   ],
+   "rect": [
+    601.8,
+    232.5,
+    601.8,
+    232.5
+   ],
+   "places": [
+    {
+     "point": [
+      601.8,
+      232.5
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR-SW:11",
+   "kind": "terminal",
+   "label": "common terminal on CR-SW, net 0V",
+   "on_sheet": true,
+   "members": [
+    "CR-SW"
+   ],
+   "point": [
+    562.4,
+    483.5
+   ],
+   "rect": [
+    562.4,
+    483.5,
+    562.4,
+    483.5
+   ],
+   "places": [
+    {
+     "point": [
+      562.4,
+      483.5
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "CR-SW:14",
+   "kind": "terminal",
+   "label": "NO_contact terminal on CR-SW, net 110",
+   "on_sheet": true,
+   "members": [
+    "CR-SW"
+   ],
+   "point": [
+    577.2,
+    483.5
+   ],
+   "rect": [
+    577.2,
+    483.5,
+    577.2,
+    483.5
+   ],
+   "places": [
+    {
+     "point": [
+      577.2,
+      483.5
+     ],
+     "placement": "confirmed",
+     "label_dir": "e"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "BYPASS-CB:1",
+   "kind": "terminal",
+   "label": "input terminal on BYPASS-CB, net 120",
+   "on_sheet": true,
+   "members": [
+    "BYPASS-CB"
+   ],
+   "point": [
+    381.5,
+    663.8
+   ],
+   "rect": [
+    381.5,
+    663.8,
+    381.5,
+    663.8
+   ],
+   "places": [
+    {
+     "point": [
+      381.5,
+      663.8
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "BYPASS-CB:2",
+   "kind": "terminal",
+   "label": "output terminal on BYPASS-CB, net 125",
+   "on_sheet": true,
+   "members": [
+    "BYPASS-CB"
+   ],
+   "point": [
+    389.8,
+    663.7
+   ],
+   "rect": [
+    389.8,
+    663.7,
+    389.8,
+    663.7
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "TB-110:1",
+   "kind": "terminal",
+   "label": "common terminal on TB-110, net 110",
+   "on_sheet": false,
+   "members": [
+    "TB-110"
+   ],
+   "point": [
+    781.4,
+    483.5
+   ],
+   "rect": [
+    781.4,
+    483.5,
+    781.4,
+    483.5
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "TB-110:2",
+   "kind": "terminal",
+   "label": "common terminal on TB-110, net 110",
+   "on_sheet": false,
+   "members": [
+    "TB-110"
+   ],
+   "point": [
+    781.5,
+    499.6
+   ],
+   "rect": [
+    781.5,
+    499.6,
+    781.5,
+    499.6
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "TB-110:3",
+   "kind": "terminal",
+   "label": "common terminal on TB-110, net 110",
+   "on_sheet": false,
+   "members": [
+    "TB-110"
+   ],
+   "point": [
+    781.5,
+    515.8
+   ],
+   "rect": [
+    781.5,
+    515.8,
+    781.5,
+    515.8
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "TB-110:4",
+   "kind": "terminal",
+   "label": "common terminal on TB-110, net 110",
+   "on_sheet": false,
+   "members": [
+    "TB-110"
+   ],
+   "point": [
+    781.5,
+    530.3
+   ],
+   "rect": [
+    781.5,
+    530.3,
+    781.5,
+    530.3
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "RECEPT1:3",
+   "kind": "terminal",
+   "label": "output terminal on RECEPT1, net RUN",
+   "on_sheet": false,
+   "members": [
+    "RECEPT1"
+   ],
+   "point": [
+    967.1,
+    149.8
+   ],
+   "rect": [
+    967.1,
+    149.8,
+    967.1,
+    149.8
+   ],
+   "places": [
+    {
+     "point": [
+      967.1,
+      149.8
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "INFEED1:1",
+   "kind": "terminal",
+   "label": "input terminal on INFEED1, net 110",
+   "on_sheet": false,
+   "members": [
+    "INFEED1"
+   ],
+   "point": [
+    562.6,
+    528.7
+   ],
+   "rect": [
+    562.6,
+    528.7,
+    562.6,
+    528.7
+   ],
+   "places": [
+    {
+     "point": [
+      562.6,
+      528.7
+     ],
+     "placement": "confirmed",
+     "label_dir": "s"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "DISCHARGE1:1",
+   "kind": "terminal",
+   "label": "output terminal on DISCHARGE1, net 111",
+   "on_sheet": false,
+   "members": [
+    "DISCHARGE1"
+   ],
+   "point": [
+    600.6,
+    530.4
+   ],
+   "rect": [
+    600.6,
+    530.4,
+    600.6,
+    530.4
+   ],
+   "places": [
+    {
+     "point": [
+      600.6,
+      530.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "s"
+    }
+   ],
+   "placement": "confirmed"
+  },
+  {
+   "id": "24E-1",
+   "kind": "net",
+   "label": "power 24VDC, 25 terminals",
+   "on_sheet": true,
+   "members": [
+    "CB2",
+    "CR-BP",
+    "CR-ON",
+    "CR-SW",
+    "LT1",
+    "PB1",
+    "PB2",
+    "RECEPT1",
+    "REVERSE-CB",
+    "SPD1",
+    "TB-24E1-A",
+    "TB-24E1-B"
+   ],
+   "point": [
+    514.2,
+    377.15000000000003
+   ],
+   "rect": [
+    61.2,
+    50.6,
+    967.2,
+    703.7
+   ],
+   "places": [
+    {
+     "point": [
+      657.4,
+      50.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      586.7,
+      232.6
+     ],
+     "placement": "confirmed",
+     "label_dir": "se"
+    },
+    {
+     "point": [
+      850.3,
+      679.2
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    },
+    {
+     "point": [
+      586.0,
+      215.8
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    },
+    {
+     "point": [
+      849.1,
+      464.2
+     ],
+     "placement": "confirmed",
+     "label_dir": "nw"
+    },
+    {
+     "point": [
+      849.1,
+      703.7
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    },
+    {
+     "point": [
+      258.8,
+      414.2
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    },
+    {
+     "point": [
+      168.8,
+      232.7
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    },
+    {
+     "point": [
+      170.4,
+      331.8
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    },
+    {
+     "point": [
+      967.2,
+      182.9
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    },
+    {
+     "point": [
+      554.5,
+      183.0
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    },
+    {
+     "point": [
+      867.2,
+      50.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      61.5,
+      166.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      61.3,
+      182.9
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      61.4,
+      199.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      61.5,
+      298.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      61.2,
+      414.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      61.3,
+      497.1
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      61.4,
+      679.0
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      61.3,
+      695.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      468.1,
+      183.1
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      468.4,
+      199.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      468.3,
+      216.1
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      468.2,
+      232.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      468.0,
+      265.7
+     ],
+     "placement": "confirmed"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "CB2:2",
+     "point": [
+      657.4,
+      50.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR-BP:21",
+     "point": [
+      586.7,
+      232.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR-BP:A1",
+     "point": [
+      850.3,
+      679.2
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR-ON:11",
+     "point": [
+      586.0,
+      215.8
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR-ON:A1",
+     "point": [
+      849.1,
+      464.2
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR-SW:A1",
+     "point": [
+      849.1,
+      703.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "LT1:BLACK",
+     "point": [
+      258.8,
+      414.2
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "PB1:1",
+     "point": [
+      168.8,
+      232.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "PB2:1",
+     "point": [
+      170.4,
+      331.8
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "RECEPT1:5",
+     "point": [
+      967.2,
+      182.9
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "REVERSE-CB:1",
+     "point": [
+      554.5,
+      183.0
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "SPD1:1",
+     "point": [
+      867.2,
+      50.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-A:1",
+     "point": [
+      61.5,
+      166.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-A:2",
+     "point": [
+      61.3,
+      182.9
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-A:3",
+     "point": [
+      61.4,
+      199.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-A:4",
+     "point": [
+      61.5,
+      298.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-A:5",
+     "point": [
+      61.2,
+      414.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-A:6",
+     "point": [
+      61.3,
+      497.1
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-A:7",
+     "point": [
+      61.4,
+      679.0
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-A:8",
+     "point": [
+      61.3,
+      695.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-B:1",
+     "point": [
+      468.1,
+      183.1
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-B:2",
+     "point": [
+      468.4,
+      199.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-B:3",
+     "point": [
+      468.3,
+      216.1
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-B:4",
+     "point": [
+      468.2,
+      232.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-24E1-B:5",
+     "point": [
+      468.0,
+      265.7
+     ],
+     "placement": "confirmed"
+    }
+   ]
+  },
+  {
+   "id": "0V",
+   "kind": "net",
+   "label": "ground 0V, 25 terminals",
+   "on_sheet": true,
+   "members": [
+    "CR-SW",
+    "CR1",
+    "CR2",
+    "DISCHARGE1",
+    "INFEED1",
+    "LT1",
+    "PB1",
+    "PB2",
+    "PS1",
+    "RECEPT1",
+    "SPD1",
+    "TB-0V"
+   ],
+   "point": [
+    558.0,
+    315.25
+   ],
+   "rect": [
+    148.9,
+    67.3,
+    967.1,
+    563.2
+   ],
+   "places": [
+    {
+     "point": [
+      562.4,
+      483.5
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    },
+    {
+     "point": [
+      148.9,
+      563.2
+     ],
+     "placement": "confirmed",
+     "label_dir": "nw"
+    },
+    {
+     "point": [
+      870.2,
+      331.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      870.0,
+      381.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      601.6,
+      547.0
+     ],
+     "placement": "confirmed",
+     "label_dir": "s"
+    },
+    {
+     "point": [
+      562.0,
+      546.7
+     ],
+     "placement": "confirmed",
+     "label_dir": "s"
+    },
+    {
+     "point": [
+      276.1,
+      414.2
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      169.5,
+      265.5
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    },
+    {
+     "point": [
+      170.3,
+      364.8
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    },
+    {
+     "point": [
+      581.3,
+      83.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      581.5,
+      116.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      967.1,
+      166.3
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    },
+    {
+     "point": [
+      867.1,
+      67.3
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.3,
+      265.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.5,
+      432.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.3,
+      449.1
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.4,
+      546.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.4,
+      282.0
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.2,
+      298.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.5,
+      315.0
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.6,
+      331.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.4,
+      364.3
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.3,
+      381.3
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.3,
+      399.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      954.4,
+      415.9
+     ],
+     "placement": "confirmed"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "CR-SW:11",
+     "point": [
+      562.4,
+      483.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR1:11",
+     "point": [
+      148.9,
+      563.2
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR1:A2",
+     "point": [
+      870.2,
+      331.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR2:A2",
+     "point": [
+      870.0,
+      381.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "DISCHARGE1:2",
+     "point": [
+      601.6,
+      547.0
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "INFEED1:2",
+     "point": [
+      562.0,
+      546.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "LT1:BLUE",
+     "point": [
+      276.1,
+      414.2
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "PB1:3",
+     "point": [
+      169.5,
+      265.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "PB2:3",
+     "point": [
+      170.3,
+      364.8
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "PS1:-1",
+     "point": [
+      581.3,
+      83.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "PS1:-2",
+     "point": [
+      581.5,
+      116.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "RECEPT1:4",
+     "point": [
+      967.1,
+      166.3
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "SPD1:2",
+     "point": [
+      867.1,
+      67.3
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:1",
+     "point": [
+      954.3,
+      265.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:10",
+     "point": [
+      954.5,
+      432.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:11",
+     "point": [
+      954.3,
+      449.1
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:12",
+     "point": [
+      954.4,
+      546.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:2",
+     "point": [
+      954.4,
+      282.0
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:3",
+     "point": [
+      954.2,
+      298.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:4",
+     "point": [
+      954.5,
+      315.0
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:5",
+     "point": [
+      954.6,
+      331.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:6",
+     "point": [
+      954.4,
+      364.3
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:7",
+     "point": [
+      954.3,
+      381.3
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:8",
+     "point": [
+      954.3,
+      399.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-0V:9",
+     "point": [
+      954.4,
+      415.9
+     ],
+     "placement": "confirmed"
+    }
+   ]
+  },
+  {
+   "id": "RUN",
+   "kind": "net",
+   "label": "control 24VDC, 4 terminals",
+   "on_sheet": true,
+   "members": [
+    "CR-BP",
+    "CR-ON",
+    "RECEPT1",
+    "TB-RUN"
+   ],
+   "point": [
+    784.3,
+    191.15
+   ],
+   "rect": [
+    601.5,
+    149.8,
+    967.1,
+    232.5
+   ],
+   "places": [
+    {
+     "point": [
+      601.8,
+      232.5
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    },
+    {
+     "point": [
+      601.5,
+      216.0
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      967.1,
+      149.8
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    },
+    {
+     "point": [
+      678.8,
+      216.0
+     ],
+     "placement": "confirmed"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "CR-BP:24",
+     "point": [
+      601.8,
+      232.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR-ON:14",
+     "point": [
+      601.5,
+      216.0
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "RECEPT1:3",
+     "point": [
+      967.1,
+      149.8
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-RUN:1",
+     "point": [
+      678.8,
+      216.0
+     ],
+     "placement": "confirmed"
+    }
+   ]
+  },
+  {
+   "id": "110",
+   "kind": "net",
+   "label": "control 24VDC, 8 terminals",
+   "on_sheet": true,
+   "members": [
+    "CR-BP",
+    "CR-ON",
+    "CR-SW",
+    "INFEED1",
+    "TB-110"
+   ],
+   "point": [
+    716.45,
+    497.15
+   ],
+   "rect": [
+    562.6,
+    463.9,
+    870.3,
+    530.4
+   ],
+   "places": [
+    {
+     "point": [
+      721.8,
+      530.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "se"
+    },
+    {
+     "point": [
+      870.3,
+      463.9
+     ],
+     "placement": "confirmed",
+     "label_dir": "ne"
+    },
+    {
+     "point": [
+      577.2,
+      483.5
+     ],
+     "placement": "confirmed",
+     "label_dir": "e"
+    },
+    {
+     "point": [
+      562.6,
+      528.7
+     ],
+     "placement": "confirmed",
+     "label_dir": "s"
+    },
+    {
+     "point": [
+      781.4,
+      483.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      781.5,
+      499.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      781.5,
+      515.8
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      781.5,
+      530.3
+     ],
+     "placement": "confirmed"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "CR-BP:12",
+     "point": [
+      721.8,
+      530.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR-ON:A2",
+     "point": [
+      870.3,
+      463.9
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR-SW:14",
+     "point": [
+      577.2,
+      483.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "INFEED1:1",
+     "point": [
+      562.6,
+      528.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-110:1",
+     "point": [
+      781.4,
+      483.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-110:2",
+     "point": [
+      781.5,
+      499.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-110:3",
+     "point": [
+      781.5,
+      515.8
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-110:4",
+     "point": [
+      781.5,
+      530.3
+     ],
+     "placement": "confirmed"
+    }
+   ]
+  },
+  {
+   "id": "111",
+   "kind": "net",
+   "label": "control 24VDC, 2 terminals",
+   "on_sheet": true,
+   "members": [
+    "CR-BP",
+    "DISCHARGE1"
+   ],
+   "point": [
+    653.8,
+    530.3499999999999
+   ],
+   "rect": [
+    600.6,
+    530.3,
+    707.0,
+    530.4
+   ],
+   "places": [
+    {
+     "point": [
+      707.0,
+      530.3
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    },
+    {
+     "point": [
+      600.6,
+      530.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "s"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "CR-BP:11",
+     "point": [
+      707.0,
+      530.3
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "DISCHARGE1:1",
+     "point": [
+      600.6,
+      530.4
+     ],
+     "placement": "confirmed"
+    }
+   ]
+  },
+  {
+   "id": "120",
+   "kind": "net",
+   "label": "control 24VDC, 7 terminals",
+   "on_sheet": true,
+   "members": [
+    "BYPASS-CB",
+    "CR2",
+    "DISCHARGE1",
+    "INFEED1",
+    "TB-120"
+   ],
+   "point": [
+    419.55,
+    613.5999999999999
+   ],
+   "rect": [
+    236.4,
+    563.4,
+    602.7,
+    663.8
+   ],
+   "places": [
+    {
+     "point": [
+      381.5,
+      663.8
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    },
+    {
+     "point": [
+      236.4,
+      563.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      602.7,
+      563.6
+     ],
+     "placement": "confirmed",
+     "label_dir": "s"
+    },
+    {
+     "point": [
+      563.6,
+      563.5
+     ],
+     "placement": "confirmed",
+     "label_dir": "s"
+    },
+    {
+     "point": [
+      300.1,
+      563.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      300.1,
+      639.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      300.1,
+      663.8
+     ],
+     "placement": "confirmed"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "BYPASS-CB:1",
+     "point": [
+      381.5,
+      663.8
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR2:14",
+     "point": [
+      236.4,
+      563.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "DISCHARGE1:3",
+     "point": [
+      602.7,
+      563.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "INFEED1:3",
+     "point": [
+      563.6,
+      563.5
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-120:1",
+     "point": [
+      300.1,
+      563.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-120:2",
+     "point": [
+      300.1,
+      639.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-120:3",
+     "point": [
+      300.1,
+      663.8
+     ],
+     "placement": "confirmed"
+    }
+   ]
+  },
+  {
+   "id": "121",
+   "kind": "net",
+   "label": "control 24VDC, 2 terminals",
+   "on_sheet": true,
+   "members": [
+    "CR1",
+    "CR2"
+   ],
+   "point": [
+    192.95,
+    563.5
+   ],
+   "rect": [
+    163.5,
+    563.4,
+    222.4,
+    563.6
+   ],
+   "places": [
+    {
+     "point": [
+      163.5,
+      563.6
+     ],
+     "placement": "confirmed",
+     "label_dir": "ne"
+    },
+    {
+     "point": [
+      222.4,
+      563.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "CR1:14",
+     "point": [
+      163.5,
+      563.6
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR2:11",
+     "point": [
+      222.4,
+      563.4
+     ],
+     "placement": "confirmed"
+    }
+   ]
+  },
+  {
+   "id": "125",
+   "kind": "net",
+   "label": "control 24VDC, 2 terminals",
+   "on_sheet": true,
+   "members": [
+    "BYPASS-CB",
+    "CR-BP"
+   ],
+   "point": [
+    630.6,
+    671.4000000000001
+   ],
+   "rect": [
+    389.8,
+    663.7,
+    871.4,
+    679.1
+   ],
+   "places": [
+    {
+     "point": [
+      389.8,
+      663.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      871.4,
+      679.1
+     ],
+     "placement": "confirmed",
+     "label_dir": "se"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "BYPASS-CB:2",
+     "point": [
+      389.8,
+      663.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "CR-BP:A2",
+     "point": [
+      871.4,
+      679.1
+     ],
+     "placement": "confirmed"
+    }
+   ]
+  },
+  {
+   "id": "130",
+   "kind": "net",
+   "label": "control 24VDC, 5 terminals",
+   "on_sheet": true,
+   "members": [
+    "CR-SW",
+    "DISCHARGE1",
+    "INFEED1",
+    "TB-130"
+   ],
+   "point": [
+    716.6500000000001,
+    641.9
+   ],
+   "rect": [
+    563.2,
+    579.9,
+    870.1,
+    703.9
+   ],
+   "places": [
+    {
+     "point": [
+      870.1,
+      703.9
+     ],
+     "placement": "confirmed",
+     "label_dir": "e"
+    },
+    {
+     "point": [
+      601.6,
+      579.9
+     ],
+     "placement": "confirmed",
+     "label_dir": "s"
+    },
+    {
+     "point": [
+      563.2,
+      580.1
+     ],
+     "placement": "confirmed",
+     "label_dir": "s"
+    },
+    {
+     "point": [
+      818.7,
+      580.1
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      818.7,
+      650.8
+     ],
+     "placement": "confirmed"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "CR-SW:A2",
+     "point": [
+      870.1,
+      703.9
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "DISCHARGE1:4",
+     "point": [
+      601.6,
+      579.9
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "INFEED1:4",
+     "point": [
+      563.2,
+      580.1
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-130:1",
+     "point": [
+      818.7,
+      580.1
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "TB-130:2",
+     "point": [
+      818.7,
+      650.8
+     ],
+     "placement": "confirmed"
+    }
+   ]
+  },
+  {
+   "id": "NET-PB1",
+   "kind": "net",
+   "label": "control 24VDC, 2 terminals",
+   "on_sheet": false,
+   "members": [
+    "CR1",
+    "PB1"
+   ],
+   "point": [
+    510.04999999999995,
+    307.04999999999995
+   ],
+   "rect": [
+    169.8,
+    282.4,
+    850.3,
+    331.7
+   ],
+   "places": [
+    {
+     "point": [
+      850.3,
+      331.7
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    },
+    {
+     "point": [
+      169.8,
+      282.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "CR1:A1",
+     "point": [
+      850.3,
+      331.7
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "PB1:4",
+     "point": [
+      169.8,
+      282.4
+     ],
+     "placement": "confirmed"
+    }
+   ],
+   "printed": "PB1"
+  },
+  {
+   "id": "NET-PB2",
+   "kind": "net",
+   "label": "control 24VDC, 2 terminals",
+   "on_sheet": false,
+   "members": [
+    "CR2",
+    "PB2"
+   ],
+   "point": [
+    510.2,
+    381.4
+   ],
+   "rect": [
+    170.1,
+    381.4,
+    850.3,
+    381.4
+   ],
+   "places": [
+    {
+     "point": [
+      850.3,
+      381.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "w"
+    },
+    {
+     "point": [
+      170.1,
+      381.4
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "CR2:A1",
+     "point": [
+      850.3,
+      381.4
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "id": "PB2:4",
+     "point": [
+      170.1,
+      381.4
+     ],
+     "placement": "confirmed"
+    }
+   ],
+   "printed": "PB2"
+  },
+  {
+   "id": "W025",
+   "kind": "wire",
+   "label": "BLUE 18AWG wire, TB-24E1-A:7 \u2192 CR-BP:A1",
+   "on_sheet": false,
+   "members": [
+    "TB-24E1-A",
+    "CR-BP"
+   ],
+   "point": [
+    455.84999999999997,
+    679.1
+   ],
+   "rect": [
+    61.4,
+    679.0,
+    850.3,
+    679.2
+   ],
+   "places": [
+    {
+     "point": [
+      61.4,
+      679.0
+     ],
+     "placement": "confirmed"
+    },
+    {
+     "point": [
+      850.3,
+      679.2
+     ],
+     "placement": "confirmed",
+     "label_dir": "sw"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "TB-24E1-A:7",
+     "point": [
+      61.4,
+      679.0
+     ],
+     "placement": "confirmed",
+     "hidden": true
+    },
+    {
+     "id": "CR-BP:A1",
+     "point": [
+      850.3,
+      679.2
+     ],
+     "placement": "confirmed",
+     "hidden": true
+    }
+   ],
+   "spec": "BLUE 18AWG"
+  },
+  {
+   "id": "W048",
+   "kind": "wire",
+   "label": "BLUE 18AWG wire, CR-BP:A2 \u2192 BYPASS-CB:2",
+   "on_sheet": false,
+   "members": [
+    "CR-BP",
+    "BYPASS-CB"
+   ],
+   "point": [
+    630.6,
+    671.4000000000001
+   ],
+   "rect": [
+    389.8,
+    663.7,
+    871.4,
+    679.1
+   ],
+   "places": [
+    {
+     "point": [
+      871.4,
+      679.1
+     ],
+     "placement": "confirmed",
+     "label_dir": "se"
+    },
+    {
+     "point": [
+      389.8,
+      663.7
+     ],
+     "placement": "confirmed"
+    }
+   ],
+   "terminals": [
+    {
+     "id": "CR-BP:A2",
+     "point": [
+      871.4,
+      679.1
+     ],
+     "placement": "confirmed",
+     "hidden": true
+    },
+    {
+     "id": "BYPASS-CB:2",
+     "point": [
+      389.8,
+      663.7
+     ],
+     "placement": "confirmed",
+     "hidden": true
+    }
+   ],
+   "spec": "BLUE 18AWG"
+  }
+ ]
+}

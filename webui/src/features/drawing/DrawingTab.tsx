@@ -1095,7 +1095,9 @@ export function DrawingTab() {
             <span className="font-medium text-foreground">the list</span>, and neither touches the
             other. Click a row, or any dot, for what it is — or click any{' '}
             <span className="font-medium text-foreground">identifier in an answer</span> to fly
-            here and land on it. A wire or net you select shows its name at every one of its ends
+            here and land on it, or press{' '}
+            <span className="font-medium text-foreground">Talk me through it</span> under an answer
+            to be flown to each one in turn as it is read aloud. A wire or net you select shows its name at every one of its ends
             whether those switches are on or not, and labels of every kind are hidden below 30%
             zoom. A wire or net that has been traced is also{' '}
             <span className="font-medium text-foreground">highlighted along the ink</span> — the

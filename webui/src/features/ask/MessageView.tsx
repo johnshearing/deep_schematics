@@ -1,10 +1,13 @@
-import { useState } from 'react'
-import { Check, Copy, ShieldAlert, TriangleAlert } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Check, Copy, ShieldAlert, TriangleAlert, Volume2 } from 'lucide-react'
 
 import { Markdown } from '@/components/Markdown'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn, formatDuration, formatUsd } from '@/lib/utils'
+import { buildTalk } from '@/features/talkthrough/buildTalk'
+import { useTalkStore } from '@/features/talkthrough/talkStore'
+import { useAppStore } from '@/stores/appStore'
 import type { Message } from '@/stores/chatStore'
 import { ToolStrip } from './ToolStrip'
 
@@ -75,6 +78,16 @@ export function MessageView({ message }: { message: Message }) {
 
 function Footer({ message }: { message: Message }) {
   const [copied, setCopied] = useState(false)
+  const byToken = useAppStore((s) => s.byToken)
+  const hasViewer = useAppStore((s) => !!s.drawing?.tiles?.count)
+  const done = message.status === 'done'
+  // One parse per finished answer, never one per streamed chunk (trap T8).
+  const speakable = useMemo(
+    () => done && buildTalk(message.text, byToken, hasViewer).sentences.length > 0,
+    [done, message.text, byToken, hasViewer],
+  )
+  const talking = useTalkStore((s) => s.messageId === message.id && s.phase !== 'idle')
+  const start = useTalkStore((s) => s.start)
 
   const copy = async () => {
     try {
@@ -93,8 +106,21 @@ function Footer({ message }: { message: Message }) {
       <span>{formatUsd(message.costUsd)}</span>
       <span>·</span>
       <span>{formatDuration(message.durationMs)}</span>
+      {speakable && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto h-6 px-2"
+          title="Switch to the drawing and read this answer aloud, highlighting each identifier as it is named."
+          // While this answer is being talked, the palette owns it.
+          onClick={() => !talking && start(message)}
+        >
+          <Volume2 className="size-3" />
+          {talking ? 'Talking…' : 'Talk me through it'}
+        </Button>
+      )}
       {message.text && (
-        <Button variant="ghost" size="sm" className="ml-auto h-6 px-2" onClick={copy}>
+        <Button variant="ghost" size="sm" className={cn('h-6 px-2', !speakable && 'ml-auto')} onClick={copy}>
           {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
           {copied ? 'Copied' : 'Copy markdown'}
         </Button>

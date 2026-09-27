@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { DrawingPanel } from '@/components/DrawingPanel'
 import { Header } from '@/components/Header'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { TalkPalette } from '@/features/talkthrough/TalkPalette'
 import { enabledTabs } from '@/tabs'
 import { ASK_TAB_ID, DRAWING_TAB_ID } from '@/tabIds'
 import { useAppStore } from '@/stores/appStore'
@@ -108,6 +109,9 @@ export function App() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* Outside the tabs, so it survives `F2`: the Ask tab is not kept mounted. */}
+      <TalkPalette />
 
       {!loaded && (
         <div className="border-t px-4 py-2 text-xs text-muted-foreground">Loading drawing…</div>
