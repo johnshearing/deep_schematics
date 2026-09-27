@@ -1,5 +1,5 @@
-import { memo } from 'react'
-import ReactMarkdown from 'react-markdown'
+import { createElement, memo } from 'react'
+import ReactMarkdown, { type Components, type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 import { Citation } from './Citation'
@@ -26,6 +26,11 @@ import { Citation } from './Citation'
  * drawing at it. That is an allowlist lookup and nothing else — see `Citation.tsx`. It does not
  * relax anything above: the span still renders as text, and a `<code>` that resolves to nothing
  * is untouched.
+ *
+ * The blocks a talkthrough speaks carry one more attribute, `data-md`: the markdown offset of the
+ * node they came from, which is how a selection in the answer is mapped back to the sentences to
+ * speak (`features/talkthrough/selection.ts`). A number the parser computed, never text from the
+ * answer, so it adds nothing to what an answer can put on the page.
  */
 
 const SAFE_SCHEMES = ['http:', 'https:', 'mailto:']
@@ -42,6 +47,16 @@ function safeHref(href: string | undefined): string | null {
   }
 }
 
+const MARKED = ['p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'tr'] as const
+
+const marked = Object.fromEntries(
+  MARKED.map((tag) => [
+    tag,
+    ({ node, ...props }: ExtraProps & Record<string, unknown>) =>
+      createElement(tag, { ...props, 'data-md': node?.position?.start.offset }),
+  ]),
+) as Components
+
 export const Markdown = memo(function Markdown({ children }: { children: string }) {
   return (
     <div className="answer">
@@ -49,6 +64,7 @@ export const Markdown = memo(function Markdown({ children }: { children: string 
         remarkPlugins={[remarkGfm]}
         urlTransform={(url) => safeHref(url) ?? ''}
         components={{
+          ...marked,
           a({ href, children: label, ...rest }) {
             const safe = safeHref(href)
             if (!safe) return <span title="link removed">{label}</span>

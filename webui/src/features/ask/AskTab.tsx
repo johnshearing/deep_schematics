@@ -183,7 +183,9 @@ function Intro({
       <IntroNote label="Talk me through it">
         Under a finished answer, <em>Talk me through it</em> switches to the drawing and reads the
         answer aloud, flying to each identifier just before it is named. It pauses at each one if
-        you like, steps by sentence or by item, and runs as captions when muted.
+        you like, steps by sentence or by item, and runs as captions when muted. Select part of an
+        answer first to hear only that part. <em>Edit</em> rewrites an answer (or its question, from
+        the pencil beside it) in place, and the talk reads what you wrote.
       </IntroNote>
     </div>
   )

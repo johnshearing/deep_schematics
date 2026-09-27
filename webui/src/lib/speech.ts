@@ -18,7 +18,8 @@
 
 export interface Speaker {
   readonly supported: boolean
-  speak(text: string, rate: number): Promise<'end' | 'cancelled'>
+  /** `pitch` is 0 to 2 and defaults to 1; a timed speaker ignores it. */
+  speak(text: string, rate: number, pitch?: number): Promise<'end' | 'cancelled'>
   cancel(): void
 }
 
@@ -26,6 +27,32 @@ const speechSupported =
   typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window
 
 let voiceCache: SpeechSynthesisVoice | null = null
+/** A voice the user chose, by name. Names are what survive a reload; the objects do not. */
+let preferred: string | null = null
+
+/** Choose a voice by name, or null to go back to the automatic choice. An absent name falls
+ * back silently: voices differ per machine and per browser. */
+export function setPreferredVoice(name: string | null) {
+  if (name === preferred) return
+  preferred = name
+  voiceCache = null
+}
+
+const english = (v: SpeechSynthesisVoice) => /^en[-_]/i.test(v.lang)
+
+/** Every voice the browser offers, English first. Empty until the list has loaded. */
+export function listVoices(): SpeechSynthesisVoice[] {
+  if (!('speechSynthesis' in window)) return []
+  const voices = window.speechSynthesis.getVoices()
+  return [...voices.filter(english), ...voices.filter((v) => !english(v))]
+}
+
+/** Called whenever the voice list changes — it arrives asynchronously in most browsers. */
+export function onVoicesChanged(listener: () => void): () => void {
+  if (!('speechSynthesis' in window)) return () => {}
+  window.speechSynthesis.addEventListener?.('voiceschanged', listener)
+  return () => window.speechSynthesis.removeEventListener?.('voiceschanged', listener)
+}
 
 /** Prefer the natural-sounding English voices common browsers ship, then any `en-*`, then any. */
 function pickVoice(): SpeechSynthesisVoice | null {
@@ -33,6 +60,8 @@ function pickVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
   if (!voices.length) return null
   if (voiceCache && voices.includes(voiceCache)) return voiceCache
+  const chosen = preferred ? voices.find((v) => v.name === preferred) : undefined
+  if (chosen) return (voiceCache = chosen)
   const prefer = [
     /Google US English/i,
     /Microsoft (Aria|Jenny|Guy|Michelle|Zira|David)/i,
@@ -43,7 +72,7 @@ function pickVoice(): SpeechSynthesisVoice | null {
     const match = voices.find((v) => re.test(v.name) || re.test(v.voiceURI || ''))
     if (match) return (voiceCache = match)
   }
-  return (voiceCache = voices.find((v) => /^en[-_]/i.test(v.lang)) ?? voices[0])
+  return (voiceCache = voices.find(english) ?? voices[0])
 }
 
 if (speechSupported) {
@@ -55,7 +84,9 @@ if (speechSupported) {
   pickVoice()
 }
 
-function speaker(start: (text: string, rate: number, finish: () => void) => () => void, supported: boolean): Speaker {
+type Start = (text: string, rate: number, pitch: number, finish: () => void) => () => void
+
+function speaker(start: Start, supported: boolean): Speaker {
   let pending: { settle: (how: 'end' | 'cancelled') => void; stop: () => void } | null = null
   const cancel = () => {
     const current = pending
@@ -66,7 +97,7 @@ function speaker(start: (text: string, rate: number, finish: () => void) => () =
   return {
     supported,
     cancel,
-    speak(text, rate) {
+    speak(text, rate, pitch = 1) {
       cancel()
       return new Promise((resolve) => {
         const mine = {
@@ -74,7 +105,7 @@ function speaker(start: (text: string, rate: number, finish: () => void) => () =
           stop: () => {},
         }
         pending = mine
-        mine.stop = start(text, rate, () => {
+        mine.stop = start(text, rate, pitch, () => {
           if (pending !== mine) return // superseded, and already settled as cancelled
           pending = null
           resolve('end')
@@ -85,7 +116,7 @@ function speaker(start: (text: string, rate: number, finish: () => void) => () =
 }
 
 /** The browser's voice. `supported` is false where there is none (jsdom, some kiosks). */
-export const webSpeaker: Speaker = speaker((text, rate, finish) => {
+export const webSpeaker: Speaker = speaker((text, rate, pitch, finish) => {
   if (!speechSupported) {
     finish()
     return () => {}
@@ -98,6 +129,7 @@ export const webSpeaker: Speaker = speaker((text, rate, finish) => {
     u.lang = voice.lang
   }
   u.rate = rate
+  u.pitch = pitch
   u.onend = finish
   u.onerror = finish // an interrupted utterance must not hang the caller
   window.speechSynthesis.speak(u)
@@ -109,7 +141,7 @@ export const webSpeaker: Speaker = speaker((text, rate, finish) => {
  * (scaled by `rate`), so captions advance at reading pace when muted or voiceless.
  */
 export function timedSpeaker(wpm = 170): Speaker {
-  return speaker((text, rate, finish) => {
+  return speaker((text, rate, _pitch, finish) => {
     const words = text.split(/\s+/).filter(Boolean).length
     const timer = setTimeout(finish, Math.max(600, (words / (wpm * rate)) * 60_000))
     return () => clearTimeout(timer)

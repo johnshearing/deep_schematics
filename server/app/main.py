@@ -50,6 +50,7 @@ from .drawing import (
     tile_file,
     tile_manifest,
 )
+from .edited_answers import list_edits, save_edit, turn_meta
 from .ink import Conductor
 from .label_corrections import (
     CorrectionsRefused,
@@ -93,6 +94,17 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=1)
     session_id: str | None = None
     model: str | None = None
+
+
+class EditedAnswerRequest(BaseModel):
+    """One turn's question and answer, each as the model had them and as the user rewrote them.
+    A null edit means "as the original"; both null deletes the record."""
+
+    question: str = Field(max_length=50_000)
+    question_edited: str | None = Field(default=None, max_length=50_000)
+    answer: str = Field(max_length=500_000)
+    answer_edited: str | None = Field(default=None, max_length=500_000)
+    model: str | None = Field(default=None, max_length=200)
 
 
 class UnlockRequest(BaseModel):
@@ -416,6 +428,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if not _check_editor_password(settings_, body.password):
                 raise HTTPException(401, "That is not the editor password.")
             return JSONResponse({"unlocked": True, "password_required": True})
+
+        @app.put("/api/edited-answers/{turn_id}")
+        async def put_edited_answer(
+            turn_id: str,
+            body: EditedAnswerRequest,
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """Keep the user's rewrite of a turn beside the model's original. `talkthrough_02.md`
+            §6. The user's prose, in a directory of its own — never an extraction file."""
+            _require_editor(app.state.settings, x_editor_password)
+            meta = turn_meta(app.state.settings.log_dir, turn_id)
+            try:
+                record = save_edit(
+                    settings.drawing_dir,
+                    turn_id,
+                    question=body.question,
+                    question_edited=body.question_edited,
+                    answer=body.answer,
+                    answer_edited=body.answer_edited,
+                    model=meta.get("model") or body.model,
+                    prompt_version=meta.get("prompt_version") or PROMPT_VERSION,
+                )
+            except ValueError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            except OSError as exc:
+                raise HTTPException(500, f"The edit could not be saved: {exc}") from exc
+            return {"saved": record is not None, "record": record}
+
+        @app.get("/api/edited-answers")
+        async def get_edited_answers(
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """Every saved rewrite, newest first — the material a steering plan would read."""
+            _require_editor(app.state.settings, x_editor_password)
+            return {"records": list_edits(settings.drawing_dir)}
 
         @app.get("/api/locations")
         async def get_locations(

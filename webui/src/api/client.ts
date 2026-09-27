@@ -75,6 +75,26 @@ export async function editorUnlock(password: string): Promise<void> {
   editorPassword = password
 }
 
+/** One turn's question and answer, as the model had them and as the user rewrote them. */
+export interface EditedAnswer {
+  question: string
+  question_edited: string | null
+  answer: string
+  answer_edited: string | null
+  model: string | null
+}
+
+/** Keep the user's rewrite beside the original (`talkthrough_02.md` §6). Both edits null deletes
+ * the record. Needs the editor routes (`SWUI_ALLOW_EDITS=true`) and, if set, its password. */
+export async function putEditedAnswer(turnId: string, body: EditedAnswer): Promise<void> {
+  const response = await fetch(`${API}/edited-answers/${encodeURIComponent(turnId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...editorHeader() },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+}
+
 export async function getLocations(): Promise<LocationsResponse> {
   const response = await fetch(`${API}/locations`, {
     headers: { Accept: 'application/json', ...editorHeader() },

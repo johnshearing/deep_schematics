@@ -149,3 +149,60 @@ describe('Talk me through it, in the answer footer', () => {
     expect(screen.getByRole('button', { name: /copy markdown/i })).toBeTruthy()
   })
 })
+
+/** `talkthrough_02.md` §6: rewriting an answer or a question in place. */
+describe('editing an answer or a question', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    useAppStore.setState({ health: null })
+  })
+
+  it('shows only the edit once saved, keeps the original off screen, and reverts', async () => {
+    render(<AskTab />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const box = screen.getByRole('textbox', { name: 'Edit the answer' }) as HTMLTextAreaElement
+    expect(box.value).toBe(MESSAGES[1].text)
+    expect(screen.getByText(/kept for this conversation only/i)).toBeTruthy()
+    fireEvent.change(box, { target: { value: 'My own answer about `CR1`.' } })
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save' })))
+    expect(screen.getByText(/My own answer about/)).toBeTruthy()
+    expect(screen.queryByText(/Follow/)).toBeNull() // no trace of the original, and no badge
+    const saved = useChatStore.getState().messages[1]
+    expect([saved.text, saved.edited]).toEqual([MESSAGES[1].text, 'My own answer about `CR1`.'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Revert to original' })))
+    expect(screen.getByText(/Follow/)).toBeTruthy()
+    expect(useChatStore.getState().messages[1].edited).toBeUndefined()
+  })
+
+  it('edits the question in its bubble', async () => {
+    render(<AskTab />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit question' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit the question' }), {
+      target: { value: 'Where does the bypass relay get 24 V?' },
+    })
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save' })))
+    expect(screen.getByText('Where does the bypass relay get 24 V?')).toBeTruthy()
+    expect(useChatStore.getState().messages[0].text).toBe(MESSAGES[0].text)
+  })
+
+  it('saves the edit beside the original when the editor is available', async () => {
+    const fetch = vi.fn(async () => new Response('{"saved":true}', { status: 200 }))
+    vi.stubGlobal('fetch', fetch)
+    useAppStore.setState({ health: { editing: { enabled: true, password_required: false }, spend: { exhausted: false } } as never })
+    useChatStore.setState({ messages: [MESSAGES[0], { ...MESSAGES[1], turnId: 't-1', model: 'sonnet' }] })
+    render(<AskTab />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByText(/saved beside the drawing/i)).toBeTruthy()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit the answer' }), { target: { value: 'Mine.' } })
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save' })))
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toMatch(/\/edited-answers\/t-1$/)
+    expect(JSON.parse(init.body as string)).toEqual({
+      question: MESSAGES[0].text, question_edited: null,
+      answer: MESSAGES[1].text, answer_edited: 'Mine.', model: 'sonnet',
+    })
+    expect(screen.queryByRole('textbox', { name: 'Edit the answer' })).toBeNull()
+  })
+})

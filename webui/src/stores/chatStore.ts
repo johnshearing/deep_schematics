@@ -30,7 +30,18 @@ export interface Message {
   durationMs?: number
   error?: string
   startedAt: number
+  /** The server's id for the turn that produced an answer — what an edit is saved under. */
+  turnId?: string
+  /**
+   * The user's rewrite of this message, question or answer (`talkthrough_02.md` §6). When present
+   * it is what the screen shows, what `Copy markdown` copies and what the talkthrough speaks.
+   * **`text` is never overwritten**: it stays the original, off screen, for comparison.
+   */
+  edited?: string
 }
+
+/** What a message says now: the user's edit if there is one, else the original. */
+export const shownText = (message: Message) => message.edited ?? message.text
 
 interface ChatState {
   sessionId: string | null
@@ -44,6 +55,8 @@ interface ChatState {
   send: (question: string, model: string) => Promise<void>
   stop: () => Promise<void>
   reset: () => void
+  /** Replace what a message shows with `text`, or put the original back with null. */
+  editMessage: (id: string, text: string | null) => void
 }
 
 let controller: AbortController | null = null
@@ -83,6 +96,16 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   sessionCostUsd: 0,
 
   setComposerText: (composerText) => set({ composerText }),
+
+  editMessage: (id, text) =>
+    set((state) => ({
+      messages: state.messages.map((m) => {
+        if (m.id !== id) return m
+        const { edited: _, ...rest } = m
+        // An edit identical to the original is no edit.
+        return text === null || text === m.text ? rest : { ...rest, edited: text }
+      }),
+    })),
 
   reset: () => {
     controller?.abort()
@@ -126,7 +149,11 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     const onEvent = (event: ServerEvent) => {
       switch (event.t) {
         case 'start':
-          set({ sessionId: event.session_id, turnId: event.turn_id })
+          set((state) => ({
+            sessionId: event.session_id,
+            turnId: event.turn_id,
+            messages: patchLast(state.messages, () => ({ turnId: event.turn_id })),
+          }))
           break
 
         case 'text':

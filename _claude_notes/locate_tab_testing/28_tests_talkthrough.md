@@ -27,8 +27,8 @@ $0.12), or use any answer at all.
 | **T-1600** | Ask anything. Watch the footer while the answer streams, then when it finishes. | No button while it streams. When it finishes, **`Talk me through it`** (a speaker icon) appears **immediately before `Copy markdown`**. Hovering it reads *"Switch to the drawing and read this answer aloud, highlighting each identifier as it is named."* An answer that is only a code block has no button. |
 | **T-1605** | Press `Talk me through it`. | The `Drawing` tab opens, a palette titled **Talk me through it** appears at the **top right**, and the voice starts. The button on the Ask tab now reads **`Talking…`**, and pressing it again does nothing. |
 | **T-1610** | Listen to a sentence that names an identifier. | **The sheet flies before the name is said, never after.** A component is ringed, a wire or net is painted along the ink, and the selection card (lower left) names it. Then the voice says the name. The caption shows the whole sentence, with the current item in **bold**. |
-| **T-1615** | Set **Pause at each item: off**. | Each item is highlighted and spoken with no wait. |
-| **T-1620** | Set **2 s** (the default). | At each item the sheet flies, **a thin bar under the caption fills for two seconds**, and then the name is spoken. |
+| **T-1615** | Set **Pause at each item: off** (the default since 2026-09-27). | Each item is highlighted and spoken with no wait. |
+| **T-1620** | Set **2 s**. | At each item the sheet flies, **a thin bar under the caption fills for two seconds**, and then the name is spoken. |
 | **T-1625** | Set **4 s**. | The same, over four seconds. |
 | **T-1630** | Set **until I press ▶**. | At each item the sheet flies, the voice stops, and a **`▶ Continue`** button appears. Nothing is spoken until you press it (or ▶, or `Space` with focus in the palette), and then it **speaks at once** without waiting again. |
 | **T-1635** | Pause mid-sentence, then press ▶. | It **re-speaks the current fragment from its start** rather than resuming mid-word (by design: browser pause/resume is unreliable on Linux Chrome and Android). |
@@ -43,3 +43,22 @@ $0.12), or use any answer at all.
 are generic, by shape, and never name a drawing (`webui/src/lib/speakId.ts`): `TB-0V:9` is *T B zero
 V terminal 9*, `W048` is *W zero four eight*, `CR-ON` is *C R on*, net `RUN` is *net run*, and
 `RECEPT1:3` is *recept 1 terminal 3*. A fix goes into those generic rules, never a per-id spelling.
+**`Show spoken text`** in the palette (T-1690) shows these forms under the caption as they play.
+
+---
+
+## Added 2026-09-27 (`talkthrough_02.md`): selection, edits, question first, voice
+
+**Install: this one needs a server restart as well as a rebuild**, once, for the new
+`edited-answers` route (`cd webui && npm run build`, then restart `python -m app`). Every row
+below has an automated test behind it, and none has been walked by ear yet.
+
+| T | Do this | Expect that |
+|---|---|---|
+| **T-1670** | In a finished answer, select part of a sentence through part of a later one (or across a list or a table). Press `Talk me through it`. | **Only the sentences your selection touches** are spoken, whole, with their links highlighted as usual. The counter reads *Sentence n of N (selection)*. A selection that is only inside a code block, or outside this answer, speaks the whole answer. |
+| **T-1675** | Press **`Edit`** in an answer's footer. Rewrite it, or replace it with your own markdown (an identifier in `backticks` becomes a link). Press **Save**. | The box shows the answer's markdown. After Save **the screen shows only your text**: no badge and no trace of the original. Its identifiers are links, `Copy markdown` copies it, and `Talk me through it` speaks it. `Edit` again, then **Revert to original**, brings the model's answer back. |
+| **T-1680** | Hover over a question bubble and press the pencil. Rephrase the question, then Save. | The bubble shows your wording. The pencil only appears on hover, so it is not on camera. |
+| **T-1685** | Tick **Read the question first** in the palette and start a talk. | The question is read first (the counter says *Question ·*), then the answer. **Nothing in the question is highlighted**, though an identifier written exactly as the index has it (`RECEPT1:3`) is pronounced properly. ◀ sentence from the answer's first sentence steps back into the question. The setting stays on across reloads. |
+| **T-1690** | Tick **Show spoken text**. | Under the caption, in italics, is what the voice is being given (*recept 1 terminal 3*), with the current fragment in bold. |
+| **T-1695** | Choose a **Voice** and move **Pitch**. Reload. | The menu lists the browser's voices, English first, with *Automatic* at the top. The voice changes at once (the current fragment is re-said) and pitch applies from the next fragment. Both survive a reload. On a machine without that voice it quietly falls back to *Automatic*. Neither control appears where there is no voice. |
+| **T-1700** | With `SWUI_ALLOW_EDITS=true`, unlock the editor on the Locate tab (`edit-1234`), then edit and save an answer. Look in `schematic_extraction/PS20115MLM4-2/walkthrough/edited_answers/`. Then revert both the answer and the question. | The edit box said *"Saved beside the drawing, with the original."* A file `<turn id>.json` holds the question and the answer, each as `original` and `edited`, plus the model, the prompt version and the time. Reverting both deletes the file. **Without the editor unlocked** (or with editing off) the box says *"Kept for this conversation only"*: the edit still shows and is still spoken, but it is lost on reload or `New conversation`. |

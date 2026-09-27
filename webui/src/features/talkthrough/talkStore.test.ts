@@ -16,13 +16,13 @@ const INDEX = JSON.parse(
 /** A speaker that says nothing until told to, and records what was selected when it began. */
 function fakeSpeaker(supported = true) {
   let pending: ((how: 'end' | 'cancelled') => void) | null = null
-  const said: { text: string; selected: string | undefined }[] = []
+  const said: { text: string; selected: string | undefined; pitch?: number }[] = []
   const speaker: Speaker & { said: typeof said; finish: () => Promise<void> } = {
     supported,
     said,
-    speak(text) {
+    speak(text, _rate, pitch) {
       speaker.cancel()
-      said.push({ text, selected: useAppStore.getState().selection?.id })
+      said.push({ text, selected: useAppStore.getState().selection?.id, pitch })
       return new Promise((resolve) => (pending = resolve))
     },
     cancel() {
@@ -47,6 +47,8 @@ const MESSAGE: Message = {
   thinking: false, startedAt: 1,
 }
 
+const QUESTION: Message = { ...MESSAGE, id: 'u1', role: 'user', text: 'Why is the "Run" wire dead? Check PB1.' }
+
 let voice: ReturnType<typeof fakeSpeaker>
 let timed: ReturnType<typeof fakeSpeaker>
 const talk = () => useTalkStore.getState()
@@ -62,8 +64,10 @@ beforeEach(() => {
     designators: INDEX, byToken: buildLookup(INDEX), selection: null, activeTabId: 'ask',
     drawing: { tiles: { count: 4 } } as DrawingSummary,
   })
-  useChatStore.setState({ messages: [{ ...MESSAGE, id: 'u1', role: 'user' }, MESSAGE] })
-  useTalkStore.setState({ dwell: 0, rate: 1, muted: false, palette: null })
+  useChatStore.setState({ messages: [QUESTION, MESSAGE] })
+  useTalkStore.setState({
+    dwell: 0, rate: 1, muted: false, palette: null, voice: null, pitch: 1, questionFirst: false, showSay: false,
+  })
 })
 
 afterEach(() => {
@@ -82,7 +86,7 @@ describe('talkStore', () => {
     talk().start(MESSAGE)
     expect(useAppStore.getState().activeTabId).toBe('drawing')
     await speakUntil('P B 1')
-    expect(voice.said).toEqual([
+    expect(voice.said.map(({ text, selected }) => ({ text, selected }))).toEqual([
       { text: 'Start here.', selected: undefined },
       { text: 'Net', selected: undefined },
       { text: '121 goes to', selected: '121' },
@@ -209,6 +213,47 @@ describe('talkStore', () => {
     talk().setPalette({ x: 10, y: 20 })
     talk().start(MESSAGE)
     const saved = JSON.parse(localStorage.getItem('talkthrough-settings')!).state
-    expect(saved).toEqual({ dwell: 4000, rate: 1.3, muted: false, palette: { x: 10, y: 20 } })
+    expect(saved).toEqual({
+      dwell: 4000, rate: 1.3, muted: false, palette: { x: 10, y: 20 },
+      voice: null, pitch: 1, questionFirst: false, showSay: false,
+    })
+  })
+
+  it('reads the question first when asked, highlighting nothing in it, then the answer', async () => {
+    talk().setQuestionFirst(true)
+    talk().start(MESSAGE)
+    expect(talk().talk!.sentences.slice(0, 2).map((s) => s.block)).toEqual(['q', 'q'])
+    await voice.finish()
+    // "Run" in prose stays a word; PB1, a whole word that is exactly an id, is spelt out.
+    expect(texts()).toEqual(['Why is the "Run" wire dead?', 'Check P B 1.'])
+    expect(selected()).toBeUndefined()
+    await speakUntil('121')
+    expect(selected()).toBe('121')
+    // Items were shifted past the question, and back from the answer's start reaches into it.
+    talk().nextItem()
+    expect(talk().pos).toEqual({ s: 3, g: 2 })
+    talk().pause()
+    talk().prevSentence()
+    talk().prevSentence()
+    talk().prevSentence()
+    expect(talk().pos).toEqual({ s: 1, g: 0 })
+  })
+
+  it('speaks with the chosen pitch, and persists the voice by name', async () => {
+    talk().setPitch(9)
+    talk().setVoice('Some Voice')
+    talk().start(MESSAGE)
+    expect(voice.said[0].pitch).toBe(1.5)
+    const saved = JSON.parse(localStorage.getItem('talkthrough-settings')!).state
+    expect(saved.voice).toBe('Some Voice')
+  })
+
+  it('speaks the edited answer and the edited question, never the originals', async () => {
+    useChatStore.getState().editMessage('u1', 'My question.')
+    useChatStore.getState().editMessage('a1', 'My own answer.')
+    talk().setQuestionFirst(true)
+    talk().start(useChatStore.getState().messages[1])
+    await voice.finish()
+    expect(texts()).toEqual(['My question.', 'My own answer.'])
   })
 })

@@ -10,7 +10,8 @@ import { buildLookup } from '@/lib/designators'
 import { useAppStore } from '@/stores/appStore'
 import { useChatStore, type Message } from '@/stores/chatStore'
 import { TalkPalette } from './TalkPalette'
-import { useTalkStore } from './talkStore'
+import { timedSpeaker, webSpeaker } from '@/lib/speech'
+import { setSpeakers, useTalkStore } from './talkStore'
 
 /**
  * `talkthrough_01.md` §6.6. The palette beside the real Drawing tab, because the two ways this
@@ -80,7 +81,9 @@ beforeEach(() => {
     selection: null, paths: null, conductors: [], conductorsError: null,
   })
   useChatStore.setState({ messages: [{ ...MESSAGE, id: 'u1', role: 'user' }, MESSAGE] })
-  useTalkStore.setState({ dwell: 0, rate: 1, muted: false, palette: null })
+  useTalkStore.setState({
+    dwell: 0, rate: 1, muted: false, palette: null, voice: null, pitch: 1, questionFirst: false, showSay: false,
+  })
 })
 
 afterEach(() => {
@@ -199,5 +202,70 @@ describe('the talkthrough palette', () => {
     await act(() => vi.advanceTimersByTimeAsync(600))
     expect(screen.getByTestId('talk-caption').querySelector('strong')?.textContent).toBe('121')
     expect(selected()).toBe('121')
+  })
+
+  it('offers the browser’s voices, English first, and a pitch, where there is a voice', () => {
+    vi.stubGlobal('speechSynthesis', {
+      getVoices: () => [{ name: 'Robert', lang: 'fr-FR' }, { name: 'Ann', lang: 'en-US' }],
+      addEventListener() {}, removeEventListener() {}, cancel() {},
+    })
+    setSpeakers({ supported: true, speak: () => new Promise(() => {}), cancel() {} }, timedSpeaker())
+    try {
+      begin()
+      const menu = screen.getByRole('combobox', { name: 'Voice' }) as HTMLSelectElement
+      expect([...menu.options].map((o) => o.textContent)).toEqual(['Automatic', 'Ann (en-US)', 'Robert (fr-FR)'])
+      fireEvent.change(menu, { target: { value: 'Robert' } })
+      expect(talk().voice).toBe('Robert')
+      fireEvent.change(screen.getByRole('slider', { name: 'Pitch' }), { target: { value: '0.7' } })
+      expect(talk().pitch).toBe(0.7)
+      expect(screen.queryByText(/captions only/i)).toBeNull()
+    } finally {
+      setSpeakers(webSpeaker, timedSpeaker())
+    }
+  })
+
+  it('shows the spoken form under the caption, and labels the question when it is read first', () => {
+    useTalkStore.setState({ questionFirst: true })
+    useChatStore.setState({ messages: [{ ...MESSAGE, id: 'u1', role: 'user', text: 'Is PB1 lit?' }, MESSAGE] })
+    begin()
+    expect(screen.getByText(/^Question · /)).toBeTruthy()
+    expect(screen.queryByTestId('talk-say')).toBeNull()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Show spoken text' }))
+    expect(screen.getByTestId('talk-say').textContent).toBe('Is P B 1 lit? ')
+    expect(screen.getByTestId('talk-caption').textContent).toBe('Is PB1 lit?')
+  })
+
+  it('speaks only the sentences a selection in the answer touches', () => {
+    mount()
+    const answer = document.querySelector('.answer')!
+    const paragraph = answer.querySelector('p')!
+    // From inside "Net " to inside "CR1": sentence 1 only.
+    const range = document.createRange()
+    const text = [...paragraph.childNodes]
+    range.setStart(text[0], 14) // "Start here. Ne|t "
+    range.setEnd(paragraph.querySelectorAll('code')[1].firstChild!, 2) // "CR|1"
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    const button = screen.getByRole('button', { name: /talk me through it/i })
+    fireEvent.pointerDown(button)
+    window.getSelection()!.removeAllRanges() // as a click may collapse it before the handler runs
+    fireEvent.click(button)
+    expect(talk().talk!.sentences.map((x) => x.segments.map((g) => g.show).join(''))).toEqual([
+      'Net 121 goes to CR1 now.',
+    ])
+    expect(screen.getByText(/\(selection\)/)).toBeTruthy()
+  })
+
+  it('ignores a selection outside the answer and speaks the whole of it', () => {
+    mount()
+    const composer = screen.getByRole('textbox', { name: 'composer' })
+    composer.textContent = 'elsewhere'
+    const range = document.createRange()
+    range.selectNodeContents(composer)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    fireEvent.click(screen.getByRole('button', { name: /talk me through it/i }))
+    expect(talk().talk!.sentences).toHaveLength(4)
+    expect(talk().partial).toBe(false)
   })
 })

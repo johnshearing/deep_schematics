@@ -8,7 +8,7 @@ import type { DesignatorIndex, DrawingSummary } from '@/api/types'
 import { Markdown } from '@/components/Markdown'
 import { buildLookup } from '@/lib/designators'
 import { useAppStore } from '@/stores/appStore'
-import { buildTalk, type Talk } from './buildTalk'
+import { buildQuestion, buildTalk, sliceTalk, type Talk } from './buildTalk'
 
 /**
  * `talkthrough_01.md` §4.5. The fixture is two real answers from a committed acceptance run
@@ -130,5 +130,71 @@ describe('buildTalk rules (§4.2)', () => {
     expect(talk.items.length).toBe(
       talk.sentences.flatMap((s) => s.segments).filter((g) => g.cite).length,
     )
+  })
+})
+
+describe('where each sentence is on screen (§5)', () => {
+  afterEach(() => useAppStore.setState({ designators: null, byToken: new Map(), drawing: null }))
+
+  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT]])(
+    'finds every sentence in the rendered block its keys name, at its offsets (%s)',
+    (_, answer) => {
+      useAppStore.setState({ designators: INDEX, byToken, drawing: { tiles: { count: 4 } } as DrawingSummary })
+      const { container } = render(createElement(Markdown, null, answer))
+      const talk = buildTalk(answer, byToken, true)
+      let checked = 0
+      for (const sentence of talk.sentences) {
+        const element = sentence.keys!
+          .map((k) => container.querySelector(`[data-md="${k}"]`))
+          .find(Boolean)
+        expect(element, sentence.segments[0].show).toBeTruthy()
+        if (sentence.block === 'row' || sentence.block === 'h') continue // spoken whole
+        const text = sentence.segments.map((g) => g.show).join('')
+        expect(element!.textContent!.slice(sentence.from, sentence.to)).toBe(text)
+        checked++
+      }
+      expect(checked).toBeGreaterThan(10)
+    },
+  )
+})
+
+describe('sliceTalk (§5)', () => {
+  // p@0 "One. Two." · list item "Three `CR1`." (tight: its <li> is at 11, its text at 13) ·
+  // row "`PB1`, x" · p "Four."
+  const MD = 'One. Two.\n\n- Three `CR1`.\n- Five.\n\n| A | B |\n|---|---|\n| `PB1` | x |\n\nFour.\n'
+  const talk = buildTalk(MD, byToken, true)
+  const texts = (t: Talk) => t.sentences.map((s) => s.segments.map((g) => g.show).join(''))
+  const keyOf = (text: string) => talk.sentences.find((s) => texts({ ...talk, sentences: [s] })[0] === text)!
+
+  it('keeps whole sentences, even when the selection cuts one in half', () => {
+    const p = keyOf('One.').keys![0]
+    expect(texts(sliceTalk(talk, { key: p, offset: 2 }, { key: p, offset: 7 }))).toEqual(['One.', 'Two.'])
+    expect(texts(sliceTalk(talk, { key: p, offset: 5 }, { key: p, offset: 9 }))).toEqual(['Two.'])
+  })
+
+  it('crosses blocks, a list and a table, and recounts the items', () => {
+    const p = keyOf('One.').keys![0]
+    const item = keyOf('Three CR1.').keys!.at(-1)! // the <li>'s own offset, as a tight list renders
+    const row = keyOf('PB1, x').keys![0]
+    const sliced = sliceTalk(talk, { key: p, offset: 6 }, { key: row, offset: 1 })
+    expect(texts(sliced)).toEqual(['Two.', 'Three CR1.', 'Five.', 'PB1, x'])
+    expect(sliced.items).toEqual([{ s: 1, g: 1 }, { s: 3, g: 0 }])
+    expect(texts(sliceTalk(talk, { key: item, offset: 0 }, { key: item, offset: 3 }))).toEqual(['Three CR1.'])
+  })
+
+  it('places an end in an unmarked block by order, and finds nothing in a gap', () => {
+    const four = keyOf('Four.').keys![0]
+    expect(texts(sliceTalk(talk, { key: four - 1, offset: 0 }, { key: 10_000, offset: 0 }))).toEqual(['Four.'])
+    const p = keyOf('One.').keys![0]
+    expect(sliceTalk(talk, { key: p, offset: 9 }, { key: p, offset: 9 }).sentences).toEqual([])
+  })
+})
+
+describe('buildQuestion', () => {
+  it('spells out a whole-word identifier, case included, and highlights nothing', () => {
+    const [first, second] = buildQuestion('Is "Run" live at RECEPT1:3? Check run and cr1.', byToken)
+    expect(first.segments).toEqual([{ show: 'Is "Run" live at RECEPT1:3?', say: 'Is "Run" live at recept 1 terminal 3?' }])
+    expect(second.segments[0].say).toBe('Check run and cr1.')
+    expect(first.block).toBe('q')
   })
 })

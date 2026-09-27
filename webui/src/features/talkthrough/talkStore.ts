@@ -15,11 +15,12 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-import { timedSpeaker, webSpeaker, type Speaker } from '@/lib/speech'
+import { setPreferredVoice, timedSpeaker, webSpeaker, type Speaker } from '@/lib/speech'
 import { useAppStore } from '@/stores/appStore'
-import { useChatStore, type Message } from '@/stores/chatStore'
+import { shownText, useChatStore, type Message } from '@/stores/chatStore'
 import { DRAWING_TAB_ID } from '@/tabIds'
-import { buildTalk, type Talk } from './buildTalk'
+import { buildQuestion, buildTalk, sliceTalk, type Talk } from './buildTalk'
+import type { Span } from './selection'
 
 export type Dwell = 0 | 2000 | 4000 | 'press'
 export type Phase = 'idle' | 'highlighting' | 'dwelling' | 'speaking' | 'paused' | 'done'
@@ -32,6 +33,8 @@ interface TalkState {
   phase: Phase
   /** Whether the current segment's cite is already on the sheet, so a resume speaks at once. */
   shown: boolean
+  /** True when only a selection of the answer is being spoken. */
+  partial: boolean
   gen: number
 
   // Settings — the only part persisted.
@@ -40,8 +43,16 @@ interface TalkState {
   muted: boolean
   /** Where the palette was dragged to; null is the top-right default. */
   palette: { x: number; y: number } | null
+  /** A voice chosen by name; null is the automatic choice. */
+  voice: string | null
+  pitch: number
+  /** Speak the question that produced the answer before the answer itself. */
+  questionFirst: boolean
+  /** Show the spoken form under the caption, so a poor pronunciation can be seen and fixed. */
+  showSay: boolean
 
-  start: (message: Message) => void
+  /** Talk through an answer, or only the sentences `span` touches when there is a selection. */
+  start: (message: Message, span?: Span | null) => void
   play: () => void
   pause: () => void
   nextSentence: () => void
@@ -53,6 +64,10 @@ interface TalkState {
   setRate: (rate: number) => void
   setMuted: (muted: boolean) => void
   setPalette: (palette: { x: number; y: number } | null) => void
+  setVoice: (voice: string | null) => void
+  setPitch: (pitch: number) => void
+  setQuestionFirst: (on: boolean) => void
+  setShowSay: (on: boolean) => void
 }
 
 let speakers: { voice: Speaker; timed: Speaker } = { voice: webSpeaker, timed: timedSpeaker() }
@@ -69,6 +84,23 @@ let timer: ReturnType<typeof setTimeout> | null = null
 
 const PLAYING: Phase[] = ['highlighting', 'dwelling', 'speaking']
 export const isPlaying = (phase: Phase) => PLAYING.includes(phase)
+
+/** The question that produced an answer: the nearest user message before it. */
+function questionOf(answerId: string): string {
+  const messages = useChatStore.getState().messages
+  const at = messages.findIndex((m) => m.id === answerId)
+  for (let k = at - 1; k >= 0; k--) if (messages[k].role === 'user') return shownText(messages[k])
+  return ''
+}
+
+/** The question's sentences first, then the answer's, with the answer's items shifted to match. */
+function withQuestion(answer: Talk, question: string, byToken: Parameters<typeof buildQuestion>[1]): Talk {
+  const asked = buildQuestion(question, byToken)
+  return {
+    sentences: [...asked, ...answer.sentences],
+    items: answer.items.map(({ s, g }) => ({ s: s + asked.length, g })),
+  }
+}
 
 const before = (a: Pos, b: Pos) => a.s < b.s || (a.s === b.s && a.g < b.g)
 
@@ -123,7 +155,8 @@ export const useTalkStore = create<TalkState>()(
           }
 
           set({ phase: 'speaking' })
-          const how = await speaker().speak(segment.say, get().rate)
+          setPreferredVoice(get().voice)
+          const how = await speaker().speak(segment.say, get().rate, get().pitch)
           if (!live() || how === 'cancelled') return
 
           const next = following(pos)
@@ -149,20 +182,32 @@ export const useTalkStore = create<TalkState>()(
         pos: { s: 0, g: 0 },
         phase: 'idle',
         shown: false,
+        partial: false,
         gen: 0,
 
-        dwell: 2000,
+        dwell: 0,
         rate: 1,
         muted: false,
         palette: null,
+        voice: null,
+        pitch: 1,
+        questionFirst: false,
+        showSay: false,
 
-        start: (message) => {
+        start: (message, span) => {
           if (message.status !== 'done') return
           const app = useAppStore.getState()
-          const talk = buildTalk(message.text, app.byToken, !!app.drawing?.tiles?.count)
-          if (!talk.sentences.length) return
+          const full = buildTalk(shownText(message), app.byToken, !!app.drawing?.tiles?.count)
+          const sliced = span ? sliceTalk(full, span.from, span.to) : full
+          // A selection with nothing speakable in it (only a code block) speaks the whole answer.
+          const answer = sliced.sentences.length ? sliced : full
+          if (!answer.sentences.length) return
+          const talk = get().questionFirst ? withQuestion(answer, questionOf(message.id), app.byToken) : answer
           const gen = interrupt()
-          set({ messageId: message.id, talk, pos: { s: 0, g: 0 }, shown: false, phase: 'highlighting' })
+          set({
+            messageId: message.id, talk, pos: { s: 0, g: 0 }, shown: false, phase: 'highlighting',
+            partial: answer !== full,
+          })
           app.setActiveTab(DRAWING_TAB_ID)
           void run(gen)
         },
@@ -225,11 +270,20 @@ export const useTalkStore = create<TalkState>()(
           if (get().phase === 'speaking') void run(interrupt())
         },
         setPalette: (palette) => set({ palette }),
+        setVoice: (voice) => {
+          set({ voice })
+          if (get().phase === 'speaking') void run(interrupt())
+        },
+        setPitch: (pitch) => set({ pitch: Math.min(1.5, Math.max(0.5, pitch)) }),
+        setQuestionFirst: (questionFirst) => set({ questionFirst }),
+        setShowSay: (showSay) => set({ showSay }),
       }
     },
     {
       name: 'talkthrough-settings',
-      partialize: ({ dwell, rate, muted, palette }) => ({ dwell, rate, muted, palette }),
+      partialize: ({ dwell, rate, muted, palette, voice, pitch, questionFirst, showSay }) => ({
+        dwell, rate, muted, palette, voice, pitch, questionFirst, showSay,
+      }),
     },
   ),
 )

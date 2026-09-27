@@ -1,22 +1,46 @@
-import { useMemo, useState } from 'react'
-import { Check, Copy, ShieldAlert, TriangleAlert, Volume2 } from 'lucide-react'
+import { useMemo, useRef, useState, type RefObject } from 'react'
+import { Check, Copy, Pencil, ShieldAlert, TriangleAlert, Volume2 } from 'lucide-react'
 
 import { Markdown } from '@/components/Markdown'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn, formatDuration, formatUsd } from '@/lib/utils'
 import { buildTalk } from '@/features/talkthrough/buildTalk'
+import { readSelection } from '@/features/talkthrough/selection'
 import { useTalkStore } from '@/features/talkthrough/talkStore'
 import { useAppStore } from '@/stores/appStore'
-import type { Message } from '@/stores/chatStore'
+import { shownText, type Message } from '@/stores/chatStore'
+import { EditBox } from './EditBox'
 import { ToolStrip } from './ToolStrip'
 
 export function MessageView({ message }: { message: Message }) {
+  const [editing, setEditing] = useState(false)
+  const answerRef = useRef<HTMLDivElement>(null)
+
   if (message.role === 'user') {
+    // Editable for the talkthrough, which may read the question aloud: a video may want it phrased
+    // better than it was typed. The pencil shows only on hover, so it is not on camera.
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-lg rounded-br-sm bg-accent px-3 py-2 text-sm whitespace-pre-wrap text-accent-foreground">
-          {message.text}
+      <div className="group flex items-start justify-end gap-1">
+        {!editing && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            aria-label="Edit question"
+            title="Edit the question (for reading it aloud)"
+            onClick={() => setEditing(true)}
+          >
+            <Pencil className="size-3" />
+          </Button>
+        )}
+        <div
+          className={cn(
+            'rounded-lg rounded-br-sm bg-accent px-3 py-2 text-sm whitespace-pre-wrap text-accent-foreground',
+            editing ? 'w-full max-w-[85%]' : 'max-w-[85%]',
+          )}
+        >
+          {editing ? <EditBox message={message} onDone={() => setEditing(false)} /> : shownText(message)}
         </div>
       </div>
     )
@@ -54,10 +78,14 @@ export function MessageView({ message }: { message: Message }) {
         </div>
       )}
 
-      {message.text && (
-        <div className={cn(streaming && 'caret')}>
-          <Markdown>{message.text}</Markdown>
-        </div>
+      {editing ? (
+        <EditBox message={message} onDone={() => setEditing(false)} />
+      ) : (
+        message.text && (
+          <div ref={answerRef} className={cn(streaming && 'caret')}>
+            <Markdown>{shownText(message)}</Markdown>
+          </div>
+        )
       )}
 
       {message.status === 'error' && (
@@ -71,27 +99,40 @@ export function MessageView({ message }: { message: Message }) {
         <p className="text-xs text-muted-foreground italic">Stopped.</p>
       )}
 
-      {!streaming && <Footer message={message} />}
+      {!streaming && !editing && (
+        <Footer message={message} answerRef={answerRef} onEdit={() => setEditing(true)} />
+      )}
     </div>
   )
 }
 
-function Footer({ message }: { message: Message }) {
+function Footer({ message, answerRef, onEdit }: {
+  message: Message
+  answerRef: RefObject<HTMLDivElement | null>
+  onEdit: () => void
+}) {
   const [copied, setCopied] = useState(false)
   const byToken = useAppStore((s) => s.byToken)
   const hasViewer = useAppStore((s) => !!s.drawing?.tiles?.count)
   const done = message.status === 'done'
   // One parse per finished answer, never one per streamed chunk (trap T8).
+  const text = shownText(message)
   const speakable = useMemo(
-    () => done && buildTalk(message.text, byToken, hasViewer).sentences.length > 0,
-    [done, message.text, byToken, hasViewer],
+    () => done && buildTalk(text, byToken, hasViewer).sentences.length > 0,
+    [done, text, byToken, hasViewer],
   )
   const talking = useTalkStore((s) => s.messageId === message.id && s.phase !== 'idle')
   const start = useTalkStore((s) => s.start)
+  /**
+   * The reader's selection, read as the button is *pressed*: a click can collapse it before the
+   * click handler runs, in some browsers (trap T1). A keyboard press has no pointer-down, and its
+   * selection is still there at the click.
+   */
+  const pressed = useRef<ReturnType<typeof readSelection> | undefined>(undefined)
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(message.text)
+      await navigator.clipboard.writeText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
@@ -111,16 +152,41 @@ function Footer({ message }: { message: Message }) {
           variant="ghost"
           size="sm"
           className="ml-auto h-6 px-2"
-          title="Switch to the drawing and read this answer aloud, highlighting each identifier as it is named."
-          // While this answer is being talked, the palette owns it.
-          onClick={() => !talking && start(message)}
+          title={
+            'Switch to the drawing and read this answer aloud, highlighting each identifier as it ' +
+            'is named. Select part of the answer first to hear only that part.'
+          }
+          onPointerDown={() => (pressed.current = readSelection(answerRef.current))}
+          onClick={() => {
+            const span = pressed.current !== undefined ? pressed.current : readSelection(answerRef.current)
+            pressed.current = undefined
+            // While this answer is being talked, the palette owns it.
+            if (!talking) start(message, span)
+          }}
         >
           <Volume2 className="size-3" />
           {talking ? 'Talking…' : 'Talk me through it'}
         </Button>
       )}
+      {done && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn('h-6 px-2', !speakable && 'ml-auto')}
+          title="Rewrite this answer, or replace it with your own. The talkthrough speaks what you write."
+          onClick={onEdit}
+        >
+          <Pencil className="size-3" />
+          Edit
+        </Button>
+      )}
       {message.text && (
-        <Button variant="ghost" size="sm" className={cn('h-6 px-2', !speakable && 'ml-auto')} onClick={copy}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn('h-6 px-2', !speakable && !done && 'ml-auto')}
+          onClick={copy}
+        >
           {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
           {copied ? 'Copied' : 'Copy markdown'}
         </Button>

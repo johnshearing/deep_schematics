@@ -18,6 +18,7 @@ import {
 
 import { Button } from '@/components/ui/button'
 import { isTextField } from '@/lib/keys'
+import { listVoices, onVoicesChanged } from '@/lib/speech'
 import { useDraggable } from '@/lib/useDraggable'
 import { cn } from '@/lib/utils'
 import { isPlaying, useTalkStore, voiceSupported, type Dwell } from './talkStore'
@@ -37,7 +38,8 @@ export function TalkPalette() {
 
 function Palette() {
   const state = useTalkStore()
-  const { talk, pos, phase, dwell, rate, muted, palette, shown } = state
+  const { talk, pos, phase, dwell, rate, muted, palette, shown, voice, pitch, questionFirst, showSay } = state
+  const voices = useVoices()
   const { ref, style, handleProps, dragging } = useDraggable<HTMLDivElement>(palette, state.setPalette)
   const opened = useRef(false)
 
@@ -74,10 +76,11 @@ function Palette() {
 
   // Keys belong to the palette only while focus is in it, and never reach the sheet (trap T6).
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const slider = (event.target as HTMLElement).getAttribute?.('type') === 'range'
+    // A slider, a checkbox or the voice menu keeps its own keys.
+    const tag = (event.target as HTMLElement).tagName
     const action =
-      event.key === ' ' ? toggle
-      : slider ? undefined
+      tag === 'INPUT' || tag === 'SELECT' ? undefined
+      : event.key === ' ' ? toggle
       : event.key === 'ArrowLeft' ? (event.shiftKey ? state.prevItem : state.prevSentence)
       : event.key === 'ArrowRight' ? (event.shiftKey ? state.nextItem : state.nextSentence)
       : undefined
@@ -131,7 +134,9 @@ function Palette() {
 
       <div className="space-y-2 px-3 py-2">
         <p className="text-[11px] text-muted-foreground">
+          {sentence.block === 'q' && 'Question · '}
           Sentence {pos.s + 1} of {talk.sentences.length}
+          {state.partial && ' (selection)'}
           {talk.items.length > 0 && ` · item ${itemAt} of ${talk.items.length}`}
         </p>
         <p className="min-h-10 leading-snug" data-testid="talk-caption">
@@ -146,6 +151,13 @@ function Palette() {
             ),
           )}
         </p>
+        {showSay && (
+          <p className="text-[11px] leading-snug text-muted-foreground italic" data-testid="talk-say">
+            {sentence.segments.map((segment, g) =>
+              g === pos.g ? <strong key={g}>{segment.say} </strong> : <span key={g}>{segment.say} </span>,
+            )}
+          </p>
+        )}
         {phase === 'dwelling' && typeof dwell === 'number' && dwell > 0 && (
           <DwellBar key={`${pos.s}:${pos.g}`} ms={dwell} />
         )}
@@ -217,6 +229,56 @@ function Palette() {
           <span className="w-8 tabular-nums">{rate.toFixed(1)}×</span>
         </label>
 
+        {voiceSupported() && (
+          <>
+            <label className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground">Pitch:</span>
+              <input
+                type="range"
+                min={0.5}
+                max={1.5}
+                step={0.1}
+                value={pitch}
+                aria-label="Pitch"
+                onChange={(event) => state.setPitch(Number(event.target.value))}
+                className="flex-1"
+              />
+              <span className="w-8 tabular-nums">{pitch.toFixed(1)}</span>
+            </label>
+            <label className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground">Voice:</span>
+              <select
+                aria-label="Voice"
+                value={voice ?? ''}
+                onChange={(event) => state.setVoice(event.target.value || null)}
+                className="min-w-0 flex-1 rounded border bg-card px-1 py-0.5"
+              >
+                <option value="">Automatic</option>
+                {voices.map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name} ({v.lang})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
+
+        <div className="flex gap-3 text-xs">
+          <label className="flex items-center gap-1">
+            <input
+              type="checkbox"
+              checked={questionFirst}
+              onChange={(event) => state.setQuestionFirst(event.target.checked)}
+            />
+            Read the question first
+          </label>
+          <label className="flex items-center gap-1" title="Show how each identifier is pronounced">
+            <input type="checkbox" checked={showSay} onChange={(event) => state.setShowSay(event.target.checked)} />
+            Show spoken text
+          </label>
+        </div>
+
         {!voiceSupported() && (
           <p className="text-[11px] text-muted-foreground">
             Voice not available in this browser — captions only.
@@ -225,6 +287,13 @@ function Palette() {
       </div>
     </div>
   )
+}
+
+/** The browser's voices, re-read whenever the list changes (it arrives late in most browsers). */
+function useVoices() {
+  const [voices, setVoices] = useState(listVoices)
+  useEffect(() => onVoicesChanged(() => setVoices(listVoices())), [])
+  return voices
 }
 
 function Control({ label, onClick, disabled, children }: {

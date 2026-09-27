@@ -25,6 +25,12 @@ describe('Markdown', () => {
     expect(container.textContent).toContain('<img src=x onerror=alert(1)>')
   })
 
+  it('marks spoken blocks with a markdown offset, a number the parser computed and nothing else', () => {
+    const { container } = render(<Markdown>{'# T\n\nA `x`.\n\n- one\n\n| a |\n|---|\n| b |\n'}</Markdown>)
+    const marks = [...container.querySelectorAll('[data-md]')].map((el) => [el.tagName, el.getAttribute('data-md')])
+    expect(marks).toEqual([['H1', '0'], ['P', '5'], ['LI', '13'], ['TR', '20'], ['TR', '32']])
+  })
+
   it('never produces a script node', () => {
     const { container } = render(<Markdown>{'<script>alert(1)</script>'}</Markdown>)
     expect(container.querySelector('script')).toBeNull()
