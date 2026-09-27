@@ -35,23 +35,119 @@ while driving the simulator's own controls. The parts worth lifting, by line, me
 | narration | `~1686-1740` — `stepNarrationText`, `pickVoice`, and the `speechSupported` guard | **`window.speechSynthesis`: no server, no API key, nothing leaves the browser.** A 🔊/🔇 toggle, and the card flattens its own HTML body into the prose it speaks |
 | card, dim, spotlight, arrows | CSS `~164-232`, launcher markup `~249-252` | a draggable card, a step counter, `Esc` to exit, `▶ Play` to let it drive itself |
 
-### Three questions the plan has to answer, and they are the reason this is a plan and not a session
+### What the walkthrough is for, and what it is not
 
-1. **What does the `Ask` tab do in a demo?** A real question costs real money — the per-turn cap is
-   **$1.50** and the daily ledger is shared with every other visitor. So: does the walkthrough
-   **ask live** (honest, expensive, and it can fail or time out in front of an audience), or
-   **replay a recorded turn** (free, repeatable, and it is no longer proof), or **ask one live
-   question and replay the rest**? **I have no fixed view. Recommend one and say what it costs.**
-   The archived turns on disk may already be the recording.
-2. **How does a vanilla-JS tour engine become a React one?** The simulator drives DOM ids directly.
-   This app is a **built bundle** over Zustand stores, and every gesture the walkthrough needs to
-   perform — select a designator, press a layer switch, fly the sheet, send a question — already
-   exists as a **store action**. **Driving the stores rather than synthesising clicks is almost
-   certainly right; say so or argue against it, and name the actions.**
-3. **Where does the script live?** A `steps[]` array in the bundle is simplest and needs a rebuild
-   to change a sentence. A JSON file the server serves is authorable. **The whole project's argument
-   is that a thing worth changing should not need a rebuild** — but a walkthrough is not the user's
-   data, so this one may genuinely be different. Decide, and say why.
+> **The only purpose of the walkthrough is to show the user where all the controls are and what
+> they are for.** It should teach a human user briefly what the system is, what it does, and how to
+> use its controls and features.
+>
+> At some point in the future we will make **another** walkthrough, one used for **selling** our
+> services to clients who would like to converse with their own schematics — but there is much more
+> development required before we are ready to sell the service.
+
+**Two consequences, and they decide the whole shape of the script.**
+
+**It is a tour of controls, not a pitch, so it is brief and it is exhaustive about the toolbar.**
+Every switch, every filter, every card gets named and pressed. What it does **not** do is argue that
+the system is good, sell an outcome, or dwell on the extraction pipeline — that is the later
+document, and mixing the two produces a script that is too long to watch and too vague to learn
+from.
+
+**And the register already exists in the codebase.** `DrawingTab.tsx`'s own help paragraph
+(lines ~1082-1109) is a written tour of that tab in exactly this voice — *these five switches are
+over the sheet, those four buttons are over the list, and neither touches the other* — and
+`locate_tab_instruction_and_test_manual.md` is one *do this, expect that* row per behaviour.
+**Between them, most of the script already exists in prose and wants arranging rather than
+inventing.**
+
+### Three decisions I have already made — do not re-litigate them
+
+**1. The `Ask` tab replays a recorded turn.** Not live. A real question costs up to **$1.50**
+against a daily ledger shared with every visitor, and it can fail or time out in front of an
+audience.
+
+**And this is the question to record** — my words, to be used verbatim:
+
+> *"Assuming that the machine is not connected to any upstream or downstream machines via the
+> infeed interface or the discharge interface, please explain the entire chain of events that must
+> occur in order to energize the "Run" wire which connects to terminal RECEPT1:3."*
+
+**Why that question is well chosen, and it ends in a *yes*.** The user corrected me on 2026-09-26:
+*"If BYPASS-CB is closed then CR-BP will energize when both push buttons are pressed. This will
+close CR-BP's normally open contact on the RUN net. So the climax of the walkthrough should end with
+successfully energizing the RUN net."* **They are right, I traced it against the netlist, and the
+chain below is the answer the recording has to contain.**
+
+**There are two ways onto the RUN net, and exactly one of them survives the interfaces being
+disconnected.** That is what makes this the right question: the answer has to find the way through
+*and* say which door is shut and why.
+
+**The way through — `CR-BP`, which the drawing's own legend calls the `RUN BYPASS RELAY`:**
+
+| # | what happens | the identifiers |
+|---|---|---|
+| 1 | +24 V reaches `CR-BP`'s coil high side | net `24E-1` → `TB-24E1-A:7` → **`W025`** (BLUE 18AWG) → `CR-BP:A1` |
+| 2 | its coil low side leaves on net `125` | `CR-BP:A2` → **`W048`** (BLUE 18AWG) → `BYPASS-CB:2` |
+| 3 | **`BYPASS 5A` closed** joins `125` to `120` | `BYPASS-CB:2` → `BYPASS-CB:1` → **`W053`** → `TB-120:3` |
+| 4 | net `120` arrives at `CR2`'s open contact | `TB-120:1` → **`W052`** (BLUE 18AWG) → `CR2:14` |
+| 5 | **press `PB2`** → `CR2` pulls in, closing `14`–`11` | `PB2:1` (24E-1) → `PB2:4` → **`W043`** (BLACK 22AWG) → `CR2:A1`; return `CR2:A2` → **`W046`** → `TB-0V:7` |
+| 6 | net `121` carries it to `CR1`'s open contact | `CR2:11` → **`W051`** (BLUE 18AWG) → `CR1:14` |
+| 7 | **press `PB1`** → `CR1` pulls in, closing `14`–`11` | `PB1:1` (24E-1) → `PB1:4` → **`W040`** (BLACK 22AWG) → `CR1:A1`; return `CR1:A2` → **`W045`** → `TB-0V:5` |
+| 8 | `CR1:11` is on `0V`, so **`CR-BP`'s coil circuit is complete and `CR-BP` energises** | `TB-0V:9` → **`W050`** → `CR1:11` |
+| 9 | **`CR-BP`'s NO contact `21`–`24` closes and the RUN net is live at the receptacle** | `CR-BP:21` (24E-1) → `CR-BP:24` → **`W055`** (BLUE 18AWG) → `TB-RUN:1` → **`W056`** (BLACK 18AWG) → `RECEPT1:3` |
+
+**`CR1` and `CR2`'s contacts are in series between net `120` and `0V` — which is exactly why *both*
+push buttons must be pressed**, and it is the single most satisfying fact in the whole answer. Steps
+1 to 9 touch **four relays, two push buttons, a breaker used as a switch, six nets and nine wires,
+and not one of them is `INFEED1` or `DISCHARGE1`.** The bypass path does not need the neighbouring
+machines, which is what a bypass relay is for.
+
+**The door that is shut, and it must be said in the same answer.** The *normal* way onto RUN is
+`CR-ON:14` (**`W054`**), and `CR-ON`'s coil returns on net `110`, which reaches `0V` only through
+`CR-SW:14` or `INFEED1:1`. `CR-SW`'s own coil sits on net `130` with `INFEED1:4` and `DISCHARGE1:4` —
+and the orientation prompt says in as many words that **net 130 completes only through the
+downstream machine, so nothing on this sheet can energise `CR-SW`.** With both interfaces
+disconnected the normal path cannot close. **A recorded answer that finds the working path *and*
+names the blocked one, with the reason, is worth more than one that only shows the system being
+clever** — and it is the one thing a sceptical visitor will not expect.
+
+**What this means for the script.** The walkthrough's last step is the pay-off, so **end on the
+`RUN` net energised**, not on a limitation: walk the reader down the chain above, clicking the
+identifiers as the answer names them so the sheet flies from `CR-BP`'s coil to `BYPASS-CB` to the
+two push buttons and finally to `RECEPT1:3`. **Nine steps is also nine chances to demonstrate that
+an identifier in an answer is a button**, which is the one thing a visitor cannot guess.
+
+**One instruction about the recording, and it is not negotiable.** **Read the recorded answer before
+you build a script around it.** The chain above is what the netlist says; it is not a promise about
+what the model will write. If the recorded turn misses the bypass path, gets the series pair wrong,
+or stops at *cannot be determined*, **say so and re-ask rather than scripting around it** — and
+`prompts.py` may want a line about the bypass, which is a `v1.4` and a one-line change. **Do not
+narrate over a wrong answer.**
+
+**The recording mechanism already exists and needs nothing built.** Every turn is archived to
+**`server/.state/turns/<turn_id>.jsonl`**, one file per turn, whose **first line is a `_meta`
+record carrying `prompt_version`, `model` and `effort`**. Several are on disk now. Two things the
+plan must decide about it: **what gets replayed** — the raw event stream, so the answer *types
+itself out*, which is most of the effect, or just the finished markdown — and **how the screen says
+it is a recording.** A replay that lets a visitor believe it is live is the one thing that would
+make this dishonest, and the fix is a sentence on the card, not a debate.
+
+One maintenance note to write into the plan: **re-record after any change to `prompts.py`**, and the
+`_meta` line's `prompt_version` is how you tell whether you need to. **`v1.3` is current**, as of
+2026-09-26.
+
+**2. Drive the stores, not synthesised clicks.** Confirmed — you said it was almost certainly right
+and I agree. Every gesture the walkthrough needs already exists as a store action: select a
+designator, toggle a layer, fly the sheet, switch tabs, put a question in the composer.
+**Name the actions in the plan**, per step, so the building session does not go looking for them.
+
+**3. The script lives in a JSON file the server serves.** Confirmed, for the reason you gave:
+**the whole project's argument is that a thing worth changing should not need a rebuild**, and a
+sentence in a narration is exactly the kind of thing that will be changed after watching somebody
+struggle with it. Three things the plan should settle about that file: where it lives, whether it is
+editable **through** the WebUI (I suspect not — it is not my drawing data, and every authoring
+surface in this project exists because the data is mine), and **what happens when it is absent** —
+which should be *no panel and no button*, the same rule every other optional thing here follows.
 
 ### What to read, and what not to
 
@@ -61,7 +157,15 @@ line ranges above, by `sed -n`, **never the file** · `webui/src/features/drawin
 lines `70-150` (the five switches and what each draws) and `1082-1109` (**the tab's own help
 paragraph — it is already a written tour of that tab**) · `webui/src/features/ask/AskTab.tsx` whole,
 it is short · `webui/src/stores/` — `appStore` and `chatStore` only, for the actions a driver would
-call.
+call · **`server/app/claude_runner.py`, the `_open_archive` function and the event handler above
+it** (~line 240-340 and ~636-660), which is the recording the replay will read · and **one real
+archived turn** out of `server/.state/turns/`, by `head -3`, to see the event shape — **never a whole
+file**.
+
+**Two things the plan has to look at that are not code:** `ls -l server/.state/turns/` for what has
+already been recorded, and `server/app/main.py`'s route table by `grep -n '@app\.'`, because
+**serving the script file and replaying a turn are both server routes** and therefore both mean a
+restart to install.
 
 **Do not read:** `geometry.json` (606 KB) · `circuit_logic.json` · `custom_kg.json` ·
 `_claude_notes/highlighting_wires_and_nets*.md` (the four of them come to ~280 KB; `_04` is the next
@@ -77,17 +181,33 @@ indexes** — a lesson document is the output of a phase, never its input.
 
 ### What the plan must contain
 
-The same shape as `_claude_notes/highlighting_wires_and_nets_04.md`, which is the house style: why
-it exists · the goal test · what exists that it reuses, **measured** · numbered phases, each with
-its own reading list, acceptance criteria and a dollar estimate · what is deliberately out ·
-order and budget · the token strategy · the traps · the documents to write · open questions to ask
-me **at the start** of the building session rather than the end.
+**It must be completely self-contained and standalone**, and
+`_claude_notes/highlighting_wires_and_nets_04.md` is the model for both its shape and its
+self-sufficiency: why it exists · the goal test · what exists that it reuses, **measured** ·
+numbered phases, each with its own reading list, acceptance criteria and a dollar estimate · what is
+deliberately out · order and budget · the token strategy · the traps · the documents to write ·
+open questions to ask me **at the start** of the building session rather than the end.
+
+**Write it assuming this file is empty by the time it is read.** I will open the building session
+with *"read `_claude_notes/narrated_walkthrough_01.md` and execute the requests"* and nothing else,
+so **everything in this file that a building session needs must be inside that one** — how to run
+the app and the four checks, the traps that apply, the git rules, the budget habits, and the two
+things about this project that are easy to get wrong: **`SWUI_ALLOW_EDITS`** gates the Locate and
+Review tabs (the walkthrough's two tabs need no password, which is the point), and **the client is a
+built bundle while `python -m app` has no reloader.**
 
 **And it must include the script itself, in prose** — the actual sentences the walkthrough speaks,
 step by step, for both tabs. That is the half I cannot write for you and the half that decides
 whether any of it is worth watching. **Write it as if it will be read aloud**, because it will be.
 
-**Then stop.** Do not write code, do not touch `webui/src/`, and do not start the server.
+**And say at the start whether you think it fits.** A planning session should land near **$8–15**;
+if the reading list is growing past that, cut the plan's scope rather than push it through and
+**tell me which part you cut.**
+
+**Then stop.** Do not write code, do not touch `webui/src/` or `server/app/`, and do not start the
+server. **Record the recorded turn later, in the building session** — capturing it needs the server
+running and a real `$1.50`-capped question, and that is the building session's first step, not this
+one's.
 
 ---
 
@@ -160,34 +280,42 @@ Get any of those with a one-liner:
 cd schematic_extraction/PS20115MLM4-2/extracted_docs && python3 -c "…"
 ```
 
-**The authoring run is mine and it has barely begun.** All six commoning blocks are decided and I am
-working through the paths now. §4 did not touch my queue; it told me where the queue *is*. §4A and
-§4B did not touch it either: they made the drawing itself the index into it — click a painted run
-and learn whose it is, or click it on the Locate tab and be editing it. **§5 does not touch it
-either**: it gives an orphaned end-label override a row and a reset, on rows my own corrections
-created. **Nor does §4C**: it makes the eleven wrong screws *findable* and makes a correction able
-to say *why*. The rule has not changed once — **no phase writes a byte of my data.**
+**The authoring run on this drawing is mine and it is finished** — all seven commoning blocks
+decided, all 71 wires confirmed against the ink, all 71 routed, nothing stale and nothing orphaned,
+with the last wrong screw (`W046`, off `TB-0V:9` and onto `:7`) corrected on 2026-09-21. **And not
+one phase wrote a byte of it.** That is the rule and it has never moved: a phase gives me a control,
+a row, a filter or a highlight, and I do the run. `§4` told me where the queue *was*; `§4A` and `§4B`
+made the drawing itself the index into it — click a painted run and learn whose it is, or click it on
+the Locate tab and be editing it; `§5` gave an orphaned override a row and a reset on rows my own
+corrections had created. **Every phase in `highlighting_wires_and_nets_04.md` inherits the same
+rule, and so does the walkthrough** — a tour that pressed `Reset` or accepted a proposal to make a
+point would be writing my data to illustrate a feature. **It may arm, select, switch and highlight;
+it may not author.**
 
 ---
 
-## 3. Why the plan exists, in one paragraph
+## 3. Why a walkthrough, and what makes one good
 
-Every editor so far was built as a **confirmation surface**, not an **authoring surface**: each panel
-takes its list of objects from something the machine found and its edit control from a proposal the
-machine computed, so where the machine found nothing there is no row and no button. On 2026-09-11 the
-answer to two of my authoring questions was *hand-edit the JSON*, and I deliberately did not do it —
-a hand edit produces correct data and destroys the finding. **An un-authorable thing is a named gap in
-a panel, not a file edit.** Wires and paths now have both halves; commoning got them on 2026-09-12.
-**What still has no screen at all is `author_circuit_logic.py`** — whether a terminal exists, which
-net it is on, what a component is, and the drawing's notes — and that is plan 03 §7. The highlighting
-half is correct per object and got its *complete* view on 2026-09-15, when §4 painted the whole of
-what I have authored at once. **The way back — from a mark on the paper to the record that owns it —
-is built on both screens**: the Drawing tab's click answers *whose path is this* (§4A, 2026-09-17)
-and the Locate tab's arms the row that owns it (§4B, 2026-09-19). **And the way back immediately
-found two records that are wrong**, which is §4C and is the honest measure of whether any of this
-was worth building. **What is left is smaller and duller and it is on my screen every day**: an
-override nobody can reach (§5), a disagreement nobody can filter for (§4C), and ink the extractor
-never read (§6).
+**Everything in §2 is invisible until somebody is shown it.** There are now five tabs, thirteen
+switches and filters, three authored files, a queue that empties, two cards that can be open at
+once, and a click on the sheet that means four different things depending on a mode — all of it
+built for me, by me and you, one phase at a time, and **none of it discoverable by a person handed
+the URL.** I have found controls I asked for and then could not find; twice this month the answer to
+*"is this possible?"* was *"yes, and it shipped nine days ago."* A walkthrough is the cheapest
+remaining way to make the work usable by anyone who was not in the room while it was built.
+
+**And a good one is a tour of controls rather than a demonstration of cleverness.** The measure is
+whether a person who has watched it once can then find things on their own — so it names every
+switch out loud, presses it, and says what changed on the sheet. The one moment that is allowed to
+be impressive is the one that is also the most instructive: **an identifier inside an answer is a
+button**, and clicking it flies the drawing to the thing named. That is the loop this whole project
+is built around, and a visitor cannot guess it exists.
+
+*(The paragraph that used to stand here — every editor was built as a confirmation surface rather
+than an authoring surface, and an un-authorable thing is a named gap in a panel rather than a file
+edit — is the argument for the **building** work, and it now lives in
+`_claude_notes/highlighting_wires_and_nets_04.md` §1.4, where the sessions that need it will read
+it.)*
 
 ---
 
@@ -198,13 +326,13 @@ never read (§6).
    nothing there to be wrong about — deliberate, not a bug.
 2. **`python -m app` has no reloader.** A change under `server/app/` needs a restart.
 3. **The client is a built bundle.** A change under `webui/src/` needs `cd webui && npm run build`.
-   **A rebuilt bundle against an unrestarted server is the dangerous combination.** §4 was one
-   server function plus client work and needed both. **§4A and §4B were client-only and so is §5** —
-   rebuild the bundle, leave the server alone; plan 03 §5 says *no server change* outright, because
-   the banner is `resolve_geometry` doing its job and it goes quiet when the key goes. §4C has one
-   schema field and therefore *does* need a restart.
+   **A rebuilt bundle against an unrestarted server is the dangerous combination.** The rule of
+   thumb that has held for a year: a **prompt** change or a new **route** is server-only (restart, no
+   rebuild); an overlay, a panel or a switch is client-only (rebuild, no restart); anything that adds
+   a field to a published payload is **both**. **The walkthrough will be both** — a route that serves
+   the script and a replay endpoint on one side, the tour engine on the other.
 4. **A test asserting an absolute count against an authored file goes red as I author.** This has
-   bitten three times. The cure is always the same: **reconstruct the indexing pass's own answer from
+   bitten five times. The cure is always the same: **reconstruct the indexing pass's own answer from
    `was`, and assert against that.** `INDEXED` in `test_extraction_generator.py` and `loadReal` in
    `wiring.test.ts` are the two implementations and both carry the reasoning. **§4's legend counts, §4A's path card and §4B's run
    counts were all exactly this trap, and §5's *three orphans* is the next one — it becomes four
