@@ -330,7 +330,7 @@ record and marks it, and un-retiring restores it · `GET /api/objects` works wit
 `SWUI_ALLOW_EDITS=false` and `PUT` does not exist · **`git status --short schematic_extraction/` is
 unchanged from how you found it** · the four checks green.
 
-**Tests: T-1600–T-1619**, in a new `server/tests/test_objects.py` plus the generator's existing
+**Tests: T-1800–T-1819**, in a new `server/tests/test_objects.py` plus the generator's existing
 `test_extraction_generator.py`. **Needs a server restart** (trap 2).
 
 **Estimate: one session, $18–30.** It is the largest phase here and the one that must not be
@@ -383,7 +383,7 @@ reset**, never a hand edit · every count on the screen is **computed from the p
 a fixture's memory — **trap 3, which has bitten five times** · the four checks green ·
 `git status --short schematic_extraction/` unchanged.
 
-**Tests: T-1620–T-1649.** Lesson document: **new**, `22_tests_the_netlist_screen.md`.
+**Tests: T-1820–T-1849.** Lesson document: **new**, `22_tests_the_netlist_screen.md`.
 
 **Estimate: one session, $20–32.** Cut it by shipping notes and existence first and the `net`
 combo second if the budget is tight — they are independent.
@@ -469,7 +469,7 @@ nothing is authored and `git status --short schematic_extraction/` is unchanged 
 the dependency array**: change the marks prop and assert the canvas repainted · the four checks
 green.
 
-**Tests: T-1650–T-1669.** Lesson document: **new**, `23_tests_marks.md`.
+**Tests: T-1850–T-1869.** Lesson document: **new**, `23_tests_marks.md`.
 
 **Estimate: half a session, $10–18.**
 
@@ -530,7 +530,7 @@ row (the established escalation — `H22`) · the mode is off by default and **e
 a click is unchanged**, proved by a test per meaning · the four checks green ·
 `git status --short schematic_extraction/` unchanged.
 
-**Tests: T-1670–T-1699**, appended to `23_tests_marks.md`.
+**Tests: T-1870–T-1899**, appended to `23_tests_marks.md`.
 
 **Estimate: one session, $20–30.**
 
@@ -569,7 +569,7 @@ guess · a bound label lights on the sheet · the netlist carries the binding so
 it · **`label_corrections.json` is not touched** — what a label *says* and what it is *about* are
 two files and two questions · the four checks green.
 
-**Tests: T-1700–T-1719.** Lesson document: **new**, `24_tests_label_binding.md`.
+**Tests: T-1900–T-1919.** Lesson document: **new**, `24_tests_label_binding.md`.
 
 **Estimate: half a session, $12–20.**
 
@@ -620,7 +620,7 @@ re-opened and moved as a unit · a drawn symbol reads **`geometry: "human"`** ev
 and is never reported as extracted · a stamp places a named group with a rotation · **the PDF and
 `geometry.json` are not modified** and `md5sum` proves it · the four checks green.
 
-**Tests: T-1720–T-1749.** Lesson document: **new**, `25_tests_symbols.md`.
+**Tests: T-1920–T-1949.** Lesson document: **new**, `25_tests_symbols.md`.
 
 **Estimate: one to one-and-a-half sessions, $25–45.** **The largest and the most deferrable phase
 in this plan.** If anything is cut, cut layer 2 first and the whole phase second — `§10` is worth
@@ -673,7 +673,7 @@ is the first time `path_cables` has existed · a bare, unbound id stays **plain 
 correct and must be asserted · `PROMPT_VERSION` bumped and the archived turns record it · the four
 checks green.
 
-**Tests: T-1750–T-1779.** Lesson document: **new**, `26_tests_citation_loop.md`. **Needs a server
+**Tests: T-1950–T-1979.** Lesson document: **new**, `26_tests_citation_loop.md`. **Needs a server
 restart.**
 
 **Estimate: one session, $18–28.**
@@ -813,7 +813,7 @@ ls -t ~/.claude/projects/-home-js-schematics/*.jsonl | head -1
 cd /home/js/schematics/server && .venv/bin/python -m app     # then http://localhost:9700/webui/
 ```
 
-**If you start the server, stop it in the same turn. The console is the user's.**
+**If you start the server, stop it in the same turn. The console is the user's.** **How (learned 2026-09-27, when an orphaned server held the port):** check `ss -ltnp | grep :9700` first and never touch a listener that is already there; `cd` as its own command, then `.venv/bin/python -m app & SRV=$!` (backgrounding `cd … && python …` makes `$!` a subshell and orphans the server); after `kill $SRV`, `ss` must show nothing on 9700; never `pkill -f`.
 
 The four checks:
 
@@ -914,7 +914,7 @@ system `python3`. *Is the ink there, or did we miss it?* has cost this project t
     code could not: the save had run and written byte-identical bytes. **`ls -l`, `md5sum`,
     `git status --short`, and a real `PUT` through the running server** — that sequence is the
     debugger for this project.
-23. **T-numbers spent reach T-1560.** **This plan starts at T-1600**, with the blocks named in each
+23. **T-numbers spent reach T-1560.** **This plan starts at T-1800** (moved up 200 on 2026-09-28, at the user's request: `28_tests_talkthrough.md` had already spent T-1600–T-1700, and `talkthrough_03.md` holds T-1705–T-1795), with the blocks named in each
     phase. **Do not reuse a number and do not renumber one** — spent numbers stay spent even where
     the feature was demoted.
 24. **The netlist cache is not invalidated.** `server/app/drawing.py`'s
@@ -982,13 +982,13 @@ system `python3`. *Is the ink there, or did we miss it?* has cost this project t
 
 | phase | lesson document | index and hazards |
 |---|---|---|
-| `§4` 4a | **new** `22_tests_the_netlist_screen.md` header + T-1600–T-1619 | a new `H` for *the fifth authored file and the fold*; a row in `locate_tab_instruction_and_test_manual.md` |
-| `§5` 4b | same document, T-1620–T-1649 | a troubleshooting row for a stranded net |
-| `§6` 4c | **new** `23_tests_marks.md`, T-1650–T-1669 | a new `H` for *one mark schema, five kinds, one renderer* |
-| `§7` 4d | same document, T-1670–T-1699 | extend `H30` — the fifth meaning and its mode |
-| `§8` 4e | **new** `24_tests_label_binding.md`, T-1700–T-1719 | a new `H` for *what a label says and what it is about are two files* |
-| `§9` 4f | **new** `25_tests_symbols.md`, T-1720–T-1749 | a new `H` for *a drawn symbol is an annotation, never a claim about the print* |
-| `§10` 4g | **new** `26_tests_citation_loop.md`, T-1750–T-1779 | update the citation section of `06_code_map.md` |
+| `§4` 4a | **new** `22_tests_the_netlist_screen.md` header + T-1800–T-1819 | a new `H` for *the fifth authored file and the fold*; a row in `locate_tab_instruction_and_test_manual.md` |
+| `§5` 4b | same document, T-1820–T-1849 | a troubleshooting row for a stranded net |
+| `§6` 4c | **new** `23_tests_marks.md`, T-1850–T-1869 | a new `H` for *one mark schema, five kinds, one renderer* |
+| `§7` 4d | same document, T-1870–T-1899 | extend `H30` — the fifth meaning and its mode |
+| `§8` 4e | **new** `24_tests_label_binding.md`, T-1900–T-1919 | a new `H` for *what a label says and what it is about are two files* |
+| `§9` 4f | **new** `25_tests_symbols.md`, T-1920–T-1949 | a new `H` for *a drawn symbol is an annotation, never a claim about the print* |
+| `§10` 4g | **new** `26_tests_citation_loop.md`, T-1950–T-1979 | update the citation section of `06_code_map.md` |
 
 **And update `goals_01.md` §4, §5 and §7 at the end of every phase.** It is the definition of done
 and it is the document the next session reads first. **A phase that ships without moving those three

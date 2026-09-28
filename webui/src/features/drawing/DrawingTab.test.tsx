@@ -26,6 +26,7 @@ import { buildLookup } from '@/lib/designators'
 import { useAppStore } from '@/stores/appStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useLocateStore } from '@/stores/locateStore'
+import { useCardPlacement } from './cardPlacement'
 import { enabledTabs } from '@/tabs'
 
 const TILES: TileManifest = {
@@ -1861,5 +1862,72 @@ describe('the coverage overlay', () => {
     showing(COMMONED, [], { diagnostic: true })
 
     expect(unclaimed()).toBe(0)
+  })
+})
+
+/** Requested 2026-09-28: the selection card can be moved out of the way, and its text copied. */
+describe('moving and copying the selection card', () => {
+  afterEach(() => {
+    useCardPlacement.setState({ selection: null })
+    vi.restoreAllMocks()
+  })
+
+  function open(id: string) {
+    act(() => useAppStore.getState().select('component', id))
+    const handle = screen.getByTestId('selection-card-handle')
+    return { handle, card: handle.parentElement! }
+  }
+
+  /** jsdom has no layout: give the card a parent at (100, 50) and itself a place in it. */
+  function lay(card: HTMLElement) {
+    const parent = card.parentElement!
+    Object.defineProperty(card, 'offsetParent', { configurable: true, get: () => parent })
+    vi.spyOn(parent, 'getBoundingClientRect').mockReturnValue({ left: 100, top: 50 } as DOMRect)
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue({ left: 112, top: 400, width: 300 } as DOMRect)
+  }
+
+  it('drags by its grip within the sheet, keeps its place for the next selection, and goes home on double-click', () => {
+    if (typeof window.PointerEvent !== 'function') {
+      window.PointerEvent = class extends MouseEvent {
+        pointerId: number
+        constructor(type: string, init: PointerEventInit = {}) {
+          super(type, init)
+          this.pointerId = init.pointerId ?? 1
+        }
+      } as unknown as typeof PointerEvent
+    }
+    render(<DrawingTab />)
+    activate()
+    const { handle, card } = open('CB1')
+    lay(card)
+    fireEvent.pointerDown(handle, { pointerId: 1, button: 0, clientX: 150, clientY: 405 })
+    fireEvent.pointerMove(handle, { pointerId: 1, clientX: 400, clientY: 105 })
+    fireEvent.pointerUp(handle, { pointerId: 1 })
+    expect(useCardPlacement.getState().selection).toEqual({ x: 262, y: 50 })
+    expect([card.style.left, card.style.top, card.style.bottom]).toEqual(['262px', '50px', 'auto'])
+
+    // Dragged far past the edge, it stops with its grip still inside the sheet (800 × 600).
+    fireEvent.pointerDown(handle, { pointerId: 2, button: 0, clientX: 150, clientY: 405 })
+    fireEvent.pointerMove(handle, { pointerId: 2, clientX: 5000, clientY: 5000 })
+    fireEvent.pointerUp(handle, { pointerId: 2 })
+    expect(useCardPlacement.getState().selection).toEqual({ x: 752, y: 552 })
+
+    const next = open('CR-BP').card
+    expect(next.style.left).toBe('752px')
+    fireEvent.doubleClick(screen.getByTestId('selection-card-handle'))
+    expect(useCardPlacement.getState().selection).toBeNull()
+    expect(next.style.left).toBe('')
+  })
+
+  it('copies the card’s text to the clipboard', async () => {
+    const writeText = vi.fn(async () => {})
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    render(<DrawingTab />)
+    activate()
+    open('CB1')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: "Copy the card's text" })))
+    const [text] = writeText.mock.calls[0] as unknown as [string]
+    expect(text).toContain('CB1')
+    expect(text).toContain('circuit breaker — 8A main.')
   })
 })

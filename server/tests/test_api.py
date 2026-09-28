@@ -337,7 +337,7 @@ def test_the_designator_index_is_unavailable_without_an_extraction(tmp_path, set
 
 def test_starter_questions_do_not_leak_their_expected_answers(client) -> None:
     questions = client.get("/api/questions").json()["questions"]
-    assert len(questions) == 5
+    assert len(questions) == 6
     assert any("Net 110" in q["text"] for q in questions)
     # The acceptance text is a test oracle. Handing it to the browser would let a visitor
     # paste the expected answer back into the question.

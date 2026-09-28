@@ -1015,7 +1015,7 @@ means the reading list grew. Stop and cut.
 cd /home/js/schematics/server && .venv/bin/python -m app     # then http://localhost:9700/webui/
 ```
 
-**If you start the server, stop it in the same turn. The console is the user's.**
+**If you start the server, stop it in the same turn. The console is the user's.** **How (learned 2026-09-27, when an orphaned server held the port):** check `ss -ltnp | grep :9700` first and never touch a listener that is already there; `cd` as its own command, then `.venv/bin/python -m app & SRV=$!` (backgrounding `cd … && python …` makes `$!` a subshell and orphans the server); after `kill $SRV`, `ss` must show nothing on 9700; never `pkill -f`.
 
 The four checks:
 

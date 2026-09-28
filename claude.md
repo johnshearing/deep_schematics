@@ -5,209 +5,39 @@ purpose — and then do §1 and nothing else.**
 
 ## 1. The request
 
-**Write a plan for a narrated, self-driving walkthrough of the `Ask` and `Drawing` tabs. Write it
-into `_claude_notes/narrated_walkthrough_01.md` and stop. Do not build it.**
+**Read `_claude_notes/talkthrough_03.md` and execute its Session 1 (§4), and nothing else.** That
+document is self-contained. It carries the reading list, the traps, the budget, the standing rules
+and the questions to ask me first, so it can be executed with nothing else open.
 
-**Plans are documents first.** I read plans and execute them in separate sittings, and the plan is
-the cheap half. §7's budget is why: about **$16 of my funded $150 remains**, so a planning session
-is what fits and a building session is not.
+**Session 1 is one change, made alone and made reversible:** the talkthrough speaks each sentence
+as **one utterance** and lights each link on the voice's own word timing, instead of one utterance
+per link. That removes the pause I hear when a link sits in the middle or at the end of a sentence.
+It sits behind a persisted palette switch, **`Natural flow`**, and the old code path stays exactly
+as it is, so unticking the switch gives me today's behaviour back. The session is one commit, so
+it can also be reverted on its own. **Build it, then stop.** I will test it by rewriting an answer I
+already have, with links mid-sentence and at the end. Everything after it waits for my report,
+because the rest of the plan depends on how it sounds.
 
-In my own words:
+What `talkthrough_03.md` holds after Session 1, in order, one session each:
 
-> **I want to show this to people who have never seen it.** A panel on the screen with a button on
-> it, and pressing that button starts a walkthrough that **speaks to the visitor while it moves the
-> application** — switches tabs, presses the switches, selects a component, asks a question on the
-> `Ask` tab, and points at what the answer lights up. The two tabs I want shown are **`Ask` and
-> `Drawing`**, and that is deliberate: **they are the two that need no password**, so a visitor can
-> be handed the URL and nothing else.
+- **2:** pronunciation in three layers: a global list, a per-drawing list, and a one-off
+  `` `DISC1 "disconnect 1"` `` notation
+- **3:** the Drawing tab's other two cards (conductor and path), movable and copyable like the
+  selection card
+- **4:** keeping and reopening questions, answers and my edits, across a reload
+- **5–7:** steering: turning my edits into a report, then prompt rules I approve one by one, then
+  a measurement
 
-### The thing to copy, and it already works
+It absorbed and retired `talkthrough_02.md` and `steering_with_edits_01.md`, which now sit in
+`_claude_notes/archive/`. **Update this §1 at the end of every session to name the next one.**
 
-`/home/js/aiken/ranger/Multi_CIP_Simulator.html` is mine and it does exactly this. **It is 114 KB —
-grep it, never read it.** Near the upper left there is a panel headed **`Guided tutorials`** with a
-button reading **`▶ The mission — close the multipool zones`**, and pressing it narrates a script
-while driving the simulator's own controls. The parts worth lifting, by line, measured 2026-09-26:
+**Two things I learned the hard way, and the plan repeats them:**
 
-| what | where | why it matters |
-|---|---|---|
-| the step schema | `~1146-1200` — `TOUR_SCRIPTS`, each step `{title, body (HTML), targets[], highlight[], actions[{kind,…}], cardPosition, holdMs}` | **the whole design is this object.** A step is prose plus a list of things to do to the page |
-| the engine's own header comment | `1127-1145` | says what it was adapted from and what it had to change, which is the honest shape of this port too |
-| narration | `~1686-1740` — `stepNarrationText`, `pickVoice`, and the `speechSupported` guard | **`window.speechSynthesis`: no server, no API key, nothing leaves the browser.** A 🔊/🔇 toggle, and the card flattens its own HTML body into the prose it speaks |
-| card, dim, spotlight, arrows | CSS `~164-232`, launcher markup `~249-252` | a draggable card, a step counter, `Esc` to exit, `▶ Play` to let it drive itself |
-
-### What the walkthrough is for, and what it is not
-
-> **The only purpose of the walkthrough is to show the user where all the controls are and what
-> they are for.** It should teach a human user briefly what the system is, what it does, and how to
-> use its controls and features.
->
-> At some point in the future we will make **another** walkthrough, one used for **selling** our
-> services to clients who would like to converse with their own schematics — but there is much more
-> development required before we are ready to sell the service.
-
-**Two consequences, and they decide the whole shape of the script.**
-
-**It is a tour of controls, not a pitch, so it is brief and it is exhaustive about the toolbar.**
-Every switch, every filter, every card gets named and pressed. What it does **not** do is argue that
-the system is good, sell an outcome, or dwell on the extraction pipeline — that is the later
-document, and mixing the two produces a script that is too long to watch and too vague to learn
-from.
-
-**And the register already exists in the codebase.** `DrawingTab.tsx`'s own help paragraph
-(lines ~1082-1109) is a written tour of that tab in exactly this voice — *these five switches are
-over the sheet, those four buttons are over the list, and neither touches the other* — and
-`locate_tab_instruction_and_test_manual.md` is one *do this, expect that* row per behaviour.
-**Between them, most of the script already exists in prose and wants arranging rather than
-inventing.**
-
-### Three decisions I have already made — do not re-litigate them
-
-**1. The `Ask` tab replays a recorded turn.** Not live. A real question costs up to **$1.50**
-against a daily ledger shared with every visitor, and it can fail or time out in front of an
-audience.
-
-**And this is the question to record** — my words, to be used verbatim:
-
-> *"Assuming that the machine is not connected to any upstream or downstream machines via the
-> infeed interface or the discharge interface, please explain the entire chain of events that must
-> occur in order to energize the "Run" wire which connects to terminal RECEPT1:3."*
-
-**Why that question is well chosen, and it ends in a *yes*.** The user corrected me on 2026-09-26:
-*"If BYPASS-CB is closed then CR-BP will energize when both push buttons are pressed. This will
-close CR-BP's normally open contact on the RUN net. So the climax of the walkthrough should end with
-successfully energizing the RUN net."* **They are right, I traced it against the netlist, and the
-chain below is the answer the recording has to contain.**
-
-**There are two ways onto the RUN net, and exactly one of them survives the interfaces being
-disconnected.** That is what makes this the right question: the answer has to find the way through
-*and* say which door is shut and why.
-
-**The way through — `CR-BP`, which the drawing's own legend calls the `RUN BYPASS RELAY`:**
-
-| # | what happens | the identifiers |
-|---|---|---|
-| 1 | +24 V reaches `CR-BP`'s coil high side | net `24E-1` → `TB-24E1-A:7` → **`W025`** (BLUE 18AWG) → `CR-BP:A1` |
-| 2 | its coil low side leaves on net `125` | `CR-BP:A2` → **`W048`** (BLUE 18AWG) → `BYPASS-CB:2` |
-| 3 | **`BYPASS 5A` closed** joins `125` to `120` | `BYPASS-CB:2` → `BYPASS-CB:1` → **`W053`** → `TB-120:3` |
-| 4 | net `120` arrives at `CR2`'s open contact | `TB-120:1` → **`W052`** (BLUE 18AWG) → `CR2:14` |
-| 5 | **press `PB2`** → `CR2` pulls in, closing `14`–`11` | `PB2:1` (24E-1) → `PB2:4` → **`W043`** (BLACK 22AWG) → `CR2:A1`; return `CR2:A2` → **`W046`** → `TB-0V:7` |
-| 6 | net `121` carries it to `CR1`'s open contact | `CR2:11` → **`W051`** (BLUE 18AWG) → `CR1:14` |
-| 7 | **press `PB1`** → `CR1` pulls in, closing `14`–`11` | `PB1:1` (24E-1) → `PB1:4` → **`W040`** (BLACK 22AWG) → `CR1:A1`; return `CR1:A2` → **`W045`** → `TB-0V:5` |
-| 8 | `CR1:11` is on `0V`, so **`CR-BP`'s coil circuit is complete and `CR-BP` energises** | `TB-0V:9` → **`W050`** → `CR1:11` |
-| 9 | **`CR-BP`'s NO contact `21`–`24` closes and the RUN net is live at the receptacle** | `CR-BP:21` (24E-1) → `CR-BP:24` → **`W055`** (BLUE 18AWG) → `TB-RUN:1` → **`W056`** (BLACK 18AWG) → `RECEPT1:3` |
-
-**`CR1` and `CR2`'s contacts are in series between net `120` and `0V` — which is exactly why *both*
-push buttons must be pressed**, and it is the single most satisfying fact in the whole answer. Steps
-1 to 9 touch **four relays, two push buttons, a breaker used as a switch, six nets and nine wires,
-and not one of them is `INFEED1` or `DISCHARGE1`.** The bypass path does not need the neighbouring
-machines, which is what a bypass relay is for.
-
-**The door that is shut, and it must be said in the same answer.** The *normal* way onto RUN is
-`CR-ON:14` (**`W054`**), and `CR-ON`'s coil returns on net `110`, which reaches `0V` only through
-`CR-SW:14` or `INFEED1:1`. `CR-SW`'s own coil sits on net `130` with `INFEED1:4` and `DISCHARGE1:4` —
-and the orientation prompt says in as many words that **net 130 completes only through the
-downstream machine, so nothing on this sheet can energise `CR-SW`.** With both interfaces
-disconnected the normal path cannot close. **A recorded answer that finds the working path *and*
-names the blocked one, with the reason, is worth more than one that only shows the system being
-clever** — and it is the one thing a sceptical visitor will not expect.
-
-**What this means for the script.** The walkthrough's last step is the pay-off, so **end on the
-`RUN` net energised**, not on a limitation: walk the reader down the chain above, clicking the
-identifiers as the answer names them so the sheet flies from `CR-BP`'s coil to `BYPASS-CB` to the
-two push buttons and finally to `RECEPT1:3`. **Nine steps is also nine chances to demonstrate that
-an identifier in an answer is a button**, which is the one thing a visitor cannot guess.
-
-**One instruction about the recording, and it is not negotiable.** **Read the recorded answer before
-you build a script around it.** The chain above is what the netlist says; it is not a promise about
-what the model will write. If the recorded turn misses the bypass path, gets the series pair wrong,
-or stops at *cannot be determined*, **say so and re-ask rather than scripting around it** — and
-`prompts.py` may want a line about the bypass, which is a `v1.4` and a one-line change. **Do not
-narrate over a wrong answer.**
-
-**The recording mechanism already exists and needs nothing built.** Every turn is archived to
-**`server/.state/turns/<turn_id>.jsonl`**, one file per turn, whose **first line is a `_meta`
-record carrying `prompt_version`, `model` and `effort`**. Several are on disk now. Two things the
-plan must decide about it: **what gets replayed** — the raw event stream, so the answer *types
-itself out*, which is most of the effect, or just the finished markdown — and **how the screen says
-it is a recording.** A replay that lets a visitor believe it is live is the one thing that would
-make this dishonest, and the fix is a sentence on the card, not a debate.
-
-One maintenance note to write into the plan: **re-record after any change to `prompts.py`**, and the
-`_meta` line's `prompt_version` is how you tell whether you need to. **`v1.3` is current**, as of
-2026-09-26.
-
-**2. Drive the stores, not synthesised clicks.** Confirmed — you said it was almost certainly right
-and I agree. Every gesture the walkthrough needs already exists as a store action: select a
-designator, toggle a layer, fly the sheet, switch tabs, put a question in the composer.
-**Name the actions in the plan**, per step, so the building session does not go looking for them.
-
-**3. The script lives in a JSON file the server serves.** Confirmed, for the reason you gave:
-**the whole project's argument is that a thing worth changing should not need a rebuild**, and a
-sentence in a narration is exactly the kind of thing that will be changed after watching somebody
-struggle with it. Three things the plan should settle about that file: where it lives, whether it is
-editable **through** the WebUI (I suspect not — it is not my drawing data, and every authoring
-surface in this project exists because the data is mine), and **what happens when it is absent** —
-which should be *no panel and no button*, the same rule every other optional thing here follows.
-
-### What to read, and what not to
-
-**Read:** this file · `_claude_notes/goals_01.md` **§5 only** — the eight things the model must be
-able to highlight, which is what the walkthrough's climax has to show · the `Multi_CIP_Simulator.html`
-line ranges above, by `sed -n`, **never the file** · `webui/src/features/drawing/DrawingTab.tsx`
-lines `70-150` (the five switches and what each draws) and `1082-1109` (**the tab's own help
-paragraph — it is already a written tour of that tab**) · `webui/src/features/ask/AskTab.tsx` whole,
-it is short · `webui/src/stores/` — `appStore` and `chatStore` only, for the actions a driver would
-call · **`server/app/claude_runner.py`, the `_open_archive` function and the event handler above
-it** (~line 240-340 and ~636-660), which is the recording the replay will read · and **one real
-archived turn** out of `server/.state/turns/`, by `head -3`, to see the event shape — **never a whole
-file**.
-
-**Two things the plan has to look at that are not code:** `ls -l server/.state/turns/` for what has
-already been recorded, and `server/app/main.py`'s route table by `grep -n '@app\.'`, because
-**serving the script file and replaying a turn are both server routes** and therefore both mean a
-restart to install.
-
-**Do not read:** `geometry.json` (606 KB) · `circuit_logic.json` · `custom_kg.json` ·
-`_claude_notes/highlighting_wires_and_nets*.md` (the four of them come to ~280 KB; `_04` is the next
-*building* plan and is **not** this session's business) · `archive/change_history.md` ·
-`archive/authoring_the_wires.md`. **Everything large lives in `_claude_notes/archive/` since
-2026-09-26** — `ls` it before reaching for a path out of an older document.
-
-**And one list that is worth more than it looks:** `_claude_notes/locate_tab_testing/locate_tab_instruction_and_test_manual.md`
-is the **index** of every testable behaviour in the application, one row per document, written for me
-to walk. **Grep it for the `Drawing` and `Ask` rows and you have the raw material for the script** —
-those rows are already *do this, expect that*. **Read the index; do not read the documents it
-indexes** — a lesson document is the output of a phase, never its input.
-
-### What the plan must contain
-
-**It must be completely self-contained and standalone**, and
-`_claude_notes/highlighting_wires_and_nets_04.md` is the model for both its shape and its
-self-sufficiency: why it exists · the goal test · what exists that it reuses, **measured** ·
-numbered phases, each with its own reading list, acceptance criteria and a dollar estimate · what is
-deliberately out · order and budget · the token strategy · the traps · the documents to write ·
-open questions to ask me **at the start** of the building session rather than the end.
-
-**Write it assuming this file is empty by the time it is read.** I will open the building session
-with *"read `_claude_notes/narrated_walkthrough_01.md` and execute the requests"* and nothing else,
-so **everything in this file that a building session needs must be inside that one** — how to run
-the app and the four checks, the traps that apply, the git rules, the budget habits, and the two
-things about this project that are easy to get wrong: **`SWUI_ALLOW_EDITS`** gates the Locate and
-Review tabs (the walkthrough's two tabs need no password, which is the point), and **the client is a
-built bundle while `python -m app` has no reloader.**
-
-**And it must include the script itself, in prose** — the actual sentences the walkthrough speaks,
-step by step, for both tabs. That is the half I cannot write for you and the half that decides
-whether any of it is worth watching. **Write it as if it will be read aloud**, because it will be.
-
-**And say at the start whether you think it fits.** A planning session should land near **$8–15**;
-if the reading list is growing past that, cut the plan's scope rather than push it through and
-**tell me which part you cut.**
-
-**Then stop.** Do not write code, do not touch `webui/src/` or `server/app/`, and do not start the
-server. **Record the recorded turn later, in the building session** — capturing it needs the server
-running and a real `$1.50`-capped question, and that is the building session's first step, not this
-one's.
+- **The server is mine.** Check `ss -ltnp | grep :9700` before starting one, never kill mine, and
+  when you stop your own, prove the port is free. Backgrounding `cd … && python …` orphans the
+  server.
+- **You cannot hear the talkthrough, and I can.** A listening result is my report, never a test's
+  claim.
 
 ---
 
@@ -464,7 +294,7 @@ Running it:
 cd /home/js/schematics/server && .venv/bin/python -m app     # then http://localhost:9700/webui/
 ```
 
-**If you start the server, stop it in the same turn. The console is mine.**
+**If you start the server, stop it in the same turn. The console is mine.** **How (learned 2026-09-27, when an orphaned server held the port):** check `ss -ltnp | grep :9700` first and never touch a listener that is already there; `cd` as its own command, then `.venv/bin/python -m app & SRV=$!` (backgrounding `cd … && python …` makes `$!` a subshell and orphans the server); after `kill $SRV`, `ss` must show nothing on 9700; never `pkill -f`.
 
 The four checks:
 
@@ -684,6 +514,9 @@ which is most of a phase.
 
 The things a session might otherwise be, in the order I would want them:
 
+0. **`_claude_notes/talkthrough_03.md`, in its own order**, starting with Session 1 (§4) alone. It is
+   self-contained. It carries the talkthrough's next steps and the steering work that turns my
+   edited answers into prompt rules.
 1. **`_claude_notes/highlighting_wires_and_nets_04.md`, in its own order** — the fifth authored
    file and the generator's fold (`§4`), then the five marks painted (`§6`), then the netlist screen
    (`§5`), the mark editor (`§7`), label binding (`§8`), the citation loop (`§10`) and symbols last

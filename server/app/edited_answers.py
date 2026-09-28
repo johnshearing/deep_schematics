@@ -3,7 +3,7 @@
 The Ask tab lets the user edit an answer in place — to present it, or to replace it with one of
 their own — and then talk it through. The screen then shows only the edit. This keeps each edit
 beside what the model originally wrote, so the two can be compared later (the steering plan,
-`_claude_notes/steering_with_edits_01.md`).
+`_claude_notes/talkthrough_03.md` §8–§10).
 
 **This is the user's prose, never drawing data.** It is written to a directory of its own beside
 the extraction, `walkthrough/edited_answers/`, one file per turn, and nothing here reads or

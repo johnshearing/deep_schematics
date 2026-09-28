@@ -1,3 +1,5 @@
+> **Retired 2026-09-28.** Absorbed into `_claude_notes/talkthrough_03.md`, which carries everything unfinished here. A grep target, never a read.
+
 # Steering with edits, 01: *teach the model the answers you want*, from the answers you rewrote
 
 *Written 2026-09-27, at the end of the session that built `talkthrough_02.md`. Nothing here is
@@ -31,6 +33,21 @@ here, measured on 2026-09-27.*
 >
 > *(Answering `talkthrough_02.md` §11 Q6)* Your recommendation is best. Please make a separate
 > plan for this. This document must be self-contained and standalone.
+
+> *(2026-09-28, after making a short video for prospective funders from the RECEPT1:3 answer)*
+> The response was now correct, easy to understand and pleasing to listen to. […] I replaced the
+> forward slashes and arrows with words. I also placed any links at the beginning of each
+> sentence. This was to eliminate an uncomfortable pause that occurred when the link was in the
+> middle or at the end of a sentence. I also added a short description of the component or
+> terminal directly after the link so that any humans listening to the response might comprehend
+> the explanation more easily. **I understand that you do not have access to the audio and so are
+> unable to listen to the responses as they are read aloud, so I am your eyes and ears.** It will
+> be good to make a collection of these edits that I make to your responses. Then you can pick up
+> on the style and change your responses accordingly.
+
+The whole worked example is in §3.5. **The user is the only judge of how an answer sounds.** No
+session can hear the talkthrough, so a rule about listening is adopted on the user's word, and
+measured only on what can be read.
 
 The user makes **videos that teach the circuit and demonstrate deep_schematics**. They edit
 answers in place on the Ask tab, or replace them with their own, and then present them with the
@@ -81,8 +98,11 @@ The work is done when:
    now follows. `server/scripts/acceptance.py` still passes at least what it passed before.
 5. The user sees one write-up: the rules adopted, the measurement, and what it cost.
 
-**Precondition: five or more records** in `schematic_extraction/<drawing>/walkthrough/edited_answers/`
-(`ls … | wc -l`). With fewer there is nothing to distil. Say so and stop.
+**Precondition, revised 2026-09-28.** Phase 2 can start from the user's own stated rules (§3.5)
+even with no records on disk. Phase 1's report needs records in
+`schematic_extraction/<drawing>/walkthrough/edited_answers/` (`ls … | wc -l`). **With none, build
+and test the script on synthetic records, say that the real report is empty, and go on to Phase 2
+with §3.5.** On 2026-09-28 the directory was empty (trap S9).
 
 ---
 
@@ -144,6 +164,57 @@ The live RECEPT1:3 answer (2026-09-26) began with the model's own working notes:
 PB1:1 supply source … That's enough to write the full answer."* It's kept as
 `webui/src/features/talkthrough/fixtures/recept1_3.md`. **If the user's edits remove such
 preambles, the rule writes itself.** Check it against the report rather than assuming.
+
+### 3.5 The user's first worked edit (2026-09-28), captured here because it never reached the disk
+
+The user made a short video for prospective funders from **one snippet** of the live RECEPT1:3
+answer, and edited **both the question and the snippet**. The editor was locked, so no record was
+saved (trap S9). This is the only copy.
+
+**The question, as edited for the video:** *"How is power delivered to the 24 Volt net?"*
+
+**The model's snippet (the original):**
+
+> `PLG1`/`PLG2` bring 115VAC in → `DISC1` poles L1-T1/L3-T3 (closed) → `CB1` (8A, must be closed) →
+> `PS1` converts to 24VDC → `PS1:+` → `CB2` (20A, must be closed) → net `24E-1`, the DC distribution
+> bus. `PS1`'s two minus terminals establish `0V`.
+
+**The user's edit:**
+
+> `PLG1` the 30 Amp electrical plug brings 115 Volts AC into the electrical disconnect. `DISC1` is
+> the disconnect. This disconnect must be switched to the on position. `CB1` the 8 Amp circuit
+> breaker must also be closed. `PS1` the DC power supply is now energized and it converts AC power
+> to 24 Volts DC. `PS1:+` is the power supply's output terminal. `CB2` the 20 Amp circuit breaker
+> receives the 24 Volt output from the power supply. When the circuit breaker is closed the 24 Volt
+> DC distribution buss becomes energized. `24E-1`, which is the 24 Volt distribution buss is seen
+> here. `PS1:-1` which is the power supply's minus terminal establishes the zero Volt buss. `0V`,
+> which is seen here is the zero volt buss. `PS1:-2`, the power supply's second minus terminal,
+> bonds the neutral zero volt buss to the chassis ground. `TB-GND-B:2` is that chassis ground
+> terminal. The system is now energized and ready to run.
+
+The user reported that, spoken, the original *"did show the components and nets in the correct
+order but the speech was very unnatural and confusing to listen to"*, and the edit was *"correct,
+easy to understand and pleasing to listen to."*
+
+**What the edit changes. Each item is a candidate rule, and four were stated by the user in
+their own words:**
+
+| # | change | the user's reason | kind |
+|---|---|---|---|
+| E1 | `→` and `/` replaced by words (*brings … into*, *receives*, *and*) | stated: symbols read badly aloud | style |
+| E2 | **every identifier opens its sentence** | stated: a link mid-sentence or at the end caused *"an uncomfortable pause"* (see trap S10: part of this is the talkthrough engine) | style, and possibly an engine fix |
+| E3 | **a short description straight after each identifier** (*`DISC1` is the disconnect*, *`CB1` the 8 Amp circuit breaker*) | stated: so a listener can follow | style |
+| E4 | units spelt out: *115 Volts AC*, *8 Amp*, *24 Volts DC*, not `115VAC`, `8A`, `24VDC` | implied by E1 | style |
+| E5 | one step per sentence, in the order power flows, ending with a result (*"The system is now energized and ready to run."*) | implied | style |
+| E6 | parenthetical asides dropped (*poles L1-T1/L3-T3 (closed)*) | implied | style |
+| F1 | **`PLG1` is the male plug that brings 115 VAC in; `PLG2` is a female receptacle that sends 115 VAC out to the next machine.** The model wrote that both bring power in. | stated: *"You couldn't know that because symbols are not yet indexed from the schematic."* | **fact, not style** (trap S8) |
+| F2 | the edit names terminals the original did not: `PS1:-1`, `PS1:-2`, `TB-GND-B:2`, and the chassis bond | the user's knowledge of the sheet | fact. Check each resolves in the index (`/api/designators`), or it is not a link |
+
+**How to use it:**
+- E1 to E6 are Phase 2's first candidates, before any report exists.
+- F1 and F2 are **never prompt rules** (S8). They go to §13 Q7.
+- The Phase 3 measurement re-asks *"How is power delivered to the 24 Volt net?"* on the new prompt
+  and sets the answer beside the edit above.
 
 ---
 
@@ -268,6 +339,22 @@ deliberately and say so. `grep -n 'PROMPT_VERSION' -r server/tests` first.
   Keep it short: rules, not essays. Report its size in tokens (≈ characters / 4).
 - **S7. Never edit a record.** They are the user's. The report is generated from them, and a
   wrong report is fixed in the script.
+- **S8. An edit mixes style and facts, and only style belongs in `prompts.py`.** §3.5's F1
+  (`PLG2` sends power *out*) is a fact about one drawing. As a prompt rule it would be a drawing
+  identifier in `server/app/` (§12.3), and wrong on drawing number two. The report must flag an
+  edit that changes what an identifier *is* or *does*, as distinct from how it is phrased. Where
+  a fact goes is §13 Q7, and **never the session's hand edit to an authored file** (§12.5).
+- **S9. An edit only reaches the disk when the editor is unlocked.** The edit box says which
+  (*"Saved beside the drawing"* vs *"Kept for this conversation only"*). On 2026-09-28 the
+  user's first video edit was made locked, and it exists only in §3.5. Tell the user this at the
+  start, so the collection they want actually accumulates.
+- **S10. Some of what sounds wrong is the talkthrough, not the answer.** The talkthrough speaks
+  each link's segment as its own utterance (`webui/src/features/talkthrough/buildTalk.ts`: *a
+  sentence is cut immediately before each link*), and a browser leaves a gap between utterances.
+  That gap is E2's *uncomfortable pause*. It can also be fixed in the engine: speak the whole
+  sentence as one utterance and fly to each link on the utterance's `boundary` event at its
+  character index. That fix would make E2 a preference, not a necessity. It is `talkthrough_03`'s
+  work, not this plan's (§13 Q8).
 
 ---
 
@@ -331,9 +418,22 @@ reading.
 cd /home/js/schematics/server && .venv/bin/python -m app     # then http://localhost:9700/webui/
 ```
 
-**If you start the server, stop it in the same turn, by its PID** (`… & SRV=$!` … `kill $SRV`).
-**Never `pkill -f 'python -m app'`:** the pattern matches the shell running it and kills your own
-command.
+**If you start the server, stop it in the same turn, and prove the port is free.** On
+2026-09-27 a session left one running: the user could not restart theirs, because 9700 was still
+held. The rule was right and the method was wrong, so follow this exactly:
+
+1. **Before starting, look:** `ss -ltnp | grep :9700`. **If something is listening, it is the
+   user's server.** Do not start a second one, and never kill theirs. Use it if it runs the code
+   you need (it does only if they restarted after your last `server/app/` change), or ask.
+2. **Start it so that `$!` is the server itself.** Run `cd /home/js/schematics/server` as its own
+   command, then `.venv/bin/python -m app > /tmp/server.log 2>&1 & SRV=$!`. **Never background a
+   `cd … && python …` list:** that backgrounds a *subshell*, `$!` is the subshell's PID, and
+   `kill $SRV` stops the subshell and orphans the server. That is exactly the 2026-09-27 failure.
+3. **Stop it and verify by the port, not the PID:** `kill $SRV`, then `ss -ltnp | grep :9700` must
+   print nothing. If a `python` you started still listens, kill *that* PID (shown by `ss`). Say in
+   the write-up that the port is free.
+4. **Never `pkill -f 'python -m app'`:** the pattern matches the shell running it, and kills your
+   own command (2026-09-26).
 
 The four checks:
 
@@ -344,8 +444,8 @@ cd ../webui && npx vitest run && npx tsc -b --noEmit
 
 - A vitest worker error (`ERR_IPC_CHANNEL_CLOSED`) beside pytest is contention, not a red test.
   Re-run `npx vitest run` alone before reporting.
-- Start from green and read the counts off your own run. On 2026-09-27 they stood at **272
-  server** and **578 web**, and they move.
+- Start from green and read the counts off your own run. On 2026-09-28 they stood at **272
+  server** and **580 web**, and they move.
 - A red check in a session that has written no code means something else is wrong. Say so loudly.
 
 ### 12.2 Where things are
@@ -383,20 +483,72 @@ cd ../webui && npx vitest run && npx tsc -b --noEmit
 - **Tell the user which files on the reading lists did not earn their tokens, and which files you
   needed that were not named.** Say it even when the answer is *the list was right*.
 
+### 12.5 Carried over from `highlighting_wires_and_nets_04.md` §14 (2026-09-28)
+
+These rules were written for the Locate and Drawing work, and they apply here too. You do not need
+to read that plan.
+
+- **`python -m app` has no reloader** (its trap 2). A prompt change is invisible until a restart.
+  **A rebuilt bundle against an unrestarted server is the dangerous combination.** Check
+  `/api/health`'s `prompt_version` before believing a measurement (S5).
+- **Never restart the user's server while they may have unsaved work** (its trap 21): an edit box
+  open, a Locate save badge not `saved`. Ask first. Restarting is the user's call whenever the
+  server is theirs (§12.1 step 1).
+- **When the user reports that something does not work, measure before theorising** (its trap 22).
+  `ls -l`, `md5sum`, `git status --short` and a real request through the running server settle
+  in one call what rounds of reading code cannot. For this plan that means `ls` the records
+  directory, and `curl /api/health` for the prompt version.
+- **Do not correct the user's data for them, ever, even when you can see it is wrong.** List it,
+  explain it, and let them do it. Here that covers F1 (§3.5): the session does not write it into
+  `EXTRACTION_NOTES.md` or anywhere else the user authors. It asks (§13 Q7).
+- **Generalise to other drawings** (its §14.4.1). If you find yourself typing a drawing's
+  identifier into `server/app/` or into a prompt rule, stop.
+- **Anything the user authors while walking lands in the same commit as the code** unless they are
+  told to separate them. Say so when naming the files that want committing.
+- **T-numbers:** this plan writes no lesson document. If it ever does, note that
+  `highlighting_wires_and_nets_04.md` reserves T-1600–T-1779, that `28_tests_talkthrough.md`
+  already spent T-1600–T-1700 (a collision reported to the user on 2026-09-28), and so the next
+  safe block starts at **T-1800**.
+
 ---
 
 ## §13 Questions to ask at the start of the building session, in one batch
 
+*Revised 2026-09-28, after the user's worked edit (§3.5) and their explanation of it.*
+
 1. **Rules only, or rules and then exemplars?** *Recommended: rules only* (trap S2). Exemplars
    would be their own plan, designed around keeping them out of the model's evidence.
-2. **Who drafts the rules?** *Recommended: the session drafts candidates from the report, and you
-   accept or reject each one.* Or you write them yourself from the report, and the session only
-   installs and measures them.
-3. **How many edits before starting?** *Recommended: at least five, from at least three different
-   questions,* so a rule reflects a habit, not one answer.
-4. **Sources section:** keep the prompt's current rule, shorten it to one line, or let your edits
-   decide? *Recommended: let the edits decide, but never drop citations inside the answer.*
+2. **Start from your stated rules?** E1 to E6 (§3.5) are already the clearest evidence there is,
+   in your own words. *Recommended: yes, install E1 to E6 as the first candidates now, and let the
+   report add candidates as your saved edits accumulate.* Or wait for a larger collection first.
+3. **For every answer, or only when asked?** Rules written for listening (E1 to E6) change every
+   answer, including those read on a screen by the electrician at 2 a.m., for whom
+   `CB1 (8A) → PS1` is quick to scan. The options:
+   - **(a)** always
+   - **(b)** only when a new Ask-tab switch, *"Write for listening"*, is on. That's one extra
+     prompt line per question, and a small client and server change.
+   - **(c)** always for E1, E3, E4 and E5, and E2 only under (b)
+
+   *Recommended: (a)*, because your edit reads better on screen too. Choose (b) if you want the
+   compact style kept for troubleshooting.
+4. **The Sources section:** keep the prompt's current rule, shorten it to one line, or let your
+   edits decide? *Recommended: let the edits decide, but never drop citations inside the answer.*
 5. **Measurement spend:** up to five live re-asks (about $0.75) plus one acceptance run (about
-   $0.40)? *Recommended: yes.*
+   $0.40)? *Recommended: yes*, including *"How is power delivered to the 24 Volt net?"* against
+   §3.5.
 6. **Should the rules apply to every drawing?** `prompts.py` is shared. *Recommended: yes, and
    that is why the rules must be generic.*
+7. **Facts your edits correct (F1: `PLG1` in, `PLG2` out), where do they go?** They are not
+   style (S8). The options:
+   - **(a)** you add a line to `EXTRACTION_NOTES.md`, which the model reads first in every session
+   - **(b)** wait for symbol indexing, which will know a plug from a receptacle
+   - **(c)** a new authored facts file, which would need its own design
+
+   *Recommended: (a) now, written by you or on your explicit instruction, and (b) when symbols
+   are indexed.* The report will list every fact-changing edit it finds so none is lost.
+8. **The pause at a link (E2, trap S10):** fix it in the talkthrough first (speak each sentence as
+   one utterance and fly on word boundaries, in a `talkthrough_03` plan), so that links can stay
+   wherever the sentence reads best? *Recommended: yes, the engine fix first, and E2 kept as a
+   preference ("lead with the identifier where it reads naturally") rather than a hard rule.*
+9. **Collecting edits:** will you unlock the editor (Locate tab) before editing from now on, so each
+   edit is saved (S9)? *Recommended: yes.* Otherwise the collection stays empty.

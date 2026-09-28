@@ -1,6 +1,6 @@
 """Starter questions.
 
-Chosen (plan §6) to show range *and* honesty. Two of the five are traps the project already
+Chosen (plan §6) to show range *and* honesty. Two of the six are traps the project already
 knows this data sets — the wires-vs-terminals count, and CR-SW, where the correct answer is
 "cannot be determined from this sheet". A demo that only shows the model succeeding teaches a
 visitor nothing about when to trust it.
@@ -59,6 +59,24 @@ STARTER_QUESTIONS: list[dict[str, Any]] = [
         "text": "Describe the start/stop control circuit from button press to RUN signal.",
         "note": "The whole control chain, end to end.",
         "acceptance": "PB1/PB2 → CR1/CR2 → BYPASS → CR-BP → CR-ON → RUN.",
+        "kind": "model",
+    },
+    {
+        # Added 2026-09-28 at the user's request: their own example, the one the talkthrough was
+        # built on (`_claude_notes/talkthrough_01.md` §1.1), and a good one to present aloud.
+        "id": "run-chain-isolated",
+        "text": (
+            "Assuming that the machine is not connected to any upstream or downstream machines "
+            "via the infeed interface or the discharge interface, please explain the entire "
+            'chain of events that must occur in order to energize the "Run" wire which connects '
+            "to terminal RECEPT1:3."
+        ),
+        "note": "The whole chain on an isolated machine — made to be talked through.",
+        "acceptance": (
+            "Only the bypass path works: PB1 → CR1 and PB2 → CR2 together (nets 121, 120), "
+            "BYPASS-CB closed (net 125), CR-BP energised, CR-BP:21-24 puts 24 V on RUN. The "
+            "CR-ON path is dead without the infeed or the discharge machine."
+        ),
         "kind": "model",
     },
 ]

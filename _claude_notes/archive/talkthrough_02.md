@@ -1,3 +1,5 @@
+> **Retired 2026-09-28.** Absorbed into `_claude_notes/talkthrough_03.md`, which carries everything unfinished here. A grep target, never a read.
+
 # Talkthrough, 02: speak a selection, speak an edited answer, read the question first, and choose the voice
 
 *Written 2026-09-27 in a planning session, straight after `talkthrough_01.md` was built and

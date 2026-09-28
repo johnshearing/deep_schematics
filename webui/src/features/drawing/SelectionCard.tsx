@@ -11,13 +11,16 @@
  * the one part of the screen the reader is looking at.
  */
 
-import { ArrowLeft, Crosshair, X } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ArrowLeft, Check, Copy, Crosshair, GripHorizontal, X } from 'lucide-react'
 
 import type { Designator, DesignatorKind, EntryTerminal } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { KIND_LABEL, placementLabel } from '@/lib/designators'
 import type { PathSummary } from '@/lib/paths'
+import { useDraggable } from '@/lib/useDraggable'
 import { cn } from '@/lib/utils'
+import { useCardPlacement } from './cardPlacement'
 
 interface Props {
   entry: Designator
@@ -76,16 +79,39 @@ export function SelectionCard({
   const members = entry.kind === 'component' ? [] : entry.members
   const terminals = entry.kind === 'component' ? [] : (entry.terminals ?? [])
 
+  // Movable by the grip along its top (requested 2026-09-28): it can cover the very part of the
+  // sheet the reader wants to see. Within the sheet, never off it; double-click the grip for home.
+  const placed = useCardPlacement((s) => s.selection)
+  const place = useCardPlacement((s) => s.setSelection)
+  const { ref, style, handleProps, dragging } = useDraggable<HTMLDivElement>(placed, place, {
+    within: 'parent',
+    home: {},
+  })
+
   return (
     <div
+      ref={ref}
+      style={style}
       // The viewer's pan handlers are on the container this sits inside.
       onPointerDown={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
       className={cn(
-        'pointer-events-auto absolute bottom-3 left-3 z-10 max-w-sm min-w-72',
-        'rounded-lg border bg-card/95 p-3 shadow-lg backdrop-blur-sm',
+        'pointer-events-auto absolute bottom-3 left-3 z-10 max-w-sm min-w-72 select-text',
+        'rounded-lg border bg-card/95 p-3 pt-0 shadow-lg backdrop-blur-sm',
       )}
     >
+      <div
+        {...handleProps}
+        data-testid="selection-card-handle"
+        title="Drag to move · double-click to put it back"
+        className={cn(
+          '-mx-3 mb-1.5 flex touch-none justify-center rounded-t-lg py-0.5 text-muted-foreground select-none',
+          'hover:bg-accent/50',
+          dragging ? 'cursor-grabbing' : 'cursor-move',
+        )}
+      >
+        <GripHorizontal className="size-3.5" />
+      </div>
       {/* The way back to the roster, above the heading rather than beside the ✕, because it is
           about where you *were* and the rest of the card is about where you are. Offered only
           when something actually sent you here — a roster row or a `runs through` chip — so a
@@ -125,6 +151,7 @@ export function SelectionCard({
           </div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{entry.label}</p>
         </div>
+        <CopyCard card={ref} />
         <Button variant="ghost" size="icon" aria-label="Clear selection" onClick={onClose}>
           <X />
         </Button>
@@ -408,5 +435,30 @@ function MemberRow({
         </button>
       )}
     </li>
+  )
+}
+
+/** Copy what the card says, as plain text laid out as it reads — `innerText`, where a browser has
+ * one, keeps the line breaks that `textContent` loses. */
+function CopyCard({ card }: { card: React.RefObject<HTMLDivElement | null> }) {
+  const [copied, setCopied] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const copy = async () => {
+    const element = card.current
+    if (!element) return
+    const text = (element.innerText ?? element.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim()
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = setTimeout(() => setCopied(false), 1500)
+    } catch {
+      setCopied(false)
+    }
+  }
+  return (
+    <Button variant="ghost" size="icon" aria-label="Copy the card's text" title="Copy this card's text" onClick={copy}>
+      {copied ? <Check /> : <Copy />}
+    </Button>
   )
 }
