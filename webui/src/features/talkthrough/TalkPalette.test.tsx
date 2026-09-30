@@ -82,7 +82,7 @@ beforeEach(() => {
   })
   useChatStore.setState({ messages: [{ ...MESSAGE, id: 'u1', role: 'user' }, MESSAGE] })
   useTalkStore.setState({
-    dwell: 0, rate: 1, muted: false, palette: null, voice: null, pitch: 1, questionFirst: false, showSay: false,
+    dwell: 0, rate: 1, muted: false, palette: null, voice: null, pitch: 1, questionFirst: false, showSay: false, flow: false,
   })
 })
 
@@ -233,6 +233,17 @@ describe('the talkthrough palette', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Show spoken text' }))
     expect(screen.getByTestId('talk-say').textContent).toBe('Is P B 1 lit? ')
     expect(screen.getByTestId('talk-caption').textContent).toBe('Is PB1 lit?')
+  })
+
+  it('switches natural flow, and remembers it', () => {
+    begin()
+    const box = screen.getByRole('checkbox', { name: 'Natural flow' }) as HTMLInputElement
+    expect(box.checked).toBe(false)
+    fireEvent.click(box)
+    expect(talk().flow).toBe(true)
+    expect(JSON.parse(localStorage.getItem('talkthrough-settings')!).state.flow).toBe(true)
+    fireEvent.click(box)
+    expect(talk().flow).toBe(false)
   })
 
   it('speaks only the sentences a selection in the answer touches', () => {

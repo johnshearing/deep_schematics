@@ -38,7 +38,7 @@ export function TalkPalette() {
 
 function Palette() {
   const state = useTalkStore()
-  const { talk, pos, phase, dwell, rate, muted, palette, shown, voice, pitch, questionFirst, showSay } = state
+  const { talk, pos, phase, dwell, rate, muted, palette, shown, voice, pitch, questionFirst, showSay, flow } = state
   const voices = useVoices()
   const { ref, style, handleProps, dragging } = useDraggable<HTMLDivElement>(palette, state.setPalette)
   const opened = useRef(false)
@@ -278,6 +278,13 @@ function Palette() {
             Show spoken text
           </label>
         </div>
+        <label
+          className="flex items-center gap-1 text-xs"
+          title="Speak each sentence in one breath, lighting each item as it is named. Untick for the item-by-item way. Pausing at each item always goes item by item."
+        >
+          <input type="checkbox" checked={flow} onChange={(event) => state.setFlow(event.target.checked)} />
+          Natural flow
+        </label>
 
         {!voiceSupported() && (
           <p className="text-[11px] text-muted-foreground">

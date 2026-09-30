@@ -5,20 +5,19 @@ purpose — and then do §1 and nothing else.**
 
 ## 1. The request
 
-**Read `_claude_notes/talkthrough_03.md` and execute its Session 1 (§4), and nothing else.** That
-document is self-contained. It carries the reading list, the traps, the budget, the standing rules
-and the questions to ask me first, so it can be executed with nothing else open.
+**Read `_claude_notes/talkthrough_03.md` and execute the session I name in my message** (Session 2,
+§5, unless I say otherwise), and nothing else. That document is self-contained. It carries the
+reading list, the traps, the budget, the standing rules and the questions to ask me first, so it
+can be executed with nothing else open.
 
-**Session 1 is one change, made alone and made reversible:** the talkthrough speaks each sentence
-as **one utterance** and lights each link on the voice's own word timing, instead of one utterance
-per link. That removes the pause I hear when a link sits in the middle or at the end of a sentence.
-It sits behind a persisted palette switch, **`Natural flow`**, and the old code path stays exactly
-as it is, so unticking the switch gives me today's behaviour back. The session is one commit, so
-it can also be reverted on its own. **Build it, then stop.** I will test it by rewriting an answer I
-already have, with links mid-sentence and at the end. Everything after it waits for my report,
-because the rest of the plan depends on how it sounds.
+**Session 1 (§4) was built on 2026-09-29:** a persisted palette switch, **`Natural flow`** (on by
+default), speaks each sentence as one utterance and lights each link on the voice's word timing.
+The old path, `run()`, is untouched, and unticking the switch gives it back. **It is waiting for my
+listening report** (T-1705–T-1720 in `28_tests_talkthrough.md`). Several of Sessions 2–7's
+decisions depend on that report, especially §16 S6 Q2 (whether *identifier first* is still needed).
+If I have not given the report, ask for it before starting.
 
-What `talkthrough_03.md` holds after Session 1, in order, one session each:
+What is left in `talkthrough_03.md`, in order, one session each:
 
 - **2:** pronunciation in three layers: a global list, a per-drawing list, and a one-off
   `` `DISC1 "disconnect 1"` `` notation

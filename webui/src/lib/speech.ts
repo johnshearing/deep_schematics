@@ -14,12 +14,18 @@
  *   and Android, so a caller pauses by cancelling and later re-speaks what it was saying. Keep
  *   utterances short enough that repeating one is harmless (some Chrome builds also cut an
  *   utterance off at about fifteen seconds).
+ * - **`onBoundary` is optional and additive.** It reports the character offset of each word as the
+ *   voice reaches it, so a caller can light what is being said mid-utterance. Not every voice
+ *   sends boundaries, so a caller must not depend on them arriving. A cancelled utterance reports
+ *   nothing.
  */
 
 export interface Speaker {
   readonly supported: boolean
   /** `pitch` is 0 to 2 and defaults to 1; a timed speaker ignores it. */
-  speak(text: string, rate: number, pitch?: number): Promise<'end' | 'cancelled'>
+  speak(
+    text: string, rate: number, pitch?: number, onBoundary?: (charIndex: number) => void,
+  ): Promise<'end' | 'cancelled'>
   cancel(): void
 }
 
@@ -84,7 +90,9 @@ if (speechSupported) {
   pickVoice()
 }
 
-type Start = (text: string, rate: number, pitch: number, finish: () => void) => () => void
+type Start = (
+  text: string, rate: number, pitch: number, finish: () => void, boundary: (charIndex: number) => void,
+) => () => void
 
 function speaker(start: Start, supported: boolean): Speaker {
   let pending: { settle: (how: 'end' | 'cancelled') => void; stop: () => void } | null = null
@@ -97,7 +105,7 @@ function speaker(start: Start, supported: boolean): Speaker {
   return {
     supported,
     cancel,
-    speak(text, rate, pitch = 1) {
+    speak(text, rate, pitch = 1, onBoundary) {
       cancel()
       return new Promise((resolve) => {
         const mine = {
@@ -109,6 +117,8 @@ function speaker(start: Start, supported: boolean): Speaker {
           if (pending !== mine) return // superseded, and already settled as cancelled
           pending = null
           resolve('end')
+        }, (charIndex) => {
+          if (pending === mine) onBoundary?.(charIndex)
         })
       })
     },
@@ -116,7 +126,7 @@ function speaker(start: Start, supported: boolean): Speaker {
 }
 
 /** The browser's voice. `supported` is false where there is none (jsdom, some kiosks). */
-export const webSpeaker: Speaker = speaker((text, rate, pitch, finish) => {
+export const webSpeaker: Speaker = speaker((text, rate, pitch, finish, boundary) => {
   if (!speechSupported) {
     finish()
     return () => {}
@@ -131,6 +141,9 @@ export const webSpeaker: Speaker = speaker((text, rate, pitch, finish) => {
   u.rate = rate
   u.pitch = pitch
   u.onend = finish
+  u.onboundary = (event) => {
+    if (event.name === 'word') boundary(event.charIndex)
+  }
   u.onerror = finish // an interrupted utterance must not hang the caller
   window.speechSynthesis.speak(u)
   return () => window.speechSynthesis.cancel()
@@ -138,12 +151,15 @@ export const webSpeaker: Speaker = speaker((text, rate, pitch, finish) => {
 
 /**
  * No audio at all: resolves after the time it would take to read `text` at `wpm` words a minute
- * (scaled by `rate`), so captions advance at reading pace when muted or voiceless.
+ * (scaled by `rate`), so captions advance at reading pace when muted or voiceless. Each word's
+ * boundary is reported at its share of that time, as a voice would.
  */
 export function timedSpeaker(wpm = 170): Speaker {
-  return speaker((text, rate, _pitch, finish) => {
-    const words = text.split(/\s+/).filter(Boolean).length
-    const timer = setTimeout(finish, Math.max(600, (words / (wpm * rate)) * 60_000))
-    return () => clearTimeout(timer)
+  return speaker((text, rate, _pitch, finish, boundary) => {
+    const starts = [...text.matchAll(/\S+/g)].map((m) => m.index)
+    const duration = Math.max(600, (starts.length / (wpm * rate)) * 60_000)
+    const timers = starts.map((at, k) => setTimeout(() => boundary(at), (k / starts.length) * duration))
+    timers.push(setTimeout(finish, duration))
+    return () => timers.forEach(clearTimeout)
   }, true)
 }

@@ -871,6 +871,13 @@ the user's next *"Greetings"* reads first.
 3. **With *Pause at each item* on (2 s, 4 s, until ▶):** keep today's per-item behaviour
    (*recommended*: the pauses are the point then), or pause mid-utterance?
 
+!!!! The following is an edit by John, your human coworker. These are my responses to the questions for session 1  !!!!
+For question 1, I accept your recommendation.
+For question 2, I accept your recommendation.
+For question 3, I have the "Pause" setting off so that the speech will sound natural. Sometimes I turn it on if I need to slow things down but most of the time I prefer to keep the setting to "off".
+!!!! This is the end of John's edit.  !!!!
+
+
 **Session 2 (§5):**
 1. **Precedence:** confirm that *"global first, then per drawing, finally the one-off"* means each
    later layer overrides the earlier, so the one-off wins. *Recommended: yes.*

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DesignatorIndex, DrawingSummary } from '@/api/types'
 import { buildLookup } from '@/lib/designators'
-import type { Speaker } from '@/lib/speech'
+import { timedSpeaker, type Speaker } from '@/lib/speech'
 import { useAppStore } from '@/stores/appStore'
 import { useChatStore, type Message } from '@/stores/chatStore'
 import { setSpeakers, useTalkStore } from './talkStore'
@@ -16,13 +16,17 @@ const INDEX = JSON.parse(
 /** A speaker that says nothing until told to, and records what was selected when it began. */
 function fakeSpeaker(supported = true) {
   let pending: ((how: 'end' | 'cancelled') => void) | null = null
-  const said: { text: string; selected: string | undefined; pitch?: number }[] = []
-  const speaker: Speaker & { said: typeof said; finish: () => Promise<void> } = {
+  const said: {
+    text: string; selected: string | undefined; pitch?: number; onBoundary?: (charIndex: number) => void
+  }[] = []
+  const speaker: Speaker & {
+    said: typeof said; finish: () => Promise<void>; boundary: (charIndex: number) => void
+  } = {
     supported,
     said,
-    speak(text, _rate, pitch) {
+    speak(text, _rate, pitch, onBoundary) {
       speaker.cancel()
-      said.push({ text, selected: useAppStore.getState().selection?.id, pitch })
+      said.push({ text, selected: useAppStore.getState().selection?.id, pitch, onBoundary })
       return new Promise((resolve) => (pending = resolve))
     },
     cancel() {
@@ -35,6 +39,10 @@ function fakeSpeaker(supported = true) {
       pending = null
       p?.('end')
       await vi.advanceTimersByTimeAsync(0)
+    },
+    /** The voice reaches the word at `charIndex` of the utterance in progress. */
+    boundary(charIndex) {
+      said.at(-1)?.onBoundary?.(charIndex)
     },
   }
   return speaker
@@ -66,7 +74,7 @@ beforeEach(() => {
   })
   useChatStore.setState({ messages: [QUESTION, MESSAGE] })
   useTalkStore.setState({
-    dwell: 0, rate: 1, muted: false, palette: null, voice: null, pitch: 1, questionFirst: false, showSay: false,
+    dwell: 0, rate: 1, muted: false, palette: null, voice: null, pitch: 1, questionFirst: false, showSay: false, flow: false,
   })
 })
 
@@ -215,7 +223,7 @@ describe('talkStore', () => {
     const saved = JSON.parse(localStorage.getItem('talkthrough-settings')!).state
     expect(saved).toEqual({
       dwell: 4000, rate: 1.3, muted: false, palette: { x: 10, y: 20 },
-      voice: null, pitch: 1, questionFirst: false, showSay: false,
+      voice: null, pitch: 1, questionFirst: false, showSay: false, flow: false,
     })
   })
 
@@ -255,5 +263,126 @@ describe('talkStore', () => {
     talk().start(useChatStore.getState().messages[1])
     await voice.finish()
     expect(texts()).toEqual(['My question.', 'My own answer.'])
+  })
+})
+
+// Natural flow, talkthrough_03.md §4. Sentence 1 joined is "Net 121 goes to C R 1 now.": the
+// segments start at 0, 4 and 16, and the word before "C R 1" ("to") starts at 13.
+describe('natural flow', () => {
+  const JOINED = 'Net 121 goes to C R 1 now.'
+  beforeEach(() => useTalkStore.setState({ flow: true }))
+
+  it('speaks a sentence as one utterance and lights each link on the word before it', async () => {
+    talk().start(MESSAGE)
+    await voice.finish() // "Start here."
+    expect(texts()).toEqual(['Start here.', JOINED])
+    voice.boundary(0) // "Net", the word before 121
+    expect(selected()).toBe('121')
+    expect(talk().pos).toEqual({ s: 1, g: 1 })
+    voice.boundary(4) // "121"
+    voice.boundary(8) // "goes"
+    expect(selected()).toBe('121')
+    voice.boundary(13) // "to", the word before C R 1
+    expect(selected()).toBe('CR1')
+    expect(talk().pos).toEqual({ s: 1, g: 2 })
+    await vi.advanceTimersByTimeAsync(10_000) // the estimates were dropped at the first boundary
+    await voice.finish()
+    expect(texts()).toEqual(['Start here.', JOINED, 'Then P B 1 lights.'])
+    await voice.finish()
+    await voice.finish()
+    expect(texts().at(-1)).toBe('End.')
+    await voice.finish()
+    expect(talk().phase).toBe('done')
+  })
+
+  it('lights the links on an estimate for a voice that sends no boundaries, and the rest at its end', async () => {
+    talk().start(MESSAGE)
+    await voice.finish()
+    expect(selected()).toBe('121') // estimated at once: nothing comes before "Net"
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(selected()).toBe('121')
+    await vi.advanceTimersByTimeAsync(100) // three words at 170 a minute: 1059 ms
+    expect(selected()).toBe('CR1')
+  })
+
+  it('lights any link still unlit when the utterance ends, so none is skipped', async () => {
+    talk().start(MESSAGE)
+    await voice.finish()
+    expect(selected()).toBe('121')
+    await voice.finish() // ends before CR1's estimate at 1059 ms
+    expect(voice.said.at(-1)).toEqual(expect.objectContaining({ text: 'Then P B 1 lights.', selected: 'CR1' }))
+  })
+
+  it('ignores a boundary from a cancelled utterance', async () => {
+    talk().start(MESSAGE)
+    await voice.finish()
+    voice.boundary(0)
+    const stale = voice.said.at(-1)!.onBoundary!
+    talk().nextItem()
+    expect(talk().pos).toEqual({ s: 1, g: 2 })
+    expect(texts().at(-1)).toBe('C R 1 now.')
+    stale(0)
+    stale(13)
+    stale(1000)
+    expect(talk().pos).toEqual({ s: 1, g: 2 })
+    expect(selected()).toBe('CR1')
+  })
+
+  it('re-speaks from the current item after a pause', async () => {
+    talk().start(MESSAGE)
+    await voice.finish()
+    voice.boundary(0)
+    talk().pause()
+    talk().play()
+    expect(texts().at(-1)).toBe('121 goes to C R 1 now.')
+    voice.boundary(9) // "to", now at 9
+    expect(selected()).toBe('CR1')
+  })
+
+  it("follows the timed speaker's own boundaries when muted", async () => {
+    setSpeakers(voice, timedSpeaker())
+    useTalkStore.setState({ muted: true })
+    talk().start(MESSAGE)
+    await vi.advanceTimersByTimeAsync(710) // "Start here.": two words at 170 a minute, 706 ms
+    expect(talk().pos).toEqual({ s: 1, g: 1 })
+    expect(selected()).toBe('121')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(selected()).toBe('121')
+    await vi.advanceTimersByTimeAsync(100) // "to" is the fourth of eight words over 2824 ms: 1059 ms
+    expect(selected()).toBe('CR1')
+    expect(texts()).toEqual([])
+  })
+
+  it('splits a long sentence at a segment', async () => {
+    const long = 'word '.repeat(50).trim()
+    talk().start({ ...MESSAGE, text: `${long} \`CR1\` then \`PB1\` too.` })
+    expect(texts()).toEqual([long])
+    await voice.finish()
+    expect(texts().at(-1)).toBe('C R 1 then P B 1 too.')
+    expect(selected()).toBe('CR1')
+  })
+
+  it('plays the old way, item by item, when a dwell is chosen', async () => {
+    useTalkStore.setState({ dwell: 2000 })
+    talk().start(MESSAGE)
+    await voice.finish()
+    await voice.finish()
+    expect(texts()).toEqual(['Start here.', 'Net'])
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(texts().at(-1)).toBe('121 goes to')
+  })
+
+  it('switching it mid-talk takes effect at the next sentence, either way', async () => {
+    talk().start({ ...MESSAGE, text: `${TEXT} So \`CR1\` feeds \`PB1\`.` })
+    await voice.finish()
+    talk().setFlow(false)
+    await voice.finish()
+    expect(texts().slice(1)).toEqual([JOINED, 'Then'])
+    talk().setFlow(true)
+    await voice.finish() // "P B 1 lights." is still the old way
+    await voice.finish() // the old loop begins "End." and natural flow takes it over at once
+    await voice.finish()
+    expect(texts().slice(3)).toEqual(['P B 1 lights.', 'End.', 'End.', 'So C R 1 feeds P B 1.'])
+    expect(JSON.parse(localStorage.getItem('talkthrough-settings')!).state.flow).toBe(true)
   })
 })

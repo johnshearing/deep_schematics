@@ -10,6 +10,12 @@
  * a promise that was pending before a jump can never advance the new position — without that,
  * *next* pressed mid-sentence would advance once for the press and once more when the cancelled
  * utterance settled.
+ *
+ * **Natural flow** (`talkthrough_03.md` §4) is a second loop, `runFlow`, beside the first and
+ * chosen by the `flow` setting: it speaks each sentence as **one utterance** and lights each link
+ * as the voice reaches the word before it, so a link mid-sentence no longer breaks the sentence
+ * in two. With `flow` off, or a dwell chosen, `run` plays exactly as before — the switch is the
+ * rollback.
  */
 
 import { create } from 'zustand'
@@ -50,6 +56,8 @@ interface TalkState {
   questionFirst: boolean
   /** Show the spoken form under the caption, so a poor pronunciation can be seen and fixed. */
   showSay: boolean
+  /** Speak each sentence as one utterance, links and all, when there is no dwell. */
+  flow: boolean
 
   /** Talk through an answer, or only the sentences `span` touches when there is a selection. */
   start: (message: Message, span?: Span | null) => void
@@ -68,6 +76,7 @@ interface TalkState {
   setPitch: (pitch: number) => void
   setQuestionFirst: (on: boolean) => void
   setShowSay: (on: boolean) => void
+  setFlow: (on: boolean) => void
 }
 
 let speakers: { voice: Speaker; timed: Speaker } = { voice: webSpeaker, timed: timedSpeaker() }
@@ -81,6 +90,33 @@ export function setSpeakers(voice: Speaker, timed: Speaker) {
 export const voiceSupported = () => speakers.voice.supported
 
 let timer: ReturnType<typeof setTimeout> | null = null
+
+/** Which loop is playing, so switching natural flow on mid-talk can take over at the next sentence. */
+let mode: 'old' | 'flow' = 'old'
+
+/** Joined utterances longer than this are split at a segment (some Chrome builds cut off at ~15 s). */
+const FLOW_CHARS = 220
+/** The pace estimated links are lit at when a voice sends no word boundaries; `timedSpeaker`'s. */
+const FLOW_WPM = 170
+
+/** The segments from `g` joined into one utterance, with each one's offset in it, up to FLOW_CHARS. */
+export function joinSegments(segments: { say: string }[], g: number): { text: string; starts: number[] } {
+  let text = ''
+  const starts: number[] = []
+  for (let k = g; k < segments.length; k++) {
+    const say = segments[k].say
+    if (starts.length && text.length + 1 + say.length > FLOW_CHARS) break
+    starts.push(text ? text.length + 1 : 0)
+    text = text ? `${text} ${say}` : say
+  }
+  return { text, starts }
+}
+
+/** Where the word just before offset `at` starts: a link is lit as that word is spoken. */
+const cueAt = (text: string, at: number) => {
+  const word = text.slice(0, at).trimEnd().search(/\S+$/)
+  return word < 0 ? 0 : word
+}
 
 const PLAYING: Phase[] = ['highlighting', 'dwelling', 'speaking']
 export const isPlaying = (phase: Phase) => PLAYING.includes(phase)
@@ -165,13 +201,79 @@ export const useTalkStore = create<TalkState>()(
         }
       }
 
+      /**
+       * Natural flow. Plays from `pos` a sentence (or a FLOW_CHARS piece of one) per utterance,
+       * moving `pos` and lighting each cite as the voice's word boundaries reach it. A voice that
+       * sends none is followed by an estimate, and the utterance's end lights anything left, so no
+       * link is skipped. Hands over to `run` whenever flow is off or a dwell is chosen.
+       */
+      const runFlow = async (gen: number) => {
+        const live = () => get().gen === gen
+        for (;;) {
+          const { pos, flow, dwell } = get()
+          if (!flow || dwell !== 0) {
+            mode = 'old'
+            return run(gen)
+          }
+          const segments = get().talk?.sentences[pos.s]?.segments
+          if (!segments?.[pos.g]) return
+
+          set({ phase: 'speaking' })
+          if (segments[pos.g].cite && !get().shown) highlight(pos)
+
+          const { text, starts } = joinSegments(segments, pos.g)
+          const cues = starts.map((at, k) => ({
+            g: pos.g + k,
+            at: k === 0 ? 0 : segments[pos.g + k].cite ? cueAt(text, at) : at,
+          }))
+          // Lighting a link a word early must never overtake the segment before it.
+          for (let k = cues.length - 1; k > 0; k--) cues[k - 1].at = Math.min(cues[k - 1].at, cues[k].at)
+          let reached = 0 // cues[0] is where this utterance starts
+          const reach = (charIndex: number) => {
+            if (!live()) return
+            while (reached + 1 < cues.length && cues[reached + 1].at <= charIndex) {
+              reached += 1
+              const at = { s: pos.s, g: cues[reached].g }
+              set({ pos: at, shown: false })
+              highlight(at)
+            }
+          }
+          const rate = get().rate
+          const estimates = cues.slice(1).map(({ at }) => {
+            const words = text.slice(0, at).split(/\s+/).filter(Boolean).length
+            return setTimeout(() => reach(at), (words / (FLOW_WPM * rate)) * 60_000)
+          })
+          const dropEstimates = () => estimates.splice(0).forEach(clearTimeout)
+
+          setPreferredVoice(get().voice)
+          const how = await speaker().speak(text, rate, get().pitch, (charIndex) => {
+            dropEstimates()
+            reach(charIndex)
+          })
+          dropEstimates()
+          if (!live() || how === 'cancelled') return
+          reach(Infinity)
+
+          const last = cues[cues.length - 1].g
+          const next = following({ s: pos.s, g: last })
+          if (!next) return set({ phase: 'done' })
+          set({ pos: next, shown: false })
+        }
+      }
+
+      /** Plays from `pos` by whichever loop the settings choose. */
+      const go = (gen: number) => {
+        mode = get().flow && get().dwell === 0 ? 'flow' : 'old'
+        return mode === 'flow' ? runFlow(gen) : run(gen)
+      }
+
       /** Move to `pos`, then carry on playing if it was, or hold still if it was not. */
       const jump = (pos: Pos, show: boolean) => {
         const wasPlaying = isPlaying(get().phase)
         const gen = interrupt()
         set({ pos, shown: false })
         // Playing, the loop highlights it and dwells as usual; paused, it is shown at once.
-        if (wasPlaying) void run(gen)
+        if (wasPlaying) void go(gen)
         else if (show) highlight(pos)
         if (!wasPlaying) set({ phase: 'paused' })
       }
@@ -193,6 +295,7 @@ export const useTalkStore = create<TalkState>()(
         pitch: 1,
         questionFirst: false,
         showSay: false,
+        flow: true,
 
         start: (message, span) => {
           if (message.status !== 'done') return
@@ -209,7 +312,7 @@ export const useTalkStore = create<TalkState>()(
             partial: answer !== full,
           })
           app.setActiveTab(DRAWING_TAB_ID)
-          void run(gen)
+          void go(gen)
         },
 
         play: () => {
@@ -221,7 +324,7 @@ export const useTalkStore = create<TalkState>()(
           const gen = interrupt()
           if (phase === 'done') set({ pos: { s: 0, g: 0 }, shown: false })
           set({ phase: 'speaking' })
-          void run(gen)
+          void go(gen)
         },
 
         pause: () => {
@@ -267,22 +370,25 @@ export const useTalkStore = create<TalkState>()(
         setMuted: (muted) => {
           set({ muted })
           // Swap voices mid-segment by re-saying it with the other speaker.
-          if (get().phase === 'speaking') void run(interrupt())
+          if (get().phase === 'speaking') void go(interrupt())
         },
         setPalette: (palette) => set({ palette }),
         setVoice: (voice) => {
           set({ voice })
-          if (get().phase === 'speaking') void run(interrupt())
+          if (get().phase === 'speaking') void go(interrupt())
         },
         setPitch: (pitch) => set({ pitch: Math.min(1.5, Math.max(0.5, pitch)) }),
         setQuestionFirst: (questionFirst) => set({ questionFirst }),
         setShowSay: (showSay) => set({ showSay }),
+        // Takes effect at the next sentence: `runFlow` checks it there, and the subscriber below
+        // hands an old-path talk over when it is switched on.
+        setFlow: (flow) => set({ flow }),
       }
     },
     {
       name: 'talkthrough-settings',
-      partialize: ({ dwell, rate, muted, palette, voice, pitch, questionFirst, showSay }) => ({
-        dwell, rate, muted, palette, voice, pitch, questionFirst, showSay,
+      partialize: ({ dwell, rate, muted, palette, voice, pitch, questionFirst, showSay, flow }) => ({
+        dwell, rate, muted, palette, voice, pitch, questionFirst, showSay, flow,
       }),
     },
   ),
@@ -301,4 +407,18 @@ useChatStore.subscribe(({ messages }) => {
 useAppStore.subscribe((state, previous) => {
   if (state.activeTabId === previous.activeTabId || state.activeTabId === DRAWING_TAB_ID) return
   useTalkStore.getState().pause()
+})
+
+// Natural flow switched on while the old loop plays takes over when it reaches the next sentence.
+// Deferred, so the old loop has finished its step; a pause and play restarts by the new loop.
+useTalkStore.subscribe((state, previous) => {
+  if (mode !== 'old' || !state.flow || state.dwell !== 0) return
+  if (state.pos.s === previous.pos.s || !isPlaying(state.phase)) return
+  const gen = state.gen
+  void Promise.resolve().then(() => {
+    const now = useTalkStore.getState()
+    if (mode !== 'old' || now.gen !== gen || !now.flow || !isPlaying(now.phase)) return
+    now.pause()
+    now.play()
+  })
 })
