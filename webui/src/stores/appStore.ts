@@ -7,6 +7,7 @@ import {
   getDrawing,
   getHealth,
   getPaths,
+  getPronunciations,
   getQuestions,
   unlock,
 } from '@/api/client'
@@ -18,9 +19,11 @@ import type {
   DrawingSummary,
   Health,
   PathIndex,
+  PronunciationLists,
   StarterQuestion,
 } from '@/api/types'
 import { buildLookup } from '@/lib/designators'
+import type { Pronunciations } from '@/lib/speakId'
 
 /** Module state, beside the store, so a second activation while the first request is in flight
  * does not fetch 32 KB twice. The same idiom `locateStore`'s save timer uses and for the same
@@ -76,6 +79,11 @@ interface AppState {
   /** Null while loading, and after a failure — in which case citations stay plain text and
    * nothing else changes. */
   designators: DesignatorIndex | null
+  /** The user's pronunciation lists as the server has them — what a *Say it as…* save extends. */
+  pronunciationLists: PronunciationLists
+  /** The same, as the lookups `speakId` takes. Empty when there are none or they failed to load:
+   * the talkthrough then speaks by its built-in rules, as it did before there were lists. */
+  pronunciations: Pronunciations
   /**
    * Where each traced wire runs, and which wires each net is made of.
    *
@@ -152,6 +160,7 @@ interface AppState {
   ) => void
   clearSelection: () => void
   loadAll: () => Promise<void>
+  setPronunciationLists: (lists: PronunciationLists) => void
   refreshHealth: () => Promise<void>
   /** Re-read the designator index **and the paths**, which is what the Locate editor's save
    * changes. Without it the editor would place a point, the file on disk would be right, and the
@@ -184,6 +193,8 @@ export const useAppStore = create<AppState>()(
       drawing: null,
       questions: [],
       designators: null,
+      pronunciationLists: { global: [], drawing: [] },
+      pronunciations: { global: new Map(), drawing: new Map() },
       paths: null,
       conductors: null,
       conductorsError: null,
@@ -207,12 +218,13 @@ export const useAppStore = create<AppState>()(
       clearSelection: () => set({ selection: null }),
 
       loadAll: async () => {
-        const [health, drawing, questions, designators, paths] = await Promise.allSettled([
+        const [health, drawing, questions, designators, paths, said] = await Promise.allSettled([
           getHealth(),
           getDrawing(),
           getQuestions(),
           getDesignators(),
           getPaths(),
+          getPronunciations(),
         ])
         const index = designators.status === 'fulfilled' ? designators.value : null
         set({
@@ -226,8 +238,17 @@ export const useAppStore = create<AppState>()(
           byToken: buildLookup(index),
           loaded: true,
         })
+        // Last, and only when it is the shape asked for: a missing or odd list must never cost the
+        // page anything but the user's pronunciations.
+        const lists = said.status === 'fulfilled' ? said.value : null
+        if (Array.isArray(lists?.global) && Array.isArray(lists?.drawing)) get().setPronunciationLists(lists)
         // Only adopt the server's default model on first load, so a visitor's choice sticks.
         if (health.status === 'fulfilled' && !get().model) set({ model: health.value.default_model })
+      },
+
+      setPronunciationLists: (lists) => {
+        const map = (entries: PronunciationLists['global']) => new Map(entries.map((e) => [e.match, e.say]))
+        set({ pronunciationLists: lists, pronunciations: { global: map(lists.global), drawing: map(lists.drawing) } })
       },
 
       refreshDesignators: async () => {

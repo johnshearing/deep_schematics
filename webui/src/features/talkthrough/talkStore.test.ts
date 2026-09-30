@@ -386,3 +386,29 @@ describe('natural flow', () => {
     expect(JSON.parse(localStorage.getItem('talkthrough-settings')!).state.flow).toBe(true)
   })
 })
+
+// A link written `` `CR1 ""` `` is lit and not said (talkthrough_03.md §5).
+describe('a silent link', () => {
+  const SILENT = { ...MESSAGE, text: 'Press `PB1` then `CR1 ""`. End.' }
+
+  it('is lit on the word before it within one utterance, and adds nothing to it', async () => {
+    useTalkStore.setState({ flow: true })
+    talk().start(SILENT)
+    expect(texts()).toEqual(['Press P B 1 then'])
+    voice.boundary(6)
+    expect(selected()).toBe('PB1')
+    voice.boundary(12) // "then"
+    expect(selected()).toBe('CR1')
+    await voice.finish()
+    expect(texts().at(-1)).toBe('End.')
+  })
+
+  it('is lit and passed over at once on the old path, with nothing to wait for', async () => {
+    setSpeakers(fakeSpeaker(false), timedSpeaker())
+    talk().start(SILENT)
+    await vi.advanceTimersByTimeAsync(600) // "Press": the 600 ms minimum
+    await vi.advanceTimersByTimeAsync(1420) // "P B 1 then": four words at 170 a minute, 1412 ms
+    expect(selected()).toBe('CR1')
+    expect(talk().pos).toEqual({ s: 1, g: 0 })
+  })
+})

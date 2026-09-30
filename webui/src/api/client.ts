@@ -16,6 +16,9 @@ import type {
   LocationsDocument,
   LocationsResponse,
   PathIndex,
+  PronunciationEntry,
+  PronunciationLists,
+  PronunciationScope,
   ReviewResponse,
   SaveLocationsResponse,
   SaveReviewResponse,
@@ -247,6 +250,19 @@ export const tileUrl = (file: string) => `${API}/tiles/${encodeURIComponent(file
 export const getHealth = () => getJson<Health>('/health')
 export const getDrawing = () => getJson<DrawingSummary>('/drawing')
 export const getDesignators = () => getJson<DesignatorIndex>('/designators')
+/** How the user wants things said aloud (`talkthrough_03.md` §5). Open to read. */
+export const getPronunciations = () => getJson<PronunciationLists>('/pronunciations')
+
+/** Replace one pronunciation list whole. Needs the editor routes and, if set, its password. */
+export async function putPronunciations(scope: PronunciationScope, entries: PronunciationEntry[]) {
+  const response = await fetch(`${API}/pronunciations/${scope}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...editorHeader() },
+    body: JSON.stringify({ entries }),
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  return (await response.json()) as { entries: PronunciationEntry[] }
+}
 /**
  * Where each traced wire runs, and which wires each net is made of.
  *

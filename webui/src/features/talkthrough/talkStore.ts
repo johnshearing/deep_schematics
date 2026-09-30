@@ -21,6 +21,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+import type { Pronunciations } from '@/lib/speakId'
 import { setPreferredVoice, timedSpeaker, webSpeaker, type Speaker } from '@/lib/speech'
 import { useAppStore } from '@/stores/appStore'
 import { shownText, useChatStore, type Message } from '@/stores/chatStore'
@@ -61,6 +62,8 @@ interface TalkState {
 
   /** Talk through an answer, or only the sentences `span` touches when there is a selection. */
   start: (message: Message, span?: Span | null) => void
+  /** Rebuild the talk in place, keeping the place in it: a pronunciation was just saved. */
+  refresh: () => void
   play: () => void
   pause: () => void
   nextSentence: () => void
@@ -105,6 +108,10 @@ export function joinSegments(segments: { say: string }[], g: number): { text: st
   const starts: number[] = []
   for (let k = g; k < segments.length; k++) {
     const say = segments[k].say
+    if (!say && starts.length) {
+      starts.push(text.length) // silent: lit with the word before it, adding nothing to say
+      continue
+    }
     if (starts.length && text.length + 1 + say.length > FLOW_CHARS) break
     starts.push(text ? text.length + 1 : 0)
     text = text ? `${text} ${say}` : say
@@ -130,12 +137,29 @@ function questionOf(answerId: string): string {
 }
 
 /** The question's sentences first, then the answer's, with the answer's items shifted to match. */
-function withQuestion(answer: Talk, question: string, byToken: Parameters<typeof buildQuestion>[1]): Talk {
-  const asked = buildQuestion(question, byToken)
+function withQuestion(
+  answer: Talk, question: string, byToken: Parameters<typeof buildQuestion>[1], lists: Pronunciations,
+): Talk {
+  const asked = buildQuestion(question, byToken, lists)
   return {
     sentences: [...asked, ...answer.sentences],
     items: answer.items.map(({ s, g }) => ({ s: s + asked.length, g })),
   }
+}
+
+/** How the current talk was made, so `refresh` can make it again the same way. */
+let built: { span: Span | null; questionFirst: boolean } = { span: null, questionFirst: false }
+
+/** An answer's talk: the whole of it, or the sentences a selection touches, and its question. */
+function derive(message: Message, span: Span | null, questionFirst: boolean) {
+  const app = useAppStore.getState()
+  const lists = app.pronunciations
+  const full = buildTalk(shownText(message), app.byToken, !!app.drawing?.tiles?.count, lists)
+  const sliced = span ? sliceTalk(full, span.from, span.to) : full
+  // A selection with nothing speakable in it (only a code block) speaks the whole answer.
+  const answer = sliced.sentences.length ? sliced : full
+  const talk = questionFirst ? withQuestion(answer, questionOf(message.id), app.byToken, lists) : answer
+  return { talk, empty: !answer.sentences.length, partial: answer !== full }
 }
 
 const before = (a: Pos, b: Pos) => a.s < b.s || (a.s === b.s && a.g < b.g)
@@ -299,20 +323,22 @@ export const useTalkStore = create<TalkState>()(
 
         start: (message, span) => {
           if (message.status !== 'done') return
-          const app = useAppStore.getState()
-          const full = buildTalk(shownText(message), app.byToken, !!app.drawing?.tiles?.count)
-          const sliced = span ? sliceTalk(full, span.from, span.to) : full
-          // A selection with nothing speakable in it (only a code block) speaks the whole answer.
-          const answer = sliced.sentences.length ? sliced : full
-          if (!answer.sentences.length) return
-          const talk = get().questionFirst ? withQuestion(answer, questionOf(message.id), app.byToken) : answer
+          const { talk, empty, partial } = derive(message, span ?? null, get().questionFirst)
+          if (empty) return
+          built = { span: span ?? null, questionFirst: get().questionFirst }
           const gen = interrupt()
-          set({
-            messageId: message.id, talk, pos: { s: 0, g: 0 }, shown: false, phase: 'highlighting',
-            partial: answer !== full,
-          })
-          app.setActiveTab(DRAWING_TAB_ID)
+          set({ messageId: message.id, talk, pos: { s: 0, g: 0 }, shown: false, phase: 'highlighting', partial })
+          useAppStore.getState().setActiveTab(DRAWING_TAB_ID)
           void go(gen)
+        },
+
+        // A pronunciation changes what is said, never where the sentences and links fall, so
+        // the position still points at the same item.
+        refresh: () => {
+          const message = useChatStore.getState().messages.find((m) => m.id === get().messageId)
+          if (!message) return
+          const { talk, empty } = derive(message, built.span, built.questionFirst)
+          if (!empty) set({ talk })
         },
 
         play: () => {

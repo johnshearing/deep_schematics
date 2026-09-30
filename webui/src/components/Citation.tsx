@@ -22,6 +22,7 @@
 import { memo, type ReactNode } from 'react'
 
 import { resolve } from '@/lib/designators'
+import { splitNotation } from '@/lib/speakId'
 import { useAppStore } from '@/stores/appStore'
 import { DRAWING_TAB_ID } from '@/tabIds'
 
@@ -40,7 +41,12 @@ export const Citation = memo(function Citation({ children }: { children: ReactNo
   const select = useAppStore((s) => s.select)
   const setActiveTab = useAppStore((s) => s.setActiveTab)
 
-  const entry = resolve(byToken, textOf(children))
+  // The one-off pronunciation (`` `DISC1 "disconnect 1"` ``) is for the voice alone: the screen
+  // shows only the token, link and all (`talkthrough_03.md` §5.2).
+  const text = textOf(children)
+  const said = text === null ? null : splitNotation(text)
+  if (said?.say != null) children = said.token
+  const entry = resolve(byToken, said ? said.token : text)
   if (!entry || !entry.point || !hasViewer) return <code>{children}</code>
 
   return (

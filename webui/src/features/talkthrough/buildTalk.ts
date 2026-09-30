@@ -19,7 +19,7 @@ import { unified } from 'unified'
 
 import type { Designator, DesignatorKind } from '@/api/types'
 import { resolve } from '@/lib/designators'
-import { speakId } from '@/lib/speakId'
+import { sayWords, speakId, splitNotation, type Pronunciations } from '@/lib/speakId'
 
 export interface Cite { kind: DesignatorKind; id: string; token: string } // token = as written
 export interface Segment {
@@ -30,6 +30,8 @@ export interface Segment {
   /** The link this segment starts with, as written — present on a repeat too, so the set of
    * links can be checked against the screen's before any de-duplication. */
   link?: string
+  /** How the link itself is said (the user's form, or the built-in one), for *Say it as…*. */
+  spoken?: string
 }
 /** `'q'` is the question, spoken before the answer when the reader asks for it. */
 export interface Sentence {
@@ -132,9 +134,9 @@ function blocks(node: MdNode, out: Block[], inItem = false, itemKey?: number): B
   return out
 }
 
-/** What is spoken for plain text: the words, without the glyphs a voice reads by name. */
-function sayPlain(text: string): string {
-  return text.replace(/→/g, ' to ').replace(/[*_`#|]/g, ' ').replace(/\s+/g, ' ').trim()
+/** What is spoken for plain text: the listed words, then without the glyphs a voice reads by name. */
+function sayPlain(text: string, lists?: Pronunciations): string {
+  return sayWords(text, lists).replace(/→/g, ' to ').replace(/[*_`#|]/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
 /** Trap T3: cut a long link-free stretch after a comma, so no one utterance runs on. */
@@ -154,10 +156,16 @@ function chunks(text: string): string[] {
 
 const segmenter = new Intl.Segmenter('en', { granularity: 'sentence' })
 
+/** Stands for a span that is not a link but carries the one-off notation, until it is restored. */
+const QUOTED = 0xf000
+/** What the voice is given for a stretch that contains no word at all (a lone `.` after a silent link). */
+const nothingSaid = (say: string) => (/^[\p{P}\s]*$/u.test(say) ? '' : say)
+
 export function buildTalk(
   markdown: string,
   byToken: Map<string, Designator>,
   hasViewer: boolean,
+  lists?: Pronunciations,
 ): Talk {
   const root = unified().use(remarkParse).use(remarkGfm).parse(markdown) as MdNode
   const sentences: Sentence[] = []
@@ -166,12 +174,17 @@ export function buildTalk(
   for (const { block, pieces, whole, keys } of blocks(root, [])) {
     // Rule 5: each code span becomes one private-use character, so no identifier is ever split
     // or read as a sentence end, and is restored afterwards.
+    // `codes` holds each span as shown, so offsets count what is on screen (trap 5); `quoted` its
+    // one-off spoken form, or null.
     const codes: string[] = []
+    const quoted: (string | null)[] = []
     let flat = ''
     for (const piece of pieces) {
       if ('code' in piece) {
         flat += String.fromCharCode(PUA + codes.length)
-        codes.push(piece.code)
+        const { token, say } = splitNotation(piece.code)
+        codes.push(token)
+        quoted.push(say)
       // One for one, not collapsed: a sentence's offsets must line up with the DOM's text.
       } else flat += piece.text.replace(/\s/g, ' ')
     }
@@ -193,7 +206,12 @@ export function buildTalk(
       const to = at - (raw.length - raw.trimEnd().length)
       const segments: Segment[] = []
       // The segment being built: its link, the text after the link, and what came before it.
-      let link: { token: string; entry: Designator } | null = null
+      let link: { token: string; entry: Designator; say: string | null } | null = null
+      // A quoted span that is not a link is kept as one character until each part is built.
+      const shown = (part: string) =>
+        part.replace(/[\uf000-\uf8ff]/g, (c) => codes[c.charCodeAt(0) - QUOTED] ?? c)
+      const said = (part: string) =>
+        sayPlain(part, lists).replace(/[\uf000-\uf8ff]/g, (c) => quoted[c.charCodeAt(0) - QUOTED] ?? c)
       let rest = ''
       let lastCite: string | null = null
 
@@ -204,16 +222,16 @@ export function buildTalk(
           const before = segments.at(-1)?.say ?? ''
           if (k === 0 && link) {
             const key = `${link.entry.kind}:${link.entry.id}`
-            const spoken = speakId(link.entry, link.token, before)
-            const say = `${spoken} ${sayPlain(part)}`.replace(/\s+([.,;:!?)'’])/g, '$1').trim()
-            const segment: Segment = { show: link.token + part, say, link: link.token }
+            const spoken = link.say ?? speakId(link.entry, link.token, before, lists)
+            const say = nothingSaid(`${spoken} ${said(part)}`.replace(/\s+([.,;:!?)'’])/g, '$1').trim())
+            const segment: Segment = { show: link.token + shown(part), say, link: link.token, spoken }
             if (key !== lastCite) {
               segment.cite = { kind: link.entry.kind, id: link.entry.id, token: link.token }
               lastCite = key
             }
             segments.push(segment)
           } else if (part.trim()) {
-            segments.push({ show: part, say: sayPlain(part) })
+            segments.push({ show: shown(part), say: said(part) })
           }
         })
         link = null
@@ -230,8 +248,9 @@ export function buildTalk(
         const entry = hasViewer ? resolve(byToken, token) : null
         if (entry?.point) {
           close()
-          link = { token, entry }
-        } else rest += token // Rule 4: a span that is not a link is spoken as plain text.
+          link = { token, entry, say: quoted[n] }
+        } else if (quoted[n] !== null) rest += String.fromCharCode(QUOTED + n)
+        else rest += token // Rule 4: a span that is not a link is spoken as plain text.
       }
       close()
 
@@ -253,7 +272,9 @@ export function buildTalk(
  * **case included**, is spoken through `speakId`. Case matters here where it does not for a link,
  * because a question is prose, and "the `Run` wire" must not become "the net run wire".
  */
-export function buildQuestion(text: string, byToken: Map<string, Designator>): Sentence[] {
+export function buildQuestion(
+  text: string, byToken: Map<string, Designator>, lists?: Pronunciations,
+): Sentence[] {
   const exact = (word: string) => {
     const entry = byToken.get(word.toUpperCase())
     return entry && (entry.id === word || entry.aliases?.includes(word)) ? entry : null
@@ -267,9 +288,9 @@ export function buildQuestion(text: string, byToken: Map<string, Designator>): S
         // Leading quotes and trailing punctuation are the sentence's, not the identifier's.
         const [, lead, core, tail] = /^([("'“‘]*)(.*?)([)"'”’.,;:!?]*)$/.exec(word)!
         const entry = core && exact(core)
-        return entry ? `${lead}${speakId(entry, core)}${tail}` : word
+        return entry ? `${lead}${speakId(entry, core, '', lists)}${tail}` : word
       })
-      sentences.push({ segments: [{ show: part, say: sayPlain(say.join(' ')) }], block: 'q' })
+      sentences.push({ segments: [{ show: part, say: sayPlain(say.join(' '), lists) }], block: 'q' })
     }
   }
   return sentences

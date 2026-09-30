@@ -429,6 +429,10 @@ specific word the user wrote wins.
 - **The agreement tests must hold with the notation in the fixture:** the spoken links still equal
   the rendered buttons, and the sentence offsets still slice the rendered text. The rendered text
   no longer contains the quoted part, so the offsets count the *shown* token (trap 5).
+- **Added 2026-09-30, at the user's request: a silent link, `` `W12 ""` ``.** Empty quotes: shown and
+  lit, never said. It is on screen while the words after it are spoken. Two in a row, or one at
+  the end of a sentence, light only for a moment, because one item is lit at a time (§11). A list
+  entry with an empty `say` does the same for every mention.
 
 ### 5.3 The server
 
@@ -886,6 +890,15 @@ For question 3, I have the "Pause" setting off so that the speech will sound nat
 3. **`Say it as…` saves to** the drawing's list by default, with *every drawing* as the second
    button? *Recommended: yes.*
 4. **The notation** `` `DISC1 "disconnect 1"` ``: acceptable? *Recommended: yes.*
+
+!!!! The following is an edit by John, your human coworker. These are my responses to the questions for session 2  !!!!
+For question 1, I accept your recommendation.
+For question 2, I accept your recommendation.
+For question 3, I accept your recommendation.
+For question 3, I accept your recommendation.
+!!!! This is the end of John's edit.  !!!!
+
+
 
 **Session 3 (§6):**
 1. **Each card remembers its own place** (*recommended*), or one place for all three?

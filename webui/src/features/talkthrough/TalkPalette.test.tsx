@@ -3,7 +3,7 @@ import path from 'node:path'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { DesignatorIndex, DrawingSummary, TileManifest } from '@/api/types'
+import type { DesignatorIndex, DrawingSummary, Health, TileManifest } from '@/api/types'
 import { DrawingTab } from '@/features/drawing/DrawingTab'
 import { MessageView } from '@/features/ask/MessageView'
 import { buildLookup } from '@/lib/designators'
@@ -78,7 +78,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 404 })))
   useAppStore.setState({
     drawing: DRAWING, designators: INDEX, byToken: buildLookup(INDEX), activeTabId: 'ask',
-    selection: null, paths: null, conductors: [], conductorsError: null,
+    selection: null, paths: null, conductors: [], conductorsError: null, health: null,
   })
   useChatStore.setState({ messages: [{ ...MESSAGE, id: 'u1', role: 'user' }, MESSAGE] })
   useTalkStore.setState({
@@ -233,6 +233,51 @@ describe('the talkthrough palette', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Show spoken text' }))
     expect(screen.getByTestId('talk-say').textContent).toBe('Is P B 1 lit? ')
     expect(screen.getByTestId('talk-caption').textContent).toBe('Is PB1 lit?')
+  })
+
+  it('says an item the way the user saved it, from the next time it is spoken', async () => {
+    const put = vi.fn(async (_url: string, init: RequestInit) =>
+      new Response(JSON.stringify({ entries: JSON.parse(init.body as string).entries }), { status: 200 }),
+    )
+    vi.stubGlobal('fetch', put)
+    useAppStore.setState({
+      health: { editing: { enabled: true, password_required: false } } as Health,
+      pronunciationLists: { global: [], drawing: [] },
+    })
+    useTalkStore.setState({ showSay: true })
+    begin()
+    press(/^pause/i)
+    press(/^next item/i) // 121
+    press(/^next item/i) // CR1
+    expect(screen.getByTestId('talk-say').textContent).toContain('C R 1 now.')
+    press(/^say it as/i)
+    const field = screen.getByRole('textbox', { name: 'Say CR1 as' }) as HTMLInputElement
+    expect(field.value).toBe('C R 1')
+    fireEvent.change(field, { target: { value: 'control relay one' } })
+    await act(async () => press(/^save for this drawing/i))
+
+    const [url, init] = put.mock.calls[0]
+    expect(url).toBe('/api/pronunciations/drawing')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(init.body as string).entries).toEqual([
+      expect.objectContaining({ match: 'CR1', say: 'control relay one' }),
+    ])
+    expect(screen.getByTestId('talk-say').textContent).toContain('control relay one now.')
+    expect(talk().pos).toEqual({ s: 1, g: 2 }) // still on the same item
+    expect(screen.getByText(/Saved\. CR1 is said this way/)).toBeTruthy()
+  })
+
+  it('offers Say it as… only with the editor routes, and asks for the unlock inside the palette', () => {
+    useTalkStore.setState({ showSay: true })
+    useAppStore.setState({ health: { editing: { enabled: false, password_required: true } } as Health })
+    begin()
+    press(/^pause/i)
+    press(/^next item/i)
+    expect(screen.queryByRole('button', { name: /^say it as/i })).toBeNull()
+    act(() => useAppStore.setState({ health: { editing: { enabled: true, password_required: true } } as Health }))
+    press(/^say it as/i)
+    expect(screen.getByText('Unlock the editor (Locate tab) to save.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^save for/i })).toBeNull()
   })
 
   it('switches natural flow, and remembers it', () => {

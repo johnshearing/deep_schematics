@@ -107,6 +107,8 @@ function speaker(start: Start, supported: boolean): Speaker {
     cancel,
     speak(text, rate, pitch = 1, onBoundary) {
       cancel()
+      // Nothing to say (a link the user made silent): done at once, with no utterance to hang on.
+      if (!text.trim()) return Promise.resolve('end')
       return new Promise((resolve) => {
         const mine = {
           settle: resolve,

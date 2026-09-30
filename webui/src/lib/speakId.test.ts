@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Designator, DesignatorKind } from '@/api/types'
-import { speakId } from './speakId'
+import { sayWords, speakId, splitNotation } from './speakId'
 
 function entry(kind: DesignatorKind, id: string): Designator {
   return { id, kind, label: id, on_sheet: true, members: [], point: [0, 0], rect: null } as Designator
@@ -46,5 +46,42 @@ describe('speakId', () => {
 
   it('names a polarity pin rather than dropping it', () => {
     expect(speakId(entry('terminal', 'PS1:-'), 'PS1:-')).toBe('P S 1 terminal minus')
+  })
+})
+
+describe('the user\'s pronunciations (talkthrough_03.md §5)', () => {
+  const disc = entry('component', 'DISC1')
+  const lists = (global: [string, string][], drawing: [string, string][] = []) => ({
+    global: new Map(global), drawing: new Map(drawing),
+  })
+
+  it('layers them: built-in, then the global list, then the drawing\'s', () => {
+    expect(speakId(disc, 'DISC1')).toBe('disc 1')
+    expect(speakId(disc, 'DISC1', '', lists([['DISC1', 'disconnect 1']]))).toBe('disconnect 1')
+    expect(speakId(disc, 'DISC1', '', lists([['DISC1', 'disconnect 1']], [['DISC1', 'the disconnect']]))).toBe(
+      'the disconnect',
+    )
+  })
+
+  it('matches the token as written, or the id it resolved to, exactly', () => {
+    expect(speakId(disc, 'disc1', '', lists([['DISC1', 'disconnect 1']]))).toBe('disconnect 1') // by id
+    expect(speakId(disc, 'component DISC1', '', lists([['DISC1', 'disconnect 1']]))).toBe('disconnect 1')
+    expect(speakId(disc, 'DISC1', '', lists([['disc1', 'x']]))).toBe('disc 1')
+  })
+
+  it('says a listed form literally: no net, no spelling', () => {
+    expect(speakId(entry('net', '0V'), '0V', '', lists([['0V', 'zero volt bus']]))).toBe('zero volt bus')
+  })
+
+  it('reads the one-off notation, and empty quotes as silence', () => {
+    expect(splitNotation('DISC1 "disconnect 1"')).toEqual({ token: 'DISC1', say: 'disconnect 1' })
+    expect(splitNotation('W12 ""')).toEqual({ token: 'W12', say: '' })
+    expect(splitNotation('DISC1')).toEqual({ token: 'DISC1', say: null })
+    expect(splitNotation('say "hi" there')).toEqual({ token: 'say "hi" there', say: null })
+  })
+
+  it('replaces whole words in prose, keeping their punctuation, and nothing else', () => {
+    const l = lists([['115VAC', '115 volts AC']])
+    expect(sayWords('Feed (115VAC), not 115VACS or 115vac.', l)).toBe('Feed (115 volts AC), not 115VACS or 115vac.')
   })
 })

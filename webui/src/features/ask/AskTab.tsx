@@ -187,7 +187,11 @@ function Intro({
         way. It pauses at each one if you like, steps by sentence or by item, and runs as captions
         when muted. Select part of an
         answer first to hear only that part. <em>Edit</em> rewrites an answer (or its question, from
-        the pencil beside it) in place, and the talk reads what you wrote.
+        the pencil beside it) in place, and the talk reads what you wrote. In an edit,{' '}
+        <code>{'`DISC1 "disconnect 1"`'}</code> shows <code>DISC1</code> and says{' '}
+        <em>disconnect 1</em>; empty quotes, <code>{'`W12 ""`'}</code>, show it and say nothing. With{' '}
+        <em>Show spoken text</em> on, <em>Say it as…</em> in the palette saves a pronunciation for this
+        drawing or for every drawing (editor unlocked).
       </IntroNote>
     </div>
   )

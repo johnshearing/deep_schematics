@@ -19,6 +19,12 @@ const fixture = (name: string) => readFileSync(path.join(__dirname, 'fixtures', 
 const ANSWER = fixture('answer.md')
 /** The user's own example question from §1.1, asked live on 2026-09-26: a chain of events. */
 const RECEPT = fixture('recept1_3.md')
+/** The RECEPT1:3 answer with the one-off notation on every code span, in turn a spoken form,
+ * silence, and none (`talkthrough_03.md` §5.2), links and plain spans alike. */
+let spans = 0
+const QUOTED = RECEPT.replace(/`([^`\n]+)`/g, (whole, token: string) =>
+  ++spans % 3 === 1 ? `\`${token} "spoken ${spans}"\`` : spans % 3 === 2 ? `\`${token} ""\`` : whole,
+)
 const INDEX = JSON.parse(
   readFileSync(path.join(__dirname, 'fixtures/designators.json'), 'utf8'),
 ) as DesignatorIndex
@@ -31,7 +37,7 @@ const shown = (talk: Talk) => talk.sentences.map((s) => s.segments.map((g) => g.
 describe('buildTalk agrees with the screen', () => {
   afterEach(() => useAppStore.setState({ designators: null, byToken: new Map(), drawing: null }))
 
-  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT]])(
+  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT], ['the chain with the notation', QUOTED]])(
     'treats as a link exactly the spans the rendered answer made into buttons, in order (%s)',
     (_, answer) => {
     useAppStore.setState({
@@ -136,7 +142,7 @@ describe('buildTalk rules (§4.2)', () => {
 describe('where each sentence is on screen (§5)', () => {
   afterEach(() => useAppStore.setState({ designators: null, byToken: new Map(), drawing: null }))
 
-  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT]])(
+  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT], ['the chain with the notation', QUOTED]])(
     'finds every sentence in the rendered block its keys name, at its offsets (%s)',
     (_, answer) => {
       useAppStore.setState({ designators: INDEX, byToken, drawing: { tiles: { count: 4 } } as DrawingSummary })
@@ -196,5 +202,43 @@ describe('buildQuestion', () => {
     expect(first.segments).toEqual([{ show: 'Is "Run" live at RECEPT1:3?', say: 'Is "Run" live at recept 1 terminal 3?' }])
     expect(second.segments[0].say).toBe('Check run and cr1.')
     expect(first.block).toBe('q')
+  })
+})
+
+describe('pronunciation (talkthrough_03.md §5)', () => {
+  const lists = (global: Record<string, string>, drawing: Record<string, string> = {}) => ({
+    global: new Map(Object.entries(global)), drawing: new Map(Object.entries(drawing)),
+  })
+  const says = (talk: Talk) => talk.sentences.flatMap((s) => s.segments.map((g) => g.say))
+
+  it('says the one-off form literally, shows only the token, and keeps the link', () => {
+    const talk = buildTalk('Open `PB1 "push button one"` now.', byToken, true, lists({ PB1: 'listed' }))
+    expect(says(talk)).toEqual(['Open', 'push button one now.'])
+    expect(shown(talk)).toEqual(['Open PB1 now.'])
+    expect(cites(talk)).toEqual(['PB1'])
+    expect(talk.sentences[0].segments[1].spoken).toBe('push button one')
+  })
+
+  it('lights a link with empty quotes and says nothing for it', () => {
+    const talk = buildTalk('Press `PB1` and `CR1 ""` closes.', byToken, true)
+    expect(says(talk)).toEqual(['Press', 'P B 1 and', 'closes.'])
+    expect(cites(talk)).toEqual(['PB1', 'CR1'])
+    expect(says(buildTalk('Then `CR1 ""`.', byToken, true))).toEqual(['Then', ''])
+  })
+
+  it('says a quoted span that is not a link its way, and shows only its token', () => {
+    const talk = buildTalk('See `no-such-thing "the other one"` here.', byToken, true)
+    expect(says(talk)).toEqual(['See the other one here.'])
+    expect(shown(talk)).toEqual(['See no-such-thing here.'])
+    expect(links(talk)).toEqual([])
+  })
+
+  it('uses the lists for links and for whole words in prose, case-sensitively', () => {
+    const talk = buildTalk('`PB1` gets 115VAC, not 115vac.', byToken, true, lists({ PB1: 'push', '115VAC': '115 volts AC' }))
+    expect(says(talk)).toEqual(['push gets 115 volts AC, not 115vac.'])
+  })
+
+  it('says a question with the lists too', () => {
+    expect(buildQuestion('Is PB1 on?', byToken, lists({ PB1: 'the button' }))[0].segments[0].say).toBe('Is the button on?')
   })
 })

@@ -813,3 +813,8 @@ export type ServerEvent =
       daily_ceiling_usd?: number
     }
   | { t: 'error'; code: string; message: string }
+
+/** One way the user wants something said (`talkthrough_03.md` §5): exact, case-sensitive. */
+export interface PronunciationEntry { match: string; say: string; by?: string; at?: string }
+export type PronunciationScope = 'global' | 'drawing'
+export type PronunciationLists = Record<PronunciationScope, PronunciationEntry[]>

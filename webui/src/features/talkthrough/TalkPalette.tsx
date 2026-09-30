@@ -21,6 +21,7 @@ import { isTextField } from '@/lib/keys'
 import { listVoices, onVoicesChanged } from '@/lib/speech'
 import { useDraggable } from '@/lib/useDraggable'
 import { cn } from '@/lib/utils'
+import { SayItAs } from './SayItAs'
 import { isPlaying, useTalkStore, voiceSupported, type Dwell } from './talkStore'
 
 const DWELLS: { value: Dwell; label: string }[] = [
@@ -158,6 +159,7 @@ function Palette() {
             )}
           </p>
         )}
+        {showSay && <SayItAs key={`${pos.s}:${pos.g}`} segment={sentence.segments[pos.g]} />}
         {phase === 'dwelling' && typeof dwell === 'number' && dwell > 0 && (
           <DwellBar key={`${pos.s}:${pos.g}`} ms={dwell} />
         )}

@@ -110,6 +110,13 @@ describe('Markdown citations', () => {
                            selection: null, activeTabId: 'ask' }),
   )
 
+  it('shows only the token of the one-off pronunciation, link and all', () => {
+    arm()
+    const { container } = render(<Markdown>{'`CR-BP "bypass relay"` and `CR-BP ""` and `other "x"`.'}</Markdown>)
+    expect(screen.getAllByRole('button', { name: 'CR-BP' })).toHaveLength(2)
+    expect(container.textContent).toBe('CR-BP and CR-BP and other.')
+  })
+
   it('turns an identifier the server published into a button, and points the drawing at it', () => {
     arm()
     render(<Markdown>{'The coil of `CR-BP` is de-energised.'}</Markdown>)

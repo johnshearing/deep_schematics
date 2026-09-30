@@ -5,22 +5,22 @@ purpose — and then do §1 and nothing else.**
 
 ## 1. The request
 
-**Read `_claude_notes/talkthrough_03.md` and execute the session I name in my message** (Session 2,
-§5, unless I say otherwise), and nothing else. That document is self-contained. It carries the
+**Read `_claude_notes/talkthrough_03.md` and execute the session I name in my message** (Session 3,
+§6, unless I say otherwise), and nothing else. That document is self-contained. It carries the
 reading list, the traps, the budget, the standing rules and the questions to ask me first, so it
 can be executed with nothing else open.
 
-**Session 1 (§4) was built on 2026-09-29:** a persisted palette switch, **`Natural flow`** (on by
-default), speaks each sentence as one utterance and lights each link on the voice's word timing.
-The old path, `run()`, is untouched, and unticking the switch gives it back. **It is waiting for my
-listening report** (T-1705–T-1720 in `28_tests_talkthrough.md`). Several of Sessions 2–7's
-decisions depend on that report, especially §16 S6 Q2 (whether *identifier first* is still needed).
-If I have not given the report, ask for it before starting.
+**Done so far:**
+- **Session 1 (§4), 2026-09-29:** `Natural flow`, one utterance per sentence. I listened and it
+  works as expected.
+- **Session 2 (§5), 2026-09-30:** pronunciation in layers (built-in rules, then the global list
+  `schematic_extraction/pronunciations.json`, then the drawing's
+  `walkthrough/pronunciations.json`, then a one-off `` `DISC1 "disconnect 1"` `` in an answer),
+  **silent links** written `` `W12 ""` `` (shown and lit, not said, which I asked for on
+  2026-09-30), and **Say it as…** in the palette. Waiting for my listening report (T-1725–T-1745).
 
 What is left in `talkthrough_03.md`, in order, one session each:
 
-- **2:** pronunciation in three layers: a global list, a per-drawing list, and a one-off
-  `` `DISC1 "disconnect 1"` `` notation
 - **3:** the Drawing tab's other two cards (conductor and path), movable and copyable like the
   selection card
 - **4:** keeping and reopening questions, answers and my edits, across a reload

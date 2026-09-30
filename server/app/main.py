@@ -71,6 +71,14 @@ from .locations import (
     skeleton,
 )
 from .prompts import PROMPT_VERSION
+from .pronunciations import (
+    SCOPES,
+    Entry,
+    PronunciationsUnreadable,
+    load_pronunciations,
+    pronunciations_path,
+    save_pronunciations,
+)
 from .questions import starter_questions
 from .sessions import SessionStore
 from .wiring import WiringRefused, load_wiring, resolve_wiring, save_wiring, wiring_path
@@ -105,6 +113,10 @@ class EditedAnswerRequest(BaseModel):
     answer: str = Field(max_length=500_000)
     answer_edited: str | None = Field(default=None, max_length=500_000)
     model: str | None = Field(default=None, max_length=200)
+
+
+class PronunciationsRequest(BaseModel):
+    entries: list[Entry] = Field(max_length=5_000)
 
 
 class UnlockRequest(BaseModel):
@@ -249,6 +261,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "concurrency_limit": app.state.gate.limit,
             "sessions": len(app.state.sessions),
         }
+
+    @app.get("/api/pronunciations")
+    async def pronunciations() -> dict[str, Any]:
+        """How the user wants things said aloud, for every drawing and for this one.
+        `talkthrough_03.md` §5. Open, like the drawing: a visitor's talkthrough uses them too."""
+        try:
+            return {
+                scope: load_pronunciations(pronunciations_path(settings.drawing_dir, scope))
+                for scope in SCOPES
+            }
+        except PronunciationsUnreadable as exc:
+            raise HTTPException(500, str(exc)) from exc
 
     @app.get("/api/drawing")
     async def drawing() -> dict[str, Any]:
@@ -455,6 +479,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except OSError as exc:
                 raise HTTPException(500, f"The edit could not be saved: {exc}") from exc
             return {"saved": record is not None, "record": record}
+
+        @app.put("/api/pronunciations/{scope}")
+        async def put_pronunciations(
+            scope: str,
+            body: PronunciationsRequest,
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """Replace one list whole, from the talkthrough's *Say it as…*. The user's data."""
+            if scope not in SCOPES:
+                raise HTTPException(404, f"No pronunciation list called {scope!r}.")
+            _require_editor(app.state.settings, x_editor_password)
+            path = pronunciations_path(settings.drawing_dir, scope)  # type: ignore[arg-type]
+            try:
+                return {"entries": save_pronunciations(path, body.entries)}
+            except ValueError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            except OSError as exc:
+                raise HTTPException(500, f"The list could not be saved: {exc}") from exc
 
         @app.get("/api/edited-answers")
         async def get_edited_answers(
