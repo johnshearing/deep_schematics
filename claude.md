@@ -5,8 +5,8 @@ purpose — and then do §1 and nothing else.**
 
 ## 1. The request
 
-**Read `_claude_notes/talkthrough_03.md` and execute the session I name in my message** (Session 3,
-§6, unless I say otherwise), and nothing else. That document is self-contained. It carries the
+**Read `_claude_notes/talkthrough_03.md` and execute the session I name in my message** (Session 3A,
+§6A, unless I say otherwise), and nothing else. That document is self-contained. It carries the
 reading list, the traps, the budget, the standing rules and the questions to ask me first, so it
 can be executed with nothing else open.
 
@@ -18,11 +18,15 @@ can be executed with nothing else open.
   `walkthrough/pronunciations.json`, then a one-off `` `DISC1 "disconnect 1"` `` in an answer),
   **silent links** written `` `W12 ""` `` (shown and lit, not said, which I asked for on
   2026-09-30), and **Say it as…** in the palette. Waiting for my listening report (T-1725–T-1745).
+- **Session 3 (§6), 2026-09-30:** the path and conductor cards move and copy like the selection
+  card, each in its own remembered place, and, as I asked, a terminal's and a wire's card link to
+  their net (found by membership, so a bond lists both). Rebuild only. Lessons T-1750–T-1764.
 
 What is left in `talkthrough_03.md`, in order, one session each:
 
-- **3:** the Drawing tab's other two cards (conductor and path), movable and copyable like the
-  selection card
+- **3A:** several items lit at once, which I asked for on 2026-09-30: a trailing ` +` (written `` `CB1 +` ``) keeps
+  what is lit, so a signal's path builds up as it is spoken. **Planned in §6A, with five
+  questions in §16 S3A for me to answer first.** About $12–20, client only.
 - **4:** keeping and reopening questions, answers and my edits, across a reload
 - **5–7:** steering: turning my edits into a report, then prompt rules I approve one by one, then
   a measurement

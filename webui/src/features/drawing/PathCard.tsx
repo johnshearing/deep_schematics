@@ -32,6 +32,7 @@ import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { PathPick } from '@/lib/paths'
 import { cn } from '@/lib/utils'
+import { CardGrip, CopyCard, useCardDrag } from './CardChrome'
 
 interface Props {
   pick: PathPick
@@ -51,9 +52,13 @@ const GEOMETRY_WORD = {
 export function PathCard({ pick, onSelectWire, onSelectBlock, onClose }: Props) {
   const { owner, runs, geometry, length } = pick
   const wire = owner.kind === 'wire'
+  // Movable and copyable like the selection card (`talkthrough_03.md` §6), with its own place.
+  const { ref, style, handleProps, dragging } = useCardDrag('path')
 
   return (
     <div
+      ref={ref}
+      style={style}
       // The viewer's pan handlers are on the container this sits inside.
       onPointerDown={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
@@ -61,10 +66,11 @@ export function PathCard({ pick, onSelectWire, onSelectBlock, onClose }: Props) 
       data-path-owner={owner.kind}
       data-path-geometry={geometry}
       className={cn(
-        'pointer-events-auto absolute bottom-3 right-3 z-10 max-w-sm min-w-72',
-        'rounded-lg border bg-card/95 p-3 shadow-lg backdrop-blur-sm',
+        'pointer-events-auto absolute bottom-3 right-3 z-10 max-w-sm min-w-72 select-text',
+        'rounded-lg border bg-card/95 p-3 pt-0 shadow-lg backdrop-blur-sm',
       )}
     >
+      <CardGrip handleProps={handleProps} dragging={dragging} testId="path-card-handle" />
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -96,6 +102,7 @@ export function PathCard({ pick, onSelectWire, onSelectBlock, onClose }: Props) 
             <span className="tabular-nums">{length.toFixed(1)} pt along the ink</span>
           </p>
         </div>
+        <CopyCard card={ref} />
         <Button variant="ghost" size="icon" aria-label="Close the path" onClick={onClose}>
           <X />
         </Button>

@@ -11,16 +11,14 @@
  * the one part of the screen the reader is looking at.
  */
 
-import { useRef, useState } from 'react'
-import { ArrowLeft, Check, Copy, Crosshair, GripHorizontal, X } from 'lucide-react'
+import { ArrowLeft, Crosshair, X } from 'lucide-react'
 
 import type { Designator, DesignatorKind, EntryTerminal } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { KIND_LABEL, placementLabel } from '@/lib/designators'
 import type { PathSummary } from '@/lib/paths'
-import { useDraggable } from '@/lib/useDraggable'
 import { cn } from '@/lib/utils'
-import { useCardPlacement } from './cardPlacement'
+import { CardGrip, CopyCard, useCardDrag } from './CardChrome'
 
 interface Props {
   entry: Designator
@@ -34,6 +32,11 @@ interface Props {
   onSelectTerminal: (terminalId: string) => void
   /** Select one of the wires that reach the selected terminal. */
   onSelectWire?: (wireId: string) => void
+  /** The nets this terminal or wire is on, by membership — a wire whose two ends are on
+   * different nets (a bond) is on both. Empty for a component, and for a net itself. */
+  nets?: string[]
+  /** Select one of those nets and highlight it, as the wire and terminal links do. */
+  onSelectNet?: (netId: string) => void
   /** How much of the drawing has a route at all. **The honesty requirement**, and it is the same
    * one the conductor card carries: *no wire reaches this pin* is a different claim at 3 of 71
    * from at 71 of 71, and a card that did not say which would teach a false fact. */
@@ -68,6 +71,8 @@ export function SelectionCard({
   onSelectMember,
   onSelectTerminal,
   onSelectWire,
+  nets = [],
+  onSelectNet,
   coverage,
   back = null,
   onBack,
@@ -81,12 +86,14 @@ export function SelectionCard({
 
   // Movable by the grip along its top (requested 2026-09-28): it can cover the very part of the
   // sheet the reader wants to see. Within the sheet, never off it; double-click the grip for home.
-  const placed = useCardPlacement((s) => s.selection)
-  const place = useCardPlacement((s) => s.setSelection)
-  const { ref, style, handleProps, dragging } = useDraggable<HTMLDivElement>(placed, place, {
-    within: 'parent',
-    home: {},
-  })
+  const { ref, style, handleProps, dragging } = useCardDrag('selection')
+
+  // A terminal's label already ends *…, net 110*; that text becomes the link (asked 2026-09-30)
+  // rather than a second line saying the same thing. Anything else gets an `on net` row.
+  const inlineNet =
+    entry.kind === 'terminal' && nets.length === 1 && onSelectNet && entry.label.endsWith(`net ${nets[0]}`)
+      ? nets[0]
+      : null
 
   return (
     <div
@@ -100,18 +107,7 @@ export function SelectionCard({
         'rounded-lg border bg-card/95 p-3 pt-0 shadow-lg backdrop-blur-sm',
       )}
     >
-      <div
-        {...handleProps}
-        data-testid="selection-card-handle"
-        title="Drag to move · double-click to put it back"
-        className={cn(
-          '-mx-3 mb-1.5 flex touch-none justify-center rounded-t-lg py-0.5 text-muted-foreground select-none',
-          'hover:bg-accent/50',
-          dragging ? 'cursor-grabbing' : 'cursor-move',
-        )}
-      >
-        <GripHorizontal className="size-3.5" />
-      </div>
+      <CardGrip handleProps={handleProps} dragging={dragging} testId="selection-card-handle" />
       {/* The way back to the roster, above the heading rather than beside the ✕, because it is
           about where you *were* and the rest of the card is about where you are. Offered only
           when something actually sent you here — a roster row or a `runs through` chip — so a
@@ -149,7 +145,16 @@ export function SelectionCard({
               </span>
             )}
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{entry.label}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            {inlineNet ? (
+              <>
+                {entry.label.slice(0, entry.label.length - inlineNet.length)}
+                <NetLink id={inlineNet} onSelect={onSelectNet!} inline />
+              </>
+            ) : (
+              entry.label
+            )}
+          </p>
         </div>
         <CopyCard card={ref} />
         <Button variant="ghost" size="icon" aria-label="Clear selection" onClick={onClose}>
@@ -203,6 +208,17 @@ export function SelectionCard({
             >
               {id}
             </button>
+          ))}
+        </div>
+      )}
+
+      {nets.length > 0 && onSelectNet && !inlineNet && (
+        <div className="mt-2 flex flex-wrap items-center gap-1" data-on-nets={nets.join(' ')}>
+          <span className="text-[11px] text-muted-foreground">
+            {nets.length === 1 ? 'on net' : 'on nets'}
+          </span>
+          {nets.map((id) => (
+            <NetLink key={id} id={id} onSelect={onSelectNet} />
           ))}
         </div>
       )}
@@ -438,27 +454,23 @@ function MemberRow({
   )
 }
 
-/** Copy what the card says, as plain text laid out as it reads — `innerText`, where a browser has
- * one, keeps the line breaks that `textContent` loses. */
-function CopyCard({ card }: { card: React.RefObject<HTMLDivElement | null> }) {
-  const [copied, setCopied] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const copy = async () => {
-    const element = card.current
-    if (!element) return
-    const text = (element.innerText ?? element.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim()
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      if (timer.current) clearTimeout(timer.current)
-      timer.current = setTimeout(() => setCopied(false), 1500)
-    } catch {
-      setCopied(false)
-    }
-  }
+/** A net, one click from being selected and highlighted. `inline` is the terminal label's own
+ * *net 110*, which reads as text with an underline rather than as a chip. */
+function NetLink({ id, onSelect, inline = false }: { id: string; onSelect: (id: string) => void; inline?: boolean }) {
   return (
-    <Button variant="ghost" size="icon" aria-label="Copy the card's text" title="Copy this card's text" onClick={copy}>
-      {copied ? <Check /> : <Copy />}
-    </Button>
+    <button
+      type="button"
+      data-net-link={id}
+      title={`Select net ${id} and highlight it`}
+      onClick={() => onSelect(id)}
+      className={cn(
+        'font-mono',
+        inline
+          ? 'text-foreground underline decoration-dotted underline-offset-2 hover:decoration-solid'
+          : 'rounded border px-1 py-px text-[10px] hover:bg-accent hover:text-accent-foreground',
+      )}
+    >
+      {id}
+    </button>
   )
 }

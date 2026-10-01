@@ -263,6 +263,18 @@ export function DrawingTab() {
 
   const entry = selection ? (byToken.get(normalise(selection.id)) ?? null) : null
   /**
+   * The nets a selected terminal or wire is on, for the card's net links (asked 2026-09-30).
+   * **By membership, never by name** (trap 21): a net whose `terminals` include the pin, or either
+   * end of the wire — so a wire that bonds two nets is on both, which is what `/api/paths` paints.
+   */
+  const netsOf = useMemo(() => {
+    if (!entry || (entry.kind !== 'terminal' && entry.kind !== 'wire')) return []
+    const pins = new Set(entry.kind === 'terminal' ? [entry.id] : (entry.terminals ?? []).map((t) => t.id))
+    return (designators?.entries ?? [])
+      .filter((e) => e.kind === 'net' && (e.terminals ?? []).some((t) => pins.has(t.id)))
+      .map((e) => e.id)
+  }, [entry, designators])
+  /**
    * Everything the selection marks — and for a net or a wire that is **its member terminals and
    * nothing else.**
    *
@@ -1061,6 +1073,8 @@ export function DrawingTab() {
                  reads as *nothing is indexed here yet* rather than as *nothing is here*. */
               coverage={claims}
               onSelectWire={(id) => select('wire', id, 'text', { kind: entry.kind, id: entry.id })}
+              nets={netsOf}
+              onSelectNet={(id) => select('net', id, 'text', { kind: entry.kind, id: entry.id })}
               canSelect={(id) => located.has(id)}
               /* Both of these are steps *off* this card, so both record where they came from and
                  the next card offers the way back. `from` is the entry the reader is leaving, not
@@ -1102,6 +1116,9 @@ export function DrawingTab() {
             zoom. A wire or net that has been traced is also{' '}
             <span className="font-medium text-foreground">highlighted along the ink</span> — the
             drawing&apos;s own conductor strokes, never a line between its ends.{' '}
+            Every card on the sheet can be dragged out of the way by the grip along its top
+            (double-click the grip to put it back) and copied with its copy button, and a
+            terminal&apos;s or wire&apos;s card links to the net it is on.{' '}
           </>
         )}
         Redrawn at your display's full resolution on every frame, from the

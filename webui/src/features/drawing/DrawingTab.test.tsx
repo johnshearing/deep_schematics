@@ -1931,3 +1931,153 @@ describe('moving and copying the selection card', () => {
     expect(text).toContain('circuit breaker — 8A main.')
   })
 })
+
+/**
+ * **§6 of `talkthrough_03.md`**: the other two cards move and copy like the selection card, each
+ * remembering its own place (the user's choice, §16 S3 Q1). The drag arithmetic is the selection
+ * card's own, above — the same `lay`, so the same numbers.
+ */
+describe('moving and copying the conductor and path cards', () => {
+  afterEach(() => {
+    useCardPlacement.setState({ selection: null, conductor: null, path: null })
+    query(false)
+    vi.restoreAllMocks()
+  })
+
+  function lay(card: HTMLElement) {
+    const parent = card.parentElement!
+    Object.defineProperty(card, 'offsetParent', { configurable: true, get: () => parent })
+    vi.spyOn(parent, 'getBoundingClientRect').mockReturnValue({ left: 100, top: 50 } as DOMRect)
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue({ left: 112, top: 400, width: 300 } as DOMRect)
+  }
+
+  function drag(handle: HTMLElement, to: { x: number; y: number }, pointerId = 1) {
+    if (typeof window.PointerEvent !== 'function') {
+      window.PointerEvent = class extends MouseEvent {
+        pointerId: number
+        constructor(type: string, init: PointerEventInit = {}) {
+          super(type, init)
+          this.pointerId = init.pointerId ?? 1
+        }
+      } as unknown as typeof PointerEvent
+    }
+    fireEvent.pointerDown(handle, { pointerId, button: 0, clientX: 150, clientY: 405 })
+    fireEvent.pointerMove(handle, { pointerId, clientX: to.x, clientY: to.y })
+    fireEvent.pointerUp(handle, { pointerId })
+  }
+
+  /** The path card, by a click on `W048`'s route — `clicking a path on the sheet`'s own setup. */
+  function pathCard() {
+    reading()
+    clickAtMarker('CB1:2')
+    return document.querySelector('[data-path-card="W048"]') as HTMLElement
+  }
+
+  /** The conductor card, behind `?unclaimed=1` — the diagnostic's own setup. */
+  function conductorCard() {
+    query(true)
+    const index = wiredIndex()
+    useAppStore.setState({ paths: PATHS, designators: index, byToken: buildLookup(index), conductors: [COIL_BUS, C0059] })
+    render(<DrawingTab />)
+    activate()
+    fireEvent.click(group('Terminals'))
+    clickAtMarker('CR-BP:A1')
+    return document.querySelector('[data-conductor-card="C0079"]') as HTMLElement
+  }
+
+  it('drags the path card by its grip, clamps it to the sheet, keeps its place, and goes home on double-click', () => {
+    // **T-1750.**
+    const card = pathCard()
+    lay(card)
+    const handle = screen.getByTestId('path-card-handle')
+    drag(handle, { x: 400, y: 105 })
+    expect(useCardPlacement.getState().path).toEqual({ x: 262, y: 50 })
+    // `right` cleared too, or `right-3` would stretch the card between the two.
+    expect([card.style.left, card.style.top, card.style.right, card.style.bottom]).toEqual(['262px', '50px', 'auto', 'auto'])
+    drag(handle, { x: 5000, y: 5000 }, 2)
+    expect(useCardPlacement.getState().path).toEqual({ x: 752, y: 552 })
+    // Its own place: the other two cards have not moved.
+    expect(useCardPlacement.getState().selection).toBeNull()
+    expect(useCardPlacement.getState().conductor).toBeNull()
+
+    fireEvent.doubleClick(handle)
+    expect(useCardPlacement.getState().path).toBeNull()
+    expect(card.style.left).toBe('')
+  })
+
+  it('drags the conductor card on its own place, and still shows it before the selection card', () => {
+    // **T-1755.** The corners are the rule: moving a card changes where it is, never which shows.
+    const card = conductorCard()
+    lay(card)
+    drag(screen.getByTestId('conductor-card-handle'), { x: 400, y: 105 })
+    expect(useCardPlacement.getState().conductor).toEqual({ x: 262, y: 50 })
+    expect(useCardPlacement.getState().selection).toBeNull()
+    expect(card.style.left).toBe('262px')
+    expect(screen.queryByTestId('selection-card-handle')).toBeNull()
+  })
+
+  it('copies the path card’s and the conductor card’s text', async () => {
+    // **T-1760.**
+    const writeText = vi.fn(async () => {})
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    const path = pathCard()
+    await act(async () => fireEvent.click(within(path).getByRole('button', { name: "Copy the card's text" })))
+    expect((writeText.mock.calls[0] as unknown as [string])[0]).toMatch(/W048[\s\S]*lifted from the drawing/)
+    cleanup()
+
+    const conductor = conductorCard()
+    await act(async () => fireEvent.click(within(conductor).getByRole('button', { name: "Copy the card's text" })))
+    expect((writeText.mock.calls[1] as unknown as [string])[0]).toContain('a run of ink')
+  })
+})
+
+/** Asked 2026-09-30: the net a wire or terminal is on is a link on its card, like its wires. */
+describe('the net links on a terminal’s and a wire’s card', () => {
+  /** A second net holding `CR-BP:A2`, so `W048` bonds two nets — membership, never a name. */
+  const NET_0V: Designator = {
+    id: '0V', kind: 'net', label: 'DC common 0V, 1 terminal', on_sheet: true, members: ['CR-BP'],
+    point: [861, 679], rect: [861, 679, 861, 679],
+    terminals: [{ id: 'CR-BP:A2', point: [861, 679], placement: 'parent' }],
+  }
+
+  function withIndex(extra: Designator[] = []) {
+    const index = wiredIndex()
+    index.entries = [...index.entries, ...extra]
+    useAppStore.setState({ paths: PATHS, designators: index, byToken: buildLookup(index) })
+    render(<DrawingTab />)
+    activate()
+  }
+
+  it('makes a terminal’s *net 110* the link, and selects the net with the way back', () => {
+    // **T-1762.**
+    withIndex()
+    act(() => useAppStore.getState().select('terminal', 'CR-BP:A1'))
+    const link = document.querySelector('[data-net-link="110"]') as HTMLElement
+    expect(link.closest('p')?.textContent).toBe('coil terminal on CR-BP, net 110')
+    expect(document.querySelector('[data-on-nets]')).toBeNull()
+    fireEvent.click(link)
+    expect(useAppStore.getState().selection).toMatchObject({
+      kind: 'net', id: '110', from: { kind: 'terminal', id: 'CR-BP:A1' },
+    })
+    expect(highlighted()).toBeGreaterThan(0)
+  })
+
+  it('lists every net a wire is on, and a bond is on both', () => {
+    // **T-1764.**
+    withIndex([NET_0V])
+    act(() => useAppStore.getState().select('wire', 'W048'))
+    expect((document.querySelector('[data-on-nets]') as HTMLElement).dataset.onNets).toBe('110 0V')
+    expect(screen.getByText('on nets')).toBeTruthy()
+    fireEvent.click(document.querySelector('[data-net-link="0V"]') as HTMLElement)
+    expect(useAppStore.getState().selection).toMatchObject({ kind: 'net', id: '0V', from: { kind: 'wire', id: 'W048' } })
+  })
+
+  it('offers no net link on a net’s own card or a component’s', () => {
+    withIndex()
+    act(() => useAppStore.getState().select('net', '110'))
+    expect(document.querySelector('[data-net-link]')).toBeNull()
+    act(() => useAppStore.getState().select('component', 'CB1'))
+    expect(document.querySelector('[data-net-link]')).toBeNull()
+  })
+})
+

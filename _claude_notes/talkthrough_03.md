@@ -477,6 +477,14 @@ specific word the user wrote wins.
 
 ## §6 Session 3: the other two cards, movable and copyable. About $5–8. Client only.
 
+**Built 2026-09-30**, with the user's two requests from §16 S3: a terminal's card makes its
+*net 110* a link, and a wire's card gains an **on net** row (both nets for a bond). The nets are
+found **by membership** in `DrawingTab.tsx`'s `netsOf`, never by a name. `CardChrome.tsx` holds
+`useCardDrag`, `CardGrip` and `CopyCard`. `cardPlacement.ts` keeps `selection`, `conductor` and
+`path` and `place(card, at)` (`setSelection` is gone). Tests: two new `describe`s at the end of
+`DrawingTab.test.tsx`. Lessons: **T-1750–T-1764**. The user's third request, several items lit at
+once, is **§6A**, planned and not built.
+
 **What "the other two movable boxes" means.** The Drawing tab has exactly three floating
 information cards (§3.3). The selection card (lower left, what you clicked or armed in the list)
 became movable and copyable on 2026-09-28. **The conductor card** (lower left, when you point at a
@@ -497,6 +505,64 @@ two. The Locate and Review tabs have side panels, not floating cards, and are no
 
 **Acceptance:** in `DrawingTab.test.tsx`, drag, clamp, reset and copy for each card, with the
 existing selection-card tests passing unchanged. Documents: **T-1750–T-1760** in `28_`.
+
+---
+
+## §6A Session 3A: several items lit at once. About $12–20. Client only. **Planned 2026-09-30, not built.**
+
+**The request (2026-09-30):** *"Create a notation that allows multiple items to be highlighted at
+the same time. This could be very helpful in showing how signal moves through the circuit."* §11
+put *multiple items lit at once* out of this plan, so this section brings it back in, on the user's
+word. **Answer §16 S3A before it is built.**
+
+**Why this is a session and not a notation.** The notation is the small part. The Drawing tab is
+built around **one** `appStore.selection`: one set of painted runs, one ringed set of markers, one
+card, and one camera target. The talkthrough lights a link with `select(kind, id)`, which
+**replaces** the selection. So several items lit at once needs a second thing on the sheet, not a
+second parse rule.
+
+**The proposal: a trailing ` +`, meaning *light this and keep what is already lit*.**
+
+- `` `PLG1` `` then `` `DISC1 +` `` then `` `CB1 +` `` builds up the chain as each one is named: the
+  signal path grows across the sheet. That is the user's *"how signal moves through the circuit"*.
+- It composes with §5.2: `` `DISC1 "disconnect 1" +` `` and `` `W12 "" +` `` (lit silently and kept).
+  Order: the token, an optional quoted form, an optional ` +`. `PS1:+` is unaffected, because its
+  `+` has no space before it. The parse is `^(.+?)(?: "(.*)")?( \+)?$` in **both** `Citation.tsx`
+  and `buildTalk.ts` (trap 1: the same parser, so the agreement tests hold). The screen shows only
+  the token.
+- **A plain link (no `+`) clears the build-up** and starts again from itself, as today. So an
+  answer written without `+` behaves exactly as now.
+- §16 S3A Q1 offers a **group** form as well (`` `CB1 & CB2 & 24E-1` ``: all at once, in one span).
+  It costs more: one span becomes several buttons, and the agreement tests must count them.
+
+**The design, in four parts:**
+
+1. **`appStore.lit: {kind, id}[]`** beside `selection`, the kept items. `select()` clears it;
+   a new `keep(kind, id)` pushes the current selection onto `lit` and then selects. `clearSelection`
+   and `Esc` clear both. **Nothing persists** (it is a moment of a talk, not a place in the index).
+2. **`DrawingTab.tsx` paints the union.** The selection's runs, rings, related ids and end labels
+   are four memos (grep `relatedIds`, `drawnEndLabels`, and the `runs` memo near the path card).
+   Each gains the `lit` entries' contributions. **Trap 24 applies:** `pathsFor` is null for a
+   component, so a kept block's bus must come from `paths.commoning[id]`, as §4B did. Kept items
+   are painted a step dimmer than the newest, so the eye still finds the one being spoken.
+3. **The camera** fits the union of the kept items' `rect`s and the newest (§16 S3A Q3), and falls
+   back to the newest alone when the union would zoom out past the fit.
+4. **One card, the newest's.** The corners rule is unchanged (trap 9).
+
+**The talkthrough:** `talkStore` calls `keep` for a `+` segment and `select` otherwise. Both paths
+(`run` and `runFlow`) take the same one-line change, because the old path must stay identical for
+answers without `+`: add a test for that. **`Say it as…`** reads the token, never the ` +`.
+
+**Reading list:** `appStore.ts` `select`/`clearSelection` (grep); `DrawingTab.tsx` the four memos
+named above (grep, ranges only); `Citation.tsx`'s notation split; `buildTalk.ts` `inline()`;
+`talkStore.ts`, grep `select(`. **Not** `DrawingTab.tsx` whole.
+
+**Acceptance:** `buildTalk.test.ts` (the ` +` parse, and both agreement tests over a fixture using
+it); `Markdown.test.tsx` (shows only the token); `talkStore.test.ts` (three `+` segments leave three
+lit, a plain one clears, and with no `+` the old paths behave exactly as before);
+`DrawingTab.test.tsx` (the union painted and ringed, `Esc` clears all). Lessons **T-1788–T-1795**
+in `28_`, the last eight numbers of this plan's block. **If more are needed, stop and ask** (§14.2
+trap 21).
 
 ---
 
@@ -626,7 +692,8 @@ measurement. The numbers only say what can be read.
 - **Anything automatic.** No rule and no pronunciation is adopted without the user's yes. Nothing
   learns at runtime.
 - **Fine-tuning.** It is not available here, and not generic.
-- **Highlighting the sentence being spoken in the Ask tab's text**, and multiple items lit at once.
+- **Highlighting the sentence being spoken in the Ask tab's text.** (*Multiple items lit at once*
+  was here, and the user asked for it on 2026-09-30. It is **§6A** now.)
 - **The narrated walkthrough** (`narrated_walkthrough_01.md`). It is its own plan. It takes lesson
   file `29_` and **T-2000 onward**.
 - **The Locate and Review tabs' panels** (§6 is the Drawing tab's cards only).
@@ -641,7 +708,8 @@ measurement. The numbers only say what can be read.
 |---|---|---|---|
 | 1 | **§4 natural flow**, alone and reversible | **every later decision about how answers should be written for listening** | **$8–14** |
 | 2 | **§5 pronunciation**, three layers | *disconnect 1*, and the user's own spellings on camera | **$14–22** |
-| 3 | **§6 the other two cards** | nothing blocks the sheet | **$5–8** |
+| 3 | **§6 the other two cards** (built 2026-09-30, with net links) | nothing blocks the sheet | **$5–8** |
+| 3A | **§6A several items lit at once** (planned 2026-09-30) | a signal's path built up on the sheet as it is spoken | **$12–20** |
 | 4 | **§7 keep and reopen** | a prepared video answer survives a reload; the steering data accumulates | **$10–16** |
 | 5 | **§8 edit report** | reading the edits as a whole | **$4–6** |
 | 6 | **§9 rules into the prompt** | answers written the way the user rewrites them | **$4–7** |
@@ -875,11 +943,11 @@ the user's next *"Greetings"* reads first.
 3. **With *Pause at each item* on (2 s, 4 s, until ▶):** keep today's per-item behaviour
    (*recommended*: the pauses are the point then), or pause mid-utterance?
 
-!!!! The following is an edit by John, your human coworker. These are my responses to the questions for session 1  !!!!
-For question 1, I accept your recommendation.
-For question 2, I accept your recommendation.
-For question 3, I have the "Pause" setting off so that the speech will sound natural. Sometimes I turn it on if I need to slow things down but most of the time I prefer to keep the setting to "off".
-!!!! This is the end of John's edit.  !!!!
+    !!!! The following is an edit by John, your human coworker. These are my responses to the questions for session 1  !!!!  
+    For question 1, I accept your recommendation.  
+    For question 2, I accept your recommendation.
+    For question 3, I have the "Pause" setting off so that the speech will sound natural. Sometimes I turn it on if I need to slow things down but most of the time I prefer to keep the setting to "off".  
+    !!!! This is the end of John's edit.  !!!!  
 
 
 **Session 2 (§5):**
@@ -891,17 +959,49 @@ For question 3, I have the "Pause" setting off so that the speech will sound nat
    button? *Recommended: yes.*
 4. **The notation** `` `DISC1 "disconnect 1"` ``: acceptable? *Recommended: yes.*
 
-!!!! The following is an edit by John, your human coworker. These are my responses to the questions for session 2  !!!!
-For question 1, I accept your recommendation.
-For question 2, I accept your recommendation.
-For question 3, I accept your recommendation.
-For question 3, I accept your recommendation.
-!!!! This is the end of John's edit.  !!!!
+    !!!! The following is an edit by John, your human coworker. These are my responses to the questions for session 2  !!!!  
+    For question 1, I accept your recommendation.  
+    For question 2, I accept your recommendation.  
+    For question 3, I accept your recommendation.  
+    For question 3, I accept your recommendation.  
+    !!!! This is the end of John's edit.  !!!!  
 
 
 
 **Session 3 (§6):**
 1. **Each card remembers its own place** (*recommended*), or one place for all three?
+
+    !!!! The following is an edit by John, your human coworker. These are my responses to the question for session 3  !!!!  
+    For question 1, I accept your recommendation.  
+    
+    I also have the following requests:
+    1. For those information cards that appear on the "Drawing" tab just to the right of the item list and which show information about the wires, there is a line of text the cards which give information about the terminals which includes links for those terminals mentioned. The following is an example for the information card that shows information about Wire W039: 
+    runs through PB1 TB-0V
+    In the example above, the PB1 and the TB-0V are links.
+    My request is that you also provide similar information and links for the net that the wire is on. This link will highlight the net in the same way that links for terminals with highlight the terminals on the drawing.
+
+    2. For those information cards that appear on the "Drawing" tab just to the right of the item list and which show information about the terminals, please include a link for the net as you already do for the wires and components associated with that terminal the card gives information about. Is that you alread provide information on the card which tells what net the terminal is on. I would like that text to be a link that will highlight the net just as is currently done with wires and components. 
+
+    3. In the last session, you created notation that allows a link to be pronounced differently that the link is spelled. and your notation made it possible to have a link which is not pronounced at all.
+    Create a notation that allows multiple items to be highlighted at the same time. This could be very helpful in showing how signal moves through the circuit. 
+
+    !!!! This is the end of John's edit.  !!!!  
+
+
+
+
+
+**Session 3A (§6A), asked 2026-09-30:**
+1. **Which notation:** the build-up `` `CB1 +` `` only (*recommended*: it is the signal moving),
+   the group `` `CB1 & CB2 & 24E-1` `` only, or both?
+2. **When does the build-up end?** At the next link without `+` (*recommended*: the writer decides,
+   and an answer without `+` is unchanged), at the end of each sentence, or at the end of each
+   paragraph?
+3. **The camera:** fit everything lit (*recommended*, falling back to the newest when that would
+   zoom out past the whole sheet), or always fly to the newest only?
+4. **Kept items drawn a step dimmer than the one being spoken** (*recommended*), or all the same?
+5. **Clicking a `+` link on the Ask tab**, outside a talk: select just that item (*recommended*:
+   a click is one question), or light the whole chain up to it?
 
 **Session 4 (§7):**
 1. **What to keep:** a *Past answers* list reopened from the server's archives and saved edits

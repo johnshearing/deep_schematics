@@ -21,6 +21,7 @@ import { X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { CardGrip, CopyCard, useCardDrag } from './CardChrome'
 import type { Claims, Pick } from './hitTest'
 
 interface Props {
@@ -36,17 +37,22 @@ interface Props {
 export function ConductorCard({ pick, claims, onSelectWire, onSelectBlock, onClose }: Props) {
   const { conductor } = pick
   const spec = conductor.spec_label ?? [conductor.color, conductor.gauge].filter(Boolean).join(' ')
+  // Movable and copyable like the selection card (`talkthrough_03.md` §6), with its own place.
+  const { ref, style, handleProps, dragging } = useCardDrag('conductor')
 
   return (
     <div
+      ref={ref}
+      style={style}
       onPointerDown={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
       data-conductor-card={conductor.id}
       className={cn(
-        'pointer-events-auto absolute bottom-3 left-3 z-10 max-w-sm min-w-72',
-        'rounded-lg border bg-card/95 p-3 shadow-lg backdrop-blur-sm',
+        'pointer-events-auto absolute bottom-3 left-3 z-10 max-w-sm min-w-72 select-text',
+        'rounded-lg border bg-card/95 p-3 pt-0 shadow-lg backdrop-blur-sm',
       )}
     >
+      <CardGrip handleProps={handleProps} dragging={dragging} testId="conductor-card-handle" />
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -79,6 +85,7 @@ export function ConductorCard({ pick, claims, onSelectWire, onSelectBlock, onClo
             )}
           </p>
         </div>
+        <CopyCard card={ref} />
         <Button variant="ghost" size="icon" aria-label="Clear selection" onClick={onClose}>
           <X />
         </Button>
