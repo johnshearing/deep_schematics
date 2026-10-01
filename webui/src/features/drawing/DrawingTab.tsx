@@ -262,6 +262,14 @@ export function DrawingTab() {
   )
 
   const entry = selection ? (byToken.get(normalise(selection.id)) ?? null) : null
+  /** What a talk keeps lit beside the selection (`` `CB1 +` ``, `talkthrough_03.md` §6A). Empty
+   * unless a talk is building a path up, so everything below is unchanged without it. */
+  const lit = useAppStore((s) => s.lit)
+  const kept = useMemo(
+    () => lit.flatMap((k) => byToken.get(normalise(k.id)) ?? []),
+    [lit, byToken],
+  )
+  const keptIds = useMemo(() => new Set(kept.map((e) => e.id)), [kept])
   /**
    * The nets a selected terminal or wire is on, for the card's net links (asked 2026-09-30).
    * **By membership, never by name** (trap 21): a net whose `terminals` include the pin, or either
@@ -298,11 +306,11 @@ export function DrawingTab() {
    * hangs off — a single quiet ring saying whose pin this is, not a crowd.
    */
   const relatedIds = useMemo(() => {
-    const members = entry?.terminals?.length
-      ? entry.terminals.map((member) => member.id)
-      : (entry?.members ?? [])
-    return new Set(members)
-  }, [entry])
+    const ringed = (e: Designator | null) =>
+      e?.terminals?.length ? e.terminals.map((member) => member.id) : (e?.members ?? [])
+    // A kept item is ringed quietly, itself and its members: a step dimmer than the newest (§6A).
+    return new Set([...ringed(entry), ...kept.flatMap((e) => [e.id, ...ringed(e)])])
+  }, [entry, kept])
   /**
    * **The highlight: the selected wire's route, or the union of the selected net's wires'.**
    *
@@ -333,6 +341,33 @@ export function DrawingTab() {
       }),
     [paths, entry, reaching],
   )
+  /**
+   * **What the sheet paints for one entry.** `pathsFor` is null for a component by design, so a
+   * block's own bus is read straight off `paths.commoning` — trap 24, and the same answer §4B
+   * gave on the Locate tab. A component with no authored bus paints nothing, as before.
+   */
+  const runsOf = useCallback(
+    (e: Designator | null) =>
+      !e
+        ? undefined
+        : e.kind === 'component'
+          ? paths?.commoning?.[e.id]?.runs
+          : pathsFor(paths, e.kind, e.id, {
+              terminals: e.terminals?.map((member) => member.id),
+              wiresByTerminal: reaching,
+            })?.runs,
+    [paths, reaching],
+  )
+  /**
+   * **The sheet paints the selection, and nothing else decides it** — fixed 2026-09-30. It used to
+   * be `onPath?.runs ?? path?.runs`, so after clicking a path, the net link on the card selected
+   * the net and the sheet went on painting the clicked wire until the path card was closed.
+   */
+  const selectedRuns = useMemo(
+    () => path?.runs ?? (entry?.kind === 'component' ? runsOf(entry) : undefined),
+    [path, entry, runsOf],
+  )
+  const keptRuns = useMemo(() => kept.flatMap((e) => runsOf(e) ?? []), [kept, runsOf])
 
   /** A marker for the selection itself — at its own point, under its own name, and only where
    * there is a real place to put one. See `atLabelPoint` for the wire and net case. */
@@ -396,11 +431,11 @@ export function DrawingTab() {
   const drawnEndLabels = useMemo(
     () =>
       endLabels.filter((label) => {
-        if (label.owner === entry?.id) return true
+        if (label.owner === entry?.id || keptIds.has(label.owner)) return true
         if (!shown.labels) return false
         return label.kind === 'wire' ? shown.wires : shown.nets
       }),
-    [endLabels, entry?.id, shown.labels, shown.nets, shown.wires],
+    [endLabels, entry?.id, keptIds, shown.labels, shown.nets, shown.wires],
   )
 
   /**
@@ -579,8 +614,20 @@ export function DrawingTab() {
    */
   const panTo = useRef(viewer.panTo)
   panTo.current = viewer.panTo
-  const focus: [number, number, number, number] | null =
-    entry?.rect ?? (entry?.point ? [...entry.point, ...entry.point] : null)
+  const rectOf = (e: Designator | null): [number, number, number, number] | null =>
+    e?.rect ?? (e?.point ? [...e.point, ...e.point] : null)
+  /** With items kept lit, the camera frames them all and the newest, falling back to the newest
+   * alone if that box would be larger than the sheet (§16 S3A Q3). */
+  const focus = useMemo(() => {
+    const own = rectOf(entry)
+    const all = [own, ...kept.map(rectOf)].filter((r) => r !== null)
+    if (!own || all.length < 2) return own
+    const box: [number, number, number, number] = [
+      Math.min(...all.map((r) => r[0])), Math.min(...all.map((r) => r[1])),
+      Math.max(...all.map((r) => r[2])), Math.max(...all.map((r) => r[3])),
+    ]
+    return box[2] - box[0] > width || box[3] - box[1] > height ? own : box
+  }, [entry, kept, width, height])
   const focusRef = useRef(focus)
   focusRef.current = focus
   const ready = armed && viewer.viewport.scale > 0
@@ -956,7 +1003,11 @@ export function DrawingTab() {
               viewer.viewport,
             )
             const found = pickPath(paths, at)
-            setOnPath(found)
+            // **The path card is a diagnostic since 2026-09-30**, on the user's word (*"there is
+            // simply no information on that card that matters to me"*): the click selects the
+            // path's owner, and the selection card answers *whose path is this*. The card stays
+            // behind `?unclaimed=1` with the conductor card, the settled demotion pattern.
+            setOnPath(coverage ? found : null)
             if (found) {
               select(found.owner.kind === 'wire' ? 'wire' : 'component', found.owner.id, 'drawing')
             }
@@ -971,17 +1022,11 @@ export function DrawingTab() {
               viewport={viewer.viewport}
               size={viewer.size}
               dpr={viewer.dpr}
-              /**
-               * The selection's runs — **except that a picked path paints its own.**
-               *
-               * For a wire the two agree, because the click selected that wire and `pathsFor`
-               * hands back its route. For a **block's bus** they do not: `pathsFor` is null for a
-               * component by design (a component has no route in the way a stone has no opinion),
-               * so without this a click on a bus would name it in the card and light nothing.
-               * The pick is the more specific claim, so it wins while it is there and the sheet
-               * falls back to the selection when the card closes.
-               */
-              runs={onPath?.runs ?? path?.runs}
+              /* The selection's runs, a block's bus included (`runsOf`). A clicked path selected
+                 its owner, so it is painted through here too and never on its own say-so. */
+              runs={selectedRuns}
+              /* What a talk keeps lit (§6A), a step dimmer, under the newest. */
+              kept={keptRuns.length ? keptRuns : undefined}
               /* The run under the pointer, in the proposal colour rather than the highlight's:
                  *this is the line you asked about* is not the same claim as *this is the route of
                  the wire you selected*, and one colour for both would say it was. Diagnostic

@@ -38,7 +38,7 @@ import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { tileUrl } from '@/api/client'
 import type { Tile } from '@/api/types'
-import { AUTHORED, CANDIDATE, paintRuns, paintSheet, UNCLAIMED, type Polyline } from './paint'
+import { AUTHORED, CANDIDATE, KEPT, paintRuns, paintSheet, UNCLAIMED, type Polyline } from './paint'
 import type { Viewport } from './useTileViewport'
 
 interface Props {
@@ -60,6 +60,12 @@ interface Props {
    * state — nothing is highlighted until somebody selects a wire or a net that has a path.
    */
   runs?: readonly Polyline[]
+  /**
+   * The runs a talk keeps lit beside the selection's (`` `CB1 +` ``, `talkthrough_03.md` §6A).
+   * Painted just under `runs` in `KEPT`, the highlight a step dimmer, so the eye still finds the
+   * one being spoken. Absent unless a talk is building a path up.
+   */
+  kept?: readonly Polyline[]
   /**
    * Runs being *considered* rather than accepted — the Locate tab's hovered candidate, or a hand
    * trace as it is being drawn.
@@ -108,6 +114,7 @@ export const TileSheet = memo(function TileSheet({
   size,
   dpr,
   runs,
+  kept,
   candidates,
   unclaimed,
   authored,
@@ -173,6 +180,7 @@ export const TileSheet = memo(function TileSheet({
       if (candidates?.length) {
         paintRuns({ ctx, dpr, viewport, runs: candidates, style: CANDIDATE })
       }
+      if (kept?.length) paintRuns({ ctx, dpr, viewport, runs: kept, style: KEPT })
       if (runs?.length) paintRuns({ ctx, dpr, viewport, runs })
     })
     return () => cancelAnimationFrame(frame.current)
@@ -185,6 +193,7 @@ export const TileSheet = memo(function TileSheet({
     size.height,
     dpr,
     runs,
+    kept,
     candidates,
     unclaimed,
     authored,
@@ -201,6 +210,8 @@ export const TileSheet = memo(function TileSheet({
            directly in `paint.test.ts`, and this is how a screen test knows the right runs reached
            the sheet. The same idiom as `data-end-label` and `data-ink-ring`. */
         data-runs={runs?.length ?? 0}
+        /* And how many a talk keeps lit beside them (§6A), read the same way. */
+        data-kept={kept?.length ?? 0}
         /* And how many were offered rather than accepted, read the same way and for the same
            reason: nothing painted on this canvas can be read back through the DOM. */
         data-candidates={candidates?.length ?? 0}

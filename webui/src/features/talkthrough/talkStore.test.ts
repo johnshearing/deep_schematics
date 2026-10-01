@@ -69,7 +69,7 @@ beforeEach(() => {
   timed = fakeSpeaker()
   setSpeakers(voice, timed)
   useAppStore.setState({
-    designators: INDEX, byToken: buildLookup(INDEX), selection: null, activeTabId: 'ask',
+    designators: INDEX, byToken: buildLookup(INDEX), selection: null, lit: [], activeTabId: 'ask',
     drawing: { tiles: { count: 4 } } as DrawingSummary,
   })
   useChatStore.setState({ messages: [QUESTION, MESSAGE] })
@@ -410,5 +410,48 @@ describe('a silent link', () => {
     await vi.advanceTimersByTimeAsync(1420) // "P B 1 then": four words at 170 a minute, 1412 ms
     expect(selected()).toBe('CR1')
     expect(talk().pos).toEqual({ s: 1, g: 0 })
+  })
+})
+
+describe('several items lit at once (talkthrough_03.md §6A)', () => {
+  const lit = () => useAppStore.getState().lit.map((k) => k.id)
+  const BUILD: Message = {
+    ...MESSAGE, id: 'a2', text: 'Net `121` feeds `CR1 +` and `PB1 "the button" +`. Then `CR1` alone.',
+  }
+
+  it('keeps each + link lit beside the newest, and a plain link starts again', async () => {
+    // **T-1791.**
+    useChatStore.setState({ messages: [QUESTION, BUILD] })
+    talk().start(BUILD)
+    await speakUntil('121')
+    expect([selected(), lit()]).toEqual(['121', []])
+    await speakUntil('C R 1')
+    expect([selected(), lit()]).toEqual(['CR1', ['121']])
+    await speakUntil('the button')
+    expect([selected(), lit()]).toEqual(['PB1', ['121', 'CR1']]) // three lit
+    await speakUntil('C R 1 alone')
+    expect([selected(), lit()]).toEqual(['CR1', []])
+  })
+
+  it('lands on the same picture going back as playing through', async () => {
+    // **T-1792.** What is lit is worked out from the talk, never accumulated.
+    useChatStore.setState({ messages: [QUESTION, BUILD] })
+    talk().start(BUILD)
+    talk().pause()
+    talk().nextItem()
+    talk().nextItem()
+    talk().nextItem()
+    expect([selected(), lit()]).toEqual(['PB1', ['121', 'CR1']])
+    talk().nextItem()
+    expect([selected(), lit()]).toEqual(['CR1', []])
+    talk().prevItem()
+    expect([selected(), lit()]).toEqual(['PB1', ['121', 'CR1']])
+  })
+
+  it('leaves nothing kept in an answer written without +', async () => {
+    // **T-1792**, and the promise: an answer without `+` behaves exactly as before.
+    talk().start(MESSAGE)
+    await speakUntil('P B 1')
+    expect([selected(), lit()]).toEqual(['PB1', []])
   })
 })

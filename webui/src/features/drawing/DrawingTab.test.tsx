@@ -1557,7 +1557,9 @@ function pathIndex(): DesignatorIndex {
  * the store anyway, so that every *nothing happens* below is a silence over real ink rather than
  * over an empty payload.
  */
-function reading(paths: PathIndex | null = PATHS) {
+/** `diagnostic` is `?unclaimed=1`: the path card is behind it since 2026-09-30 (§6A's fix). */
+function reading(paths: PathIndex | null = PATHS, { diagnostic = true } = {}) {
+  query(diagnostic)
   const index = pathIndex()
   useAppStore.setState({
     paths,
@@ -1572,6 +1574,7 @@ function reading(paths: PathIndex | null = PATHS) {
 }
 
 describe('clicking a path on the sheet', () => {
+  afterEach(() => query(false))
   it('names the wire that owns the run, lights its route, and prints no name off the ink', () => {
     // **T-1500.** *"Click over a path and the path highlights and a box in the lower right tells
     // me about the path and the wire that owns it."*
@@ -1614,8 +1617,8 @@ describe('clicking a path on the sheet', () => {
     // The **component**, because that is where a block's commoning lives — one answer to *whose
     // is this* that will serve the card here and the armed row on the Locate tab.
     expect(useAppStore.getState().selection).toMatchObject({ kind: 'component', id: 'CR-BP' })
-    // `pathsFor` is null for a component by design, so without the pick's own runs this click
-    // would name a bus and light nothing.
+    // `pathsFor` is null for a component by design, so the bus comes from `runsOf`, off the
+    // published commoning — the selection's, not the pick's (fixed 2026-09-30).
     expect(highlighted()).toBe(1)
   })
 
@@ -1625,7 +1628,7 @@ describe('clicking a path on the sheet', () => {
     // there."* `CR-BP:A1` sits on 11 pt of real ink; with no commoning published, no path claims
     // it. No card, no verdict, no highlight, and above all no *no wire claims this run* — that is
     // the conductor's question and it has been struck three times.
-    reading(PATHS)
+    reading(PATHS, { diagnostic: false })
     act(() => useAppStore.getState().select('net', '110'))
     const before = useAppStore.getState().selection?.nonce
 
@@ -1662,7 +1665,8 @@ describe('clicking a path on the sheet', () => {
     const card = document.querySelector('[data-path-card="W048"]') as HTMLElement
     expect(card.className).toMatch(/bottom-3 right-3/)
     // `Clear selection` is the selection card's ✕ and the path card's is `Close the path`, so
-    // finding it inside the sheet is finding the other card.
+    // finding it inside the sheet is finding the other card. (A diagnostic session since
+    // 2026-09-30; no conductor lies under this pin in the fixture, so no conductor card.)
     expect(sheet().getByRole('button', { name: 'Clear selection' })).toBeTruthy()
 
     fireEvent.keyDown(window, { key: 'Escape' })
@@ -1690,7 +1694,7 @@ describe('clicking a path on the sheet', () => {
     // **T-1507.** With no `/api/paths` there is no path to be on, and the honest answer is the
     // same silence — not a fall back to the conductor card, which is the question this phase
     // removed.
-    reading(null)
+    reading(null, { diagnostic: false })
     clickAtMarker('CR-BP:A1')
 
     expect(document.querySelector('[data-path-card]')).toBeNull()
@@ -1968,7 +1972,7 @@ describe('moving and copying the conductor and path cards', () => {
 
   /** The path card, by a click on `W048`'s route — `clicking a path on the sheet`'s own setup. */
   function pathCard() {
-    reading()
+    reading() // `?unclaimed=1`: the path card is a diagnostic since 2026-09-30
     clickAtMarker('CB1:2')
     return document.querySelector('[data-path-card="W048"]') as HTMLElement
   }
@@ -2081,3 +2085,91 @@ describe('the net links on a terminal’s and a wire’s card', () => {
   })
 })
 
+
+/**
+ * §6A, 2026-09-30: several items lit at once, and the fix the user asked for the same day — the
+ * path card is a diagnostic, and the sheet paints the selection whatever card is open.
+ */
+describe('several items lit at once, and the sheet paints the selection', () => {
+  afterEach(() => {
+    query(false)
+    act(() => useAppStore.getState().clearSelection())
+  })
+
+  const kept = () => Number(screen.getByRole('application').querySelector('canvas')?.dataset.kept ?? -1)
+
+  it('paints and rings the kept items beside the newest, a layer of their own, and Escape clears all', () => {
+    // **T-1793.**
+    reading(PATHS, { diagnostic: false })
+    const ring = (id: string) => marker(id).querySelector('span')!.className
+    act(() => useAppStore.getState().select('wire', 'W048'))
+    expect(ring('CB1')).not.toContain('ring-2')
+    act(() => useAppStore.getState().select('wire', 'W049'))
+    const w049 = highlighted()
+    act(() => useAppStore.getState().light('wire', 'W048', [{ kind: 'wire', id: 'W049' }]))
+
+    expect(highlighted()).toBe(1) // the newest, W048, in the highlighter
+    expect(kept()).toBe(w049) // what came before it, a step dimmer
+    expect(useAppStore.getState().selection).toMatchObject({ kind: 'wire', id: 'W048', origin: 'text' })
+    // W049's own members are ringed quietly, though W048 is the selection, whose are its pins.
+    expect(ring('CB1')).toContain('ring-2')
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(useAppStore.getState().selection).toBeNull()
+    expect(useAppStore.getState().lit).toEqual([])
+    expect(kept()).toBe(0)
+  })
+
+  it('lets a plain select clear what was kept', () => {
+    // **T-1793**, continued: a click anywhere is one question.
+    reading(PATHS, { diagnostic: false })
+    act(() => useAppStore.getState().light('wire', 'W048', [{ kind: 'wire', id: 'W049' }]))
+    act(() => useAppStore.getState().select('net', '110'))
+    expect(useAppStore.getState().lit).toEqual([])
+    expect(kept()).toBe(0)
+  })
+
+  it('paints the net after a path click, when its link on the card is pressed', () => {
+    // **T-1794**, the user's report: click a path, press the net link, and only the clicked wire
+    // stayed lit until the path card was closed.
+    reading(PATHS, { diagnostic: false })
+    act(() => useAppStore.getState().select('net', '110'))
+    const net = highlighted()
+    expect(net).toBe(2)
+    act(() => useAppStore.getState().clearSelection())
+
+    clickAtMarker('CB1:2')
+    expect(useAppStore.getState().selection?.id).toBe('W048')
+    fireEvent.click(document.querySelector('[data-net-link="110"]') as HTMLElement)
+    expect(useAppStore.getState().selection?.id).toBe('110')
+    expect(highlighted()).toBe(net)
+  })
+
+  it('paints the selection, not an open path card, in a diagnostic session too', () => {
+    // **T-1794**, the mechanism: the path card's runs used to win over the selection's.
+    reading(PATHS)
+    clickAtMarker('CB1:2')
+    expect(document.querySelector('[data-path-card="W048"]')).toBeTruthy()
+    act(() => useAppStore.getState().select('net', '110'))
+    expect(highlighted()).toBe(2)
+  })
+
+  it('opens no path card for a reader: the click selects the owner and its card answers', () => {
+    // **T-1795.** *"There is simply no information on that card that matters to me."*
+    reading(PATHS, { diagnostic: false })
+    clickAtMarker('CB1:2')
+    expect(document.querySelector('[data-path-card]')).toBeNull()
+    expect(useAppStore.getState().selection).toMatchObject({ kind: 'wire', id: 'W048', origin: 'drawing' })
+    expect(sheet().getByRole('button', { name: 'Clear selection' })).toBeTruthy()
+    expect(highlighted()).toBe(1)
+  })
+
+  it('lights a block’s bus from its own selection, with no path card to supply it', () => {
+    // **T-1795**, and trap 24: `pathsFor` is null for a component.
+    reading(COMMONED, { diagnostic: false })
+    clickAtMarker('CR-BP:A1')
+    expect(document.querySelector('[data-path-card]')).toBeNull()
+    expect(useAppStore.getState().selection).toMatchObject({ kind: 'component', id: 'CR-BP' })
+    expect(highlighted()).toBe(1)
+  })
+})

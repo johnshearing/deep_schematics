@@ -117,6 +117,17 @@ describe('Markdown citations', () => {
     expect(container.textContent).toBe('CR-BP and CR-BP and other.')
   })
 
+  it('shows only the token of a + link, and a click selects that one item', () => {
+    // **T-1790.** A click is one question (§16 S3A Q5): the build-up is the talk's, not the click's.
+    arm()
+    useAppStore.setState({ lit: [{ kind: 'component', id: 'CR1' }] })
+    const { container } = render(<Markdown>{'`CR-BP +` and `CR-BP "bypass relay" +`.'}</Markdown>)
+    expect(container.textContent).toBe('CR-BP and CR-BP.')
+    fireEvent.click(screen.getAllByRole('button', { name: 'CR-BP' })[1])
+    expect(useAppStore.getState().selection).toMatchObject({ id: 'CR-BP' })
+    expect(useAppStore.getState().lit).toEqual([])
+  })
+
   it('turns an identifier the server published into a button, and points the drawing at it', () => {
     arm()
     render(<Markdown>{'The coil of `CR-BP` is de-energised.'}</Markdown>)

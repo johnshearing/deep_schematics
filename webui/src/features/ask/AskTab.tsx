@@ -189,7 +189,10 @@ function Intro({
         answer first to hear only that part. <em>Edit</em> rewrites an answer (or its question, from
         the pencil beside it) in place, and the talk reads what you wrote. In an edit,{' '}
         <code>{'`DISC1 "disconnect 1"`'}</code> shows <code>DISC1</code> and says{' '}
-        <em>disconnect 1</em>; empty quotes, <code>{'`W12 ""`'}</code>, show it and say nothing. With{' '}
+        <em>disconnect 1</em>; empty quotes, <code>{'`W12 ""`'}</code>, show it and say nothing. A trailing{' '}
+        <code>{'+'}</code>, <code>{'`CB1 +`'}</code> or <code>{'`W12 "" +`'}</code>, keeps what is
+        already lit, so a signal&apos;s path builds up as it is read; the next link without one starts
+        again. With{' '}
         <em>Show spoken text</em> on, <em>Say it as…</em> in the palette saves a pronunciation for this
         drawing or for every drawing (editor unlocked).
       </IntroNote>

@@ -42,10 +42,11 @@ export const Citation = memo(function Citation({ children }: { children: ReactNo
   const setActiveTab = useAppStore((s) => s.setActiveTab)
 
   // The one-off pronunciation (`` `DISC1 "disconnect 1"` ``) is for the voice alone: the screen
-  // shows only the token, link and all (`talkthrough_03.md` §5.2).
+  // shows only the token, link and all (`talkthrough_03.md` §5.2). So does a trailing ` +`
+  // (§6A): it tells the talk to keep what is lit, and a click is one question, so it selects one.
   const text = textOf(children)
   const said = text === null ? null : splitNotation(text)
-  if (said?.say != null) children = said.token
+  if (said && (said.say != null || said.keep)) children = said.token
   const entry = resolve(byToken, said ? said.token : text)
   if (!entry || !entry.point || !hasViewer) return <code>{children}</code>
 

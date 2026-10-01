@@ -197,7 +197,7 @@ The whole plan is done when:
 |---|---|---|---|
 | selection (what you clicked or armed) | `webui/src/features/drawing/SelectionCard.tsx` | `bottom-3 left-3` | **yes, since 2026-09-28**: a grip, a copy button, position in `cardPlacement.ts` (`drawing-card-placement`) |
 | conductor (pointing at a line) | `ConductorCard.tsx` | `bottom-3 left-3` | no |
-| path (clicking a painted run) | `PathCard.tsx` | `bottom-3 right-3` | no |
+| path (clicking a painted run; **behind `?unclaimed=1` since 2026-09-30**) | `PathCard.tsx` | `bottom-3 right-3` | yes, since Session 3 |
 
 - **`webui/src/lib/useDraggable.ts`** does the dragging: `within: 'window' | 'parent'`, `home` and
   `keep`. It clamps inside the window or the offset parent, re-clamps on resize, and a double-click
@@ -508,7 +508,33 @@ existing selection-card tests passing unchanged. Documents: **T-1750–T-1760** 
 
 ---
 
-## §6A Session 3A: several items lit at once. About $12–20. Client only. **Planned 2026-09-30, not built.**
+## §6A Session 3A: several items lit at once. About $12–20. Client only. **Built 2026-09-30.**
+
+**Built as planned, with the five answers in §16 S3A.** It cost about $6–7. Where it differs from
+the plan below:
+
+- **No `keep()` action.** `appStore.light(kind, id, kept)` sets the selection and `lit` in one
+  step, so the camera moves once. `talkStore`'s `keptBefore` **works out** what is lit from the
+  talk (every cite back to the last one without `+`) instead of accumulating it. So stepping
+  back and forward lands on the same picture as playing through. `highlight` is the one call
+  site, shared by `run` and the flow path.
+- `splitNotation` (`lib/speakId.ts`) is the one parser, used by both `Citation.tsx` and
+  `buildTalk.ts`, so the regex lives in one place, not two. A repeat that changes `+` is not a
+  repeat (`` `B +` `` then `` `B` `` clears the build-up).
+- Kept runs are a fifth `TileSheet` layer, `kept`, in `KEPT` (the highlighter at half alpha),
+  with `data-kept`. Kept items are ringed through `relatedIds`, which is the quieter amber ring.
+- **The user's Session 3 report was fixed in the same sitting** (§16 S3A, the comment after Q5):
+  after clicking a path, the card's net link lit only the clicked wire. The cause was
+  `runs={onPath?.runs ?? path?.runs}`: the path card's runs beat the selection's until it was
+  closed. **The sheet now paints the selection alone** (`selectedRuns`), and a component's bus
+  comes from `paths.commoning` through `runsOf`, which is also what kept items use (trap 24).
+  **And the path card is demoted behind `?unclaimed=1`**, on the user's word, using the settled
+  pattern: code and tests kept, with `reading()` taking `{ diagnostic }`.
+- A component selected **from the list** now lights its authored bus, where it used to light
+  nothing. Same rule, one answer.
+
+Lessons **T-1788–T-1795** in `28_`. That uses up this plan's block.
+
 
 **The request (2026-09-30):** *"Create a notation that allows multiple items to be highlighted at
 the same time. This could be very helpful in showing how signal moves through the circuit."* §11
@@ -709,7 +735,7 @@ measurement. The numbers only say what can be read.
 | 1 | **§4 natural flow**, alone and reversible | **every later decision about how answers should be written for listening** | **$8–14** |
 | 2 | **§5 pronunciation**, three layers | *disconnect 1*, and the user's own spellings on camera | **$14–22** |
 | 3 | **§6 the other two cards** (built 2026-09-30, with net links) | nothing blocks the sheet | **$5–8** |
-| 3A | **§6A several items lit at once** (planned 2026-09-30) | a signal's path built up on the sheet as it is spoken | **$12–20** |
+| 3A | **§6A several items lit at once** (built 2026-09-30, and the path card demoted) | a signal's path built up on the sheet as it is spoken | **$12–20** |
 | 4 | **§7 keep and reopen** | a prepared video answer survives a reload; the steering data accumulates | **$10–16** |
 | 5 | **§8 edit report** | reading the edits as a whole | **$4–6** |
 | 6 | **§9 rules into the prompt** | answers written the way the user rewrites them | **$4–7** |
@@ -963,9 +989,8 @@ the user's next *"Greetings"* reads first.
     For question 1, I accept your recommendation.  
     For question 2, I accept your recommendation.  
     For question 3, I accept your recommendation.  
-    For question 3, I accept your recommendation.  
+    For question 4, I accept your recommendation.  
     !!!! This is the end of John's edit.  !!!!  
-
 
 
 **Session 3 (§6):**
@@ -988,9 +1013,6 @@ the user's next *"Greetings"* reads first.
     !!!! This is the end of John's edit.  !!!!  
 
 
-
-
-
 **Session 3A (§6A), asked 2026-09-30:**
 1. **Which notation:** the build-up `` `CB1 +` `` only (*recommended*: it is the signal moving),
    the group `` `CB1 & CB2 & 24E-1` `` only, or both?
@@ -1002,6 +1024,23 @@ the user's next *"Greetings"* reads first.
 4. **Kept items drawn a step dimmer than the one being spoken** (*recommended*), or all the same?
 5. **Clicking a `+` link on the Ask tab**, outside a talk: select just that item (*recommended*:
    a click is one question), or light the whole chain up to it?
+
+    !!!! The following is an edit by John, your human coworker. These are my responses to the questions for session 3A  !!!!  
+    For question 1, I accept your recommendation. 
+    I would like to add the following: It seems to me that for multiple items are highlighted the same notation should be preserved that allows a different pronuciation for the item or for the item to be silent and not spoken at all. 
+
+    For question 2, I accept your recommendation.  
+    For question 3, I accept your recommendation.  
+    For question 4, I accept your recommendation. 
+    For question 5, I accept your recommendation.   
+
+    With regard to the last session (Session 3)
+    The changes work almost perfectly.There is an issue regarding the changes that needs to be fixed.The following is about that issue:
+    While on the "Drawing" tab, when I select a wire from the list I see only the information box for the wire which shows up on the left. And when I click on the new link to highlight the net, it works perfectly - I can see all of the net.But when I click on a wire path, two information boxes will show up on the screen. One of the boxes is the same box I described above that shows up just to the right of the list in the lower left corner by default. This is the box that provides information about the wire. It's the same one that you modified which now has a button which displays the net the wire is on. But a second box also shows up on the lower right of the screen by default. This is the box that provides information about the wire path. The problem is, when I click on the new link to show the net for that wire, not all the wires on the net will become highlighted on the screen. But when I click on the x in the right corner of the card on the right to close the wire path card, then all the wires on the net will become highlighted. So this card on the right which only shows up if you click on a wire path (it doesn't show up if you click on the list item for that same wire) is interfering with the function of showing the net associated with a wire. In my opinion, the fix for this is to get rid of the card on the right which give information about the wire path. I never read that card anyway. There is simply no information on that card that matters to me. Please comment on this and tell me what you think is the best fix for this issue.
+
+
+    !!!! This is the end of John's edit.  !!!!  
+
 
 **Session 4 (§7):**
 1. **What to keep:** a *Past answers* list reopened from the server's archives and saved edits

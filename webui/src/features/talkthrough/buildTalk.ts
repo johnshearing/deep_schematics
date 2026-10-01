@@ -21,7 +21,13 @@ import type { Designator, DesignatorKind } from '@/api/types'
 import { resolve } from '@/lib/designators'
 import { sayWords, speakId, splitNotation, type Pronunciations } from '@/lib/speakId'
 
-export interface Cite { kind: DesignatorKind; id: string; token: string } // token = as written
+export interface Cite {
+  kind: DesignatorKind
+  id: string
+  token: string // as written
+  /** Written with a trailing ` +`: light this and keep what is already lit (§6A). */
+  keep?: true
+}
 export interface Segment {
   show: string
   say: string
@@ -178,13 +184,15 @@ export function buildTalk(
     // one-off spoken form, or null.
     const codes: string[] = []
     const quoted: (string | null)[] = []
+    const keeps: boolean[] = []
     let flat = ''
     for (const piece of pieces) {
       if ('code' in piece) {
         flat += String.fromCharCode(PUA + codes.length)
-        const { token, say } = splitNotation(piece.code)
+        const { token, say, keep } = splitNotation(piece.code)
         codes.push(token)
         quoted.push(say)
+        keeps.push(keep)
       // One for one, not collapsed: a sentence's offsets must line up with the DOM's text.
       } else flat += piece.text.replace(/\s/g, ' ')
     }
@@ -206,7 +214,7 @@ export function buildTalk(
       const to = at - (raw.length - raw.trimEnd().length)
       const segments: Segment[] = []
       // The segment being built: its link, the text after the link, and what came before it.
-      let link: { token: string; entry: Designator; say: string | null } | null = null
+      let link: { token: string; entry: Designator; say: string | null; keep: boolean } | null = null
       // A quoted span that is not a link is kept as one character until each part is built.
       const shown = (part: string) =>
         part.replace(/[\uf000-\uf8ff]/g, (c) => codes[c.charCodeAt(0) - QUOTED] ?? c)
@@ -221,12 +229,14 @@ export function buildTalk(
         parts.forEach((part, k) => {
           const before = segments.at(-1)?.say ?? ''
           if (k === 0 && link) {
-            const key = `${link.entry.kind}:${link.entry.id}`
+            // A repeat that changes ` +` is not a repeat: `B +` then `B` clears the build-up.
+            const key = `${link.entry.kind}:${link.entry.id}${link.keep ? ' +' : ''}`
             const spoken = link.say ?? speakId(link.entry, link.token, before, lists)
             const say = nothingSaid(`${spoken} ${said(part)}`.replace(/\s+([.,;:!?)'’])/g, '$1').trim())
             const segment: Segment = { show: link.token + shown(part), say, link: link.token, spoken }
             if (key !== lastCite) {
               segment.cite = { kind: link.entry.kind, id: link.entry.id, token: link.token }
+              if (link.keep) segment.cite.keep = true
               lastCite = key
             }
             segments.push(segment)
@@ -248,7 +258,7 @@ export function buildTalk(
         const entry = hasViewer ? resolve(byToken, token) : null
         if (entry?.point) {
           close()
-          link = { token, entry, say: quoted[n] }
+          link = { token, entry, say: quoted[n], keep: keeps[n] }
         } else if (quoted[n] !== null) rest += String.fromCharCode(QUOTED + n)
         else rest += token // Rule 4: a span that is not a link is spoken as plain text.
       }

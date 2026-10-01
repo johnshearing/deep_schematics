@@ -49,9 +49,11 @@ export function listed(lists: Pronunciations | undefined, ...keys: string[]): st
  * quotes (`` `DISC1 "disconnect 1"` ``). Empty quotes (`` `W12 ""` ``) show it and say nothing.
  * `say` is null for a span without the notation.
  */
-export function splitNotation(span: string): { token: string; say: string | null } {
-  const m = /^(.+?) "(.*)"$/.exec(span)
-  return m ? { token: m[1], say: m[2] } : { token: span, say: null }
+export function splitNotation(span: string): { token: string; say: string | null; keep: boolean } {
+  // The token, an optional quoted form, an optional trailing ` +` (*keep what is lit*,
+  // `talkthrough_03.md` §6A). `PS1:+` is a token, because its `+` has no space before it.
+  const m = /^(.+?)(?: "(.*)")?( \+)?$/.exec(span)!
+  return { token: m[1], say: m[2] ?? null, keep: !!m[3] }
 }
 
 /** Plain words, each replaced by its listed form when it is one exactly, punctuation aside. */

@@ -113,6 +113,12 @@ interface AppState {
    * against; see `lib/designators.ts` for why it is an allowlist. */
   byToken: Map<string, Designator>
   selection: Selection | null
+  /**
+   * What stays lit beside the selection while a talk builds a signal's path up (`` `CB1 +` ``,
+   * `talkthrough_03.md` §6A), oldest first. **Never persisted**: it is a moment of a talk, not a
+   * place in the index. Every `select` and `clearSelection` empties it, so only `light` fills it.
+   */
+  lit: { kind: DesignatorKind; id: string }[]
   model: string
   /**
    * Empty means "no preference yet" — `App` resolves it against the enabled tabs and falls
@@ -159,6 +165,8 @@ interface AppState {
     from?: Selection['from'],
   ) => void
   clearSelection: () => void
+  /** Select `kind`/`id` and keep `kept` lit beside it, in one step, so the camera moves once. */
+  light: (kind: DesignatorKind, id: string, kept: { kind: DesignatorKind; id: string }[]) => void
   loadAll: () => Promise<void>
   setPronunciationLists: (lists: PronunciationLists) => void
   refreshHealth: () => Promise<void>
@@ -200,6 +208,7 @@ export const useAppStore = create<AppState>()(
       conductorsError: null,
       byToken: new Map(),
       selection: null,
+      lit: [],
       model: 'sonnet',
       activeTabId: '',
       drawingListOpen: true,
@@ -214,8 +223,16 @@ export const useAppStore = create<AppState>()(
       select: (kind, id, origin = 'text', from) =>
         set((state) => ({
           selection: { kind, id, origin, from, nonce: (state.selection?.nonce ?? 0) + 1 },
+          lit: [],
         })),
-      clearSelection: () => set({ selection: null }),
+      clearSelection: () => set({ selection: null, lit: [] }),
+      light: (kind, id, kept) =>
+        set((state) => ({
+          selection: { kind, id, origin: 'text', nonce: (state.selection?.nonce ?? 0) + 1 },
+          lit: kept.filter((k, i) =>
+            !(k.kind === kind && k.id === id) &&
+            kept.findIndex((o) => o.kind === k.kind && o.id === k.id) === i),
+        })),
 
       loadAll: async () => {
         const [health, drawing, questions, designators, paths, said] = await Promise.allSettled([

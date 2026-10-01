@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import type { DesignatorIndex, DrawingSummary } from '@/api/types'
 import { Markdown } from '@/components/Markdown'
+import { splitNotation } from '@/lib/speakId'
 import { buildLookup } from '@/lib/designators'
 import { useAppStore } from '@/stores/appStore'
 import { buildQuestion, buildTalk, sliceTalk, type Talk } from './buildTalk'
@@ -25,6 +26,9 @@ let spans = 0
 const QUOTED = RECEPT.replace(/`([^`\n]+)`/g, (whole, token: string) =>
   ++spans % 3 === 1 ? `\`${token} "spoken ${spans}"\`` : spans % 3 === 2 ? `\`${token} ""\`` : whole,
 )
+/** The notation chain with a trailing ` +` on every other span (§6A), quotes and all. */
+let kept = 0
+const KEPT = QUOTED.replace(/`([^`\n]+)`/g, (whole, span: string) => (++kept % 2 ? `\`${span} +\`` : whole))
 const INDEX = JSON.parse(
   readFileSync(path.join(__dirname, 'fixtures/designators.json'), 'utf8'),
 ) as DesignatorIndex
@@ -37,7 +41,7 @@ const shown = (talk: Talk) => talk.sentences.map((s) => s.segments.map((g) => g.
 describe('buildTalk agrees with the screen', () => {
   afterEach(() => useAppStore.setState({ designators: null, byToken: new Map(), drawing: null }))
 
-  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT], ['the chain with the notation', QUOTED]])(
+  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT], ['the chain with the notation', QUOTED], ['the chain with + (T-1789)', KEPT]])(
     'treats as a link exactly the spans the rendered answer made into buttons, in order (%s)',
     (_, answer) => {
     useAppStore.setState({
@@ -142,7 +146,7 @@ describe('buildTalk rules (§4.2)', () => {
 describe('where each sentence is on screen (§5)', () => {
   afterEach(() => useAppStore.setState({ designators: null, byToken: new Map(), drawing: null }))
 
-  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT], ['the chain with the notation', QUOTED]])(
+  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT], ['the chain with the notation', QUOTED], ['the chain with + (T-1789)', KEPT]])(
     'finds every sentence in the rendered block its keys name, at its offsets (%s)',
     (_, answer) => {
       useAppStore.setState({ designators: INDEX, byToken, drawing: { tiles: { count: 4 } } as DrawingSummary })
@@ -240,5 +244,26 @@ describe('pronunciation (talkthrough_03.md §5)', () => {
 
   it('says a question with the lists too', () => {
     expect(buildQuestion('Is PB1 on?', byToken, lists({ PB1: 'the button' }))[0].segments[0].say).toBe('Is the button on?')
+  })
+})
+
+describe('several items lit at once (§6A)', () => {
+  it('reads a trailing + as keep, shows only the token, and composes with the quotes', () => {
+    // **T-1788.**
+    const talk = buildTalk('Then `PB1` feeds `CR1 +` and `CR-BP "the bypass" +` and `W048 "" +`.', byToken, true)
+    const all = talk.items.map(({ s, g }) => talk.sentences[s].segments[g].cite!)
+    expect(all.map((c) => [c.id, !!c.keep])).toEqual([['PB1', false], ['CR1', true], ['CR-BP', true], ['W048', true]])
+    expect(shown(talk)).toEqual(['Then PB1 feeds CR1 and CR-BP and W048.'])
+    const says = talk.sentences[0].segments.map((g) => g.say)
+    expect(says.join(' ')).not.toMatch(/plus|\+/)
+    expect(says).toContain('the bypass and')
+  })
+
+  it('leaves a + with no space before it alone, and a repeat that changes + is not a repeat', () => {
+    // **T-1788**, continued. `PS1:+` is a token; `CR1 +` then `CR1` clears the build-up.
+    expect(splitNotation('PS1:+')).toEqual({ token: 'PS1:+', say: null, keep: false })
+    expect(splitNotation('W12 "" +')).toEqual({ token: 'W12', say: '', keep: true })
+    const talk = buildTalk('Then `CR1 +` and `CR1` now.', byToken, true)
+    expect(talk.items).toHaveLength(2)
   })
 })

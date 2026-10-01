@@ -26,7 +26,7 @@ import { setPreferredVoice, timedSpeaker, webSpeaker, type Speaker } from '@/lib
 import { useAppStore } from '@/stores/appStore'
 import { shownText, useChatStore, type Message } from '@/stores/chatStore'
 import { DRAWING_TAB_ID } from '@/tabIds'
-import { buildQuestion, buildTalk, sliceTalk, type Talk } from './buildTalk'
+import { buildQuestion, buildTalk, sliceTalk, type Cite, type Talk } from './buildTalk'
 import type { Span } from './selection'
 
 export type Dwell = 0 | 2000 | 4000 | 'press'
@@ -182,10 +182,28 @@ export const useTalkStore = create<TalkState>()(
 
       const segmentAt = ({ s, g }: Pos) => get().talk?.sentences[s]?.segments[g]
 
+      /**
+       * A `+` link keeps what is lit (§6A). What is lit is **worked out from the talk**, not
+       * accumulated: every link back to the last one without `+`. So *previous*, a click on a
+       * sentence, and playing a selection all land on the same picture as playing through.
+       */
+      const keptBefore = (pos: Pos) => {
+        const { sentences, items } = get().talk!
+        const kept: { kind: Cite['kind']; id: string }[] = []
+        for (let k = items.findIndex((i) => i.s === pos.s && i.g === pos.g) - 1; k >= 0; k--) {
+          const cite = sentences[items[k].s].segments[items[k].g].cite!
+          kept.unshift({ kind: cite.kind, id: cite.id })
+          if (!cite.keep) break
+        }
+        return kept
+      }
+
       const highlight = (pos: Pos) => {
         const cite = segmentAt(pos)?.cite
         if (!cite) return
-        useAppStore.getState().select(cite.kind, cite.id, 'text')
+        const app = useAppStore.getState()
+        if (cite.keep) app.light(cite.kind, cite.id, keptBefore(pos))
+        else app.select(cite.kind, cite.id, 'text')
         set({ shown: true })
       }
 

@@ -176,6 +176,17 @@ export const HIGHLIGHT: RunStyle = {
 }
 
 /**
+ * **What a talk keeps lit** while it builds a signal's path up (`talkthrough_03.md` §6A): the
+ * highlighter's own colour and width a step fainter, so it reads as *the same kind of claim,
+ * said earlier* and the run being spoken still stands out.
+ */
+export const KEPT: RunStyle = {
+  widthPt: 5,
+  minDevicePx: 3,
+  stroke: 'rgba(214, 74, 38, 0.22)',
+}
+
+/**
  * A run being *considered* rather than one that has been accepted — the Locate tab's proposals.
  *
  * A different colour, narrower, and more transparent than `HIGHLIGHT`, and every one of those is
