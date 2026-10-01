@@ -22,13 +22,18 @@ import { listVoices, onVoicesChanged } from '@/lib/speech'
 import { useDraggable } from '@/lib/useDraggable'
 import { cn } from '@/lib/utils'
 import { SayItAs } from './SayItAs'
-import { isPlaying, useTalkStore, voiceSupported, type Dwell } from './talkStore'
+import { isPlaying, useTalkStore, voiceSupported, type Dwell, type Where } from './talkStore'
 
 const DWELLS: { value: Dwell; label: string }[] = [
   { value: 0, label: 'off' },
   { value: 2000, label: '2 s' },
   { value: 4000, label: '4 s' },
   { value: 'press', label: 'until I press ▶' },
+]
+/** Where the pause falls: at the writer's ` ~` marks, or at every item (`talkthrough_03.md` §6B). */
+const WHERES: { value: Where; label: string }[] = [
+  { value: 'marks', label: 'at marks ~' },
+  { value: 'every', label: 'at every item' },
 ]
 
 export function TalkPalette() {
@@ -39,7 +44,7 @@ export function TalkPalette() {
 
 function Palette() {
   const state = useTalkStore()
-  const { talk, pos, phase, dwell, rate, muted, palette, shown, voice, pitch, questionFirst, showSay, flow } = state
+  const { talk, pos, phase, dwell, where, rate, muted, palette, shown, voice, pitch, questionFirst, showSay, flow } = state
   const voices = useVoices()
   const { ref, style, handleProps, dragging } = useDraggable<HTMLDivElement>(palette, state.setPalette)
   const opened = useRef(false)
@@ -159,6 +164,12 @@ function Palette() {
             )}
           </p>
         )}
+        {talk.missing && (
+          <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-400" data-testid="talk-missing">
+            {talk.missing.length} hidden {talk.missing.length === 1 ? 'link' : 'links'} not found:{' '}
+            {talk.missing.join(', ')}
+          </p>
+        )}
         {showSay && <SayItAs key={`${pos.s}:${pos.g}`} segment={sentence.segments[pos.g]} />}
         {phase === 'dwelling' && typeof dwell === 'number' && dwell > 0 && (
           <DwellBar key={`${pos.s}:${pos.g}`} ms={dwell} />
@@ -196,8 +207,8 @@ function Palette() {
         </div>
 
         <div className="text-xs">
-          <span className="text-muted-foreground">Pause at each item:</span>
-          <div className="mt-1 flex overflow-hidden rounded-md border" role="radiogroup" aria-label="Pause at each item">
+          <span className="text-muted-foreground">Pause:</span>
+          <div className="mt-1 flex overflow-hidden rounded-md border" role="radiogroup" aria-label="Pause">
             {DWELLS.map(({ value, label }) => (
               <button
                 key={label}
@@ -208,6 +219,24 @@ function Palette() {
                 className={cn(
                   'flex-1 border-r px-1.5 py-0.5 last:border-r-0',
                   dwell === value ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-accent/50',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-1 flex overflow-hidden rounded-md border" role="radiogroup" aria-label="Where to pause">
+            {WHERES.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={where === value}
+                disabled={dwell === 0}
+                onClick={() => state.setWhere(value)}
+                className={cn(
+                  'flex-1 border-r px-1.5 py-0.5 last:border-r-0 disabled:opacity-50',
+                  where === value ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-accent/50',
                 )}
               >
                 {label}

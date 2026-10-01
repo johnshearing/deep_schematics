@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import type { DesignatorIndex, DrawingSummary } from '@/api/types'
 import { Markdown } from '@/components/Markdown'
-import { splitNotation } from '@/lib/speakId'
+import { readSpan, splitNotation } from '@/lib/speakId'
 import { buildLookup } from '@/lib/designators'
 import { useAppStore } from '@/stores/appStore'
 import { buildQuestion, buildTalk, sliceTalk, type Talk } from './buildTalk'
@@ -29,6 +29,14 @@ const QUOTED = RECEPT.replace(/`([^`\n]+)`/g, (whole, token: string) =>
 /** The notation chain with a trailing ` +` on every other span (§6A), quotes and all. */
 let kept = 0
 const KEPT = QUOTED.replace(/`([^`\n]+)`/g, (whole, span: string) => (++kept % 2 ? `\`${span} +\`` : whole))
+/** The + chain with the §6B marks mixed in: every fourth span hidden, every third with ` ~`, and a
+ * bare `` `~` `` after every fifth — hidden links, pauses and quotes in every combination. */
+let marked = 0
+const MARKED = KEPT.replace(/`([^`\n]+)`/g, (_, span: string) => {
+  const k = ++marked
+  const written = `\`${k % 4 === 0 ? '@' : ''}${span}${k % 3 === 0 ? ' ~' : ''}\``
+  return k % 5 === 0 ? `${written} \`~\`` : written
+})
 const INDEX = JSON.parse(
   readFileSync(path.join(__dirname, 'fixtures/designators.json'), 'utf8'),
 ) as DesignatorIndex
@@ -41,7 +49,9 @@ const shown = (talk: Talk) => talk.sentences.map((s) => s.segments.map((g) => g.
 describe('buildTalk agrees with the screen', () => {
   afterEach(() => useAppStore.setState({ designators: null, byToken: new Map(), drawing: null }))
 
-  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT], ['the chain with the notation', QUOTED], ['the chain with + (T-1789)', KEPT]])(
+  // Since §6B: the links that are **not hidden** equal the buttons. A hidden link is lit but is no
+  // button and no `link`, so the same comparison states it.
+  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT], ['the chain with the notation', QUOTED], ['the chain with + (T-1789)', KEPT], ['the chain with ~, @ and `~` (T-1981)', MARKED]])(
     'treats as a link exactly the spans the rendered answer made into buttons, in order (%s)',
     (_, answer) => {
     useAppStore.setState({
@@ -146,7 +156,7 @@ describe('buildTalk rules (§4.2)', () => {
 describe('where each sentence is on screen (§5)', () => {
   afterEach(() => useAppStore.setState({ designators: null, byToken: new Map(), drawing: null }))
 
-  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT], ['the chain with the notation', QUOTED], ['the chain with + (T-1789)', KEPT]])(
+  it.each([['two acceptance answers', ANSWER], ['the RECEPT1:3 chain', RECEPT], ['the chain with the notation', QUOTED], ['the chain with + (T-1789)', KEPT], ['the chain with ~, @ and `~` (T-1981)', MARKED]])(
     'finds every sentence in the rendered block its keys name, at its offsets (%s)',
     (_, answer) => {
       useAppStore.setState({ designators: INDEX, byToken, drawing: { tiles: { count: 4 } } as DrawingSummary })
@@ -261,9 +271,62 @@ describe('several items lit at once (§6A)', () => {
 
   it('leaves a + with no space before it alone, and a repeat that changes + is not a repeat', () => {
     // **T-1788**, continued. `PS1:+` is a token; `CR1 +` then `CR1` clears the build-up.
-    expect(splitNotation('PS1:+')).toEqual({ token: 'PS1:+', say: null, keep: false })
-    expect(splitNotation('W12 "" +')).toEqual({ token: 'W12', say: '', keep: true })
+    expect(splitNotation('PS1:+')).toEqual({ token: 'PS1:+', say: null, keep: false, pause: false, hidden: false })
+    expect(splitNotation('W12 "" +')).toEqual({ token: 'W12', say: '', keep: true, pause: false, hidden: false })
     const talk = buildTalk('Then `CR1 +` and `CR1` now.', byToken, true)
     expect(talk.items).toHaveLength(2)
+  })
+})
+
+describe('marked pauses and hidden links (talkthrough_03.md §6B)', () => {
+  const note = (token: string, more: Partial<ReturnType<typeof splitNotation>> = {}) =>
+    ({ token, say: null, keep: false, pause: false, hidden: false, ...more })
+
+  it('reads ~ and + in either order, ~ alone, and a leading @ that drops the quotes', () => {
+    // **T-1980.**
+    expect(splitNotation('CB1 ~')).toEqual(note('CB1', { pause: true }))
+    expect(splitNotation('CB1 + ~')).toEqual(note('CB1', { pause: true, keep: true }))
+    expect(splitNotation('CB1 ~ +')).toEqual(splitNotation('CB1 + ~'))
+    expect(splitNotation('DISC1 "disconnect 1" + ~')).toEqual(
+      note('DISC1', { say: 'disconnect 1', keep: true, pause: true }))
+    expect(splitNotation('~')).toEqual(note('', { pause: true, hidden: true }))
+    expect(splitNotation('@CB1')).toEqual(note('CB1', { hidden: true }))
+    expect(splitNotation('@CB1 "said" + ~')).toEqual(note('CB1', { hidden: true, keep: true, pause: true }))
+    expect(splitNotation('PS1:~')).toEqual(note('PS1:~')) // no space, no flag
+  })
+
+  it('takes a span that resolves as written as a token, never as notation', () => {
+    // **T-1980**, continued: an id with `~` or a leading `@` on drawing two still works.
+    expect(readSpan('@X ~', (t) => t === '@X ~')).toEqual(note('@X ~'))
+    expect(readSpan('@X ~', () => false)).toEqual(note('X', { hidden: true, pause: true }))
+    const odd = new Map(byToken).set('CR1 ~', byToken.get('CR1')!)
+    const talk = buildTalk('Then `CR1 ~` now.', odd, true)
+    expect(shown(talk)).toEqual(['Then CR1 ~ now.'])
+    expect(talk.sentences[0].segments.some((g) => g.pause)).toBe(false)
+  })
+
+  it('marks the pause on its link, makes `~` a segment of its own, and shows and says nothing hidden', () => {
+    // **T-1982.**
+    const talk = buildTalk('Press `PB1 ~` then `~` and `@CR1 "never said"` now.', byToken, true)
+    const segments = talk.sentences[0].segments
+    expect(segments.map((g) => [g.show, g.say, !!g.pause, g.cite?.id ?? null, !!g.cite?.hidden])).toEqual([
+      ['Press ', 'Press', false, null, false],
+      ['PB1 then ', 'P B 1 then', true, 'PB1', false],
+      ['', '', true, null, false],
+      [' and ', 'and', false, null, false],
+      [' now.', 'now.', false, 'CR1', true],
+    ])
+    expect(links(talk)).toEqual(['PB1'])
+    expect(cites(talk)).toEqual(['PB1', 'CR1']) // a hidden link is still an item; a pause is not
+    expect(talk.missing).toBeUndefined()
+  })
+
+  it('lists the hidden links that resolve to nothing, and keeps their pause', () => {
+    // **T-1983.**
+    const talk = buildTalk('Look `@ZZ9 ~` here, `@CR1` and `@QQ1`.', byToken, true)
+    expect(talk.missing).toEqual(['ZZ9', 'QQ1'])
+    expect(shown(talk)).toEqual(['Look  here,  and .'])
+    expect(talk.sentences[0].segments.filter((g) => g.pause)).toHaveLength(1)
+    expect(buildTalk('Plain `PB1`.', byToken, true).missing).toBeUndefined()
   })
 })

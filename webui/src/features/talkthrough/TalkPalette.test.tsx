@@ -82,7 +82,7 @@ beforeEach(() => {
   })
   useChatStore.setState({ messages: [{ ...MESSAGE, id: 'u1', role: 'user' }, MESSAGE] })
   useTalkStore.setState({
-    dwell: 0, rate: 1, muted: false, palette: null, voice: null, pitch: 1, questionFirst: false, showSay: false, flow: false,
+    dwell: 0, where: 'marks', rate: 1, muted: false, palette: null, voice: null, pitch: 1, questionFirst: false, showSay: false, flow: false,
   })
 })
 
@@ -323,5 +323,29 @@ describe('the talkthrough palette', () => {
     fireEvent.click(screen.getByRole('button', { name: /talk me through it/i }))
     expect(talk().talk!.sentences).toHaveLength(4)
     expect(talk().partial).toBe(false)
+  })
+})
+
+describe('marked pauses and hidden links in the palette (talkthrough_03.md §6B)', () => {
+  it('names the hidden links that resolve to nothing, in the palette and never on the answer', () => {
+    // **T-1990.**
+    const typo = { ...MESSAGE, text: 'Look `@ZZ9` at `@CR1` and `@TB-12O ~`. End.' }
+    useChatStore.setState({ messages: [{ ...typo, id: 'u1', role: 'user' }, typo] })
+    render(<><MessageView message={typo} /><DrawingTab /><TalkPalette /></>)
+    fireEvent.click(screen.getByRole('button', { name: /talk me through it/i }))
+    expect(screen.getByTestId('talk-missing').textContent).toBe('2 hidden links not found: ZZ9, TB-12O')
+    expect(screen.getAllByTestId('talk-missing')).toHaveLength(1)
+  })
+
+  it("offers 'where' beside the length, persisted, and only while a pause is chosen", () => {
+    // **T-1991.**
+    begin()
+    expect(screen.getByRole('radio', { name: 'at every item' })).toHaveProperty('disabled', true)
+    fireEvent.click(screen.getByRole('radio', { name: '2 s' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'at every item' }))
+    expect(talk().where).toBe('every')
+    expect(JSON.parse(localStorage.getItem('talkthrough-settings')!).state.where).toBe('every')
+    fireEvent.click(screen.getByRole('radio', { name: 'at marks ~' }))
+    expect(talk().where).toBe('marks')
   })
 })

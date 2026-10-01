@@ -14,8 +14,14 @@
  * **Natural flow** (`talkthrough_03.md` §4) is a second loop, `runFlow`, beside the first and
  * chosen by the `flow` setting: it speaks each sentence as **one utterance** and lights each link
  * as the voice reaches the word before it, so a link mid-sentence no longer breaks the sentence
- * in two. With `flow` off, or a dwell chosen, `run` plays exactly as before — the switch is the
- * rollback.
+ * in two. With `flow` off, or a dwell at every item chosen, `run` plays exactly as before — the
+ * switch is the rollback.
+ *
+ * **Marked pauses** (`talkthrough_03.md` §6B): the *Pause* setting is how long a pause lasts, and
+ * *where* says whether it falls at the writer's marks (`` `CB1 ~` ``, a bare `` `~` ``) or at every
+ * item, as it used to. *Off* ignores the marks. At a marked link the eye comes first: light it,
+ * wait, then say it. Natural flow survives a mark: the utterance ends before it and the next one
+ * starts after the wait.
  */
 
 import { create } from 'zustand'
@@ -26,10 +32,12 @@ import { setPreferredVoice, timedSpeaker, webSpeaker, type Speaker } from '@/lib
 import { useAppStore } from '@/stores/appStore'
 import { shownText, useChatStore, type Message } from '@/stores/chatStore'
 import { DRAWING_TAB_ID } from '@/tabIds'
-import { buildQuestion, buildTalk, sliceTalk, type Cite, type Talk } from './buildTalk'
+import { buildQuestion, buildTalk, sliceTalk, type Cite, type Segment, type Talk } from './buildTalk'
 import type { Span } from './selection'
 
 export type Dwell = 0 | 2000 | 4000 | 'press'
+/** Where a dwell falls: at the writer's marks, or at every item (the behaviour before §6B). */
+export type Where = 'marks' | 'every'
 export type Phase = 'idle' | 'highlighting' | 'dwelling' | 'speaking' | 'paused' | 'done'
 export interface Pos { s: number; g: number }
 
@@ -46,6 +54,7 @@ interface TalkState {
 
   // Settings — the only part persisted.
   dwell: Dwell
+  where: Where
   rate: number
   muted: boolean
   /** Where the palette was dragged to; null is the top-right default. */
@@ -72,6 +81,7 @@ interface TalkState {
   prevItem: () => void
   exit: () => void
   setDwell: (dwell: Dwell) => void
+  setWhere: (where: Where) => void
   setRate: (rate: number) => void
   setMuted: (muted: boolean) => void
   setPalette: (palette: { x: number; y: number } | null) => void
@@ -102,11 +112,17 @@ const FLOW_CHARS = 220
 /** The pace estimated links are lit at when a voice sends no word boundaries; `timedSpeaker`'s. */
 const FLOW_WPM = 170
 
-/** The segments from `g` joined into one utterance, with each one's offset in it, up to FLOW_CHARS. */
-export function joinSegments(segments: { say: string }[], g: number): { text: string; starts: number[] } {
+/**
+ * The segments from `g` joined into one utterance, with each one's offset in it, up to FLOW_CHARS,
+ * and never past a segment `stop` says is waited at: the utterance ends before a pause.
+ */
+export function joinSegments(
+  segments: { say: string }[], g: number, stop: (k: number) => boolean = () => false,
+): { text: string; starts: number[] } {
   let text = ''
   const starts: number[] = []
   for (let k = g; k < segments.length; k++) {
+    if (k > g && stop(k)) break
     const say = segments[k].say
     if (!say && starts.length) {
       starts.push(text.length) // silent: lit with the word before it, adding nothing to say
@@ -124,6 +140,14 @@ const cueAt = (text: string, at: number) => {
   const word = text.slice(0, at).trimEnd().search(/\S+$/)
   return word < 0 ? 0 : word
 }
+
+/** Whether a segment is waited at before it is said. */
+const dwellsAt = (segment: Segment, { dwell, where }: { dwell: Dwell; where: Where }) =>
+  dwell !== 0 && (!!segment.pause || (where === 'every' && !!segment.cite))
+
+/** Natural flow plays unless it is off, or a dwell at every item asks for the old loop. */
+const flowing = ({ flow, dwell, where }: { flow: boolean; dwell: Dwell; where: Where }) =>
+  flow && (dwell === 0 || where === 'marks')
 
 const PLAYING: Phase[] = ['highlighting', 'dwelling', 'speaking']
 export const isPlaying = (phase: Phase) => PLAYING.includes(phase)
@@ -159,6 +183,8 @@ function derive(message: Message, span: Span | null, questionFirst: boolean) {
   // A selection with nothing speakable in it (only a code block) speaks the whole answer.
   const answer = sliced.sentences.length ? sliced : full
   const talk = questionFirst ? withQuestion(answer, questionOf(message.id), app.byToken, lists) : answer
+  // The notice is about the answer as written, whatever part of it is being spoken.
+  if (full.missing) talk.missing = full.missing
   return { talk, empty: !answer.sentences.length, partial: answer !== full }
 }
 
@@ -221,12 +247,14 @@ export const useTalkStore = create<TalkState>()(
           const segment = segmentAt(pos)
           if (!segment) return
 
-          if (segment.cite && !shown) {
+          // A bare pause lights nothing, so what is lit holds; `shown` still says it was waited at.
+          if ((segment.cite || segment.pause) && !shown) {
             set({ phase: 'highlighting' })
-            highlight(pos)
+            if (segment.cite) highlight(pos)
+            else set({ shown: true })
             set({ phase: 'dwelling' })
-            if (dwell === 'press') return set({ phase: 'paused' })
-            if (dwell > 0) {
+            if (dwellsAt(segment, get())) {
+              if (dwell === 'press') return set({ phase: 'paused' })
               await new Promise<void>((resolve) => (timer = setTimeout(resolve, dwell)))
               if (!live()) return
             }
@@ -247,23 +275,33 @@ export const useTalkStore = create<TalkState>()(
        * Natural flow. Plays from `pos` a sentence (or a FLOW_CHARS piece of one) per utterance,
        * moving `pos` and lighting each cite as the voice's word boundaries reach it. A voice that
        * sends none is followed by an estimate, and the utterance's end lights anything left, so no
-       * link is skipped. Hands over to `run` whenever flow is off or a dwell is chosen.
+       * link is skipped. Hands over to `run` whenever flow is off or a dwell at every item is chosen.
+       * An utterance ends before a marked pause; the next one lights its link, waits, and speaks.
        */
       const runFlow = async (gen: number) => {
         const live = () => get().gen === gen
         for (;;) {
-          const { pos, flow, dwell } = get()
-          if (!flow || dwell !== 0) {
+          const { pos, dwell } = get()
+          if (!flowing(get())) {
             mode = 'old'
             return run(gen)
           }
           const segments = get().talk?.sentences[pos.s]?.segments
           if (!segments?.[pos.g]) return
 
-          set({ phase: 'speaking' })
+          const hold = !get().shown && dwellsAt(segments[pos.g], get())
+          set({ phase: hold ? 'highlighting' : 'speaking' })
           if (segments[pos.g].cite && !get().shown) highlight(pos)
+          if (hold) {
+            set({ phase: 'dwelling', shown: true })
+            if (dwell === 'press') return set({ phase: 'paused' })
+            await new Promise<void>((resolve) => (timer = setTimeout(resolve, dwell as number)))
+            if (!live()) return
+            set({ phase: 'speaking' })
+          }
 
-          const { text, starts } = joinSegments(segments, pos.g)
+          const settings = get()
+          const { text, starts } = joinSegments(segments, pos.g, (k) => dwellsAt(segments[k], settings))
           const cues = starts.map((at, k) => ({
             g: pos.g + k,
             at: k === 0 ? 0 : segments[pos.g + k].cite ? cueAt(text, at) : at,
@@ -305,7 +343,7 @@ export const useTalkStore = create<TalkState>()(
 
       /** Plays from `pos` by whichever loop the settings choose. */
       const go = (gen: number) => {
-        mode = get().flow && get().dwell === 0 ? 'flow' : 'old'
+        mode = flowing(get()) ? 'flow' : 'old'
         return mode === 'flow' ? runFlow(gen) : run(gen)
       }
 
@@ -330,6 +368,7 @@ export const useTalkStore = create<TalkState>()(
         gen: 0,
 
         dwell: 0,
+        where: 'marks',
         rate: 1,
         muted: false,
         palette: null,
@@ -410,6 +449,7 @@ export const useTalkStore = create<TalkState>()(
         },
 
         setDwell: (dwell) => set({ dwell }),
+        setWhere: (where) => set({ where }),
         setRate: (rate) => set({ rate: Math.min(1.3, Math.max(0.8, rate)) }),
         setMuted: (muted) => {
           set({ muted })
@@ -431,8 +471,8 @@ export const useTalkStore = create<TalkState>()(
     },
     {
       name: 'talkthrough-settings',
-      partialize: ({ dwell, rate, muted, palette, voice, pitch, questionFirst, showSay, flow }) => ({
-        dwell, rate, muted, palette, voice, pitch, questionFirst, showSay, flow,
+      partialize: ({ dwell, where, rate, muted, palette, voice, pitch, questionFirst, showSay, flow }) => ({
+        dwell, where, rate, muted, palette, voice, pitch, questionFirst, showSay, flow,
       }),
     },
   ),
@@ -456,12 +496,12 @@ useAppStore.subscribe((state, previous) => {
 // Natural flow switched on while the old loop plays takes over when it reaches the next sentence.
 // Deferred, so the old loop has finished its step; a pause and play restarts by the new loop.
 useTalkStore.subscribe((state, previous) => {
-  if (mode !== 'old' || !state.flow || state.dwell !== 0) return
+  if (mode !== 'old' || !flowing(state)) return
   if (state.pos.s === previous.pos.s || !isPlaying(state.phase)) return
   const gen = state.gen
   void Promise.resolve().then(() => {
     const now = useTalkStore.getState()
-    if (mode !== 'old' || now.gen !== gen || !now.flow || !isPlaying(now.phase)) return
+    if (mode !== 'old' || now.gen !== gen || !flowing(now) || !isPlaying(now.phase)) return
     now.pause()
     now.play()
   })

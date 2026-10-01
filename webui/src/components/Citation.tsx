@@ -22,7 +22,7 @@
 import { memo, type ReactNode } from 'react'
 
 import { resolve } from '@/lib/designators'
-import { splitNotation } from '@/lib/speakId'
+import { readSpan } from '@/lib/speakId'
 import { useAppStore } from '@/stores/appStore'
 import { DRAWING_TAB_ID } from '@/tabIds'
 
@@ -44,9 +44,12 @@ export const Citation = memo(function Citation({ children }: { children: ReactNo
   // The one-off pronunciation (`` `DISC1 "disconnect 1"` ``) is for the voice alone: the screen
   // shows only the token, link and all (`talkthrough_03.md` §5.2). So does a trailing ` +`
   // (§6A): it tells the talk to keep what is lit, and a click is one question, so it selects one.
+  // A ` ~` is the talk's pause (§6B). A hidden link (`` `@CB1` ``) and a bare `` `~` `` render
+  // nothing at all, not an empty `<code>`, so the text has no gap and a copy has no blank.
   const text = textOf(children)
-  const said = text === null ? null : splitNotation(text)
-  if (said && (said.say != null || said.keep)) children = said.token
+  const said = text === null ? null : readSpan(text, (t) => !!resolve(byToken, t))
+  if (said?.hidden) return null
+  if (said) children = said.token
   const entry = resolve(byToken, said ? said.token : text)
   if (!entry || !entry.point || !hasViewer) return <code>{children}</code>
 

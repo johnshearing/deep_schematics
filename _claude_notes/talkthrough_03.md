@@ -592,6 +592,138 @@ trap 21).
 
 ---
 
+## §6B Session 3B: pauses where the writer marks them, and links nobody sees. About $8–14. Client only. **Built 2026-10-01.**
+
+**Built as planned, with all seven answers in §16 S3B accepted.** It cost about $4. Where it
+differs from, or adds to, the plan below:
+
+- **`readSpan(span, resolves)`** beside `splitNotation` in `lib/speakId.ts` is the resolve-first
+  helper. Both callers hand it `(t) => !!resolve(byToken, t)`. Measured first: of the live index's
+  275 entries and 402 ids and aliases, **none** contains `~`, starts with `@`, or contains ` +`/` ~`.
+- **A `~` on a span that is not a link still pauses**, as a bare pause just before it, so a mark on
+  a typo is not silently lost. An unresolved hidden link with `~` keeps its pause too.
+- **The *where* choice is greyed out while *Pause* is off**, because with Pause off there is nothing
+  to place. Its labels are *at marks ~* and *at every item*.
+- **`flowing(state)`** (`talkStore.ts`) is the one rule for which loop plays: natural flow unless it
+  is off, or a dwell *at every item* is chosen. `go`, `runFlow` and the hand-over subscriber all
+  read it. **`dwellsAt(segment, state)`** is the one rule for where a wait falls, and
+  `joinSegments` takes it as a `stop` so a flow utterance ends before a mark.
+- `Talk.missing` carries the notice, computed over the whole answer even when a selection is played.
+- Edit mode needed nothing, as predicted; T-1992 in `AskTab.test.tsx` proves it.
+- **Existing tests that chose a dwell now say `where: 'every'`**, because a dwell alone now means
+  *at marks*. That is the plan's default (Q2), and it is a behaviour change for anyone who had a
+  dwell saved: they will hear waits only at marks until they pick *at every item*.
+
+Tests T-1980–T-1992 (16 new, 643 web in all). Lessons **T-1980–T-1989** in `28_`; T-1990–T-1995
+are unspent and stay this plan's.
+
+
+**The request (2026-10-01), in the user's words:**
+
+1. *"A notation which expands upon the current notation that explicitly tells the browser's reader
+   to pause for the length of time specified on the pallet. If that character sequence for the
+   pause is not present then there is no pause at that link."*
+2. *"A notation that will command a pause for the length of time specified at the pallet when
+   there is no link to show. This is to maintain the highlighting that is already visible …
+   This will give the user a bit of time to comprehend what is being shown."*
+3. *"A notation compatible with both 1 and 2 above that will be invisible in the text except when
+   in edit mode. This will allow me to move the drawing to various features on the drawing
+   without cluttering the text which is visible to the human reading that text."*
+
+**Answer §16 S3B before it is built.**
+
+### 6B.1 The proposal: two more marks inside the backticks, and one bare span
+
+| written | shown | said | lit | pauses |
+|---|---|---|---|---|
+| `` `CB1 ~` `` | `CB1` | *C B 1* | `CB1` | **yes**, for the palette's time, then goes on |
+| `` `~` `` | nothing | nothing | whatever is already lit stays lit | **yes** |
+| `` `@CB1` `` | nothing | nothing | `CB1` (the drawing flies there) | no |
+| `` `@CB1 + ~` `` | nothing | nothing | `CB1`, kept beside what is lit | yes |
+| `` `DISC1 "disconnect 1" + ~` `` | `DISC1` | *disconnect 1* | `DISC1`, kept | yes |
+
+- **` ~` is a flag like ` +`.** A space, then the mark, at the end of the span. The flags may come
+  in either order after the optional quoted form: `` `CB1 + ~` `` = `` `CB1 ~ +` ``.
+- **`` `~` `` alone is a pause with no link** (request 2). It is always invisible on screen, so it
+  is also request 3 for free.
+- **A leading `@` hides a link** (request 3). It is lit, the camera moves, and the screen shows
+  nothing. **A hidden link is always silent.** §14.4 says *"what is spoken is what is shown"*, so
+  saying a word the reader cannot see would break the rule the agreement tests guard. A quoted
+  form on a hidden link is ignored (§16 S3B Q4).
+- **Edit mode already shows them.** The edit box holds the markdown source, so every `~` and `@` is
+  visible there and nowhere else. Nothing to build, only a test.
+- **One safety rule for every flag, ` +` included: a span that resolves as written is a token,
+  never notation.** On drawing two, an id with `~` or `@` in it then still works. Measure this
+  drawing's index first (no id contains `~` or starts with `@`, expected), with a one-liner over
+  `/api/designators`.
+
+### 6B.2 The palette: the one *Pause* setting becomes the length of a marked pause
+
+Today *Pause at each item* (off · 2 s · 4 s · until ▶) dwells at **every** link, and any dwell turns
+*Natural flow* off (`talkStore.ts` header: *"with `flow` off, or a dwell chosen, `run` plays exactly
+as before"*). The user keeps it off for natural speech (§16 S1 Q3). The proposal (§16 S3B Q2):
+
+- The same control, renamed **Pause**, keeps its lengths: off · 2 s · 4 s · until ▶. It sets how
+  long a **marked** pause lasts. **Off** turns the marks off too, which is useful while drafting.
+- A second choice beside it, **where**: *at marks* (the default) or *at every item* (today's
+  behaviour, kept for anyone who used it).
+- **Natural flow survives a marked pause.** The sentence is cut into utterances at each pause, not
+  turned back into one utterance per segment. The voice finishes the words before the mark, the
+  highlight holds, the bar fills (the existing `DwellBar`), and the voice goes on.
+- **At a link, the pause comes before its name** (§16 S3B Q3): light it, wait, then say it. That is
+  the Session 1 rule, *the eye first*.
+
+### 6B.3 The design
+
+1. **`splitNotation`** (`lib/speakId.ts`, the one parser) returns `{ token, say, keep, pause,
+   hidden }`. The bare `~` returns `{ token: '', pause: true, hidden: true }`. The safety rule
+   (6B.1) needs `byToken`, so the resolve-first check sits in the two callers, `Citation.tsx` and
+   `buildTalk.ts`, written once as a small shared helper next to `splitNotation`. It takes the
+   index as an argument (trap 8: `lib/` takes data, never imports a feature).
+2. **`Citation.tsx`** renders **nothing** for a hidden link or a bare pause. Not an empty
+   `<code>`: nothing, so the rendered text has no gap and copying the answer copies no blank.
+3. **`buildTalk.ts`:**
+   - `Cite` gains `hidden?: true` and `Segment` gains `pause?: true`.
+   - A bare pause is its own segment, `{ show: '', say: '', pause: true }`, with no cite.
+   - **Offsets count zero characters** for both (trap 5): `codes.push('')`.
+4. **The agreement tests** (§3.1) hold with one change, stated in the test: *spoken links equal
+   rendered buttons* becomes *spoken links that are not hidden equal rendered buttons*. Add a
+   fixture: the RECEPT1:3 chain with `~`, `@` and a bare `` `~` `` mixed in. Both tests must pass
+   over it.
+5. **`talkStore.ts`:**
+   - `run`: dwell where `segment.pause`, or at every cite when *where* is *every item*.
+   - The flow path: end the utterance at each pause segment and start the next one after the
+     dwell. **Read the flow path's boundary handling before editing it** (trap 2 and §14.2 trap
+     14). It is the riskiest part of the session.
+   - `nextItem`/`prevItem` step over bare pauses, since they are not items.
+   - `Esc` and the existing `gen` checks are unchanged.
+6. **A notice in the palette, never on the answer** (§14.4): *"2 hidden links not found: CB9,
+   TB-12O"*. A hidden typo is otherwise invisible twice: not on screen, and not lit. `Show spoken
+   text` already exists for this kind of check, so the notice can sit in its caption area.
+7. **The help text:** `AskTab.tsx`'s `Intro` gains one sentence for `~`, `` `~` `` and `@` (trap 11).
+
+**Reading list:** the five edits to `splitNotation` and its callers that Session 3A made (grep
+`keep` in `lib/speakId.ts`, `Citation.tsx`, `buildTalk.ts`); `talkStore.ts` around the `dwell` block
+(grep `dwelling`) and the flow path (grep `boundary`, ranges only); `TalkPalette.tsx` around the
+dwell radio (grep `aria-checked={dwell`); `AskTab.tsx` `Intro` (grep `W12 ""`). **Not**
+`DrawingTab.tsx`: the sheet needs no change, because a hidden link is an ordinary selection.
+
+**Acceptance:**
+- `buildTalk.test.ts`: the parse, flags in either order, `~` alone, `@`, the resolve-first rule,
+  and both agreement tests over the new fixture.
+- `Markdown.test.tsx`: a hidden link and a bare pause render nothing, and the text has no gap.
+- `talkStore.test.ts`, with fake timers:
+  - a marked link dwells for the palette's time and an unmarked one does not;
+  - a bare pause holds the lit set (Session 3A's `lit` included);
+  - *every item* behaves as before;
+  - *off* ignores the marks;
+  - in flow, a sentence with one mark is two utterances.
+- `TalkPalette.test.tsx`: the notice, and the *where* choice persisted.
+
+Lessons need **new T-numbers**: this plan's T-1705–T-1795 are spent (§16 S3B Q6).
+
+---
+
 ## §7 Session 4: keeping questions, answers and edits, and reopening them. About $10–16, and one restart.
 
 **The gap, measured (§3.4):** edits reach disk only when saved while unlocked. The transcript is
@@ -736,6 +868,7 @@ measurement. The numbers only say what can be read.
 | 2 | **§5 pronunciation**, three layers | *disconnect 1*, and the user's own spellings on camera | **$14–22** |
 | 3 | **§6 the other two cards** (built 2026-09-30, with net links) | nothing blocks the sheet | **$5–8** |
 | 3A | **§6A several items lit at once** (built 2026-09-30, and the path card demoted) | a signal's path built up on the sheet as it is spoken | **$12–20** |
+| 3B | **§6B marked pauses and hidden links** (planned 2026-10-01) | the presenter sets the pace and moves the drawing without cluttering the text | **$8–14** |
 | 4 | **§7 keep and reopen** | a prepared video answer survives a reload; the steering data accumulates | **$10–16** |
 | 5 | **§8 edit report** | reading the edits as a whole | **$4–6** |
 | 6 | **§9 rules into the prompt** | answers written the way the user rewrites them | **$4–7** |
@@ -1038,8 +1171,30 @@ the user's next *"Greetings"* reads first.
     The changes work almost perfectly.There is an issue regarding the changes that needs to be fixed.The following is about that issue:
     While on the "Drawing" tab, when I select a wire from the list I see only the information box for the wire which shows up on the left. And when I click on the new link to highlight the net, it works perfectly - I can see all of the net.But when I click on a wire path, two information boxes will show up on the screen. One of the boxes is the same box I described above that shows up just to the right of the list in the lower left corner by default. This is the box that provides information about the wire. It's the same one that you modified which now has a button which displays the net the wire is on. But a second box also shows up on the lower right of the screen by default. This is the box that provides information about the wire path. The problem is, when I click on the new link to show the net for that wire, not all the wires on the net will become highlighted on the screen. But when I click on the x in the right corner of the card on the right to close the wire path card, then all the wires on the net will become highlighted. So this card on the right which only shows up if you click on a wire path (it doesn't show up if you click on the list item for that same wire) is interfering with the function of showing the net associated with a wire. In my opinion, the fix for this is to get rid of the card on the right which give information about the wire path. I never read that card anyway. There is simply no information on that card that matters to me. Please comment on this and tell me what you think is the best fix for this issue.
 
-
     !!!! This is the end of John's edit.  !!!!  
+
+
+**Session 3B (§6B), asked 2026-10-01:**
+1. **The notation:** ` ~` at the end of a span to pause at that link, `` `~` `` alone to pause with
+   no link, and a leading `@` to hide a link (lit and flown to, not shown, not said). Acceptable,
+   or do you want other characters? *Recommended: yes.* `~` and `@` are easy to type, appear in no
+   identifier on this drawing (to be measured), and read as *wait* and *at*.
+2. **The palette:** the one *Pause* setting (off · 2 s · 4 s · until ▶) becomes the length of a
+   **marked** pause, with a *where* choice of *at marks* (default) or *at every item* (today's
+   behaviour)? *Recommended: yes.* Or drop *every item* entirely?
+3. **At a marked link, pause before its name is said** (*recommended*: the eye first, as Session 1
+   decided), or after it?
+4. **A hidden link is always silent**, and a quoted form on it is ignored (*recommended*: spoken
+   must match shown). Or do you want hidden-but-spoken, which breaks that rule?
+5. **A hidden link that doesn't resolve** (a typo) gets a notice in the palette (*recommended*:
+   otherwise it is invisible twice). Or say nothing?
+6. **T-numbers:** this plan's block is spent. Use **T-1980–T-1995** in `28_`, the gap between
+   `highlighting_wires_and_nets_04.md`'s block and the walkthrough's? *Recommended: yes.*
+7. **Order:** build 3B before Session 4? *Recommended: yes*, since it is what your videos use now.
+
+    !!!! The following is an edit by John, your human coworker. These are my responses to the questions for session 3B !!!!
+    I accept all of your recommendations.
+    !!!! This is the end of John's edit.  !!!!     
 
 
 **Session 4 (§7):**

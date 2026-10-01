@@ -176,6 +176,18 @@ describe('editing an answer or a question', () => {
     expect(useChatStore.getState().messages[1].edited).toBeUndefined()
   })
 
+  it('shows the §6B marks in the edit box and nowhere else', async () => {
+    // **T-1992.** Edit mode holds the markdown source, so `~` and `@` are visible only there.
+    render(<AskTab />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const written = 'Follow `110 ~` then `~` and `@CB1:2`.'
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit the answer' }), { target: { value: written } })
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save' })))
+    expect(screen.queryByText(/~|@CB1/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect((screen.getByRole('textbox', { name: 'Edit the answer' }) as HTMLTextAreaElement).value).toBe(written)
+  })
+
   it('edits the question in its bubble', async () => {
     render(<AskTab />)
     fireEvent.click(screen.getByRole('button', { name: 'Edit question' }))

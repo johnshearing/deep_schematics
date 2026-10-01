@@ -74,7 +74,7 @@ beforeEach(() => {
   })
   useChatStore.setState({ messages: [QUESTION, MESSAGE] })
   useTalkStore.setState({
-    dwell: 0, rate: 1, muted: false, palette: null, voice: null, pitch: 1, questionFirst: false, showSay: false, flow: false,
+    dwell: 0, where: 'marks', rate: 1, muted: false, palette: null, voice: null, pitch: 1, questionFirst: false, showSay: false, flow: false,
   })
 })
 
@@ -109,7 +109,7 @@ describe('talkStore', () => {
   })
 
   it('dwells the chosen time between the highlight and the speech', async () => {
-    useTalkStore.setState({ dwell: 2000 })
+    useTalkStore.setState({ dwell: 2000, where: 'every' })
     talk().start(MESSAGE)
     await voice.finish() // "Start here."
     await voice.finish() // "Net"
@@ -122,7 +122,7 @@ describe('talkStore', () => {
   })
 
   it("holds at 'press' until play, then speaks without dwelling again", async () => {
-    useTalkStore.setState({ dwell: 'press' })
+    useTalkStore.setState({ dwell: 'press', where: 'every' })
     talk().start(MESSAGE)
     await voice.finish()
     await voice.finish()
@@ -222,7 +222,7 @@ describe('talkStore', () => {
     talk().start(MESSAGE)
     const saved = JSON.parse(localStorage.getItem('talkthrough-settings')!).state
     expect(saved).toEqual({
-      dwell: 4000, rate: 1.3, muted: false, palette: { x: 10, y: 20 },
+      dwell: 4000, where: 'marks', rate: 1.3, muted: false, palette: { x: 10, y: 20 },
       voice: null, pitch: 1, questionFirst: false, showSay: false, flow: false,
     })
   })
@@ -362,8 +362,8 @@ describe('natural flow', () => {
     expect(selected()).toBe('CR1')
   })
 
-  it('plays the old way, item by item, when a dwell is chosen', async () => {
-    useTalkStore.setState({ dwell: 2000 })
+  it('plays the old way, item by item, when a dwell at every item is chosen', async () => {
+    useTalkStore.setState({ dwell: 2000, where: 'every' })
     talk().start(MESSAGE)
     await voice.finish()
     await voice.finish()
@@ -453,5 +453,107 @@ describe('several items lit at once (talkthrough_03.md §6A)', () => {
     talk().start(MESSAGE)
     await speakUntil('P B 1')
     expect([selected(), lit()]).toEqual(['PB1', []])
+  })
+})
+
+describe('marked pauses and hidden links (talkthrough_03.md §6B)', () => {
+  const lit = () => useAppStore.getState().lit.map((k) => k.id)
+  // Sentences: 0 "Net " "121 goes to " "CR1 now." (CR1 marked) · 1 "End."
+  const MARK: Message = { ...MESSAGE, id: 'a3', text: 'Net `121` goes to `CR1 ~` now. End.' }
+  // Sentences: 0 "Net " "121 feeds " "CR1 +." · 1 `~` " Then " "PB1 lights."
+  const HOLD: Message = { ...MESSAGE, id: 'a4', text: 'Net `121` feeds `CR1 +`. `~` Then `PB1` lights.' }
+  const begin = (message: Message) => {
+    useChatStore.setState({ messages: [QUESTION, message] })
+    talk().start(message)
+  }
+
+  it('dwells at a marked link for the palette time, lit first, and not at an unmarked one', async () => {
+    // **T-1985.**
+    useTalkStore.setState({ dwell: 2000 })
+    begin(MARK)
+    await voice.finish() // "Net"
+    expect(texts().at(-1)).toBe('121 goes to') // unmarked: no wait
+    await voice.finish()
+    expect(selected()).toBe('CR1') // the eye first
+    expect(talk().phase).toBe('dwelling')
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(texts()).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(texts().at(-1)).toBe('C R 1 now.')
+  })
+
+  it('holds what is lit at a bare pause, + chain included, and steps over it by item', async () => {
+    // **T-1986.**
+    useTalkStore.setState({ dwell: 2000 })
+    begin(HOLD)
+    await speakUntil('C R 1')
+    await voice.finish()
+    expect(talk().pos).toEqual({ s: 1, g: 0 })
+    expect(talk().phase).toBe('dwelling')
+    expect([selected(), lit()]).toEqual(['CR1', ['121']])
+    await vi.advanceTimersByTimeAsync(2000)
+    await speakUntil('Then')
+    expect([selected(), lit()]).toEqual(['CR1', ['121']])
+    talk().pause()
+    talk().prevItem()
+    talk().nextItem()
+    expect(selected()).toBe('PB1') // from CR1 straight to PB1: a pause is not an item
+  })
+
+  it("ignores the marks when Pause is off, and 'every item' still waits at every link", async () => {
+    // **T-1987.**
+    begin(MARK)
+    await voice.finish()
+    await voice.finish()
+    expect(texts()).toEqual(['Net', '121 goes to', 'C R 1 now.'])
+    talk().exit()
+    voice.said.length = 0
+    useTalkStore.setState({ dwell: 2000, where: 'every' })
+    begin(MARK)
+    await voice.finish()
+    expect(talk().phase).toBe('dwelling') // at 121, which is not marked
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(texts().at(-1)).toBe('121 goes to')
+  })
+
+  it('in natural flow, a sentence with one mark is two utterances, with the wait between', async () => {
+    // **T-1988.**
+    useTalkStore.setState({ flow: true, dwell: 2000 })
+    begin(MARK)
+    expect(texts()).toEqual(['Net 121 goes to'])
+    await voice.finish()
+    expect([selected(), talk().phase]).toEqual(['CR1', 'dwelling'])
+    expect(texts()).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(texts()).toEqual(['Net 121 goes to', 'C R 1 now.'])
+    await voice.finish()
+    expect(texts().at(-1)).toBe('End.')
+    // and with Pause off, the mark is nothing: one utterance, as before §6B
+    talk().exit()
+    voice.said.length = 0
+    useTalkStore.setState({ dwell: 0 })
+    begin(MARK)
+    expect(texts()).toEqual(['Net 121 goes to C R 1 now.'])
+  })
+
+  it("holds at a mark until play with 'until I press', in flow too", async () => {
+    // **T-1988**, continued.
+    useTalkStore.setState({ flow: true, dwell: 'press' })
+    begin(MARK)
+    await voice.finish()
+    expect([selected(), talk().phase]).toEqual(['CR1', 'paused'])
+    await vi.advanceTimersByTimeAsync(60_000)
+    talk().play()
+    expect(texts().at(-1)).toBe('C R 1 now.')
+  })
+
+  it('lights a hidden link on its turn and says nothing for it', async () => {
+    // **T-1989.**
+    useTalkStore.setState({ flow: true })
+    begin({ ...MESSAGE, id: 'a5', text: 'Press `PB1` then `@CR1 "never"` now. End.' })
+    expect(texts()).toEqual(['Press P B 1 then now.'])
+    await voice.finish()
+    expect(selected()).toBe('CR1')
+    expect(texts().at(-1)).toBe('End.')
   })
 })

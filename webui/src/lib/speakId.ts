@@ -44,16 +44,44 @@ export function listed(lists: Pronunciations | undefined, ...keys: string[]): st
   return undefined
 }
 
+/** What a code span says beyond its token. `talkthrough_03.md` §5.2, §6A, §6B. */
+export interface Notation {
+  token: string
+  /** The one-off spoken form; `''` is silent, and null is the built-in one. */
+  say: string | null
+  /** A trailing ` +`: light this and keep what is already lit. */
+  keep: boolean
+  /** A trailing ` ~`: pause here for the palette's time. */
+  pause: boolean
+  /** A leading `@`: lit and flown to, never shown and never said. */
+  hidden: boolean
+}
+
 /**
  * The one-off notation inside a code span: the token, a space, and the spoken form in double
  * quotes (`` `DISC1 "disconnect 1"` ``). Empty quotes (`` `W12 ""` ``) show it and say nothing.
  * `say` is null for a span without the notation.
+ *
+ * Then the flags, each a space and a mark, in either order: ` +` keeps what is lit (§6A) and
+ * ` ~` pauses (§6B). A leading `@` hides the link, and a hidden link is always silent, so its
+ * quoted form is dropped: what is spoken is what is shown. `` `~` `` alone is a pause and no link.
+ * `PS1:+` is a token, because its `+` has no space before it.
  */
-export function splitNotation(span: string): { token: string; say: string | null; keep: boolean } {
-  // The token, an optional quoted form, an optional trailing ` +` (*keep what is lit*,
-  // `talkthrough_03.md` §6A). `PS1:+` is a token, because its `+` has no space before it.
-  const m = /^(.+?)(?: "(.*)")?( \+)?$/.exec(span)!
-  return { token: m[1], say: m[2] ?? null, keep: !!m[3] }
+export function splitNotation(span: string): Notation {
+  if (span.trim() === '~') return { token: '', say: null, keep: false, pause: true, hidden: true }
+  const m = /^(@?)(.+?)(?: "(.*)")?((?: [+~])*)$/.exec(span)!
+  const hidden = !!m[1]
+  return { token: m[2], say: hidden ? null : m[3] ?? null, keep: m[4].includes('+'), pause: m[4].includes('~'), hidden }
+}
+
+/**
+ * `splitNotation`, except that **a span which resolves as written is a token, never notation**
+ * (§6B.1), so an id with `~`, ` +` or a leading `@` in it on some other drawing still works. The
+ * caller hands in its own lookup: `lib/` takes data, and `Citation` and `buildTalk` must agree.
+ */
+export function readSpan(span: string, resolves: (token: string) => boolean): Notation {
+  if (resolves(span)) return { token: span, say: null, keep: false, pause: false, hidden: false }
+  return splitNotation(span)
 }
 
 /** Plain words, each replaced by its listed form when it is one exactly, punctuation aside. */

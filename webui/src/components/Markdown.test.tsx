@@ -117,6 +117,17 @@ describe('Markdown citations', () => {
     expect(container.textContent).toBe('CR-BP and CR-BP and other.')
   })
 
+  it('renders nothing for a hidden link or a bare pause, and only the token of a ~ link', () => {
+    // **T-1984.** Not an empty `<code>`: nothing, so the text has no gap and a copy no blank.
+    arm()
+    const { container } = render(
+      <Markdown>{'See `CR-BP ~` then `@CR-BP` and `~` and `@NOWHERE "x"` done.'}</Markdown>,
+    )
+    expect(screen.getAllByRole('button', { name: 'CR-BP' })).toHaveLength(1)
+    expect(container.querySelectorAll('code')).toHaveLength(1)
+    expect(container.textContent!.replace(/\s+/g, ' ')).toBe('See CR-BP then and and done.')
+  })
+
   it('shows only the token of a + link, and a click selects that one item', () => {
     // **T-1790.** A click is one question (§16 S3A Q5): the build-up is the talk's, not the click's.
     arm()

@@ -25,11 +25,18 @@ can be executed with nothing else open.
   lit, so a signal's path builds up as it is spoken; the next plain link starts again. Also fixed
   my Session 3 report (a net link after a path click lit only the wire): the sheet paints the
   selection alone, and the path card is a diagnostic behind `?unclaimed=1`. Rebuild only. Lessons
-  T-1788–T-1795, the last of the plan's block. **Session 4 (§7) is next.**
+  T-1788–T-1795, the last of the plan's block. I listened and it works as expected.
+- **Session 3B (§6B), 2026-10-01:** a trailing ` ~` (`` `CB1 ~` ``) pauses at that link for the
+  palette's **Pause** time, lit first and then said; `` `~` `` alone pauses holding what is lit; a
+  leading `@` (`` `@CB1` ``) lights a link and flies there, never shown or said. The palette's
+  **where** picks *at marks* (default) or *at every item* (the old behaviour), and a hidden typo is
+  named in the palette. Natural flow survives a mark. Rebuild only. Lessons T-1980–T-1989 in `28_`.
+  Waiting for my listening report.
 
 What is left in `talkthrough_03.md`, in order, one session each:
 
-- **4:** keeping and reopening questions, answers and my edits, across a reload
+- **4 (§7):** keeping and reopening questions, answers and my edits, across a reload. **Three
+  questions in §16 S4 for me to answer first.** About $10–16, a rebuild and a restart.
 - **5–7:** steering: turning my edits into a report, then prompt rules I approve one by one, then
   a measurement
 

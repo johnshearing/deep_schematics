@@ -19,7 +19,7 @@ import { unified } from 'unified'
 
 import type { Designator, DesignatorKind } from '@/api/types'
 import { resolve } from '@/lib/designators'
-import { sayWords, speakId, splitNotation, type Pronunciations } from '@/lib/speakId'
+import { readSpan, sayWords, speakId, type Notation, type Pronunciations } from '@/lib/speakId'
 
 export interface Cite {
   kind: DesignatorKind
@@ -27,14 +27,20 @@ export interface Cite {
   token: string // as written
   /** Written with a trailing ` +`: light this and keep what is already lit (§6A). */
   keep?: true
+  /** Written with a leading `@`: lit and flown to, never shown and never said (§6B). */
+  hidden?: true
 }
 export interface Segment {
   show: string
   say: string
+  /** Written with a trailing ` ~`, or a bare `` `~` ``: dwell here for the palette's time (§6B).
+   * A bare pause is a segment of its own, with nothing shown, nothing said and no cite. */
+  pause?: true
   /** Fires before `say`. Absent on text before the first link, and on a repeat (rule 7). */
   cite?: Cite
   /** The link this segment starts with, as written — present on a repeat too, so the set of
-   * links can be checked against the screen's before any de-duplication. */
+   * links can be checked against the screen's before any de-duplication. Absent on a hidden
+   * link, which is no button on the screen. */
   link?: string
   /** How the link itself is said (the user's form, or the built-in one), for *Say it as…*. */
   spoken?: string
@@ -55,7 +61,12 @@ export interface Sentence {
   to?: number
 }
 /** `items` is every cite, in order, as `{ sentence, segment }`. */
-export interface Talk { sentences: Sentence[]; items: { s: number; g: number }[] }
+export interface Talk {
+  sentences: Sentence[]
+  items: { s: number; g: number }[]
+  /** Hidden links that resolve to nothing, as written: a typo there is otherwise invisible twice. */
+  missing?: string[]
+}
 
 /** Just the mdast this reads. A local shape rather than `@types/mdast`, which is not declared. */
 interface MdNode {
@@ -176,23 +187,26 @@ export function buildTalk(
   const root = unified().use(remarkParse).use(remarkGfm).parse(markdown) as MdNode
   const sentences: Sentence[] = []
   const items: Talk['items'] = []
+  const missing: string[] = []
+  const known = (token: string) => !!resolve(byToken, token)
 
   for (const { block, pieces, whole, keys } of blocks(root, [])) {
     // Rule 5: each code span becomes one private-use character, so no identifier is ever split
     // or read as a sentence end, and is restored afterwards.
     // `codes` holds each span as shown, so offsets count what is on screen (trap 5); `quoted` its
-    // one-off spoken form, or null.
+    // one-off spoken form, or null; `notes` the whole notation. A hidden link and a bare pause
+    // show nothing, so they count zero characters.
     const codes: string[] = []
     const quoted: (string | null)[] = []
-    const keeps: boolean[] = []
+    const notes: Notation[] = []
     let flat = ''
     for (const piece of pieces) {
       if ('code' in piece) {
         flat += String.fromCharCode(PUA + codes.length)
-        const { token, say, keep } = splitNotation(piece.code)
-        codes.push(token)
-        quoted.push(say)
-        keeps.push(keep)
+        const note = readSpan(piece.code, known)
+        codes.push(note.hidden ? '' : note.token)
+        quoted.push(note.say)
+        notes.push(note)
       // One for one, not collapsed: a sentence's offsets must line up with the DOM's text.
       } else flat += piece.text.replace(/\s/g, ' ')
     }
@@ -214,7 +228,7 @@ export function buildTalk(
       const to = at - (raw.length - raw.trimEnd().length)
       const segments: Segment[] = []
       // The segment being built: its link, the text after the link, and what came before it.
-      let link: { token: string; entry: Designator; say: string | null; keep: boolean } | null = null
+      let link: { token: string; entry: Designator; note: Notation } | null = null
       // A quoted span that is not a link is kept as one character until each part is built.
       const shown = (part: string) =>
         part.replace(/[\uf000-\uf8ff]/g, (c) => codes[c.charCodeAt(0) - QUOTED] ?? c)
@@ -229,14 +243,20 @@ export function buildTalk(
         parts.forEach((part, k) => {
           const before = segments.at(-1)?.say ?? ''
           if (k === 0 && link) {
+            const { keep, pause, hidden } = link.note
             // A repeat that changes ` +` is not a repeat: `B +` then `B` clears the build-up.
-            const key = `${link.entry.kind}:${link.entry.id}${link.keep ? ' +' : ''}`
-            const spoken = link.say ?? speakId(link.entry, link.token, before, lists)
+            const key = `${link.entry.kind}:${link.entry.id}${keep ? ' +' : ''}`
+            // A hidden link is said as nothing, and shows nothing, so it is no button to agree with.
+            const spoken = hidden ? '' : link.note.say ?? speakId(link.entry, link.token, before, lists)
             const say = nothingSaid(`${spoken} ${said(part)}`.replace(/\s+([.,;:!?)'’])/g, '$1').trim())
-            const segment: Segment = { show: link.token + shown(part), say, link: link.token, spoken }
+            const segment: Segment = hidden
+              ? { show: shown(part), say }
+              : { show: link.token + shown(part), say, link: link.token, spoken }
+            if (pause) segment.pause = true
             if (key !== lastCite) {
               segment.cite = { kind: link.entry.kind, id: link.entry.id, token: link.token }
-              if (link.keep) segment.cite.keep = true
+              if (keep) segment.cite.keep = true
+              if (hidden) segment.cite.hidden = true
               lastCite = key
             }
             segments.push(segment)
@@ -254,11 +274,21 @@ export function buildTalk(
           rest += ch
           continue
         }
-        const token = codes[n]
-        const entry = hasViewer ? resolve(byToken, token) : null
+        const note = notes[n]
+        const token = note.token
+        const entry = hasViewer && token ? resolve(byToken, token) : null
         if (entry?.point) {
           close()
-          link = { token, entry, say: quoted[n], keep: keeps[n] }
+          link = { token, entry, note }
+          continue
+        }
+        // Not a link. A pause still falls here, as a segment of its own (a bare `` `~` `` always).
+        if (note.pause) {
+          close()
+          segments.push({ show: '', say: '', pause: true })
+        }
+        if (note.hidden) {
+          if (token && hasViewer) missing.push(token)
         } else if (quoted[n] !== null) rest += String.fromCharCode(QUOTED + n)
         else rest += token // Rule 4: a span that is not a link is spoken as plain text.
       }
@@ -270,7 +300,7 @@ export function buildTalk(
       sentences.push({ segments, block, keys, from, to })
     }
   }
-  return { sentences, items }
+  return missing.length ? { sentences, items, missing } : { sentences, items }
 }
 
 /**

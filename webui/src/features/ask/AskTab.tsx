@@ -184,7 +184,7 @@ function Intro({
         Under a finished answer, <em>Talk me through it</em> switches to the drawing and reads the
         answer aloud, flying to each identifier just before it is named. <em>Natural flow</em> speaks
         each sentence in one breath, wherever its identifiers fall; untick it for the item-by-item
-        way. It pauses at each one if you like, steps by sentence or by item, and runs as captions
+        way. It pauses where you choose, steps by sentence or by item, and runs as captions
         when muted. Select part of an
         answer first to hear only that part. <em>Edit</em> rewrites an answer (or its question, from
         the pencil beside it) in place, and the talk reads what you wrote. In an edit,{' '}
@@ -192,7 +192,10 @@ function Intro({
         <em>disconnect 1</em>; empty quotes, <code>{'`W12 ""`'}</code>, show it and say nothing. A trailing{' '}
         <code>{'+'}</code>, <code>{'`CB1 +`'}</code> or <code>{'`W12 "" +`'}</code>, keeps what is
         already lit, so a signal&apos;s path builds up as it is read; the next link without one starts
-        again. With{' '}
+        again. A trailing <code>{'~'}</code>, <code>{'`CB1 ~`'}</code>, pauses there for the
+        palette&apos;s <em>Pause</em> time, and <code>{'`~`'}</code> alone pauses holding what is lit; a
+        leading <code>{'@'}</code>, <code>{'`@CB1`'}</code>, lights it and flies there without showing or
+        saying it. With{' '}
         <em>Show spoken text</em> on, <em>Say it as…</em> in the palette saves a pronunciation for this
         drawing or for every drawing (editor unlocked).
       </IntroNote>
