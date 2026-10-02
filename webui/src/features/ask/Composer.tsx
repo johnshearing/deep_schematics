@@ -11,6 +11,8 @@ export function Composer() {
   // was never tiled has none. `App` owns the key itself — see the comment on its handler.
   const hasDrawing = useAppStore((s) => !!s.drawing?.tiles?.count)
   const { busy, composerText, setComposerText, send, stop } = useChatStore()
+  // Restored after a reload, or reopened from Past answers: the model session it came from is gone.
+  const fresh = useChatStore((s) => s.messages.length > 0 && !s.sessionId && !s.busy)
   const textarea = useRef<HTMLTextAreaElement>(null)
 
   // Grow to fit, up to a point — a troubleshooting question is often a paragraph.
@@ -74,6 +76,7 @@ export function Composer() {
         )}
       </div>
       <p className="mt-1.5 text-[11px] text-muted-foreground">
+        {fresh && <>A new question starts a fresh conversation with the model.{' '}</>}
         Enter to send, Shift+Enter for a new line.{' '}
         {hasDrawing && <>F2 shows the drawing, and brings you back.{' '}</>}
         Answers are read-only and cite wire, net and terminal IDs — check them against the drawing

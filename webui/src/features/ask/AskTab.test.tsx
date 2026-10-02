@@ -12,13 +12,18 @@
  * being asserted is what the component *writes*, which is the part that can be wrong.
  */
 
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AskTab } from './AskTab'
 import type { Message } from '@/stores/chatStore'
 import { useAppStore } from '@/stores/appStore'
 import { useChatStore } from '@/stores/chatStore'
+import type { DesignatorIndex, DrawingSummary, Health } from '@/api/types'
+import { buildLookup } from '@/lib/designators'
+import { useTalkStore } from '@/features/talkthrough/talkStore'
 
 /** Two turns, so the transcript is long enough to have a middle. */
 const MESSAGES: Message[] = [
@@ -216,5 +221,125 @@ describe('editing an answer or a question', () => {
       answer: MESSAGES[1].text, answer_edited: 'Mine.', model: 'sonnet',
     })
     expect(screen.queryByRole('textbox', { name: 'Edit the answer' })).toBeNull()
+  })
+})
+
+const INDEX = JSON.parse(
+  readFileSync(path.join(__dirname, '../talkthrough/fixtures/designators.json'), 'utf8'),
+) as DesignatorIndex
+const TURN = '0f5c2a8e-1b2c-4d3e-8f90-123456789abc'
+/** An editor that needs no password, so `savesToDisk()` holds and the routes answer. */
+const EDITOR = {
+  editing: { enabled: true, password_required: false, by: null }, spend: { exhausted: false },
+} as unknown as Health
+
+describe('keeping and reopening (talkthrough_03.md §7)', () => {
+  let calls: { url: string; init?: RequestInit }[]
+  const reply = (body: unknown) => new Response(JSON.stringify(body), { status: 200 })
+
+  beforeEach(() => {
+    calls = []
+    useChatStore.setState({ messages: [], sessionId: null, composerText: '' })
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, init })
+      if (url.endsWith('/turns')) {
+        return reply({ turns: [{ turn_id: TURN, saved: '2026-10-01T09:30:00Z', model: 'sonnet',
+          prompt_version: 'v1.3', question: 'Why, exactly?', preview: 'Because `CR1` is open.', edited: true }] })
+      }
+      if (url.endsWith(`/turns/${TURN}`)) {
+        return reply({ turn_id: TURN, model: 'sonnet', question: 'Why?', answer: 'Because `CR1`.',
+          edit: { question: { original: 'Why?', edited: 'Why, exactly?' },
+            answer: { original: 'Because `CR1`.', edited: 'Because `CR1` is open.' } } })
+      }
+      return reply({ saved: true, record: {} })
+    }))
+  })
+
+  afterEach(() => {
+    useTalkStore.getState().exit()
+    vi.unstubAllGlobals()
+    useAppStore.setState({ health: null, byToken: new Map(), designators: null, drawing: null })
+  })
+
+  it('writes your own question and answer without asking the model, and saves them as composed', async () => {
+    useAppStore.setState({ health: EDITOR })
+    useChatStore.setState({ composerText: 'How is 24 V made?' })
+    render(<AskTab />)
+    fireEvent.click(screen.getByRole('button', { name: /Write your own/ }))
+    // The question came from the composer; the empty answer opens ready to write.
+    expect(screen.getByText('How is 24 V made?')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Edit the answer'), { target: { value: '`PS1` makes it.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(calls.some((c) => c.init?.method === 'PUT')).toBe(true))
+    const put = calls.find((c) => c.init?.method === 'PUT')!
+    const [, answer] = useChatStore.getState().messages
+    expect(put.url).toContain(`/edited-answers/${answer.turnId}`)
+    expect(answer.turnId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    expect(JSON.parse(put.init!.body as string)).toEqual({
+      question: '', question_edited: 'How is 24 V made?', answer: '', answer_edited: '`PS1` makes it.',
+      model: 'composed',
+    })
+    expect(screen.getByText('PS1')).toBeTruthy()
+  })
+
+  it('lists past answers only for the editor', () => {
+    const { container } = render(<AskTab />)
+    expect(container.querySelector('details')).toBeNull()
+    expect(screen.getByRole('button', { name: /Write your own/ })).toBeTruthy()
+  })
+
+  it('opens a past answer with its edits applied, then edits it and talks it through', async () => {
+    useAppStore.setState({
+      health: EDITOR, designators: INDEX, byToken: buildLookup(INDEX),
+      drawing: { tiles: { count: 4 } } as DrawingSummary,
+    })
+    const { container } = render(<AskTab />)
+    const details = container.querySelector('details')!
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    expect(await screen.findByText('Why, exactly?')).toBeTruthy()
+    expect(screen.getByText(/sonnet · edited/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    await waitFor(() => expect(useChatStore.getState().messages).toHaveLength(2))
+
+    const [question, answer] = useChatStore.getState().messages
+    expect([question.text, question.edited]).toEqual(['Why?', 'Why, exactly?'])
+    expect([answer.text, answer.edited, answer.turnId]).toEqual(['Because `CR1`.', 'Because `CR1` is open.', TURN])
+    // Already in the conversation: not opened twice.
+    expect((screen.getByRole('button', { name: 'Open' }) as HTMLButtonElement).disabled).toBe(true)
+    // Not this server's model session any more.
+    expect(screen.getByText(/A new question starts a fresh conversation/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.change(screen.getByLabelText('Edit the answer'), { target: { value: 'Because `CR1` is shut.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(calls.find((c) => c.init?.method === 'PUT')?.url).toContain(`/edited-answers/${TURN}`))
+    expect(JSON.parse(calls.find((c) => c.init?.method === 'PUT')!.init!.body as string).answer).toBe('Because `CR1`.')
+
+    fireEvent.click(await screen.findByRole('button', { name: /Talk me through it/ }))
+    expect(useTalkStore.getState().messageId).toBe(answer.id)
+    expect(useAppStore.getState().activeTabId).toBe('drawing')
+  })
+
+  it('comes back after a reload, with an answer caught mid-stream stopped rather than streaming', async () => {
+    useChatStore.setState({
+      messages: [MESSAGES[0], { ...MESSAGES[1], edited: 'Mine.', turnId: TURN },
+        { ...MESSAGES[1], id: 'a2', status: 'streaming', thinking: true }],
+      sessionId: 'sid-1', busy: true,
+    })
+    const kept = JSON.parse(sessionStorage.getItem('ask-transcript')!).state
+    expect(Object.keys(kept).sort()).toEqual(['messages', 'sessionCostUsd'])
+    // The reload: memory is gone, the tab's storage is not. (Emptying the store writes through,
+    // so the stored copy is put back the way the browser would have kept it.)
+    const stored = sessionStorage.getItem('ask-transcript')!
+    useChatStore.setState({ messages: [], sessionId: null, busy: false })
+    sessionStorage.setItem('ask-transcript', stored)
+    await useChatStore.persist.rehydrate()
+    const messages = useChatStore.getState().messages
+    expect(messages.map((m) => m.id)).toEqual(['u1', 'a1', 'a2'])
+    expect([messages[1].edited, messages[1].turnId, messages[2].status]).toEqual(['Mine.', TURN, 'cancelled'])
+    render(<AskTab />)
+    expect(screen.getByText('Mine.')).toBeTruthy()
+    expect(screen.getByText(/A new question starts a fresh conversation/)).toBeTruthy()
   })
 })

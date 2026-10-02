@@ -14,7 +14,10 @@ import { EditBox } from './EditBox'
 import { ToolStrip } from './ToolStrip'
 
 export function MessageView({ message }: { message: Message }) {
-  const [editing, setEditing] = useState(false)
+  // An empty half of `Write your own` opens ready to write; there is nothing else it could show.
+  const [editing, setEditing] = useState(
+    () => !!message.composed && message.edited === undefined,
+  )
   const answerRef = useRef<HTMLDivElement>(null)
 
   if (message.role === 'user') {
@@ -81,7 +84,7 @@ export function MessageView({ message }: { message: Message }) {
       {editing ? (
         <EditBox message={message} onDone={() => setEditing(false)} />
       ) : (
-        message.text && (
+        shownText(message) && (
           <div ref={answerRef} className={cn(streaming && 'caret')}>
             <Markdown>{shownText(message)}</Markdown>
           </div>
@@ -180,7 +183,7 @@ function Footer({ message, answerRef, onEdit }: {
           Edit
         </Button>
       )}
-      {message.text && (
+      {shownText(message) && (
         <Button
           variant="ghost"
           size="sm"

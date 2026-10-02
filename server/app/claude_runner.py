@@ -379,7 +379,7 @@ class ClaudeRunner:
 
         argv = build_argv(settings, model=model, session_id=session_id, resume=resume)
         env = build_child_env(settings)
-        archive = _open_archive(settings, turn.turn_id, model, session_id)
+        archive = _open_archive(settings, turn.turn_id, model, session_id, question)
 
         yield {"t": "start", "turn_id": turn.turn_id, "session_id": session_id, "model": model}
 
@@ -633,10 +633,16 @@ def _error(message: str, code: str) -> dict[str, Any]:
     return {"t": "error", "code": code, "message": message}
 
 
-def _open_archive(settings: Settings, turn_id: str, model: str, session_id: str) -> Any:
+def _open_archive(
+    settings: Settings, turn_id: str, model: str, session_id: str, question: str
+) -> Any:
     """Keep the raw transcript. `webui_ideas.md` §7: the same question can answer differently
     across runs, models and effort levels, and in a project built on an auditable chain that
-    is a first-class concern rather than a curiosity."""
+    is a first-class concern rather than a curiosity.
+
+    The question goes in `_meta` (`talkthrough_03.md` §7): it reaches the CLI on stdin, so the
+    stream never repeats it, and without it a past answer could not be reopened beside what was
+    asked. Archives written before 2026-10-01 have none."""
     try:
         settings.log_dir.mkdir(parents=True, exist_ok=True)
         handle = (settings.log_dir / f"{turn_id}.jsonl").open("w", encoding="utf-8")
@@ -650,6 +656,7 @@ def _open_archive(settings: Settings, turn_id: str, model: str, session_id: str)
                     "effort": settings.effort_for(model),
                     "prompt_version": PROMPT_VERSION,
                     "drawing_dir": str(settings.drawing_dir),
+                    "question": question,
                 }
             )
             + "\n"

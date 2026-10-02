@@ -81,6 +81,7 @@ from .pronunciations import (
 )
 from .questions import starter_questions
 from .sessions import SessionStore
+from .turns import list_turns, read_turn
 from .wiring import WiringRefused, load_wiring, resolve_wiring, save_wiring, wiring_path
 from .wiring import skeleton as wiring_skeleton
 
@@ -505,6 +506,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             """Every saved rewrite, newest first — the material a steering plan would read."""
             _require_editor(app.state.settings, x_editor_password)
             return {"records": list_edits(settings.drawing_dir)}
+
+        @app.get("/api/turns")
+        async def get_turns(
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """Past answers, newest first, for the Ask tab to reopen (`talkthrough_03.md` §7).
+            Editor only: on a public demo the archives hold visitors' questions."""
+            _require_editor(app.state.settings, x_editor_password)
+            s = app.state.settings
+            return {"turns": list_turns(s.log_dir, s.drawing_dir)}
+
+        @app.get("/api/turns/{turn_id}")
+        async def get_turn(
+            turn_id: str,
+            x_editor_password: Annotated[str | None, Header()] = None,
+        ) -> dict[str, Any]:
+            """One past turn whole: what was asked, what the model wrote, and the user's saved
+            rewrite of either, if there is one."""
+            _require_editor(app.state.settings, x_editor_password)
+            s = app.state.settings
+            try:
+                turn = read_turn(s.log_dir, s.drawing_dir, turn_id)
+            except ValueError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            if turn is None:
+                raise HTTPException(404, "No such turn.")
+            return turn
 
         @app.get("/api/locations")
         async def get_locations(

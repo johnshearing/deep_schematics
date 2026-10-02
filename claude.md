@@ -5,8 +5,8 @@ purpose — and then do §1 and nothing else.**
 
 ## 1. The request
 
-**Read `_claude_notes/talkthrough_03.md` and execute the session I name in my message** (Session 4,
-§7, unless I say otherwise), and nothing else. That document is self-contained. It carries the
+**Read `_claude_notes/talkthrough_03.md` and execute the session I name in my message** (Session 5,
+§8, unless I say otherwise), and nothing else. That document is self-contained. It carries the
 reading list, the traps, the budget, the standing rules and the questions to ask me first, so it
 can be executed with nothing else open.
 
@@ -32,13 +32,18 @@ can be executed with nothing else open.
   **where** picks *at marks* (default) or *at every item* (the old behaviour), and a hidden typo is
   named in the palette. Natural flow survives a mark. Rebuild only. Lessons T-1980–T-1989 in `28_`.
   Waiting for my listening report.
+- **Session 4 (§7), 2026-10-01:** each turn's question is recorded; **Past answers** (editor only)
+  reopens this drawing's turns with my edits applied; the transcript survives a reload; and my
+  three requests: **Write your own** composes a question and answer without asking the model
+  (saved as `composed`), **Comma pause** in the palette, and **Natural flow** switched back on
+  once in a browser that remembered it off. **Restart and rebuild** (bundle built). Lessons
+  T-1765–T-1785. Waiting for my listening report on the comma pause.
 
 What is left in `talkthrough_03.md`, in order, one session each:
 
-- **4 (§7):** keeping and reopening questions, answers and my edits, across a reload. **Three
-  questions in §16 S4 for me to answer first.** About $10–16, a rebuild and a restart.
-- **5–7:** steering: turning my edits into a report, then prompt rules I approve one by one, then
-  a measurement
+- **5 (§8):** the edit report, a script and no model change. **Treat `model: "composed"` records
+  as authored, not edited** (§7's as-built note). About $4–6.
+- **6–7:** steering: prompt rules I approve one by one, then a measurement.
 
 It absorbed and retired `talkthrough_02.md` and `steering_with_edits_01.md`, which now sit in
 `_claude_notes/archive/`. **Update this §1 at the end of every session to name the next one.**

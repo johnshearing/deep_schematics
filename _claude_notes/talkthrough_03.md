@@ -724,7 +724,7 @@ Lessons need **new T-numbers**: this plan's T-1705–T-1795 are spent (§16 S3B 
 
 ---
 
-## §7 Session 4: keeping questions, answers and edits, and reopening them. About $10–16, and one restart.
+## §7 Session 4: keeping questions, answers and edits, and reopening them. About $10–16, and one restart. **Built 2026-10-01.**
 
 **The gap, measured (§3.4):** edits reach disk only when saved while unlocked. The transcript is
 lost on reload. The turn archives keep every answer, but **not its question**.
@@ -758,6 +758,30 @@ lost on reload. The turn archives keep every answer, but **not its question**.
 - Web: `AskTab.test.tsx` covers open, edit, talk, and a restored transcript after a simulated
   reload.
 - Documents: **T-1765–T-1785** in `28_`.
+
+**As built (2026-10-01), with the user's three requests from §16 S4:**
+- `_meta` carries `question`; `server/app/turns.py` reads archives back (`translate()` over the
+  `text_delta` lines only: 102 archives, 8 MB, list in 0.13 s) and lists **only this drawing's**
+  turns (an archive's `drawing_dir`; one without it is listed). `GET /api/turns` and
+  `GET /api/turns/{id}` are inside `if settings.allow_edits:`, editor password. 102 existing turns
+  are *(question not recorded)*.
+- **Request 1, *Write your own*:** `chatStore.compose(question)` appends an empty finished pair
+  with a client `crypto.randomUUID()` turn id (the server's `TURN_ID` shape) and `model:
+  "composed"`, `composed: true` on both halves so their empty boxes open ready to write. It saves
+  through the existing `PUT /api/edited-answers/{id}` with empty originals, and `list_turns` lists
+  a record with no archive, so a composed answer is reopenable too. **Session 5's report must treat
+  `model == "composed"` as authored, not edited** (it is the user's style with no model original).
+- `chatStore` is `persist`ed to `sessionStorage` (`ask-transcript`: messages and cost only; a
+  streaming answer comes back `cancelled`). The composer says a new question starts fresh whenever
+  there are messages and no `sessionId`.
+- **Request 2, the comma:** `lib/speech.ts` `speakPhrases` ends an utterance at `, ` and waits the
+  palette's **Comma pause** (off · short 150 ms · long 400 ms, default short) before the next,
+  boundaries counted against the whole text. Both loops use it. The user is the judge (T-1767).
+- **Request 3, natural flow:** the code default was already `true`; the user's browser had
+  remembered it off. `talkthrough-settings` is now persist `version: 1`, whose migration turns it
+  on once.
+- Tests: `test_turns.py` (10), `test_runner.py` (+1 assert), `AskTab.test.tsx` (+4),
+  `talkStore.test.ts` (+5), `lib/speech.test.ts` (2, new). Lessons T-1765–T-1785.
 
 ---
 
@@ -869,7 +893,7 @@ measurement. The numbers only say what can be read.
 | 3 | **§6 the other two cards** (built 2026-09-30, with net links) | nothing blocks the sheet | **$5–8** |
 | 3A | **§6A several items lit at once** (built 2026-09-30, and the path card demoted) | a signal's path built up on the sheet as it is spoken | **$12–20** |
 | 3B | **§6B marked pauses and hidden links** (planned 2026-10-01) | the presenter sets the pace and moves the drawing without cluttering the text | **$8–14** |
-| 4 | **§7 keep and reopen** | a prepared video answer survives a reload; the steering data accumulates | **$10–16** |
+| 4 | **§7 keep and reopen** (built 2026-10-01, with *Write your own*, the comma pause and the flow default) | a prepared video answer survives a reload; the steering data accumulates | **$10–16** |
 | 5 | **§8 edit report** | reading the edits as a whole | **$4–6** |
 | 6 | **§9 rules into the prompt** | answers written the way the user rewrites them | **$4–7** |
 | 7 | **§10 measure** | proof, and the user's ear | **$3–6** (+ ≤ $1.50) |
@@ -959,8 +983,8 @@ cd ../webui && npx vitest run && npx tsc -b --noEmit
 - **Background them in parallel, but a worker error is not a red test.** A vitest
   `ERR_IPC_CHANNEL_CLOSED` beside pytest is contention. Re-run `npx vitest run` alone. Only a
   named failing test is a failure.
-- **Start from green, and read the counts off your own run:** **272 server and 580 web** on
-  2026-09-28, and they move.
+- **Start from green, and read the counts off your own run:** **297 server and 654 web** on
+  2026-10-01, and they move.
 - The known exception: `test_the_committed_artifact_is_exactly_what_the_generator_writes` goes red
   when `locations.json` or `wiring.json` is ahead of `circuit_logic.json`, and names which. Clear it
   with the generator (§14.3) before starting.
@@ -1205,6 +1229,30 @@ the user's next *"Greetings"* reads first.
    hold visitors' questions), or anyone?
 3. **A reopened answer and follow-ups:** a follow-up starts a new conversation (*recommended*: the old
    model session is gone)?
+
+    !!!! The following is an edit by John, your human coworker. These are my responses to the questions for session 3B !!!!
+    I accept all of your recommendations.
+
+    Also, I have the following requests:
+    1. In order to get to the edit screen on the "Ask" tab, I am first required to ask a question.
+    Only then is the edit screen available. 
+    But sometimes I just need to compose a question and an answer so that I can experiment with the notations used to control the talkthroughs. 
+    Or perhaps I want to make a video of a talkthrough for an question and answer that I composed myself.
+    I feel like there should be a way to get to the edit screen without having to ask a question.
+    Perhaps this request is already part of session 4 - I don't know.
+
+    2. When the browser reads a response aloud, it does not seem to give a slight pause at a comma. 
+    If a slight pause were given at a comma, then the speech would seem more natural and less confusing.
+
+    3. Please check to see that the "Natural flow" option on the pallet is the default. Currently, I don't think that it is.  
+
+
+    !!!! This is the end of John's edit.  !!!! 
+
+
+
+
+
 
 **Session 6 (§9), with Session 1's result in hand:**
 1. **Rules only, or rules and then exemplars?** *Recommended: rules only* (trap 19).

@@ -182,6 +182,8 @@ async def test_turn_is_archived_for_audit(settings: Settings, fake_mode) -> None
     assert lines[0]["type"] == "_meta"
     assert lines[0]["model"] == "sonnet"
     assert lines[0]["prompt_version"]
+    # The question reaches the CLI on stdin only, so this is the one place it is written down.
+    assert lines[0]["question"] == "How many wires are in net 110?"
     assert any(line.get("type") == "result" for line in lines)
 
 

@@ -75,6 +75,7 @@ beforeEach(() => {
   useChatStore.setState({ messages: [QUESTION, MESSAGE] })
   useTalkStore.setState({
     dwell: 0, where: 'marks', rate: 1, muted: false, palette: null, voice: null, pitch: 1, questionFirst: false, showSay: false, flow: false,
+    comma: 0,
   })
 })
 
@@ -223,7 +224,7 @@ describe('talkStore', () => {
     const saved = JSON.parse(localStorage.getItem('talkthrough-settings')!).state
     expect(saved).toEqual({
       dwell: 4000, where: 'marks', rate: 1.3, muted: false, palette: { x: 10, y: 20 },
-      voice: null, pitch: 1, questionFirst: false, showSay: false, flow: false,
+      voice: null, pitch: 1, questionFirst: false, showSay: false, flow: false, comma: 0,
     })
   })
 
@@ -555,5 +556,54 @@ describe('marked pauses and hidden links (talkthrough_03.md §6B)', () => {
     await voice.finish()
     expect(selected()).toBe('CR1')
     expect(texts().at(-1)).toBe('End.')
+  })
+})
+
+describe('a breath at each comma (the user, 2026-10-01)', () => {
+  const COMMAS: Message = { ...MESSAGE, id: 'a2', text: 'First `CR1` closes, then `PB1` lights.' }
+  beforeEach(() => {
+    useChatStore.setState({ messages: [COMMAS] })
+    useTalkStore.setState({ flow: true, comma: 150 })
+  })
+
+  it('ends the utterance at the comma, waits, and lights the next link inside the next one', async () => {
+    talk().start(COMMAS)
+    expect(texts()).toEqual(['First C R 1 closes,'])
+    await voice.finish()
+    expect(texts()).toHaveLength(1) // the breath
+    await vi.advanceTimersByTimeAsync(150)
+    expect(texts()).toEqual(['First C R 1 closes,', 'then P B 1 lights.'])
+    voice.boundary(5) // "P", counted from the phrase's own start
+    expect(selected()).toBe('PB1')
+    await voice.finish()
+    expect(talk().phase).toBe('done')
+  })
+
+  it('says nothing more when paused during the breath', async () => {
+    talk().start(COMMAS)
+    await voice.finish()
+    talk().pause()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(texts()).toEqual(['First C R 1 closes,'])
+  })
+
+  it('is one utterance with the comma pause off', async () => {
+    useTalkStore.setState({ comma: 0 })
+    talk().start(COMMAS)
+    expect(texts()).toEqual(['First C R 1 closes, then P B 1 lights.'])
+  })
+})
+
+describe('natural flow is the default (the user, 2026-10-01)', () => {
+  it('is put back on once for a browser that remembered it off', async () => {
+    localStorage.setItem('talkthrough-settings', JSON.stringify({ state: { flow: false }, version: 0 }))
+    await useTalkStore.persist.rehydrate()
+    expect(talk().flow).toBe(true)
+  })
+
+  it('stays off when unticked after that', async () => {
+    localStorage.setItem('talkthrough-settings', JSON.stringify({ state: { flow: false }, version: 1 }))
+    await useTalkStore.persist.rehydrate()
+    expect(talk().flow).toBe(false)
   })
 })

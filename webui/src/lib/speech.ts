@@ -165,3 +165,30 @@ export function timedSpeaker(wpm = 170): Speaker {
     return () => timers.forEach(clearTimeout)
   }, true)
 }
+
+/**
+ * Speak `text` with a breath at each comma: one utterance per phrase, `gap` ms apart. The user,
+ * 2026-10-01: *"it does not seem to give a slight pause at a comma"* — some voices barely do, so
+ * the pause is made here rather than hoped for. Only a comma followed by a space ends a phrase,
+ * so `1,000` stays whole. Boundaries are reported against the whole `text`, as one utterance
+ * would. `live` is asked after every phrase and gap, so a cancel during the gap says nothing more.
+ * A `gap` of 0 is exactly `speaker.speak`.
+ */
+export async function speakPhrases(
+  speaker: Speaker, text: string, rate: number, pitch: number, gap: number,
+  live: () => boolean, onBoundary?: (charIndex: number) => void,
+): Promise<'end' | 'cancelled'> {
+  if (gap <= 0) return speaker.speak(text, rate, pitch, onBoundary)
+  const starts = [0, ...[...text.matchAll(/,\s+(?=\S)/g)].map((m) => m.index + m[0].length)]
+  for (let k = 0; k < starts.length; k++) {
+    if (k > 0) {
+      await new Promise((resolve) => setTimeout(resolve, gap))
+      if (!live()) return 'cancelled'
+    }
+    const from = starts[k]
+    const piece = text.slice(from, starts[k + 1] ?? text.length).trimEnd()
+    const how = await speaker.speak(piece, rate, pitch, (at) => onBoundary?.(from + at))
+    if (how === 'cancelled' || !live()) return 'cancelled'
+  }
+  return 'end'
+}

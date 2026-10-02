@@ -28,7 +28,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 import type { Pronunciations } from '@/lib/speakId'
-import { setPreferredVoice, timedSpeaker, webSpeaker, type Speaker } from '@/lib/speech'
+import { setPreferredVoice, speakPhrases, timedSpeaker, webSpeaker, type Speaker } from '@/lib/speech'
 import { useAppStore } from '@/stores/appStore'
 import { shownText, useChatStore, type Message } from '@/stores/chatStore'
 import { DRAWING_TAB_ID } from '@/tabIds'
@@ -68,6 +68,8 @@ interface TalkState {
   showSay: boolean
   /** Speak each sentence as one utterance, links and all, when there is no dwell. */
   flow: boolean
+  /** A breath at each comma, in ms on top of the voice's own; 0 is none. */
+  comma: number
 
   /** Talk through an answer, or only the sentences `span` touches when there is a selection. */
   start: (message: Message, span?: Span | null) => void
@@ -90,6 +92,7 @@ interface TalkState {
   setQuestionFirst: (on: boolean) => void
   setShowSay: (on: boolean) => void
   setFlow: (on: boolean) => void
+  setComma: (ms: number) => void
 }
 
 let speakers: { voice: Speaker; timed: Speaker } = { voice: webSpeaker, timed: timedSpeaker() }
@@ -262,7 +265,7 @@ export const useTalkStore = create<TalkState>()(
 
           set({ phase: 'speaking' })
           setPreferredVoice(get().voice)
-          const how = await speaker().speak(segment.say, get().rate, get().pitch)
+          const how = await speakPhrases(speaker(), segment.say, get().rate, get().pitch, get().comma, live)
           if (!live() || how === 'cancelled') return
 
           const next = following(pos)
@@ -326,7 +329,7 @@ export const useTalkStore = create<TalkState>()(
           const dropEstimates = () => estimates.splice(0).forEach(clearTimeout)
 
           setPreferredVoice(get().voice)
-          const how = await speaker().speak(text, rate, get().pitch, (charIndex) => {
+          const how = await speakPhrases(speaker(), text, rate, get().pitch, get().comma, live, (charIndex) => {
             dropEstimates()
             reach(charIndex)
           })
@@ -377,6 +380,7 @@ export const useTalkStore = create<TalkState>()(
         questionFirst: false,
         showSay: false,
         flow: true,
+        comma: 150,
 
         start: (message, span) => {
           if (message.status !== 'done') return
@@ -467,13 +471,19 @@ export const useTalkStore = create<TalkState>()(
         // Takes effect at the next sentence: `runFlow` checks it there, and the subscriber below
         // hands an old-path talk over when it is switched on.
         setFlow: (flow) => set({ flow }),
+        setComma: (comma) => set({ comma }),
       }
     },
     {
       name: 'talkthrough-settings',
-      partialize: ({ dwell, where, rate, muted, palette, voice, pitch, questionFirst, showSay, flow }) => ({
-        dwell, where, rate, muted, palette, voice, pitch, questionFirst, showSay, flow,
+      partialize: ({ dwell, where, rate, muted, palette, voice, pitch, questionFirst, showSay, flow, comma }) => ({
+        dwell, where, rate, muted, palette, voice, pitch, questionFirst, showSay, flow, comma,
       }),
+      // Version 1 (2026-10-01): natural flow is on by default, and a browser that remembered it
+      // off from before is put back on once. The user asked for that default; untick to keep it off.
+      version: 1,
+      migrate: (stored, version) =>
+        (version < 1 ? { ...(stored as object), flow: true } : stored) as TalkState,
     },
   ),
 )

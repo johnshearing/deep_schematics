@@ -35,6 +35,12 @@ const WHERES: { value: Where; label: string }[] = [
   { value: 'marks', label: 'at marks ~' },
   { value: 'every', label: 'at every item' },
 ]
+/** A breath at each comma (the user, 2026-10-01), on top of whatever the voice does. */
+const COMMAS: { value: number; label: string }[] = [
+  { value: 0, label: 'off' },
+  { value: 150, label: 'short' },
+  { value: 400, label: 'long' },
+]
 
 export function TalkPalette() {
   const phase = useTalkStore((s) => s.phase)
@@ -44,7 +50,7 @@ export function TalkPalette() {
 
 function Palette() {
   const state = useTalkStore()
-  const { talk, pos, phase, dwell, where, rate, muted, palette, shown, voice, pitch, questionFirst, showSay, flow } = state
+  const { talk, pos, phase, dwell, where, rate, muted, palette, shown, voice, pitch, questionFirst, showSay, flow, comma } = state
   const voices = useVoices()
   const { ref, style, handleProps, dragging } = useDraggable<HTMLDivElement>(palette, state.setPalette)
   const opened = useRef(false)
@@ -316,6 +322,26 @@ function Palette() {
           <input type="checkbox" checked={flow} onChange={(event) => state.setFlow(event.target.checked)} />
           Natural flow
         </label>
+        <div className="flex items-center gap-1 text-xs" title="A short pause at each comma, on top of the voice's own">
+          <span className="text-muted-foreground">Comma pause:</span>
+          <div className="flex flex-1 overflow-hidden rounded-md border" role="radiogroup" aria-label="Comma pause">
+            {COMMAS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={comma === value}
+                onClick={() => state.setComma(value)}
+                className={cn(
+                  'flex-1 border-r px-1.5 py-0.5 last:border-r-0',
+                  comma === value ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-accent/50',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {!voiceSupported() && (
           <p className="text-[11px] text-muted-foreground">

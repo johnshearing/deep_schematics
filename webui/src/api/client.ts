@@ -87,6 +87,42 @@ export interface EditedAnswer {
   model: string | null
 }
 
+/** A past turn in the Ask tab's *Past answers* list (`talkthrough_03.md` §7). */
+export interface PastTurn {
+  turn_id: string
+  saved: string
+  model: string | null
+  prompt_version: string | null
+  /** Null for a turn asked before questions were recorded (2026-10-01). */
+  question: string | null
+  preview: string
+  edited: boolean
+}
+
+/** One past turn whole, with the user's saved rewrite if there is one. */
+export interface PastTurnDetail {
+  turn_id: string
+  model: string | null
+  question: string | null
+  answer: string
+  edit: { question: { original: string; edited: string | null }; answer: { original: string; edited: string | null } } | null
+}
+
+/** This drawing's past turns, newest first. Editor routes only, and the editor password. */
+export async function getTurns(): Promise<PastTurn[]> {
+  const response = await fetch(`${API}/turns`, { headers: { Accept: 'application/json', ...editorHeader() } })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  return ((await response.json()) as { turns: PastTurn[] }).turns
+}
+
+export async function getTurn(turnId: string): Promise<PastTurnDetail> {
+  const response = await fetch(`${API}/turns/${encodeURIComponent(turnId)}`, {
+    headers: { Accept: 'application/json', ...editorHeader() },
+  })
+  if (!response.ok) throw new ApiError(response.status, await detail(response))
+  return (await response.json()) as PastTurnDetail
+}
+
 /** Keep the user's rewrite beside the original (`talkthrough_02.md` §6). Both edits null deletes
  * the record. Needs the editor routes (`SWUI_ALLOW_EDITS=true`) and, if set, its password. */
 export async function putEditedAnswer(turnId: string, body: EditedAnswer): Promise<void> {

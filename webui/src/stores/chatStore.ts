@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { createJSONStorage, persist } from 'zustand/middleware'
 
 import { ApiError, ask, cancelTurn } from '@/api/client'
 import type { ServerEvent } from '@/api/types'
@@ -38,10 +39,25 @@ export interface Message {
    * **`text` is never overwritten**: it stays the original, off screen, for comparison.
    */
   edited?: string
+  /** One half of `Write your own`: written by the user, with no original of the model's. */
+  composed?: boolean
 }
 
 /** What a message says now: the user's edit if there is one, else the original. */
 export const shownText = (message: Message) => message.edited ?? message.text
+
+/** What an answer the user wrote themselves is marked with, in place of a model's name. */
+export const COMPOSED = 'composed'
+
+/** A finished question and answer put back into the transcript (`talkthrough_03.md` §7). */
+export interface Pair {
+  turnId: string
+  question: string
+  questionEdited?: string | null
+  answer: string
+  answerEdited?: string | null
+  model?: string | null
+}
 
 interface ChatState {
   sessionId: string | null
@@ -57,6 +73,10 @@ interface ChatState {
   reset: () => void
   /** Replace what a message shows with `text`, or put the original back with null. */
   editMessage: (id: string, text: string | null) => void
+  /** Append a past turn as a finished pair, its saved edits applied and its `turnId` kept. */
+  open: (pair: Pair) => void
+  /** Append an empty answer for the user to write, under `question` if they typed one. */
+  compose: (question: string) => void
 }
 
 let controller: AbortController | null = null
@@ -87,7 +107,20 @@ function patchLast(messages: Message[], patch: (message: Message) => Partial<Mes
   return [...messages.slice(0, -1), { ...last, ...patch(last) }]
 }
 
-export const useChatStore = create<ChatState>()((set, get) => ({
+const finished = (id: string, role: Message['role'], text: string, edited?: string | null,
+  extra: Partial<Message> = {}): Message => ({
+  id, role, text, tools: [], denials: [], status: 'done', thinking: false, startedAt: Date.now(),
+  ...(edited != null && edited !== text ? { edited } : {}), ...extra,
+})
+
+/**
+ * Kept in `sessionStorage` (`talkthrough_03.md` §7), so an F5 in the middle of preparing a video
+ * loses nothing, and closing the tab still ends it. **The messages only**: never `sessionId` —
+ * the model session it named lives in the server's memory and a reload may have outlived it, so
+ * a restored conversation's next question starts a fresh one, and the composer says so — never
+ * `busy`, and an answer caught mid-stream comes back stopped rather than streaming forever.
+ */
+export const useChatStore = create<ChatState>()(persist((set, get) => ({
   sessionId: null,
   messages: [],
   busy: false,
@@ -106,6 +139,30 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         return text === null || text === m.text ? rest : { ...rest, edited: text }
       }),
     })),
+
+  open: (pair) =>
+    set((state) => ({
+      messages: [
+        ...state.messages,
+        finished(`u${pair.turnId}`, 'user', pair.question, pair.questionEdited),
+        finished(`a${pair.turnId}`, 'assistant', pair.answer, pair.answerEdited, {
+          turnId: pair.turnId, model: pair.model ?? undefined,
+        }),
+      ],
+    })),
+
+  compose: (question) => {
+    // A uuid4, the shape the server's turn ids have, so `Save` keeps it beside the model's.
+    const turnId = crypto.randomUUID()
+    set((state) => ({
+      composerText: '',
+      messages: [
+        ...state.messages,
+        finished(`u${turnId}`, 'user', '', question.trim() || null, { composed: true }),
+        finished(`a${turnId}`, 'assistant', '', null, { turnId, model: COMPOSED, composed: true }),
+      ],
+    }))
+  },
 
   reset: () => {
     controller?.abort()
@@ -251,6 +308,13 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       set({ busy: false, turnId: null })
     }
   },
+}), {
+  name: 'ask-transcript',
+  storage: createJSONStorage(() => sessionStorage),
+  partialize: ({ messages, sessionCostUsd }) => ({
+    messages: messages.map((m) => (m.status === 'streaming' ? { ...m, status: 'cancelled' as const, thinking: false } : m)),
+    sessionCostUsd,
+  }),
 }))
 
 function describe(error: unknown, message: Message): string {

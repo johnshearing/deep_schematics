@@ -7,6 +7,7 @@ import { useAppStore } from '@/stores/appStore'
 import { useChatStore } from '@/stores/chatStore'
 import { Composer } from './Composer'
 import { MessageView } from './MessageView'
+import { AskTools } from './PastAnswers'
 import { StarterQuestions } from './StarterQuestions'
 
 /**
@@ -119,6 +120,7 @@ export function AskTab() {
       )}
 
       <div className="mx-auto w-full max-w-3xl">
+        <AskTools />
         <Composer />
       </div>
     </div>
@@ -184,7 +186,7 @@ function Intro({
         Under a finished answer, <em>Talk me through it</em> switches to the drawing and reads the
         answer aloud, flying to each identifier just before it is named. <em>Natural flow</em> speaks
         each sentence in one breath, wherever its identifiers fall; untick it for the item-by-item
-        way. It pauses where you choose, steps by sentence or by item, and runs as captions
+        way. <em>Comma pause</em> adds a breath at each comma. It pauses where you choose, steps by sentence or by item, and runs as captions
         when muted. Select part of an
         answer first to hear only that part. <em>Edit</em> rewrites an answer (or its question, from
         the pencil beside it) in place, and the talk reads what you wrote. In an edit,{' '}
@@ -198,6 +200,15 @@ function Intro({
         saying it. With{' '}
         <em>Show spoken text</em> on, <em>Say it as…</em> in the palette saves a pronunciation for this
         drawing or for every drawing (editor unlocked).
+      </IntroNote>
+
+      <IntroNote label="Keeping and reopening">
+        <em>Write your own</em>, under the conversation, adds a question and answer for you to write
+        without asking the model, to try the notation above or to record a talk you composed; what
+        is in the box becomes the question. With the editor unlocked (Locate tab), every edit and
+        every answer you write is saved beside the drawing, and <em>Past answers</em> lists what was
+        asked here, newest first, to <em>Open</em> again with your edits applied. A reload keeps the
+        conversation; a question after one starts a fresh conversation with the model.
       </IntroNote>
     </div>
   )
