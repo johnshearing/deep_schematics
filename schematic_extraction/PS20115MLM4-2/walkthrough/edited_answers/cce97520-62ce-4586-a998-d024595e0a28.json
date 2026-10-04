@@ -1,0 +1,14 @@
+{
+  "turn_id": "cce97520-62ce-4586-a998-d024595e0a28",
+  "saved_at": "2026-10-03T00:44:45Z",
+  "model": "composed",
+  "prompt_version": "v1.3",
+  "question": {
+    "original": "",
+    "edited": "How is power delivered to the 24 Volt net?"
+  },
+  "answer": {
+    "original": "",
+    "edited": "`@ PLG1:B +` Terminal `PLG1:B \"PLG1B\" +` of the 30 Amp electrical plug brings 115 Volts AC to net `L1 \"L1\" +`. `~`  \n\nSo now we have power on terminal `DISC1:L1 \"DISC1L1\" +` of the electrical disconnect. `~`  \n\nWhen this disconnect is switched to the on position `@ CB1:1 +`, power goes to the 8 Amp circuit breaker, `CB1 +`. `~`  \n\nWhen CB1 is switched to the on position `@ PS1:L1 +` the DC power supply `PS1 +` becomes energized and it converts AC power to 24 Volts DC. `~`  \n\n`PS1:+ +` is the power supply's output terminal. `~`  \n\n`@ CB2:1 +` The 20 Amp circuit breaker `CB2 +` receives the 24 Volt output from the power supply. `~`  \n\nWhen this circuit breaker is closed `@ CB2:2 +` power goes to `@ TB-24E1-A:1` the main 24 Volt terminal block. `~`  \n\nNow the 24 Volt DC distribution `24E-1 +` becomes energized. `~`  \n\n`PS1:-1 \"PS1 negative 1\"` the power supply's minus terminal runs to terminal `TB-0V:3 \"TB0V3\"` at the neutral terminal block and establishes the zero Volt net `0V \"\"`. `~`  \n\n`PS1:-2`, the power supply's second minus terminal, bonds the neutral zero volt net to the chassis ground at terminal `TB-GND-B:2`. `~`  \n\nThe system is now energized and ready to run `@ 24E-1 +` `@ 0V +`."
+  }
+}

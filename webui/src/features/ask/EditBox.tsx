@@ -11,12 +11,12 @@
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { shownText, useChatStore, type Message } from '@/stores/chatStore'
+import { useChatStore, writtenText, type Message } from '@/stores/chatStore'
 import { persistEdits, savesToDisk } from './edits'
 
 export function EditBox({ message, onDone }: { message: Message; onDone: () => void }) {
   const editMessage = useChatStore((s) => s.editMessage)
-  const [draft, setDraft] = useState(() => shownText(message))
+  const [draft, setDraft] = useState(() => writtenText(message))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const answer = message.role === 'assistant'
@@ -59,6 +59,7 @@ export function EditBox({ message, onDone }: { message: Message; onDone: () => v
         )}
         <span className="ml-auto">
           {answer && 'Markdown: put an identifier in `backticks` to make it a link. '}
+          {'<!-- a note --> is kept here and in the saved edit, never shown or said. '}
           {savesToDisk()
             ? 'Saved beside the drawing, with the original.'
             : 'Kept for this conversation only. Unlock the editor (Locate tab) to save edits to disk.'}

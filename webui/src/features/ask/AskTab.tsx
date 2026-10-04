@@ -197,7 +197,9 @@ function Intro({
         again. A trailing <code>{'~'}</code>, <code>{'`CB1 ~`'}</code>, pauses there for the
         palette&apos;s <em>Pause</em> time, and <code>{'`~`'}</code> alone pauses holding what is lit; a
         leading <code>{'@'}</code>, <code>{'`@CB1`'}</code>, lights it and flies there without showing or
-        saying it. With{' '}
+        saying it.{' '}
+        <code>{'<!-- a note -->'}</code> anywhere in an edit is kept with it, for the record of why
+        you changed it, and is never shown, said or copied. With{' '}
         <em>Show spoken text</em> on, <em>Say it as…</em> in the palette saves a pronunciation for this
         drawing or for every drawing (editor unlocked).
       </IntroNote>

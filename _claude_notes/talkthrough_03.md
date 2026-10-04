@@ -811,6 +811,10 @@ start from §3.7.
   - a description right after an identifier (E3)
   - units spelt out (E4)
   - **fact-changing edits flagged separately** (trap 20)
+  - **the user's hidden notes** (added 2026-10-03): every `<!-- … -->` in an edited question or
+    answer, quoted verbatim under its record. They are the user's stated reasons, so they outrank
+    any feature this report infers. The screen drops them in `webui/src/lib/notes.ts`; the record
+    keeps them
 
   All are generic, with no drawing identifier in the script.
 - **Reading list:** `edited_answers.py` whole. One record, `head -c 1500`.

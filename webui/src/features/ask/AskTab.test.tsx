@@ -282,6 +282,30 @@ describe('keeping and reopening (talkthrough_03.md §7)', () => {
     expect(screen.getByText('PS1')).toBeTruthy()
   })
 
+  it('keeps a hidden note in the edit box and the saved record, and never shows or says it', async () => {
+    useAppStore.setState({
+      health: EDITOR, designators: INDEX, byToken: buildLookup(INDEX),
+      drawing: { tiles: { count: 4 } } as DrawingSummary,
+    })
+    useChatStore.setState({ messages: [MESSAGES[0], { ...MESSAGES[1], turnId: TURN }] })
+    render(<AskTab />)
+    const note = '<!-- The model said open; the ink says closed. -->'
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.change(screen.getByLabelText('Edit the answer'), { target: { value: `\`CR1\` is closed. ${note}` } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(calls.some((c) => c.init?.method === 'PUT')).toBe(true))
+    expect(JSON.parse(calls.find((c) => c.init?.method === 'PUT')!.init!.body as string).answer_edited).toContain(note)
+    expect(screen.queryByText(/ink says closed/)).toBeNull()
+    expect(screen.getByText(/is closed\./)).toBeTruthy()
+    // The edit box opens with it again.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect((screen.getByLabelText('Edit the answer') as HTMLTextAreaElement).value).toContain(note)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: /Talk me through it/ }))
+    const said = useTalkStore.getState().talk!.sentences.flatMap((t) => t.segments.map((g) => g.say)).join(' ')
+    expect(said).not.toMatch(/ink|<!--/)
+  })
+
   it('lists past answers only for the editor', () => {
     const { container } = render(<AskTab />)
     expect(container.querySelector('details')).toBeNull()

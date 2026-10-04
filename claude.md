@@ -38,6 +38,9 @@ can be executed with nothing else open.
   (saved as `composed`), **Comma pause** in the palette, and **Natural flow** switched back on
   once in a browser that remembered it off. **Restart and rebuild** (bundle built). Lessons
   T-1765–T-1785. Waiting for my listening report on the comma pause.
+- **2026-10-03, my request:** a `<!-- note -->` in an edit is kept in the edit box and the saved
+  record, and never shown, said or copied, so I can write down why I changed something. §8 now
+  quotes the notes in the report. Rebuild only. Lessons T-1786–T-1787.
 
 What is left in `talkthrough_03.md`, in order, one session each:
 

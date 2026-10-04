@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 
 import { ApiError, ask, cancelTurn } from '@/api/client'
 import type { ServerEvent } from '@/api/types'
+import { withoutNotes } from '@/lib/notes'
 
 export interface ToolCall {
   id: string
@@ -43,8 +44,12 @@ export interface Message {
   composed?: boolean
 }
 
-/** What a message says now: the user's edit if there is one, else the original. */
-export const shownText = (message: Message) => message.edited ?? message.text
+/** What a message says now, as written: the user's edit if there is one, else the original.
+ * Notes included — this is what the edit box opens with and what is saved. */
+export const writtenText = (message: Message) => message.edited ?? message.text
+
+/** What a message shows, says and copies: `writtenText` without its hidden notes (`lib/notes.ts`). */
+export const shownText = (message: Message) => withoutNotes(writtenText(message))
 
 /** What an answer the user wrote themselves is marked with, in place of a model's name. */
 export const COMPOSED = 'composed'
