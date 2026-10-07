@@ -44,6 +44,19 @@ describe('buildLookup', () => {
     expect(resolve(byToken, ' CR-BP ')?.id).toBe('CR-BP')
   })
 
+  it('resolves a component\'s site on its own, and never over a real id', () => {
+    // 2026-10-07: `CR-BP:NO` lights the NO contact alone; `CR-BP` is still the whole relay.
+    const site = entry('CR-BP:NO', { members: ['CR-BP'], site_of: 'CR-BP', point: [5, 5] })
+    const clash = entry('CR-BP:A1', { site_of: 'CR-BP' })
+    const byToken = buildLookup({
+      ...index([entry('CR-BP'), entry('CR-BP:A1', { kind: 'terminal' })]),
+      sites: [site, clash],
+    })
+    expect(resolve(byToken, 'cr-bp:no')).toBe(site)
+    expect(resolve(byToken, 'CR-BP')?.site_of).toBeUndefined()
+    expect(resolve(byToken, 'CR-BP:A1')?.kind).toBe('terminal')
+  })
+
   it('lets an id beat an alias of a different component', () => {
     // Real: `MXCS-M9` is a component in its own right *and* an alias of another. The id has to
     // win, or a citation resolves to something the reader did not name.

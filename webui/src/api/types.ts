@@ -165,6 +165,8 @@ export interface Designator {
    * it looks — read `terminals` for what the thing is actually made of.
    */
   members: string[]
+  /** On a site entry only (`DesignatorIndex.sites`): the component this is one place of. */
+  site_of?: string
   /** For a wire, `[from, to]`; for a net, every member terminal, in order and undeduped. Absent
    * on components and terminals, which are not made of anything. */
   terminals?: EntryTerminal[]
@@ -259,6 +261,13 @@ export interface DesignatorIndex {
   located: number
   locations?: LocationsReport
   entries: Designator[]
+  /**
+   * One entry per **site** of a component drawn in two or more places — `CR-BP:Coil`,
+   * `CR-BP:NO` — each with that place alone, so a citation can light one contact while the
+   * component's own id still frames them all. Kept out of `entries` on purpose: they are only
+   * something to cite, never a list row, a marker or a count. Absent from an older server.
+   */
+  sites?: Designator[]
 }
 
 /**

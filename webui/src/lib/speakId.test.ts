@@ -15,6 +15,13 @@ describe('speakId', () => {
     expect(speakId(entry('terminal', 'CR-BP:A1'), 'CR-BP:A1')).toBe('C R B P terminal A 1')
   })
 
+  it('says a component\'s site as the component, then the site\'s name', () => {
+    const site = (id: string) => ({ ...entry('component', id), site_of: id.split(':')[0] })
+    expect(speakId(site('CR-BP:Coil'), 'CR-BP:Coil')).toBe('C R B P coil')
+    expect(speakId(site('CR-BP:NO'), 'CR-BP:NO')).toBe('C R B P N O')
+    expect(speakId(site('CR-BP:NC'), 'cr-bp:nc')).toBe('C R B P N C')
+  })
+
   it('spells a short run of capitals and says a long one as a word', () => {
     expect(speakId(entry('component', 'PB1'), 'PB1')).toBe('P B 1')
     expect(speakId(entry('component', 'BYPASS-CB'), 'BYPASS-CB')).toBe('bypass C B')

@@ -126,6 +126,23 @@ def test_a_component_drawn_in_two_places_publishes_both(drawing_dir: Path) -> No
     assert "places" not in index(drawing_dir)["CB1"]
 
 
+def test_each_site_of_a_component_drawn_twice_is_citable_on_its_own(drawing_dir: Path) -> None:
+    """`CR-BP:NO` lights the NO contact alone; `CR-BP` still frames every site (2026-10-07)."""
+    write_locations(drawing_dir, LOCATIONS)
+    published = designator_index(drawing_dir)
+    sites = {s["id"]: s for s in published["sites"]}
+
+    assert set(sites) == {"CR1:coil", "CR1:contact"}
+    assert sites["CR1:contact"]["kind"] == "component"
+    assert sites["CR1:contact"]["site_of"] == "CR1"
+    assert sites["CR1:contact"]["point"] == [500.0, 600.0]
+    assert sites["CR1:contact"]["placement"] == "seed"
+    assert sites["CR1:coil"]["rect"] == [110.0, 210.0, 110.0, 210.0]
+    # Kept out of `entries`, so no list row, no marker and no count grows by a site.
+    assert not any(":" in e["id"] for e in published["entries"] if e["kind"] == "component")
+    assert index(drawing_dir)["CR1"]["rect"] == [110.0, 210.0, 500.0, 600.0]
+
+
 def test_a_single_dot_still_publishes_the_side_its_label_was_put_on(drawing_dir: Path) -> None:
     """The reported fault, and the exception to the rule directly above.
 

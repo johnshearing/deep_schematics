@@ -213,6 +213,35 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
             )
         )
 
+    # One entry per **site** of a component drawn in two or more places, so an answer can cite
+    # `CR-BP:NO` and light that contact alone while `CR-BP` still frames all three (asked for
+    # 2026-10-07). The site names are the user's, from `locations.json`, so nothing here knows
+    # what a relay is. Published apart from `entries` so no list, marker or count meets them:
+    # they are something to *cite*, not a fourth thing drawn on the sheet. A site name that would
+    # collide with a real id (a site called `A1` on a block with a pin `A1`) loses, quietly — the
+    # id is what the netlist says exists.
+    taken = {str(e.get("id")).upper() for e in components + terminals}
+    sites: list[dict[str, Any]] = []
+    for component in components:
+        cid = component.get("id")
+        spots = geometry.component(cid) if isinstance(cid, str) else []
+        if len(spots) < 2:
+            continue
+        for spot in spots:
+            sid = f"{cid}:{spot.site}"
+            if not spot.site or sid.upper() in taken:
+                continue
+            entry = _entry(
+                sid,
+                "component",
+                f"{spot.site} of {cid} — {_component_label(component)}",
+                [cid],
+                [spot],
+                on_sheet=True,
+            )
+            entry["site_of"] = cid
+            sites.append(entry)
+
     for terminal in terminals:
         tid = terminal.get("id")
         if not isinstance(tid, str):
@@ -277,6 +306,7 @@ def designator_index(drawing_dir: Path) -> dict[str, Any]:
         "located": sum(1 for e in entries if e["point"]),
         "locations": geometry.report(),
         "entries": entries,
+        "sites": sites,
     }
 
 

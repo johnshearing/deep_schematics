@@ -210,6 +210,12 @@ export function buildLookup(index: DesignatorIndex | null): Map<string, Designat
   const entries = Array.isArray(index?.entries) ? index.entries : []
 
   for (const entry of entries) byToken.set(normalise(entry.id), entry)
+  // A component's sites (`CR-BP:NO`) after the ids, so a real id always wins, and before the
+  // aliases, which skip a key already taken. The server already drops a colliding site.
+  for (const site of Array.isArray(index?.sites) ? index.sites : []) {
+    const key = normalise(site.id)
+    if (!byToken.has(key)) byToken.set(key, site)
+  }
 
   const claimed = new Map<string, Designator | null>()
   for (const entry of entries) {

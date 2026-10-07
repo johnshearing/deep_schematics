@@ -26,6 +26,11 @@ distinction the epistemics section already demands in prose — it just names th
 settles it. The one thing kept out of both is any *count* of how many endpoints are confirmed,
 because that census moves between questions as the drawing's owner works.
 
+**Added in v1.4 (2026-10-07): a component's sites are citable.** A component drawn in several
+places — a relay's coil and its contacts — has one id per place, `COMPONENT:SITE`, so an answer
+can point at the one contact it is talking about. The prompt says where the names are and never
+what they are: they are the drawing owner's, in `locations.json`, and they can be renamed.
+
 The citation section states the *viewer's* lookup rule — an exact, case-insensitive match of a
 whole backticked span against `/api/designators` — on the same grounds. It is not a fact about
 this drawing; it is what decides how an identifier must be punctuated, and a model that does not
@@ -38,7 +43,7 @@ from __future__ import annotations
 
 #: Bump when the text below changes. Recorded with every archived turn so an answer can
 #: always be traced to the prompt that produced it (ideas §7, "record model, effort, cost").
-PROMPT_VERSION = "v1.3"
+PROMPT_VERSION = "v1.4"
 
 ORIENTATION_PROMPT = """\
 # Your role
@@ -219,7 +224,13 @@ terminal, net or wire — if a sentence asserts something about a thing on the s
 thing's id belongs in that sentence.
 
 Four kinds of identifier are in the index and therefore clickable: **components** (`CR-BP`), \
-**terminals** (`CR-BP:A1`), **nets** (`110`, `0V`, `RUN`) and **wires** (`W048`). Every \
+**terminals** (`CR-BP:A1`), **nets** (`110`, `0V`, `RUN`) and **wires** (`W048`). A component \
+drawn in more than one place also has one id **per site**, `COMPONENT:SITE`, which points at \
+that place alone: `CR-BP` is the whole relay, its coil and both contacts together, and \
+`CR-BP:NO` is its NO contact only. Cite the site when a sentence is about one coil or one \
+contact, and the component when it is about the relay. The site names are in \
+`locations.json`, under `components.<id>.sites[].id`, spelled exactly as written there; a \
+component with only one site has no site ids. Every \
 terminal carries its component — write `CR-ON:A1`, never a bare `A1`: this drawing has five \
 terminals named `A1`, six named `11` and thirty-one named `1`, so a pin on its own names \
 nothing and links to nothing. `CABLE-…` and `SUB-…` \

@@ -411,6 +411,29 @@ describe('DrawingTab', () => {
     expect(nc.style.left).toBe('465px')
   })
 
+  it('selects one site of a relay on its own, with the whole relay one click away', async () => {
+    // 2026-10-07: `CR-BP:NC` is the NC contact alone; `CR-BP` still frames all three sites.
+    const nc: Designator = {
+      id: 'CR-BP:nc', kind: 'component', label: 'nc of CR-BP — relay', on_sheet: true,
+      members: ['CR-BP'], site_of: 'CR-BP', point: [714, 520], rect: [714, 520, 714, 520],
+      placement: 'confirmed',
+    }
+    const index = { ...INDEX, sites: [nc] }
+    useAppStore.setState({ designators: index, byToken: buildLookup(index) })
+
+    render(<DrawingTab />)
+    activate()
+    // Not a fourth dot, nor a list row: a site is only something to cite.
+    expect(screen.queryByRole('button', { name: /^CR-BP:nc —/ })).toBeNull()
+
+    act(() => useAppStore.getState().select('component', 'CR-BP:nc'))
+    // Its one dot, at the NC contact's point: 12 + 714 × 0.634 = 465 px.
+    await waitFor(() => expect(marker('CR-BP:nc').style.left).toBe('465px'))
+    expect(screen.getByText('one place of')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'CR-BP' }))
+    expect(useAppStore.getState().selection?.id).toBe('CR-BP')
+  })
+
   it('lands a wire citation on its name once somebody has placed it', async () => {
     // A wire's `point` is the midpoint of its run, which is blank paper. Before a label point
     // exists there is nothing honest to put a dot on, so the viewer frames the run and rings the

@@ -124,10 +124,15 @@ export function speakId(entry: Designator, token: string, before = '', lists?: P
   const own = listed(lists, written, bare, entry.id)
   if (own !== undefined) return own // the user's words, literally: no *net*, no spelling
   const colon = bare.lastIndexOf(':')
+  // A site's name is the user's own, so it is said from the index's spelling however the span
+  // cased it, and a capitalised word (`Coil`) is a word, not a `C` and an `oil`.
+  const site = entry.site_of ? entry.id.slice(entry.site_of.length + 1) : ''
   const body =
     entry.kind === 'terminal' && colon > 0
       ? `${spell(bare.slice(0, colon))} terminal ${spell(bare.slice(colon + 1))}`.trim()
-      : spell(bare)
+      : site
+        ? `${spell(entry.site_of!)} ${/^[A-Z][a-z]+$/.test(site) ? site.toLowerCase() : spell(site)}`
+        : spell(bare)
   if (entry.kind !== 'net' || /\bnet\s*$/i.test(before) || /^net\b/.test(body)) return body
   return `net ${body}`
 }

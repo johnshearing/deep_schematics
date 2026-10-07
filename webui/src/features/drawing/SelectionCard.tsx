@@ -80,8 +80,9 @@ export function SelectionCard({
   onAsk,
   onClose,
 }: Props) {
-  // Its own members are noise on a component; on a net or a wire they are the substance.
-  const members = entry.kind === 'component' ? [] : entry.members
+  // Its own members are noise on a component; on a net or a wire they are the substance. A site
+  // (`CR-BP:NO`) is the exception: its one member is the whole relay, and that is the way back.
+  const members = entry.kind === 'component' && !entry.site_of ? [] : entry.members
   const terminals = entry.kind === 'component' ? [] : (entry.terminals ?? [])
 
   // Movable by the grip along its top (requested 2026-09-28): it can cover the very part of the
@@ -191,7 +192,7 @@ export function SelectionCard({
 
       {members.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-1">
-          <span className="text-[11px] text-muted-foreground">runs through</span>
+          <span className="text-[11px] text-muted-foreground">{entry.site_of ? 'one place of' : 'runs through'}</span>
           {members.map((id) => (
             <button
               key={id}

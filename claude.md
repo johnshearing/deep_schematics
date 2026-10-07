@@ -41,6 +41,12 @@ can be executed with nothing else open.
 - **2026-10-03, my request:** a `<!-- note -->` in an edit is kept in the edit box and the saved
   record, and never shown, said or copied, so I can write down why I changed something. §8 now
   quotes the notes in the report. Rebuild only. Lessons T-1786–T-1787.
+- **2026-10-07, my request:** one link per **site** of a component drawn in several places —
+  `CR-BP:Coil`, `CR-BP:NC`, `CR-BP:NO` — lighting that place alone, while `CR-BP` still frames all
+  three. Published as `/api/designators`'s `sites` (never in `entries`, so no row, dot or count);
+  the names are mine, from `locations.json`, so renaming a site renames its link. Spoken
+  "C R B P coil"; the card says *one place of* `CR-BP`. Prompt **v1.4** tells the model to cite
+  them. **Restart and rebuild** (bundle built).
 
 What is left in `talkthrough_03.md`, in order, one session each:
 
