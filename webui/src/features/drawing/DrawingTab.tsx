@@ -271,6 +271,18 @@ export function DrawingTab() {
   )
   const keptIds = useMemo(() => new Set(kept.map((e) => e.id)), [kept])
   /**
+   * **A terminal written `` `X:1 .` `` is lit alone** (asked 2026-10-08): its dot, without the
+   * wires that reach it, its block's bus or the ring on its parent — so a narrative can point at a
+   * screw without also pointing at everything on it. Terminals only; on the other kinds the mark
+   * means nothing, because a wire or a net *is* its runs. The card still lists what lands there.
+   */
+  const aloneIds = useMemo(() => {
+    const ids = lit.filter((k) => k.alone && k.kind === 'terminal').map((k) => normalise(k.id))
+    if (selection?.alone && selection.kind === 'terminal') ids.push(normalise(selection.id))
+    return new Set(ids)
+  }, [lit, selection])
+  const isAlone = useCallback((e: Designator | null) => !!e && aloneIds.has(normalise(e.id)), [aloneIds])
+  /**
    * The nets a selected terminal or wire is on, for the card's net links (asked 2026-09-30).
    * **By membership, never by name** (trap 21): a net whose `terminals` include the pin, or either
    * end of the wire — so a wire that bonds two nets is on both, which is what `/api/paths` paints.
@@ -307,10 +319,10 @@ export function DrawingTab() {
    */
   const relatedIds = useMemo(() => {
     const ringed = (e: Designator | null) =>
-      e?.terminals?.length ? e.terminals.map((member) => member.id) : (e?.members ?? [])
+      isAlone(e) ? [] : e?.terminals?.length ? e.terminals.map((member) => member.id) : (e?.members ?? [])
     // A kept item is ringed quietly, itself and its members: a step dimmer than the newest (§6A).
     return new Set([...ringed(entry), ...kept.flatMap((e) => [e.id, ...ringed(e)])])
-  }, [entry, kept])
+  }, [entry, kept, isAlone])
   /**
    * **The highlight: the selected wire's route, or the union of the selected net's wires'.**
    *
@@ -364,10 +376,13 @@ export function DrawingTab() {
    * the net and the sheet went on painting the clicked wire until the path card was closed.
    */
   const selectedRuns = useMemo(
-    () => path?.runs ?? (entry?.kind === 'component' ? runsOf(entry) : undefined),
-    [path, entry, runsOf],
+    () => (isAlone(entry) ? undefined : (path?.runs ?? (entry?.kind === 'component' ? runsOf(entry) : undefined))),
+    [path, entry, runsOf, isAlone],
   )
-  const keptRuns = useMemo(() => kept.flatMap((e) => runsOf(e) ?? []), [kept, runsOf])
+  const keptRuns = useMemo(
+    () => kept.flatMap((e) => (isAlone(e) ? [] : (runsOf(e) ?? []))),
+    [kept, runsOf, isAlone],
+  )
 
   /** A marker for the selection itself — at its own point, under its own name, and only where
    * there is a real place to put one. See `atLabelPoint` for the wire and net case. */

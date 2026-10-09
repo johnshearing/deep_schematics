@@ -548,6 +548,26 @@ describe('marked pauses and hidden links (talkthrough_03.md §6B)', () => {
     expect(texts().at(-1)).toBe('C R 1 now.')
   })
 
+  it('waits exactly a timed pause, whatever Pause is set to, holding what is lit (2026-10-08)', async () => {
+    const TIMED: Message = { ...MESSAGE, id: 'a6', text: 'Net `121` feeds `CR1 + .` `1.5s` now. End.' }
+    for (const settings of [{ dwell: 0 as const }, { dwell: 4000 as const }, { dwell: 'press' as const }, { flow: true }]) {
+      talk().exit()
+      voice.said.length = 0
+      useTalkStore.setState({ flow: false, dwell: 0, ...settings })
+      begin(TIMED)
+      await speakUntil('C R 1')
+      await voice.finish()
+      expect(talk().phase).toBe('dwelling')
+      expect([selected(), lit()]).toEqual(['CR1', ['121']])
+      expect(useAppStore.getState().selection?.alone).toBe(true)
+      await vi.advanceTimersByTimeAsync(1499)
+      expect(texts().at(-1)).not.toBe('now.')
+      await vi.advanceTimersByTimeAsync(1)
+      if (texts().at(-1) === '') await voice.finish() // item by item, the pause says its nothing
+      expect(texts().at(-1)).toMatch(/^now\./)
+    }
+  })
+
   it('lights a hidden link on its turn and says nothing for it', async () => {
     // **T-1989.**
     useTalkStore.setState({ flow: true })

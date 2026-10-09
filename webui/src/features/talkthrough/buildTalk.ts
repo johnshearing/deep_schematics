@@ -29,6 +29,8 @@ export interface Cite {
   keep?: true
   /** Written with a leading `@`: lit and flown to, never shown and never said (§6B). */
   hidden?: true
+  /** Written with a trailing ` .`: a terminal lit alone, without its wires or bus (2026-10-08). */
+  alone?: true
 }
 export interface Segment {
   show: string
@@ -36,6 +38,9 @@ export interface Segment {
   /** Written with a trailing ` ~`, or a bare `` `~` ``: dwell here for the palette's time (§6B).
    * A bare pause is a segment of its own, with nothing shown, nothing said and no cite. */
   pause?: true
+  /** A timed pause (`` `1.5s` ``), in ms: waited this long whatever the palette says. Always on a
+   * bare pause segment, so it lights nothing and holds what is lit. */
+  wait?: number
   /** Fires before `say`. Absent on text before the first link, and on a repeat (rule 7). */
   cite?: Cite
   /** The link this segment starts with, as written — present on a repeat too, so the set of
@@ -243,9 +248,9 @@ export function buildTalk(
         parts.forEach((part, k) => {
           const before = segments.at(-1)?.say ?? ''
           if (k === 0 && link) {
-            const { keep, pause, hidden } = link.note
+            const { keep, pause, hidden, alone } = link.note
             // A repeat that changes ` +` is not a repeat: `B +` then `B` clears the build-up.
-            const key = `${link.entry.kind}:${link.entry.id}${keep ? ' +' : ''}`
+            const key = `${link.entry.kind}:${link.entry.id}${keep ? ' +' : ''}${alone ? ' .' : ''}`
             // A hidden link is said as nothing, and shows nothing, so it is no button to agree with.
             const spoken = hidden ? '' : link.note.say ?? speakId(link.entry, link.token, before, lists)
             const say = nothingSaid(`${spoken} ${said(part)}`.replace(/\s+([.,;:!?)'’])/g, '$1').trim())
@@ -257,6 +262,7 @@ export function buildTalk(
               segment.cite = { kind: link.entry.kind, id: link.entry.id, token: link.token }
               if (keep) segment.cite.keep = true
               if (hidden) segment.cite.hidden = true
+              if (alone) segment.cite.alone = true
               lastCite = key
             }
             segments.push(segment)
@@ -285,7 +291,7 @@ export function buildTalk(
         // Not a link. A pause still falls here, as a segment of its own (a bare `` `~` `` always).
         if (note.pause) {
           close()
-          segments.push({ show: '', say: '', pause: true })
+          segments.push({ show: '', say: '', pause: true, ...(note.wait !== null ? { wait: note.wait } : {}) })
         }
         if (note.hidden) {
           if (token && hasViewer) missing.push(token)

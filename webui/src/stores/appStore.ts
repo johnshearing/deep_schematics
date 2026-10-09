@@ -45,6 +45,9 @@ function message(error: unknown): string {
 export interface Selection {
   kind: DesignatorKind
   id: string
+  /** A terminal written `` `X:1 .` ``: its dot only, without the wires that reach it or its
+   * block's bus (asked 2026-10-08). A plain selection paints those, as it always has. */
+  alone?: boolean
   /**
    * Where the reader pointed from.
    *
@@ -118,7 +121,7 @@ interface AppState {
    * `talkthrough_03.md` §6A), oldest first. **Never persisted**: it is a moment of a talk, not a
    * place in the index. Every `select` and `clearSelection` empties it, so only `light` fills it.
    */
-  lit: { kind: DesignatorKind; id: string }[]
+  lit: { kind: DesignatorKind; id: string; alone?: boolean }[]
   model: string
   /**
    * Empty means "no preference yet" — `App` resolves it against the enabled tabs and falls
@@ -163,10 +166,16 @@ interface AppState {
     id: string,
     origin?: Selection['origin'],
     from?: Selection['from'],
+    alone?: boolean,
   ) => void
   clearSelection: () => void
   /** Select `kind`/`id` and keep `kept` lit beside it, in one step, so the camera moves once. */
-  light: (kind: DesignatorKind, id: string, kept: { kind: DesignatorKind; id: string }[]) => void
+  light: (
+    kind: DesignatorKind,
+    id: string,
+    kept: { kind: DesignatorKind; id: string; alone?: boolean }[],
+    alone?: boolean,
+  ) => void
   loadAll: () => Promise<void>
   setPronunciationLists: (lists: PronunciationLists) => void
   refreshHealth: () => Promise<void>
@@ -220,15 +229,19 @@ export const useAppStore = create<AppState>()(
       setActiveTab: (activeTabId) => set({ activeTabId }),
       setDrawingListOpen: (drawingListOpen) => set({ drawingListOpen }),
 
-      select: (kind, id, origin = 'text', from) =>
+      select: (kind, id, origin = 'text', from, alone) =>
         set((state) => ({
-          selection: { kind, id, origin, from, nonce: (state.selection?.nonce ?? 0) + 1 },
+          selection: {
+            kind, id, origin, from, ...(alone ? { alone: true } : {}), nonce: (state.selection?.nonce ?? 0) + 1,
+          },
           lit: [],
         })),
       clearSelection: () => set({ selection: null, lit: [] }),
-      light: (kind, id, kept) =>
+      light: (kind, id, kept, alone) =>
         set((state) => ({
-          selection: { kind, id, origin: 'text', nonce: (state.selection?.nonce ?? 0) + 1 },
+          selection: {
+            kind, id, origin: 'text', ...(alone ? { alone: true } : {}), nonce: (state.selection?.nonce ?? 0) + 1,
+          },
           lit: kept.filter((k, i) =>
             !(k.kind === kind && k.id === id) &&
             kept.findIndex((o) => o.kind === k.kind && o.id === k.id) === i),

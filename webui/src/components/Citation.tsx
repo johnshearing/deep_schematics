@@ -62,7 +62,8 @@ export const Citation = memo(function Citation({ children }: { children: ReactNo
         (entry.on_sheet ? '' : '\nThis id was assigned during extraction — it is not printed on the sheet.')
       }
       onClick={() => {
-        select(entry.kind, entry.id)
+        // A ` .` means the same clicked as spoken: a terminal lit alone (2026-10-08).
+        select(entry.kind, entry.id, 'text', undefined, said?.alone)
         // The store must not import the tab registry, so the tab switch is the caller's job.
         setActiveTab(DRAWING_TAB_ID)
       }}

@@ -81,10 +81,10 @@ describe('the user\'s pronunciations (talkthrough_03.md §5)', () => {
   })
 
   it('reads the one-off notation, and empty quotes as silence', () => {
-    expect(splitNotation('DISC1 "disconnect 1"')).toEqual({ token: 'DISC1', say: 'disconnect 1', keep: false, pause: false, hidden: false })
-    expect(splitNotation('W12 ""')).toEqual({ token: 'W12', say: '', keep: false, pause: false, hidden: false })
-    expect(splitNotation('DISC1')).toEqual({ token: 'DISC1', say: null, keep: false, pause: false, hidden: false })
-    expect(splitNotation('say "hi" there')).toEqual({ token: 'say "hi" there', say: null, keep: false, pause: false, hidden: false })
+    expect(splitNotation('DISC1 "disconnect 1"')).toEqual({ token: 'DISC1', say: 'disconnect 1', keep: false, pause: false, hidden: false, alone: false, wait: null })
+    expect(splitNotation('W12 ""')).toEqual({ token: 'W12', say: '', keep: false, pause: false, hidden: false, alone: false, wait: null })
+    expect(splitNotation('DISC1')).toEqual({ token: 'DISC1', say: null, keep: false, pause: false, hidden: false, alone: false, wait: null })
+    expect(splitNotation('say "hi" there')).toEqual({ token: 'say "hi" there', say: null, keep: false, pause: false, hidden: false, alone: false, wait: null })
   })
 
   it('replaces whole words in prose, keeping their punctuation, and nothing else', () => {

@@ -55,6 +55,12 @@ export interface Notation {
   pause: boolean
   /** A leading `@`: lit and flown to, never shown and never said. */
   hidden: boolean
+  /** A trailing ` .`: a terminal lit alone — its dot, without the wires that reach it or its
+   * block's bus (asked 2026-10-08). Means nothing on the other kinds. */
+  alone: boolean
+  /** A timed pause (`` `1.5s` ``), in milliseconds: always this long, whatever the palette says.
+   * Null on everything else. */
+  wait: number | null
 }
 
 /**
@@ -65,13 +71,22 @@ export interface Notation {
  * Then the flags, each a space and a mark, in either order: ` +` keeps what is lit (§6A) and
  * ` ~` pauses (§6B). A leading `@` hides the link, and a hidden link is always silent, so its
  * quoted form is dropped: what is spoken is what is shown. `` `~` `` alone is a pause and no link.
- * `PS1:+` is a token, because its `+` has no space before it.
+ * `PS1:+` is a token, because its `+` has no space before it. A trailing ` .` lights a terminal
+ * alone. A span that is only a number of seconds (`` `2s` ``, `` `.5s` ``, `` `1.5s` ``) is a timed
+ * pause: like `` `~` `` it shows and says nothing and holds what is lit, but it lasts exactly that
+ * long whatever the palette's *Pause* is, Off and *press* included (asked 2026-10-08).
  */
 export function splitNotation(span: string): Notation {
-  if (span.trim() === '~') return { token: '', say: null, keep: false, pause: true, hidden: true }
-  const m = /^(@?)(.+?)(?: "(.*)")?((?: [+~])*)$/.exec(span)!
+  const quiet = { token: '', say: null, keep: false, pause: true, hidden: true, alone: false }
+  if (span.trim() === '~') return { ...quiet, wait: null }
+  const timed = /^(\d+(?:\.\d+)?|\.\d+)s$/.exec(span.trim())
+  if (timed) return { ...quiet, wait: Math.round(Number(timed[1]) * 1000) }
+  const m = /^(@?)(.+?)(?: "(.*)")?((?: [+~.])*)$/.exec(span)!
   const hidden = !!m[1]
-  return { token: m[2], say: hidden ? null : m[3] ?? null, keep: m[4].includes('+'), pause: m[4].includes('~'), hidden }
+  return {
+    token: m[2], say: hidden ? null : m[3] ?? null, keep: m[4].includes('+'), pause: m[4].includes('~'),
+    hidden, alone: m[4].includes('.'), wait: null,
+  }
 }
 
 /**
@@ -80,7 +95,9 @@ export function splitNotation(span: string): Notation {
  * caller hands in its own lookup: `lib/` takes data, and `Citation` and `buildTalk` must agree.
  */
 export function readSpan(span: string, resolves: (token: string) => boolean): Notation {
-  if (resolves(span)) return { token: span, say: null, keep: false, pause: false, hidden: false }
+  if (resolves(span)) {
+    return { token: span, say: null, keep: false, pause: false, hidden: false, alone: false, wait: null }
+  }
   return splitNotation(span)
 }
 

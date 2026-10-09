@@ -146,7 +146,11 @@ const cueAt = (text: string, at: number) => {
 
 /** Whether a segment is waited at before it is said. */
 const dwellsAt = (segment: Segment, { dwell, where }: { dwell: Dwell; where: Where }) =>
-  dwell !== 0 && (!!segment.pause || (where === 'every' && !!segment.cite))
+  segment.wait !== undefined || (dwell !== 0 && (!!segment.pause || (where === 'every' && !!segment.cite)))
+
+/** How long to wait at a segment `dwellsAt` stops at: a timed pause's own time, never the
+ * palette's, so `` `2s` `` is two seconds with *Pause* at Off, 4 s or *press*. */
+const waitAt = (segment: Segment, dwell: Dwell) => segment.wait ?? dwell
 
 /** Natural flow plays unless it is off, or a dwell at every item asks for the old loop. */
 const flowing = ({ flow, dwell, where }: { flow: boolean; dwell: Dwell; where: Where }) =>
@@ -218,10 +222,10 @@ export const useTalkStore = create<TalkState>()(
        */
       const keptBefore = (pos: Pos) => {
         const { sentences, items } = get().talk!
-        const kept: { kind: Cite['kind']; id: string }[] = []
+        const kept: { kind: Cite['kind']; id: string; alone?: true }[] = []
         for (let k = items.findIndex((i) => i.s === pos.s && i.g === pos.g) - 1; k >= 0; k--) {
           const cite = sentences[items[k].s].segments[items[k].g].cite!
-          kept.unshift({ kind: cite.kind, id: cite.id })
+          kept.unshift({ kind: cite.kind, id: cite.id, ...(cite.alone ? { alone: true as const } : {}) })
           if (!cite.keep) break
         }
         return kept
@@ -231,8 +235,8 @@ export const useTalkStore = create<TalkState>()(
         const cite = segmentAt(pos)?.cite
         if (!cite) return
         const app = useAppStore.getState()
-        if (cite.keep) app.light(cite.kind, cite.id, keptBefore(pos))
-        else app.select(cite.kind, cite.id, 'text')
+        if (cite.keep) app.light(cite.kind, cite.id, keptBefore(pos), cite.alone)
+        else app.select(cite.kind, cite.id, 'text', undefined, cite.alone)
         set({ shown: true })
       }
 
@@ -257,8 +261,9 @@ export const useTalkStore = create<TalkState>()(
             else set({ shown: true })
             set({ phase: 'dwelling' })
             if (dwellsAt(segment, get())) {
-              if (dwell === 'press') return set({ phase: 'paused' })
-              await new Promise<void>((resolve) => (timer = setTimeout(resolve, dwell)))
+              const ms = waitAt(segment, dwell)
+              if (ms === 'press') return set({ phase: 'paused' })
+              await new Promise<void>((resolve) => (timer = setTimeout(resolve, ms)))
               if (!live()) return
             }
           }
@@ -297,8 +302,9 @@ export const useTalkStore = create<TalkState>()(
           if (segments[pos.g].cite && !get().shown) highlight(pos)
           if (hold) {
             set({ phase: 'dwelling', shown: true })
-            if (dwell === 'press') return set({ phase: 'paused' })
-            await new Promise<void>((resolve) => (timer = setTimeout(resolve, dwell as number)))
+            const ms = waitAt(segments[pos.g], dwell)
+            if (ms === 'press') return set({ phase: 'paused' })
+            await new Promise<void>((resolve) => (timer = setTimeout(resolve, ms)))
             if (!live()) return
             set({ phase: 'speaking' })
           }

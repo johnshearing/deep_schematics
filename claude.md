@@ -46,7 +46,12 @@ can be executed with nothing else open.
   three. Published as `/api/designators`'s `sites` (never in `entries`, so no row, dot or count);
   the names are mine, from `locations.json`, so renaming a site renames its link. Spoken
   "C R B P coil"; the card says *one place of* `CR-BP`. Prompt **v1.4** tells the model to cite
-  them. **Restart and rebuild** (bundle built).
+  them. **Restart and rebuild** (bundle built). I checked it and it works as expected.
+- **2026-10-08, my request:** a trailing ` .` (`` `RECEPT1:3 + .` ``) lights a **terminal alone**,
+  its dot without the wires that reach it, its block's bus or its parent's ring, spoken, kept or
+  clicked; the card still lists its wires. And a **timed pause**, a span that is only seconds
+  (`` `2s` ``, `` `.5s` ``, `` `1.5s` ``), waits exactly that long holding what is lit, whatever
+  the palette's *Pause* says (Off and *press* included). The Ask tab's help names both. Rebuild only.
 
 What is left in `talkthrough_03.md`, in order, one session each:
 

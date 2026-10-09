@@ -1352,6 +1352,23 @@ describe('clicking a terminal on the reader’s tab', () => {
     expect(screen.getByText(/with CR-BP's commoning/)).toBeTruthy()
   })
 
+  it('lights a terminal alone when written with ` .`, spoken or kept, and still lists its wires', () => {
+    // 2026-10-08: a narrative can point at a screw without its wires and its block's bus.
+    const index = wiredIndex()
+    useAppStore.setState({ paths: COMMONED, designators: index, byToken: buildLookup(index) })
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().select('terminal', 'CR-BP:A1', 'text', undefined, true))
+    expect(highlighted()).toBe(0)
+    expect(document.querySelector('[data-wire-here="W048"]')).toBeTruthy() // the card still says
+
+    const keptRuns = () => Number(screen.getByRole('application').querySelector('canvas')?.dataset.kept ?? -1)
+    act(() => useAppStore.getState().light('wire', 'W049', [{ kind: 'terminal', id: 'CR-BP:A1', alone: true }]))
+    expect(keptRuns()).toBe(0)
+    act(() => useAppStore.getState().light('wire', 'W049', [{ kind: 'terminal', id: 'CR-BP:A1' }]))
+    expect(keptRuns()).toBe(2) // without the mark, as before: W048 and the bus
+  })
+
   it('says a pin nothing reaches is a finding, beside how much of the sheet is authored', () => {
     // **The feature that makes a missing wire visible by its absence**, and the honesty
     // requirement with it: *no wire reaches this pin* means one thing at 1 of 71 traced and

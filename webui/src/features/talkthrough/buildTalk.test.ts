@@ -271,8 +271,8 @@ describe('several items lit at once (§6A)', () => {
 
   it('leaves a + with no space before it alone, and a repeat that changes + is not a repeat', () => {
     // **T-1788**, continued. `PS1:+` is a token; `CR1 +` then `CR1` clears the build-up.
-    expect(splitNotation('PS1:+')).toEqual({ token: 'PS1:+', say: null, keep: false, pause: false, hidden: false })
-    expect(splitNotation('W12 "" +')).toEqual({ token: 'W12', say: '', keep: true, pause: false, hidden: false })
+    expect(splitNotation('PS1:+')).toEqual({ token: 'PS1:+', say: null, keep: false, pause: false, hidden: false, alone: false, wait: null })
+    expect(splitNotation('W12 "" +')).toEqual({ token: 'W12', say: '', keep: true, pause: false, hidden: false, alone: false, wait: null })
     const talk = buildTalk('Then `CR1 +` and `CR1` now.', byToken, true)
     expect(talk.items).toHaveLength(2)
   })
@@ -280,7 +280,7 @@ describe('several items lit at once (§6A)', () => {
 
 describe('marked pauses and hidden links (talkthrough_03.md §6B)', () => {
   const note = (token: string, more: Partial<ReturnType<typeof splitNotation>> = {}) =>
-    ({ token, say: null, keep: false, pause: false, hidden: false, ...more })
+    ({ token, say: null, keep: false, pause: false, hidden: false, alone: false, wait: null, ...more })
 
   it('reads ~ and + in either order, ~ alone, and a leading @ that drops the quotes', () => {
     // **T-1980.**
@@ -293,6 +293,23 @@ describe('marked pauses and hidden links (talkthrough_03.md §6B)', () => {
     expect(splitNotation('@CB1')).toEqual(note('CB1', { hidden: true }))
     expect(splitNotation('@CB1 "said" + ~')).toEqual(note('CB1', { hidden: true, keep: true, pause: true }))
     expect(splitNotation('PS1:~')).toEqual(note('PS1:~')) // no space, no flag
+  })
+
+  it('reads a timed pause and a ` .` that lights a terminal alone (2026-10-08)', () => {
+    expect(splitNotation('2s')).toEqual(note('', { pause: true, hidden: true, wait: 2000 }))
+    expect(splitNotation('.5s')).toEqual(note('', { pause: true, hidden: true, wait: 500 }))
+    expect(splitNotation('1.5s')).toEqual(note('', { pause: true, hidden: true, wait: 1500 }))
+    expect(splitNotation('CB1:2 + .')).toEqual(note('CB1:2', { keep: true, alone: true }))
+    expect(splitNotation('CB1 "c b" . +')).toEqual(note('CB1', { say: 'c b', keep: true, alone: true }))
+    expect(splitNotation('2 s')).toEqual(note('2 s')) // not a time: a token, and no link
+    const talk = buildTalk('Press `PB1 + .` `1.5s` now.', byToken, true)
+    const segments = talk.sentences[0].segments
+    expect(segments.map((g) => [g.show, g.say, g.wait ?? null, !!g.cite?.alone])).toEqual([
+      ['Press ', 'Press', null, false],
+      ['PB1 ', 'P B 1', null, true],
+      ['', '', 1500, false],
+      [' now.', 'now.', null, false],
+    ])
   })
 
   it('takes a span that resolves as written as a token, never as notation', () => {
