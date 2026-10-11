@@ -23,7 +23,7 @@ import type {
   StarterQuestion,
 } from '@/api/types'
 import { buildLookup } from '@/lib/designators'
-import type { Pronunciations } from '@/lib/speakId'
+import type { Camera, Pronunciations } from '@/lib/speakId'
 
 /** Module state, beside the store, so a second activation while the first request is in flight
  * does not fetch 32 KB twice. The same idiom `locateStore`'s save timer uses and for the same
@@ -122,6 +122,14 @@ interface AppState {
    * place in the index. Every `select` and `clearSelection` empties it, so only `light` fills it.
    */
   lit: { kind: DesignatorKind; id: string; alone?: boolean }[]
+  /**
+   * A talk's camera command (`` `ztf` ``, `` `ztp 150` ``, `` `coc 594 241 150` ``, 2026-10-11),
+   * keyed by its nonce so a repeat counts. The Drawing tab carries it out. Never persisted.
+   */
+  camera: (Camera & { nonce: number }) | null
+  /** After a camera command the view is the writer's: links light without flying until a
+   * `` `follow` ``, the next camera command's own move, or the talk's end. */
+  held: boolean
   model: string
   /**
    * Empty means "no preference yet" — `App` resolves it against the enabled tabs and falls
@@ -169,6 +177,10 @@ interface AppState {
     alone?: boolean,
   ) => void
   clearSelection: () => void
+  /** Carry out a camera command and hold the view (`held`) until `follow`. */
+  aim: (camera: Camera) => void
+  /** Let links fly the camera again. */
+  follow: () => void
   /** Select `kind`/`id` and keep `kept` lit beside it, in one step, so the camera moves once. */
   light: (
     kind: DesignatorKind,
@@ -218,6 +230,8 @@ export const useAppStore = create<AppState>()(
       byToken: new Map(),
       selection: null,
       lit: [],
+      camera: null,
+      held: false,
       model: 'sonnet',
       activeTabId: '',
       drawingListOpen: true,
@@ -237,6 +251,9 @@ export const useAppStore = create<AppState>()(
           lit: [],
         })),
       clearSelection: () => set({ selection: null, lit: [] }),
+      aim: (camera) =>
+        set((state) => ({ camera: { ...camera, nonce: (state.camera?.nonce ?? 0) + 1 }, held: true })),
+      follow: () => set({ held: false }),
       light: (kind, id, kept, alone) =>
         set((state) => ({
           selection: {

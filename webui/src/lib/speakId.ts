@@ -61,6 +61,28 @@ export interface Notation {
   /** A timed pause (`` `1.5s` ``), in milliseconds: always this long, whatever the palette says.
    * Null on everything else. */
   wait: number | null
+  /** A camera command (2026-10-11): `` `ztf` ``, `` `ztp 150` ``, `` `coc 594 241 150` ``, or
+   * `'follow'` for `` `follow` ``, which lets links fly again. Absent on everything else. */
+  camera?: Camera | 'follow'
+}
+
+const NUM = String.raw`(\d+(?:\.\d+)?|\.\d+)`
+const SIGNED = String.raw`(-?(?:\d+(?:\.\d+)?|\.\d+))`
+
+/** Where a talk points the camera: the whole sheet, or a centre (PDF points) and/or a zoom
+ * (the toolbar's percent), each keeping what it does not name. */
+export type Camera = { fit: true } | { centre: [number, number] | null; percent: number | null }
+
+/** The camera notation, case-insensitive: the whole span or nothing. */
+function cameraOf(span: string): Camera | 'follow' | null {
+  const s = span.trim()
+  if (/^ztf$/i.test(s)) return { fit: true }
+  if (/^follow$/i.test(s)) return 'follow'
+  const ztp = new RegExp(`^ztp\\s+${NUM}%?$`, 'i').exec(s)
+  if (ztp) return { centre: null, percent: Number(ztp[1]) }
+  const coc = new RegExp(`^coc\\s+${SIGNED}\\s*[,\\s]\\s*${SIGNED}(?:\\s+${NUM}%?)?$`, 'i').exec(s)
+  if (coc) return { centre: [Number(coc[1]), Number(coc[2])], percent: coc[3] ? Number(coc[3]) : null }
+  return null
 }
 
 /**
@@ -74,13 +96,16 @@ export interface Notation {
  * `PS1:+` is a token, because its `+` has no space before it. A trailing ` .` lights a terminal
  * alone. A span that is only a number of seconds (`` `2s` ``, `` `.5s` ``, `` `1.5s` ``) is a timed
  * pause: like `` `~` `` it shows and says nothing and holds what is lit, but it lasts exactly that
- * long whatever the palette's *Pause* is, Off and *press* included (asked 2026-10-08).
+ * long whatever the palette's *Pause* is, Off and *press* included (asked 2026-10-08). The camera
+ * spans (`cameraOf`) are silent and shown as nothing too; they move the view when reached.
  */
 export function splitNotation(span: string): Notation {
   const quiet = { token: '', say: null, keep: false, pause: true, hidden: true, alone: false }
   if (span.trim() === '~') return { ...quiet, wait: null }
   const timed = /^(\d+(?:\.\d+)?|\.\d+)s$/.exec(span.trim())
   if (timed) return { ...quiet, wait: Math.round(Number(timed[1]) * 1000) }
+  const camera = cameraOf(span)
+  if (camera) return { ...quiet, pause: false, wait: null, camera }
   const m = /^(@?)(.+?)(?: "(.*)")?((?: [+~.])*)$/.exec(span)!
   const hidden = !!m[1]
   return {

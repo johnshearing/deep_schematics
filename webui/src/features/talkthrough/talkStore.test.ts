@@ -568,6 +568,27 @@ describe('marked pauses and hidden links (talkthrough_03.md §6B)', () => {
     }
   })
 
+  it('aims the camera when reached, holds it, and lets go at follow and at the end (2026-10-11)', async () => {
+    const CAM: Message = { ...MESSAGE, id: 'a7', text: 'Look `ztf` at `PB1` then `follow` at `CR1`. End.' }
+    useTalkStore.setState({ flow: false, dwell: 0 })
+    begin(CAM)
+    await speakUntil('P B 1')
+    expect(useAppStore.getState().camera).toMatchObject({ fit: true })
+    expect(useAppStore.getState().held).toBe(true)
+    await speakUntil('C R 1')
+    expect(useAppStore.getState().held).toBe(false)
+    useAppStore.getState().aim({ centre: null, percent: 50 })
+    talk().exit()
+    expect(useAppStore.getState().held).toBe(false)
+    // In natural flow the sentence is one utterance, and its end carries out both commands.
+    useTalkStore.setState({ flow: true })
+    useAppStore.setState({ camera: null })
+    begin(CAM)
+    await voice.finish()
+    expect(useAppStore.getState().camera).toMatchObject({ fit: true })
+    expect(useAppStore.getState().held).toBe(false)
+  })
+
   it('lights a hidden link on its turn and says nothing for it', async () => {
     // **T-1989.**
     useTalkStore.setState({ flow: true })

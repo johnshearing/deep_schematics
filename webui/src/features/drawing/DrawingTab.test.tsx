@@ -232,7 +232,7 @@ beforeEach(() => {
 afterEach(() => {
   for (const name of descriptors) delete (HTMLElement.prototype as never)[name]
   useAppStore.setState({
-    activeTabId: 'ask', designators: null, byToken: new Map(), selection: null, health: null,
+    activeTabId: 'ask', designators: null, byToken: new Map(), selection: null, health: null, camera: null, held: false,
     paths: null, conductors: null, conductorsError: null,
     // The collapse is persisted, so a test that closes the list would close it for every test
     // after it — and for whoever runs the suite twice in one browser.
@@ -486,6 +486,22 @@ describe('DrawingTab', () => {
     // You do not move the sheet under someone who has just put a finger on it.
     expect(screen.getByText('11%').textContent).toBe(before)
   })
+
+  it("carries out a talk's camera, and holds it against links until follow (2026-10-11)", async () => {
+    render(<DrawingTab />)
+    activate()
+    act(() => useAppStore.getState().aim({ centre: [600, 400], percent: 40 }))
+    await waitFor(() => expect(screen.getByText('40%')).toBeTruthy(), { timeout: 4000 })
+    // Held: a link lights where the view is and does not fly to it.
+    act(() => useAppStore.getState().select('net', '110'))
+    await new Promise((r) => setTimeout(r, 600))
+    expect(screen.getByText('40%')).toBeTruthy()
+    act(() => useAppStore.getState().aim({ fit: true }))
+    await waitFor(() => expect(screen.getByText('11%')).toBeTruthy(), { timeout: 4000 })
+    act(() => useAppStore.getState().follow())
+    act(() => useAppStore.getState().select('net', '110'))
+    await waitFor(() => expect(screen.getByText('13%')).toBeTruthy(), { timeout: 4000 })
+  }, 20_000) // four real flights of ~420 ms each, and a wait that proves one did not happen
 
   it('flies to a citation raised by an answer, and names what the net runs through', async () => {
     render(<DrawingTab />)

@@ -312,6 +312,28 @@ describe('marked pauses and hidden links (talkthrough_03.md §6B)', () => {
     ])
   })
 
+  it('reads the camera: ztf, ztp, coc with an optional zoom, and follow (2026-10-11)', () => {
+    const cam = (camera: unknown) => note('', { hidden: true, camera: camera as never })
+    expect(splitNotation('ztf')).toEqual(cam({ fit: true }))
+    expect(splitNotation('ZTF')).toEqual(cam({ fit: true }))
+    expect(splitNotation('ztp 150')).toEqual(cam({ centre: null, percent: 150 }))
+    expect(splitNotation('ztp 37.5%')).toEqual(cam({ centre: null, percent: 37.5 }))
+    expect(splitNotation('coc 594.1 241.5')).toEqual(cam({ centre: [594.1, 241.5], percent: null }))
+    expect(splitNotation('coc 594, 241 150%')).toEqual(cam({ centre: [594, 241], percent: 150 }))
+    expect(splitNotation('follow')).toEqual(cam('follow'))
+    expect(splitNotation('ztp')).toEqual(note('ztp')) // no number: not a command
+    const talk = buildTalk('Look `ztp 150` at `PB1` then `follow` done.', byToken, true)
+    expect(talk.sentences[0].segments.map((g) => [g.show, g.camera ?? null, g.cite?.id ?? null])).toEqual([
+      ['Look ', null, null],
+      ['', { centre: null, percent: 150 }, null],
+      [' at ', null, null],
+      ['PB1 then ', null, 'PB1'],
+      ['', 'follow', null],
+      [' done.', null, null],
+    ])
+    expect(shown(talk)).toEqual(['Look  at PB1 then  done.'])
+  })
+
   it('takes a span that resolves as written as a token, never as notation', () => {
     // **T-1980**, continued: an id with `~` or a leading `@` on drawing two still works.
     expect(readSpan('@X ~', (t) => t === '@X ~')).toEqual(note('@X ~'))

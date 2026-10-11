@@ -52,6 +52,12 @@ can be executed with nothing else open.
   clicked; the card still lists its wires. And a **timed pause**, a span that is only seconds
   (`` `2s` ``, `` `.5s` ``, `` `1.5s` ``), waits exactly that long holding what is lit, whatever
   the palette's *Pause* says (Off and *press* included). The Ask tab's help names both. Rebuild only.
+- **2026-10-11, my request:** a talk's **camera**: `` `ztf` `` zooms to fit, `` `ztp 150` `` zooms
+  to the toolbar's 150% where it is, `` `coc 594 241` `` centres on PDF points (the Locate cards'
+  numbers) with an optional zoom (`` `coc 594 241 150` ``). Each **holds the view**: later links
+  light without flying until `` `follow` ``, a reader's click, or the talk's end. And a **splitter**
+  on the Ask tab between the answer and the tools below it, remembered; double-click resets.
+  Rebuild only.
 
 What is left in `talkthrough_03.md`, in order, one session each:
 

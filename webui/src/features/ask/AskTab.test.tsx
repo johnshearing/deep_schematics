@@ -306,6 +306,20 @@ describe('keeping and reopening (talkthrough_03.md §7)', () => {
     expect(said).not.toMatch(/ink|<!--/)
   })
 
+  it('puts a splitter above the tools: arrow keys move it, it is remembered, double-click resets', () => {
+    // 2026-10-11: more room for editing a long answer with Past answers open.
+    useChatStore.setState({ messages: [{ id: 'u1', role: 'user', text: 'Q', status: 'done' } as Message] })
+    render(<AskTab />)
+    const splitter = screen.getByRole('separator', { name: /Resize the answer/ })
+    expect(splitter.dataset.askSplitter).toBe('auto')
+    fireEvent.keyDown(splitter, { key: 'ArrowUp' })
+    expect(Number(splitter.dataset.askSplitter)).toBeGreaterThan(0)
+    expect(localStorage.getItem('swui.ask.lowerHeight')).toBe(splitter.dataset.askSplitter)
+    fireEvent.doubleClick(splitter)
+    expect(splitter.dataset.askSplitter).toBe('auto')
+    expect(localStorage.getItem('swui.ask.lowerHeight')).toBeNull()
+  })
+
   it('lists past answers only for the editor', () => {
     const { container } = render(<AskTab />)
     expect(container.querySelector('details')).toBeNull()

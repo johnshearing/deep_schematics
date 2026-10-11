@@ -231,12 +231,12 @@ export function useTileViewport({ width, height, dpi }: Options) {
    * this feature exists to remove. `prefers-reduced-motion` gets the jump.
    */
   const panTo = useCallback(
-    (rect: Rect) => {
+    (rect: Rect, at?: number) => {
       const element = ref.current
       const from = viewportRef.current
       if (!element || !(from.scale > 0)) return
       const container = { width: element.clientWidth, height: element.clientHeight }
-      const scale = clampScale(focusScale(rect, container, nativeScale))
+      const scale = clampScale(at ?? focusScale(rect, container, nativeScale))
       const target = clampPan(centreOn(rect, container, scale))
 
       stopAnimation()
@@ -468,6 +468,25 @@ export function useTileViewport({ width, height, dpi }: Options) {
     fit,
     /** Fly to a rectangle in PDF points. What a citation and a marker both end up calling. */
     panTo,
+    /**
+     * A talk's camera (`` `ztf` ``, `` `ztp 150` ``, `` `coc 594 241 150` ``, asked 2026-10-11):
+     * fly to the whole sheet, or to a centre in PDF points and a zoom in the toolbar's percent,
+     * either one keeping what it does not name. The same flight as `panTo`, so it eases.
+     */
+    aim: (view: { fit?: boolean; centre?: [number, number] | null; percent?: number | null }) => {
+      const element = ref.current
+      const now = viewportRef.current
+      if (!element || !(now.scale > 0)) return
+      const cw = element.clientWidth
+      const ch = element.clientHeight
+      if (view.fit) {
+        const scale = Math.min((cw - PAD * 2) / width, (ch - PAD * 2) / height)
+        if (scale > 0) panTo([width / 2, height / 2, width / 2, height / 2], scale)
+        return
+      }
+      const [x, y] = view.centre ?? [(cw / 2 - now.x) / now.scale, (ch / 2 - now.y) / now.scale]
+      panTo([x, y, x, y], view.percent ? (nativeScale * view.percent) / 100 : now.scale)
+    },
     zoomIn: () => zoomBy(BUTTON_STEP),
     zoomOut: () => zoomBy(1 / BUTTON_STEP),
     handlers: {

@@ -232,6 +232,13 @@ export const useTalkStore = create<TalkState>()(
       }
 
       const highlight = (pos: Pos) => {
+        const camera = segmentAt(pos)?.camera
+        if (camera) {
+          const app = useAppStore.getState()
+          if (camera === 'follow') app.follow()
+          else app.aim(camera)
+          return set({ shown: true })
+        }
         const cite = segmentAt(pos)?.cite
         if (!cite) return
         const app = useAppStore.getState()
@@ -255,9 +262,9 @@ export const useTalkStore = create<TalkState>()(
           if (!segment) return
 
           // A bare pause lights nothing, so what is lit holds; `shown` still says it was waited at.
-          if ((segment.cite || segment.pause) && !shown) {
+          if ((segment.cite || segment.pause || segment.camera) && !shown) {
             set({ phase: 'highlighting' })
-            if (segment.cite) highlight(pos)
+            if (segment.cite || segment.camera) highlight(pos)
             else set({ shown: true })
             set({ phase: 'dwelling' })
             if (dwellsAt(segment, get())) {
@@ -299,7 +306,7 @@ export const useTalkStore = create<TalkState>()(
 
           const hold = !get().shown && dwellsAt(segments[pos.g], get())
           set({ phase: hold ? 'highlighting' : 'speaking' })
-          if (segments[pos.g].cite && !get().shown) highlight(pos)
+          if ((segments[pos.g].cite || segments[pos.g].camera) && !get().shown) highlight(pos)
           if (hold) {
             set({ phase: 'dwelling', shown: true })
             const ms = waitAt(segments[pos.g], dwell)
@@ -394,6 +401,7 @@ export const useTalkStore = create<TalkState>()(
           if (empty) return
           built = { span: span ?? null, questionFirst: get().questionFirst }
           const gen = interrupt()
+          useAppStore.getState().follow() // a talk starts with links flying, whatever the last one left
           set({ messageId: message.id, talk, pos: { s: 0, g: 0 }, shown: false, phase: 'highlighting', partial })
           useAppStore.getState().setActiveTab(DRAWING_TAB_ID)
           void go(gen)
@@ -455,6 +463,7 @@ export const useTalkStore = create<TalkState>()(
         exit: () => {
           if (get().phase === 'idle') return
           interrupt()
+          useAppStore.getState().follow()
           set({ phase: 'idle', talk: null, messageId: null, pos: { s: 0, g: 0 }, shown: false })
         },
 

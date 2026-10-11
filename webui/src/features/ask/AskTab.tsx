@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react'
 import { RotateCcw } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -37,11 +37,48 @@ const view = { top: 0, pinned: true }
 /** How close to the bottom still counts as "following the stream". */
 const PINNED_SLACK = 80
 
+/** Where the splitter's height is remembered, and its bounds in CSS pixels. */
+const LOWER_KEY = 'swui.ask.lowerHeight'
+const LOWER_MIN = 90
+const UPPER_MIN = 120
+
+function storedLower(): number | null {
+  const n = Number(localStorage.getItem(LOWER_KEY))
+  return n > 0 ? n : null
+}
+
+/**
+ * **The splitter between the answer and the tools below it** (asked 2026-10-11): editing a long
+ * answer wants the screen, and *Past answers* with a turn open takes half of it. Drag it, or use
+ * the arrow keys on it; a double-click gives the lower area back its natural height. Remembered
+ * across reloads, because it is a choice about how this screen is used, not a moment of one.
+ */
+function useLowerHeight(outer: RefObject<HTMLDivElement | null>) {
+  const [lower, setLower] = useState<number | null>(storedLower)
+  const keep = (next: number | null) => {
+    const box = outer.current?.getBoundingClientRect()
+    const clamped =
+      next === null || !box ? next : Math.round(Math.max(LOWER_MIN, Math.min(box.height - UPPER_MIN, next)))
+    setLower(clamped)
+    if (clamped === null) localStorage.removeItem(LOWER_KEY)
+    else localStorage.setItem(LOWER_KEY, String(clamped))
+  }
+  const fromPointer = (event: PointerEvent<HTMLDivElement>) => {
+    const box = outer.current?.getBoundingClientRect()
+    if (box) keep(box.bottom - event.clientY)
+  }
+  return { lower, keep, fromPointer }
+}
+
 export function AskTab() {
   const { messages, busy, sessionCostUsd, reset } = useChatStore()
   const drawing = useAppStore((s) => s.drawing)
   const bottom = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  const outer = useRef<HTMLDivElement>(null)
+  const lowerBox = useRef<HTMLDivElement>(null)
+  const { lower, keep, fromPointer } = useLowerHeight(outer)
+  const [dragging, setDragging] = useState(false)
 
   // Follow the stream, but stop following the moment the reader scrolls up — they are
   // probably re-reading the probe sequence while the rest arrives.
@@ -77,7 +114,7 @@ export function AskTab() {
   }, [messages])
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div ref={outer} className="flex h-full min-h-0 flex-col">
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-5 px-4 py-5">
           {messages.length === 0 ? (
@@ -119,7 +156,41 @@ export function AskTab() {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-3xl">
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize the answer and the tools below it"
+        title="Drag to give the answer more room · double-click to reset"
+        tabIndex={0}
+        data-ask-splitter={lower ?? 'auto'}
+        className={
+          'group flex h-2 shrink-0 cursor-row-resize touch-none items-center justify-center border-t ' +
+          (dragging ? 'bg-accent' : 'hover:bg-accent focus-visible:bg-accent focus-visible:outline-none')
+        }
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture?.(event.pointerId)
+          setDragging(true)
+        }}
+        onPointerMove={(event) => dragging && fromPointer(event)}
+        onPointerUp={() => setDragging(false)}
+        onPointerCancel={() => setDragging(false)}
+        onDoubleClick={() => keep(null)}
+        onKeyDown={(event) => {
+          const now = lower ?? lowerBox.current?.getBoundingClientRect().height ?? 0
+          if (event.key === 'ArrowUp') keep(now + 24)
+          else if (event.key === 'ArrowDown') keep(now - 24)
+          else return
+          event.preventDefault()
+        }}
+      >
+        <span className="h-0.5 w-10 rounded bg-border group-hover:bg-muted-foreground" />
+      </div>
+
+      <div
+        ref={lowerBox}
+        className="mx-auto w-full max-w-3xl shrink-0 overflow-y-auto"
+        style={lower === null ? undefined : { height: lower }}
+      >
         <AskTools />
         <Composer />
       </div>
@@ -199,7 +270,11 @@ function Intro({
         leading <code>{'@'}</code>, <code>{'`@CB1`'}</code>, lights it and flies there without showing or
         saying it. A trailing <code>{'.'}</code>, <code>{'`CB1:2 .`'}</code>, lights a terminal alone,
         without the wires that reach it. A number of seconds alone, <code>{'`1.5s`'}</code>, waits
-        exactly that long holding what is lit, whatever <em>Pause</em> is set to.{' '}
+        exactly that long holding what is lit, whatever <em>Pause</em> is set to. The camera:{' '}
+        <code>{'`ztf`'}</code> zooms to fit the sheet, <code>{'`ztp 150`'}</code> zooms to 150% where it
+        is, and <code>{'`coc 594 241`'}</code> centres on those PDF points (the Locate tab&apos;s
+        numbers), with an optional zoom, <code>{'`coc 594 241 150`'}</code>. Each holds the view, so
+        later links light without flying, until <code>{'`follow`'}</code>.{' '}
         <code>{'<!-- a note -->'}</code> anywhere in an edit is kept with it, for the record of why
         you changed it, and is never shown, said or copied. With{' '}
         <em>Show spoken text</em> on, <em>Say it as…</em> in the palette saves a pronunciation for this

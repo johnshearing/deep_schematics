@@ -649,10 +649,20 @@ export function DrawingTab() {
 
   useEffect(() => {
     const target = focusRef.current
-    if (!ready || !target || selection?.origin === 'drawing') return
+    // A talk's camera command holds the view: the link lights where it is, without a flight.
+    if (!ready || !target || selection?.origin === 'drawing' || useAppStore.getState().held) return
     panTo.current(target)
     // The nonce is what makes a repeat of the same citation count as a new instruction.
   }, [ready, selection?.nonce, selection?.origin])
+
+  /** A talk's camera command (`` `ztf` ``, `` `ztp 150` ``, `` `coc 594 241 150` ``), 2026-10-11. */
+  const camera = useAppStore((s) => s.camera)
+  const aim = useRef(viewer.aim)
+  aim.current = viewer.aim
+  useEffect(() => {
+    if (!ready || !camera) return
+    aim.current(camera)
+  }, [ready, camera])
 
   /**
    * **Escape is the ✕ on the selection card.** Nothing selected, no ring, no card.

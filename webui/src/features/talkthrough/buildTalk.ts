@@ -41,6 +41,9 @@ export interface Segment {
   /** A timed pause (`` `1.5s` ``), in ms: waited this long whatever the palette says. Always on a
    * bare pause segment, so it lights nothing and holds what is lit. */
   wait?: number
+  /** A camera command, carried out when the segment is reached (2026-10-11). Always on a
+   * segment of its own, with nothing shown or said and no cite. */
+  camera?: Notation['camera']
   /** Fires before `say`. Absent on text before the first link, and on a repeat (rule 7). */
   cite?: Cite
   /** The link this segment starts with, as written — present on a repeat too, so the set of
@@ -288,7 +291,12 @@ export function buildTalk(
           link = { token, entry, note }
           continue
         }
-        // Not a link. A pause still falls here, as a segment of its own (a bare `` `~` `` always).
+        // Not a link. A pause still falls here, as a segment of its own (a bare `` `~` `` always),
+        // and so does a camera command.
+        if (note.camera) {
+          close()
+          segments.push({ show: '', say: '', camera: note.camera })
+        }
         if (note.pause) {
           close()
           segments.push({ show: '', say: '', pause: true, ...(note.wait !== null ? { wait: note.wait } : {}) })
